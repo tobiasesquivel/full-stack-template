@@ -34,7 +34,7 @@ public sealed class NamingAnalyzer : DiagnosticAnalyzer
     {
         var declaration = (BaseTypeDeclarationSyntax)context.Node;
         var path = DunePaths.Normalize(declaration.SyntaxTree.FilePath);
-        if (!DunePaths.IsBackendFile(path) || DunePaths.IsMigration(path))
+        if (!DunePaths.IsBackendFile(path) || DunePaths.IsMigration(path) || DunePaths.IsTestsFile(path))
         {
             return;
         }

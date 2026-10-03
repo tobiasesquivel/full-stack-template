@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsTestProject>true</IsTestProject>
+    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.9.0" />
+    <PackageReference Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" Version="5.6.0" />
+    <Reference Include="Microsoft.CodeAnalysis.BannedApiAnalyzers">
+      <HintPath>$(NuGetPackageRoot)microsoft.codeanalysis.bannedapianalyzers/5.6.0/analyzers/dotnet/cs/Microsoft.CodeAnalysis.BannedApiAnalyzers.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Reference Include="Microsoft.CodeAnalysis.CSharp.BannedApiAnalyzers">
+      <HintPath>$(NuGetPackageRoot)microsoft.codeanalysis.bannedapianalyzers/5.6.0/analyzers/dotnet/cs/Microsoft.CodeAnalysis.CSharp.BannedApiAnalyzers.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />
+    <PackageReference Include="xunit.v3" Version="4.0.1" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="4.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Dune.Analyzers\Dune.Analyzers.csproj" />
+  </ItemGroup>
+
+</Project>
