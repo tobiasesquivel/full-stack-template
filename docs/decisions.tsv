@@ -1,0 +1,6 @@
+ts	phase	decision	why	evidence	result
+2026-10-03	frame	Trabajar solo sobre la copia y no ejecutar dotnet hasta aviso	El original es referencia y el SDK está instalándose	local://template-run-contract.md	open
+2026-10-03	ground	Usar la semántica de autorización y perfil ya aceptada como restricción	El código no implementa los dos ADR heredados	backend/docs/adr/0001-resource-authorization.md;backend/docs/adr/0002-user-profile.md	NOT VERIFIED
+2026-10-03	baseline	Crear Git raíz y preservar el Git anidado de frontend fuera de la copia	Evitar registrar frontend como submódulo accidental	30ec217;C:/Users/Tobi/AppData/Local/Temp/hermes-bot-omp-frontend-git-20261003-1791003126112	baseline guardado
+2026-10-03	tools	Iniciar Docker Desktop sin compilar backend	Preparar los adapters de runtime mientras se instala el SDK	docker version	server 29.7.2 linux/amd64 observado
+2026-10-03	versions	Elegir .NET 10 estable y Angular 22.2.1	.NET 11 es RC y el template debe usar una versión estable	https://builds.dotnet.microsoft.com/dotnet/release-metadata/releases-index.json;https://registry.npmjs.org/@angular/core	SDK10.0.401 runtime10.0.12 Angular22.2.1 publicados
