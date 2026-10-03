@@ -1,0 +1,40 @@
+schema: spec-driven
+
+context: |
+  Project: full-stack-template (ASP.NET Clean API backend template)
+  Stack: ASP.NET Core 10, C#, MySQL (Pomelo), EF Core + Identity, JWT Bearer
+  Messaging: WolverineFx + FluentValidation
+  API: OpenAPI + Scalar
+  Logging: Serilog
+  Architecture: Feature-based folder structure (Domain/Features/Infrastructure)
+  Template: dotnet new template (sourceName: "TemplateApp", shortName: "cleanapi")
+  Testing: No test projects detected
+
+rules:
+  proposal:
+    - Include rollback plan for risky changes
+    - Respect template boundary: changes must work when sourceName is replaced
+  specs:
+    - Use Given/When/Then for scenarios
+    - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY)
+  design:
+    - Include sequence diagrams for complex flows
+    - Document architecture decisions with rationale
+    - Follow AspNetConventions.md patterns (DI in DependencyInjection.cs, Fluent API configs, etc.)
+  tasks:
+    - Group by phase, use hierarchical numbering
+    - Keep tasks completable in one session
+  apply:
+    - Follow existing code patterns from AspNetConventions.md
+    - File-scoped namespaces, nullable enabled, implicit usings
+    - Response DTOs: sealed record; Request DTOs: sealed record unless mutation needed
+    - Primary constructors for DI
+    - No repository pattern — handlers use DbContext directly
+    - tdd: false
+    test_command: ""
+  verify:
+    test_command: ""
+    build_command: "dotnet build"
+    coverage_threshold: 0
+  archive:
+    - Warn before merging destructive deltas

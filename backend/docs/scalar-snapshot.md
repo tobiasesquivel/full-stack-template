@@ -1,0 +1,232 @@
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - navigation "Sidebar for TemplateApp | v1" [ref=e5]:
+      - generic [ref=e6]:
+        - search [ref=e7] [cursor=pointer]:
+          - img [ref=e8]
+          - generic [ref=e11]:
+            - generic [ref=e12]: Open Search
+            - text: Search
+          - generic [ref=e13]:
+            - generic [ref=e14]: "Keyboard Shortcut:"
+            - generic [ref=e15]:
+              - generic [ref=e16]: CTRL
+              - text: ⌃ k
+        - button "Ask AI" [ref=e17] [cursor=pointer]:
+          - img [ref=e18]
+          - text: Ask AI
+      - list [ref=e21]:
+        - listitem [ref=e22]:
+          - button "Introduction" [ref=e23] [cursor=pointer]:
+            - generic [ref=e24]: Introduction
+        - listitem [ref=e25]:
+          - button "Test Close Group" [expanded] [ref=e27] [cursor=pointer]:
+            - generic [ref=e28]: Test
+            - generic [ref=e29]:
+              - img [ref=e30]
+              - generic [ref=e33]: Close Group
+          - list [ref=e34]:
+            - listitem [ref=e35]:
+              - 'button "/api/v1/health/test HTTP Method: GET" [ref=e36] [cursor=pointer]':
+                - generic [ref=e41]:
+                  - text: /api
+                  - text: /v1
+                  - text: /health
+                  - text: /test
+                - generic [ref=e42]:
+                  - generic [ref=e43]: "HTTP Method:"
+                  - text: GET
+        - listitem [ref=e44]:
+          - button "Auth Open Group" [ref=e46] [cursor=pointer]:
+            - generic [ref=e47]: Auth
+            - generic [ref=e48]:
+              - img [ref=e49]
+              - generic [ref=e52]: Open Group
+        - listitem [ref=e53]:
+          - button "Models Open Group" [ref=e55] [cursor=pointer]:
+            - generic [ref=e56]: Models
+            - generic [ref=e57]:
+              - img [ref=e58]
+              - generic [ref=e61]: Open Group
+      - generic [ref=e63]:
+        - generic [ref=e64]:
+          - generic [ref=e65] [cursor=pointer]:
+            - img [ref=e66]
+            - text: VS Code
+            - img [ref=e68]
+          - generic [ref=e71] [cursor=pointer]:
+            - img [ref=e72]
+            - text: Cursor
+            - img [ref=e74]
+          - generic [ref=e77]:
+            - img [ref=e78]
+            - text: Generate MCP
+            - img [ref=e82]
+        - generic [ref=e85]:
+          - link "Powered by Scalar" [ref=e87] [cursor=pointer]:
+            - /url: https://www.scalar.com
+          - button "Set dark mode" [ref=e88] [cursor=pointer]:
+            - generic "Set dark mode" [ref=e91]
+    - main "Open API Documentation for TemplateApp | v1" [ref=e98]:
+      - generic [ref=e99]:
+        - generic "Developer Tools" [ref=e100]:
+          - generic [ref=e101]:
+            - button "Developer Tools" [ref=e104] [cursor=pointer]:
+              - img [ref=e105]
+              - text: Developer Tools
+            - button "Configure" [ref=e109] [cursor=pointer]:
+              - text: Configure
+              - img [ref=e110]
+            - button "Share" [ref=e114] [cursor=pointer]:
+              - text: Share
+              - img [ref=e115]
+            - button "Deploy" [ref=e119] [cursor=pointer]:
+              - text: Deploy
+              - img [ref=e120]
+        - region "Introduction" [ref=e124]:
+          - generic [ref=e125]:
+            - generic [ref=e126]:
+              - generic [ref=e127]: v1.0.0
+              - generic [ref=e128]: OpenAPI 3.1.1
+            - heading "TemplateApp | v1" [level=1] [ref=e131]
+            - generic [ref=e133]:
+              - generic [ref=e135]:
+                - button "Download OpenAPI Document" [ref=e136] [cursor=pointer]:
+                  - generic [ref=e137]: Download OpenAPI Document
+                - button "Download OpenAPI Document" [ref=e138] [cursor=pointer]:
+                  - generic [ref=e139]: Download OpenAPI Document
+              - generic [ref=e142]:
+                - generic [ref=e143]:
+                  - generic [ref=e144]: Server
+                  - generic [ref=e146]:
+                    - generic [ref=e147]: "Server:"
+                    - generic [ref=e148]: http://localhost:5110
+                - generic [ref=e150]:
+                  - generic [ref=e151]: Client Libraries
+                  - tablist "Client Libraries" [ref=e152]:
+                    - generic [ref=e153]:
+                      - tab "Shell" [selected] [ref=e154] [cursor=pointer]:
+                        - img [ref=e156]
+                        - generic [ref=e158]: Shell
+                      - tab "Ruby" [ref=e159] [cursor=pointer]:
+                        - img [ref=e161]
+                        - generic [ref=e163]: Ruby
+                      - tab "Node.js" [ref=e164] [cursor=pointer]:
+                        - img [ref=e166]
+                        - generic [ref=e169]: Node.js
+                      - tab "PHP" [ref=e170] [cursor=pointer]:
+                        - img [ref=e172]
+                        - generic [ref=e174]: PHP
+                      - tab "Python" [ref=e175] [cursor=pointer]:
+                        - img [ref=e177]
+                        - generic [ref=e179]: Python
+                      - button "More Select from all clients" [ref=e181] [cursor=pointer]:
+                        - generic [ref=e185]: More
+                        - generic [ref=e186]: Select from all clients
+                  - tabpanel "Shell" [ref=e188]: Shell Curl
+        - region "Test" [ref=e190]:
+          - generic [ref=e193]:
+            - heading "Test" [level=2] [ref=e195]
+            - button "Copy link" [ref=e196] [cursor=pointer]:
+              - img [ref=e197]
+              - generic [ref=e200]: Copy link
+          - group "Test Operations" [ref=e205]:
+            - generic [ref=e207]:
+              - generic [ref=e208]: Test
+              - text: Operations
+            - list "Test endpoints" [ref=e210]:
+              - listitem [ref=e211]:
+                - generic [ref=e212] [cursor=pointer]:
+                  - generic [ref=e213]: get
+                  - generic [ref=e214]: /api/v1/health/test
+          - region "/api/v1/health/test" [ref=e217]:
+            - generic [ref=e218]:
+              - generic [ref=e223]:
+                - heading "/api/v1/health/test" [level=3] [ref=e225]
+                - button "Copy link" [ref=e226] [cursor=pointer]:
+                  - img [ref=e227]
+                  - generic [ref=e230]: Copy link
+              - generic [ref=e231]:
+                - generic [ref=e233]:
+                  - group "Operation Description"
+                  - generic [ref=e234]:
+                    - generic [ref=e235]: Responses
+                    - list "Responses" [ref=e236]:
+                      - listitem [ref=e237]:
+                        - generic [ref=e238]:
+                          - generic [ref=e240]: "200"
+                          - paragraph [ref=e243]: OK
+                - generic [ref=e245]:
+                  - group "Request Example for get/api/v1/health/test" [ref=e246]:
+                    - generic [ref=e247]:
+                      - generic [ref=e248]:
+                        - generic [ref=e249]: Request Example for
+                        - generic [ref=e250]: get
+                        - generic [ref=e251]: /api/v1/health/test
+                      - button "Shell Curl" [ref=e254] [cursor=pointer]:
+                        - text: Shell Curl
+                        - img [ref=e255]
+                    - generic [ref=e260]:
+                      - code [ref=e263]:
+                        - generic [ref=e264]: curl http://localhost:5110/api/v1/health/test
+                      - button [ref=e265] [cursor=pointer]:
+                        - img [ref=e266]
+                    - generic [ref=e275]:
+                      - generic [ref=e276] [cursor=pointer]:
+                        - img [ref=e277]
+                        - generic [ref=e280]: Ask AI Agent
+                        - textbox "Ask AI Agent"
+                      - button "Test Request (get /api/v1/health/test)" [ref=e281] [cursor=pointer]:
+                        - img [ref=e282]
+                        - generic [ref=e285]: Test Request
+                        - generic [ref=e286]: (get /api/v1/health/test)
+                  - 'region "Status: 200" [ref=e287]':
+                    - tablist [ref=e290]:
+                      - 'tab "Status: 200" [selected] [ref=e291] [cursor=pointer]':
+                        - generic [ref=e292]:
+                          - generic [ref=e293]: "Status:"
+                          - text: "200"
+                    - generic [ref=e295]: No Body
+                    - paragraph [ref=e299]: OK
+        - region "Auth (Collapsed)" [ref=e301]:
+          - generic [ref=e304]:
+            - heading "Auth (Collapsed)" [level=2] [ref=e306]:
+              - text: Auth
+              - generic [ref=e307]: (Collapsed)
+            - button "Copy link" [ref=e308] [cursor=pointer]:
+              - img [ref=e309]
+              - generic [ref=e312]: Copy link
+          - group "Auth Operations" [ref=e317]:
+            - generic [ref=e319]:
+              - generic [ref=e320]: Auth
+              - text: Operations
+            - list "Auth endpoints" [ref=e322]:
+              - listitem [ref=e323]:
+                - generic [ref=e324] [cursor=pointer]:
+                  - generic [ref=e325]: post
+                  - generic [ref=e326]: /api/v1/auth/login
+              - listitem [ref=e327]:
+                - generic [ref=e328] [cursor=pointer]:
+                  - generic [ref=e329]: post
+                  - generic [ref=e330]: /api/v1/auth/tokens
+              - listitem [ref=e331]:
+                - generic [ref=e332] [cursor=pointer]:
+                  - generic [ref=e333]: post
+                  - generic [ref=e334]: /api/v1/auth/register
+          - button "Show all Auth endpoints" [ref=e335] [cursor=pointer]:
+            - text: Show More
+            - img [ref=e336]
+        - region "Models" [ref=e341]:
+          - heading "Models" [level=2] [ref=e344]
+          - button "Show More" [ref=e345] [cursor=pointer]:
+            - text: Show More
+            - img [ref=e346]
+    - generic:
+      - generic:
+        - generic: Cookies
+        - generic: Headers
+        - generic: Query Parameters
+        - generic: Code Snippet
+        - text: ctrl ↵
+  - region "Notifications alt+T":
+    - list

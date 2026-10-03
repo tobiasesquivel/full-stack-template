@@ -1,0 +1,10 @@
+STATUS: partial
+SUMMARY: Completed verification for add-users-get-by-id SDD change. Implementation complies with specifications and design, but has 1 CRITICAL violation: `var` used in user-written LoginCommandHandler.cs line 39. Build passes with 0 warnings, 0 errors.
+ARTIFACTS: 
+- Engram topic_key: sdd/add-users-get-by-id/verify-report
+- OpenSpec path: openspec/changes/add-users-get-by-id/verify-report.md
+- File written: verify-report.md
+- Engram memory saved with capture_prompt: false
+NEXT RECOMMENDED: sdd-archive (after fixing CRITICAL issue) or sdd-propose (if another change is needed)
+RISKS: 1 CRITICAL convention violation blocks full compliance; ready for remediation
+SKILL RESOLUTION: paths-injected — only SDD verification skill loaded
