@@ -1,0 +1,54 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+[*.{cs,csproj,props,targets,slnx}]
+indent_size = 4
+
+[*.{js,mjs,cjs,ts,json}]
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false
+
+# Dune diagnostics fail the build. No per-rule suppression is accepted to
+# hide a defect; each rule documents its exact historical exception where one
+# exists (migrations keep their historical namespaces and source).
+dotnet_diagnostic.DUNE0001.severity = error
+dotnet_diagnostic.DUNE0002.severity = error
+dotnet_diagnostic.DUNE0003.severity = error
+dotnet_diagnostic.DUNE0004.severity = error
+dotnet_diagnostic.DUNE0005.severity = error
+dotnet_diagnostic.DUNE0006.severity = error
+dotnet_diagnostic.DUNE0007.severity = error
+dotnet_diagnostic.DUNE0008.severity = error
+
+# Banned APIs are errors. RS0030 covers every BannedSymbols.txt entry by its
+# resolved symbol, so aliases and qualified names report the same violation.
+dotnet_diagnostic.RS0030.severity = error
+dotnet_diagnostic.RS0031.severity = error
+dotnet_diagnostic.RS0032.severity = error
+dotnet_diagnostic.RS0033.severity = error
+dotnet_diagnostic.RS0034.severity = error
+
+# Keep the async pipeline honest without a boolean strictness switch.
+dotnet_diagnostic.CA1849.severity = error
+dotnet_diagnostic.CA1031.severity = suggestion
+dotnet_diagnostic.CA1034.severity = suggestion
+dotnet_diagnostic.CA1062.severity = none
+dotnet_diagnostic.CA1515.severity = suggestion
+dotnet_diagnostic.CA1716.severity = suggestion
+dotnet_diagnostic.CA1724.severity = suggestion
+dotnet_diagnostic.CA1725.severity = suggestion
+dotnet_diagnostic.CA1805.severity = suggestion
+dotnet_diagnostic.CA1861.severity = none
+dotnet_diagnostic.CA2000.severity = suggestion
+dotnet_diagnostic.CA1024.severity = suggestion
+dotnet_diagnostic.CA1305.severity = suggestion
+dotnet_diagnostic.CA1307.severity = suggestion
