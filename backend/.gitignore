@@ -1,0 +1,27 @@
+## .NET ##
+/bin/
+/obj/
+*.user
+*.suo
+*.DotSettings
+*.swp
+*.swo
+
+## Node ##
+node_modules/
+npm-debug.log*
+
+## IDE ##
+.vscode/
+.idea/
+*.DS_Store
+
+## Wolverine (allow generated code to be tracked) ##
+!Infrastructure/Wolverine/Generated/
+Infrastructure/Wolverine/Generated/*
+
+## Playwright MCP artifacts ##
+!.playwright-mcp/
+.playwright-mcp/*
+# Local AI runtime state
+.atl/

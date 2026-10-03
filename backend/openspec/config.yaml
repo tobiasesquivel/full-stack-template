@@ -1,0 +1,57 @@
+schema: spec-driven
+
+context: |
+  Tech stack: .NET 10, ASP.NET Core, C# (file-scoped namespaces, nullable, implicit usings)
+  Architecture: Feature-based CQRS with WolverineFx + ErrorOr + FluentValidation
+  Persistence: Entity Framework Core 10 + Npgsql PostgreSQL provider
+  Auth: ASP.NET Core Identity + JWT Bearer (HMAC-SHA256) + refresh token rotation
+  Logging: Serilog | API docs: Scalar OpenAPI
+  Delivery: single-pr, review budget 400 lines
+
+strict_tdd: false
+testing:
+  test_runner: none
+  framework: none
+  layers:
+    unit: false
+    integration: false
+    e2e: false
+  coverage:
+    available: false
+  quality_tools:
+    linter: false
+    type_checker: false
+    formatter: false
+
+rules:
+  proposal:
+    - Include rollback plan for risky changes
+    - Reference existing archived changes when relevant
+  specs:
+    - Use Given/When/Then for scenarios
+    - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY)
+    - Reference existing specs in openspec/specs/ before adding new domains
+  design:
+    - Follow existing architecture: Feature folders, partial controllers, ErrorOr flow control
+    - No repository pattern — handlers use DbContext directly
+    - Controllers inject IMessageBus only, no direct service injection
+  tasks:
+    - Group by phase, use hierarchical numbering
+    - Keep tasks completable in one session
+    - One partial controller method per endpoint file
+  apply:
+    - Follow coding conventions from docs/AspNetConventions.md
+    - No var — use explicit types
+    - No data annotations — FluentValidation only
+    - ErrorOr suffix on ErrorOr<T> variables; Result suffix reserved for query DTOs
+    - Response DTOs are sealed record
+    - DateTime.UtcNow for timestamps, never DateTime.Now
+    tdd: false
+    test_command: ""
+  verify:
+    test_command: ""
+    build_command: "dotnet build"
+    coverage_threshold: 0
+  archive:
+    - Warn before merging destructive deltas
+    - Preserve archived change folders as audit trail
