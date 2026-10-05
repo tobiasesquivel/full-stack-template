@@ -1,0 +1,64 @@
+services:
+  db:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-templateapp}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Define POSTGRES_PASSWORD en .env}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-postgres} -d $${POSTGRES_DB:-templateapp}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  otel:
+    image: otel/opentelemetry-collector-contrib:0.162.0
+    restart: unless-stopped
+    command: ["--config", "/etc/otelcol-contrib/config.yaml"]
+    volumes:
+      - ./deploy/otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml:ro
+      - ${OTEL_EXPORT_DIR:-./otel-export}:/otel-export
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      otel:
+        condition: service_started
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__DefaultConnection: Host=db;Port=5432;Database=${POSTGRES_DB:-templateapp};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:?Define POSTGRES_PASSWORD en .env}
+      Jwt__Key: ${JWT_KEY:?Define JWT_KEY de 32+ caracteres en .env}
+      Jwt__Issuer: ${JWT_ISSUER:-https://api.templateapp.com}
+      Jwt__Audience: ${JWT_AUDIENCE:-api://default}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel:4318
+    ports:
+      - "${API_PORT:-8080}:8080"
+
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_started
+    ports:
+      - "${WEB_PORT:-8081}:8080"
+
+volumes:
+  pgdata:
