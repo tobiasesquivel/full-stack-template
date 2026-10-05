@@ -4,6 +4,10 @@
 
 Accepted
 
+## Supersesión parcial
+
+[ADR-0003](0003-full-stack-template-dune.md) conserva el perfil separado, el nombre de login canónico en Identity, `Auth.ProfileMissing` y las cascadas. Sustituye la transacción ambient de Wolverine por una transacción explícita en `AuthModule`. El contrato vigente usa `AuthResponse.User`, no `UserInfo`. Las consecuencias originales siguientes son evidencia histórica, no instrucciones vigentes.
+
 ## Context
 
 El template mantenía dos representaciones del usuario sincronizadas a mano: `AppIdentityUser :

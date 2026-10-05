@@ -1,40 +1,33 @@
 schema: spec-driven
 
 context: |
-  Project: full-stack-template (ASP.NET Clean API backend template)
-  Stack: ASP.NET Core 10, C#, MySQL (Pomelo), EF Core + Identity, JWT Bearer
-  Messaging: WolverineFx + FluentValidation
-  API: OpenAPI + Scalar
-  Logging: Serilog
-  Architecture: Feature-based folder structure (Domain/Features/Infrastructure)
-  Template: dotnet new template (sourceName: "TemplateApp", shortName: "cleanapi")
-  Testing: No test projects detected
+  TemplateApp is a full-stack Git template monorepo.
+  Backend: ASP.NET Core 10, EF Core + Npgsql PostgreSQL, Identity, ErrorOr, FluentValidation.
+  Features: Auth, Users, Tasks, Health with direct modules and minimal endpoints.
+  Frontend: Angular 22, same-origin /api/v1, in-memory access token and HttpOnly refresh cookie.
+  Operations: PostgreSQL 18, Docker Compose, Serilog OTLP logs, OpenTelemetry metrics and traces.
+  Architecture: docs/adr/0003-full-stack-template-dune.md and docs/architecture.md.
+  Active contracts exist only in openspec/specs. changes/archive is historical evidence.
+  Backend compilation and runtime are NOT VERIFIED in the documentation delivery; the integrator reports SDK 10.0.401 available for subsequent verification.
 
 rules:
   proposal:
-    - Include rollback plan for risky changes
-    - Respect template boundary: changes must work when sourceName is replaced
+    - Describe the observable change, affected contracts, and migration risks.
+    - Preserve data and archived evidence. Do not introduce compatibility shims.
   specs:
-    - Use Given/When/Then for scenarios
-    - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY)
+    - Use RFC 2119 requirements and Given/When/Then scenarios.
+    - Describe behavior across HTTP and persistence, not incidental source strings.
   design:
-    - Include sequence diagrams for complex flows
-    - Document architecture decisions with rationale
-    - Follow AspNetConventions.md patterns (DI in DependencyInjection.cs, Fluent API configs, etc.)
+    - Follow docs/architecture.md and docs/conventions.md.
+    - Keep endpoints thin and feature implementations local. No mediator or generic repository.
   tasks:
-    - Group by phase, use hierarchical numbering
-    - Keep tasks completable in one session
+    - Deliver backend, frontend, tests, and spec atomically for a contract change.
+    - Do not impose a line-count budget on a PR.
   apply:
-    - Follow existing code patterns from AspNetConventions.md
-    - File-scoped namespaces, nullable enabled, implicit usings
-    - Response DTOs: sealed record; Request DTOs: sealed record unless mutation needed
-    - Primary constructors for DI
-    - No repository pattern — handlers use DbContext directly
-    - tdd: false
-    test_command: ""
+    - Keep feature tests physically colocated and excluded from production compilation.
+    - Delegates do not run checks mid-flight. The integrator verifies after all slices land.
   verify:
-    test_command: ""
-    build_command: "dotnet build"
-    coverage_threshold: 0
+    - Report only executed checks and observed results. Separate intended gates from evidence.
+    - Exercise real PostgreSQL, browser behavior, and exported telemetry.
   archive:
-    - Warn before merging destructive deltas
+    - Preserve prior contracts and state which active requirements supersede them.
