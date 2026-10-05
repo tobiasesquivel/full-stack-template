@@ -20,20 +20,23 @@ public sealed class EndpointLayerAnalyzer : DiagnosticAnalyzer
         context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
         context.EnableConcurrentExecution();
         context.RegisterSyntaxNodeAction(AnalyzeMember, SyntaxKind.SimpleMemberAccessExpression);
+        context.RegisterSyntaxNodeAction(AnalyzeMember, SyntaxKind.AliasQualifiedName);
         context.RegisterSyntaxNodeAction(AnalyzeObjectCreation, SyntaxKind.ObjectCreationExpression);
         context.RegisterSyntaxNodeAction(AnalyzeIdentifier, SyntaxKind.IdentifierName);
     }
 
     private static void AnalyzeMember(SyntaxNodeAnalysisContext context)
     {
-        var access = (MemberAccessExpressionSyntax)context.Node;
-        var path = DunePaths.Normalize(access.SyntaxTree.FilePath);
+        var path = DunePaths.Normalize(context.Node.SyntaxTree.FilePath);
         if (!IsEndpoint(path))
         {
             return;
         }
 
-        var symbol = context.SemanticModel.GetSymbolInfo(access, context.CancellationToken).Symbol;
+        // AliasQualifiedName (EF::DbSet<T>, Identity::UserManager<TUser>) is a
+        // distinct syntax kind from SimpleMemberAccessExpression; resolving the
+        // whole node surfaces the bound symbol through the alias.
+        var symbol = context.SemanticModel.GetSymbolInfo(context.Node, context.CancellationToken).Symbol;
         if (symbol is null)
         {
             return;
@@ -43,7 +46,7 @@ public sealed class EndpointLayerAnalyzer : DiagnosticAnalyzer
         {
             context.ReportDiagnostic(Diagnostic.Create(
                 DuneDiagnostics.EndpointPersistence,
-                access.GetLocation(),
+                context.Node.GetLocation(),
                 symbol.ToDisplayString()));
         }
     }
