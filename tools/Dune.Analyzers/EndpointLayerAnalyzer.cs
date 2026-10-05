@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -28,7 +29,7 @@ public sealed class EndpointLayerAnalyzer : DiagnosticAnalyzer
     private static void AnalyzeMember(SyntaxNodeAnalysisContext context)
     {
         var path = DunePaths.Normalize(context.Node.SyntaxTree.FilePath);
-        if (!IsEndpoint(path))
+        if (!IsEndpointContext(context, path))
         {
             return;
         }
@@ -55,7 +56,7 @@ public sealed class EndpointLayerAnalyzer : DiagnosticAnalyzer
     {
         var creation = (ObjectCreationExpressionSyntax)context.Node;
         var path = DunePaths.Normalize(creation.SyntaxTree.FilePath);
-        if (!IsEndpoint(path))
+        if (!IsEndpointContext(context, path))
         {
             return;
         }
@@ -83,7 +84,7 @@ public sealed class EndpointLayerAnalyzer : DiagnosticAnalyzer
 
         var identifier = (IdentifierNameSyntax)context.Node;
         var path = DunePaths.Normalize(identifier.SyntaxTree.FilePath);
-        if (!IsEndpoint(path))
+        if (!IsEndpointContext(context, path))
         {
             return;
         }
@@ -104,4 +105,36 @@ public sealed class EndpointLayerAnalyzer : DiagnosticAnalyzer
         && !DunePaths.IsMigration(path)
         && !DunePaths.IsTestsFile(path)
         && DunePaths.IsEndpointFile(path, System.IO.Path.GetFileName(path));
+
+    private static bool IsEndpointContext(SyntaxNodeAnalysisContext context, string path)
+    {
+        if (IsEndpoint(path))
+        {
+            return true;
+        }
+
+        if (!DunePaths.IsBackendFile(path)
+            || DunePaths.IsMigration(path)
+            || DunePaths.IsTestsFile(path)
+            || !DunePaths.ContainsOrdinal(path, "/Features/"))
+        {
+            return false;
+        }
+
+        return IsInsideEndpointDeclaration(context.ContainingSymbol);
+    }
+
+    private static bool IsInsideEndpointDeclaration(ISymbol? symbol)
+    {
+        for (var current = symbol; current is not null; current = current.ContainingSymbol)
+        {
+            if (current is INamedTypeSymbol type
+                && type.Name.IndexOf("Endpoint", StringComparison.Ordinal) >= 0)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 }

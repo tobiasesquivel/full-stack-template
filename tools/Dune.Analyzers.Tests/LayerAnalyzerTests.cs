@@ -232,4 +232,62 @@ public sealed class LayerAnalyzerTests
 
         Assert.DoesNotContain(diagnostics, diagnostic => diagnostic.Id == "DUNE0004");
     }
+
+    [Fact]
+    public async Task EndpointInMixedFileAcceptsModuleEfWhileAdapterStaysClean()
+    {
+        var diagnostics = await AnalyzerHost.AnalyzeAsync(
+            new List<(string, string)>
+            {
+                ("backend/Features/Tasks/CreateTask.cs", """
+                    using Microsoft.EntityFrameworkCore;
+                    namespace TemplateApp.Features.Tasks;
+                    public sealed partial class TasksModule
+                    {
+                        private sealed class Store : DbContext
+                        {
+                            public Store(DbContextOptions<Store> options) : base(options) { }
+                        }
+                        private void Touch(Store store) => _ = store;
+                    }
+                    public static partial class TasksEndpoints
+                    {
+                        public static string Ping() => "pong";
+                    }
+                    """),
+            },
+            AnalyzerHost.Only<EndpointLayerAnalyzer>());
+
+        Assert.DoesNotContain(diagnostics, diagnostic => diagnostic.Id == "DUNE0002");
+    }
+
+    [Fact]
+    public async Task EndpointInMixedFileRejectsPersistenceInsideEndpointDeclaration()
+    {
+        var diagnostics = await AnalyzerHost.AnalyzeAsync(
+            new List<(string, string)>
+            {
+                ("backend/Features/Tasks/CreateTask.cs", """
+                    using Microsoft.EntityFrameworkCore;
+                    namespace TemplateApp.Features.Tasks;
+                    public sealed partial class TasksModule
+                    {
+                        public void Touch(DbContext context) => _ = context;
+                    }
+                    public static partial class TasksEndpoints
+                    {
+                        public sealed class Nested
+                        {
+                            public void Map(DbContext context) => _ = context;
+                        }
+                    }
+                    """),
+            },
+            AnalyzerHost.Only<EndpointLayerAnalyzer>());
+
+        var violation = Assert.Single(diagnostics, diagnostic => diagnostic.Id == "DUNE0002");
+        var lineSpan = violation.Location.GetLineSpan();
+        Assert.Equal("backend/Features/Tasks/CreateTask.cs", lineSpan.Path.Replace('\\', '/'));
+        Assert.Equal(10, lineSpan.StartLinePosition.Line);
+    }
 }

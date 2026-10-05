@@ -22,21 +22,6 @@ export interface TokenResponse {
   accessTokenExpiresAt: string;
 }
 
-export interface TaskResponse {
-  id: string;
-  title: string;
-  isCompleted: boolean;
-  createdAt: string;
-  updatedAt: string | null;
-}
-
-export interface PagedResponse<T> {
-  items: T[];
-  totalCount: number;
-  page: number;
-  pageSize: number;
-}
-
 export interface ProblemDetails {
   title?: string;
   detail?: string;
@@ -53,9 +38,4 @@ export interface RegisterPayload {
 export interface UpdateProfilePayload {
   displayName: string;
   timezone: string;
-}
-
-export interface UpdateTaskPayload {
-  title: string;
-  isCompleted: boolean;
 }

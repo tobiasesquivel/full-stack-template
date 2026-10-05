@@ -1,15 +1,15 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
-import type { PagedResponse, TaskResponse, UpdateTaskPayload } from './api-models';
+import type { TaskListResponse, TaskResponse, UpdateTaskPayload } from './tasks-models';
 
 @Injectable({ providedIn: 'root' })
 export class TasksService {
   private readonly http = inject(HttpClient);
 
-  list(page: number, pageSize: number): Promise<PagedResponse<TaskResponse>> {
+  list(page: number, pageSize: number): Promise<TaskListResponse> {
     const params = new HttpParams().set('page', String(page)).set('pageSize', String(pageSize));
-    return firstValueFrom(this.http.get<PagedResponse<TaskResponse>>('/api/v1/tasks', { params }));
+    return firstValueFrom(this.http.get<TaskListResponse>('/api/v1/tasks', { params }));
   }
 
   create(title: string): Promise<TaskResponse> {
