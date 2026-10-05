@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Testcontainers.PostgreSql;
 using TemplateApp.Infrastructure.Persistence;
@@ -50,18 +49,12 @@ public sealed class ApiFixture : IAsyncLifetime
         {
             builder.UseEnvironment("Testing");
 
-            builder.ConfigureAppConfiguration((_, config) =>
-            {
-                config.AddInMemoryCollection(new Dictionary<string, string?>
-                {
-                    ["ConnectionStrings:DefaultConnection"] = connectionString,
-                    ["Jwt:Key"] = jwtKey,
-                    ["Jwt:Issuer"] = "https://tests.templateapp.local",
-                    ["Jwt:Audience"] = "api://tests",
-                    ["Jwt:AccessTokenExpirationMinutes"] = "15",
-                    ["Jwt:RefreshTokenExpirationDays"] = "7",
-                });
-            });
+            builder.UseSetting("ConnectionStrings:DefaultConnection", connectionString);
+            builder.UseSetting("Jwt:Key", jwtKey);
+            builder.UseSetting("Jwt:Issuer", "https://tests.templateapp.local");
+            builder.UseSetting("Jwt:Audience", "api://tests");
+            builder.UseSetting("Jwt:AccessTokenExpirationMinutes", "15");
+            builder.UseSetting("Jwt:RefreshTokenExpirationDays", "7");
         });
 
         using IServiceScope scope = Services.CreateScope();
