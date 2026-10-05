@@ -1,0 +1,30 @@
+// Dune banned symbols. Local clocks break multi-instance correctness
+// (inject TimeProvider and use UtcNow). Blocking on Task breaks async
+// pipelines. Raw EF SQL interpolates untrusted input (use the Formattable
+// FromSql/ExecuteSql overloads, which parameterize). Entries use stable
+// doc-comment ids so the check is semantic: aliases and fully qualified
+// names cannot bypass it.
+P:System.DateTime.Now;Do not use local clock time. Inject TimeProvider and use UtcNow.
+P:System.DateTime.Today;Do not use local clock date. Inject TimeProvider and use UtcNow.
+P:System.DateTimeOffset.Now;Do not use local clock time. Inject TimeProvider and use UtcNow.
+M:System.Threading.Tasks.Task.Wait(System.Threading.CancellationToken);Do not block on tasks. Await instead.
+M:System.Threading.Tasks.Task.Wait(System.Int32);Do not block on tasks. Await instead.
+M:System.Threading.Tasks.Task.Wait(System.Int32,System.Threading.CancellationToken);Do not block on tasks. Await instead.
+M:System.Threading.Tasks.Task.Wait(System.TimeSpan);Do not block on tasks. Await instead.
+M:System.Threading.Tasks.Task.Wait(System.TimeSpan,System.Threading.CancellationToken);Do not block on tasks. Await instead.
+M:System.Threading.Tasks.Task.Wait();Do not block on tasks. Await instead.
+M:System.Threading.Tasks.Task.WaitAll(System.Threading.Tasks.Task[],System.Threading.CancellationToken);Do not block on tasks. Await instead.
+M:System.Threading.Tasks.Task.WaitAll(System.Threading.Tasks.Task[],System.Int32);Do not block on tasks. Await instead.
+M:System.Threading.Tasks.Task.WaitAll(System.Threading.Tasks.Task[],System.Int32,System.Threading.CancellationToken);Do not block on tasks. Await instead.
+M:System.Threading.Tasks.Task.WaitAll(System.Threading.Tasks.Task[],System.TimeSpan);Do not block on tasks. Await instead.
+M:System.Threading.Tasks.Task.WaitAny(System.Threading.Tasks.Task[],System.Threading.CancellationToken);Do not block on tasks. Await instead.
+M:System.Threading.Tasks.Task.WaitAny(System.Threading.Tasks.Task[],System.Int32);Do not block on tasks. Await instead.
+M:System.Threading.Tasks.Task.WaitAny(System.Threading.Tasks.Task[],System.Int32,System.Threading.CancellationToken);Do not block on tasks. Await instead.
+M:System.Threading.Tasks.Task.WaitAny(System.Threading.Tasks.Task[],System.TimeSpan);Do not block on tasks. Await instead.
+P:System.Threading.Tasks.Task`1.Result;Do not block on tasks. Await instead.
+M:Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.ExecuteSqlRaw(Microsoft.EntityFrameworkCore.Infrastructure.DatabaseFacade,System.String,System.Collections.Generic.IEnumerable{System.Object});Do not interpolate raw SQL. Use ExecuteSql/FromSql with the interpolated Formattable overload so inputs become parameters.
+M:Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.ExecuteSqlRawAsync(Microsoft.EntityFrameworkCore.Infrastructure.DatabaseFacade,System.String,System.Threading.CancellationToken);Do not interpolate raw SQL. Use ExecuteSql/FromSql with the interpolated Formattable overload so inputs become parameters.
+M:Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.ExecuteSqlRawAsync(Microsoft.EntityFrameworkCore.Infrastructure.DatabaseFacade,System.String,System.Object[]);Do not interpolate raw SQL. Use ExecuteSql/FromSql with the interpolated Formattable overload so inputs become parameters.
+M:Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.ExecuteSqlRawAsync(Microsoft.EntityFrameworkCore.Infrastructure.DatabaseFacade,System.String,System.Collections.Generic.IEnumerable{System.Object},System.Threading.CancellationToken);Do not interpolate raw SQL. Use ExecuteSql/FromSql with the interpolated Formattable overload so inputs become parameters.
+M:Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.SqlQueryRaw``1(Microsoft.EntityFrameworkCore.Infrastructure.DatabaseFacade,System.String,System.Object[]);Do not interpolate raw SQL. Use SqlQuery with the interpolated Formattable overload so inputs become parameters.
+M:Microsoft.EntityFrameworkCore.RelationalQueryableExtensions.FromSqlRaw``1(Microsoft.EntityFrameworkCore.DbSet{``0},System.String,System.Object[]);Do not interpolate raw SQL. Use FromSql with the interpolated Formattable overload so inputs become parameters.
