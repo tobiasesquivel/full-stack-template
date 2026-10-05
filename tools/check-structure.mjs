@@ -1,6 +1,8 @@
 import { readdir, readFile, stat } from 'node:fs/promises';
+import { execFile } from 'node:child_process';
 import path from 'node:path';
 import process from 'node:process';
+import { promisify } from 'node:util';
 
 const root = process.cwd();
 const backend = path.join(root, 'backend');
@@ -128,10 +130,48 @@ async function checkNoToggleAlias() {
   if (filtered.length > 0) fail(`alias toggle residual en producto: ${filtered.join(', ')}`);
 }
 
-async function checkNoNestedGitOrArtifacts() {
+async function listTrackedPaths() {
+  try {
+    const { stdout } = await promisify(execFile)('git', ['ls-files', '-z', '--cached'], { cwd: root });
+    if (!stdout) return [];
+    return String(stdout).split('\0').filter(Boolean);
+  } catch {
+    return null;
+  }
+}
+
+function isTrackedArtifact(rel) {
+  if (/(^|\/)(bin|obj)(\/|$)/.test(rel)) return true;
+  return /\.(nupkg|snupkg|trx|db|db-shm|db-wal)$/.test(rel);
+}
+
+async function checkTrackedArtifacts() {
+  const tracked = await listTrackedPaths();
+  if (tracked === null) {
+    fail('no se pudo inventariar archivos versionados: git ls-files falló (¿repo git disponible?)');
+    return;
+  }
+  const offenders = tracked.filter(isTrackedArtifact);
+  if (offenders.length > 0) fail(`artefactos versionados: ${offenders.join(', ')}`);
+}
+
+async function checkNoNestedGit() {
   const offenders = [];
-  async function scan(dir, depth) {
-    if (depth > 6) return;
+  const prune = new Set([
+    'node_modules',
+    'bin',
+    'obj',
+    'dist',
+    '.angular',
+    'coverage',
+    'TestResults',
+    'artifacts',
+    'Generated',
+    '.vs',
+    '.idea',
+    'otel-export',
+  ]);
+  async function scan(dir) {
     let entries = [];
     try {
       entries = await readdir(dir, { withFileTypes: true });
@@ -140,23 +180,19 @@ async function checkNoNestedGitOrArtifacts() {
     }
     for (const entry of entries) {
       const full = path.join(dir, entry.name);
-      const rel = toPosix(full);
-      if (entry.name === 'node_modules') continue;
-      if (entry.isDirectory() && entry.name === '.git' && path.resolve(dir) !== path.resolve(root)) {
-        offenders.push(`${rel}/ (git anidado)`);
+      if (entry.name === '.git') {
+        if (path.resolve(dir) === path.resolve(root)) continue;
+        const marker = entry.isDirectory() ? `${toPosix(full)}/` : toPosix(full);
+        offenders.push(`${marker} (git anidado)`);
         continue;
       }
-      if (entry.isFile()) {
-        if (/\.(nupkg|snupkg|trx|db|db-shm|db-wal)$/.test(entry.name)) offenders.push(rel);
-        if (/^(bin|obj)$/.test(entry.name)) offenders.push(rel);
-      }
-      if (entry.isDirectory() && depth < 6) await scan(full, depth + 1);
+      if (!entry.isDirectory()) continue;
+      if (prune.has(entry.name)) continue;
+      await scan(full);
     }
   }
-  for (const dir of [path.join(backend, 'Features'), path.join(backend, 'Infrastructure'), root]) {
-    await scan(dir, 0);
-  }
-  if (offenders.length > 0) fail(`artefactos versionados o git anidado: ${offenders.join(', ')}`);
+  await scan(root);
+  if (offenders.length > 0) fail(`git anidado: ${offenders.join(', ')}`);
 }
 
 async function checkOpenspecSingleSource() {
@@ -176,7 +212,8 @@ await checkTestsColocated();
 await checkProductExcludesTests();
 await checkNoWolverine();
 await checkNoToggleAlias();
-await checkNoNestedGitOrArtifacts();
+await checkTrackedArtifacts();
+await checkNoNestedGit();
 await checkOpenspecSingleSource();
 
 if (failures.length > 0) {
