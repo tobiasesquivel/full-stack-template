@@ -1,6 +1,9 @@
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
-using TemplateApp.Domain.Entities;
+using TemplateApp.Features.Auth.Domain;
+using TemplateApp.Features.Tasks.Domain;
+using TemplateApp.Features.Users.Domain;
+using TemplateApp.Infrastructure.Identity;
 
 namespace TemplateApp.Infrastructure.Persistence;
 
@@ -10,9 +13,9 @@ public class AppDbContext : IdentityDbContext<AppIdentityUser>
     {
     }
 
-    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
-    public new DbSet<User> Users => Set<User>();
+    public DbSet<UserProfile> UserProfiles => Set<UserProfile>();
     public DbSet<TaskItem> TaskItems => Set<TaskItem>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

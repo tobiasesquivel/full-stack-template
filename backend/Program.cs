@@ -1,25 +1,49 @@
-using JasperFx;
-using Scalar.AspNetCore;
 using Serilog;
+using Serilog.Sinks.OpenTelemetry;
+using TemplateApp.Features.Auth;
+using TemplateApp.Features.Health;
+using TemplateApp.Features.Tasks;
+using TemplateApp.Features.Users;
 using TemplateApp.Infrastructure.DependencyInjection;
-using TemplateApp.Infrastructure.Seeders;
+using TemplateApp.Infrastructure.Observability;
+using TemplateApp.Infrastructure.Persistence;
+
+string otlpEndpoint = Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT") ?? "http://localhost:4318";
+string environmentName = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? Environments.Production;
 
 Log.Logger = new LoggerConfiguration()
-    .MinimumLevel.Debug()
-    .MinimumLevel.Override("Microsoft", Serilog.Events.LogEventLevel.Warning)
-    .MinimumLevel.Override("JasperFx.CodeGeneration", Serilog.Events.LogEventLevel.Warning)
-    .MinimumLevel.Override("Wolverine", Serilog.Events.LogEventLevel.Information)
-    .Filter.ByExcluding(logEvent => logEvent.Exception is FluentValidation.ValidationException)
+    .MinimumLevel.Information()
+    .MinimumLevel.Override("Microsoft.AspNetCore", Serilog.Events.LogEventLevel.Warning)
+    .MinimumLevel.Override("Microsoft.EntityFrameworkCore", Serilog.Events.LogEventLevel.Warning)
+    .Enrich.FromLogContext()
+    .Enrich.With<ActivityTraceEnricher>()
     .WriteTo.Console()
+    .WriteTo.OpenTelemetry(options =>
+    {
+        options.Endpoint = otlpEndpoint;
+        options.Protocol = OtlpProtocol.HttpProtobuf;
+        options.ResourceAttributes = new Dictionary<string, object>
+        {
+            ["service.name"] = "templateapp-api",
+            ["service.version"] = "1.0.0",
+            ["deployment.environment.name"] = environmentName,
+        };
+        options.IncludedData = IncludedData.MessageTemplateTextAttribute
+            | IncludedData.TraceIdField
+            | IncludedData.SpanIdField
+            | IncludedData.SpecRequiredResourceAttributes;
+    })
     .CreateLogger();
+
 try
 {
     WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
     builder.Host.UseSerilog();
 
-    builder.Services.AddControllers();
-    builder.Services.AddInfrastructure(builder.Configuration, builder.Host, builder.Environment);
+    builder.Services.AddBackendInfrastructure(builder.Configuration, builder.Environment);
+    builder.Services.AddTemplateObservability(builder.Configuration, builder.Environment);
+    builder.Services.AddHealthFeature(builder.Configuration);
     builder.Services.AddOpenApi();
 
     WebApplication app = builder.Build();
@@ -27,28 +51,32 @@ try
     if (app.Environment.IsDevelopment())
     {
         app.MapOpenApi();
-        app.MapScalarApiReference();
     }
 
-    app.UseHttpsRedirection();
+    await app.InitializeDatabaseAsync();
+
+    app.UseSerilogRequestLogging();
     app.UseExceptionHandler();
+    app.UseRateLimiter();
     app.UseAuthentication();
     app.UseAuthorization();
-    app.MapControllers();
+    app.UseAntiforgery();
 
-    await app.SeedDatabaseAsync();
+    app.MapAuthEndpoints();
+    app.MapUsersEndpoints();
+    app.MapTasksEndpoints();
+    app.MapHealthEndpoints();
 
-    await app.RunJasperFxCommands(args);
-
-}
-catch (HostAbortedException)
-{
+    await app.RunAsync();
+    return 0;
 }
 catch (Exception ex)
 {
-    Log.Fatal(ex, "Application terminated unexpectedly");
+    Log.Fatal(ex, "Application terminated unexpectedly during startup");
+    return 1;
 }
 finally
 {
-    Log.CloseAndFlush();
+    await Log.CloseAndFlushAsync();
 }
+public partial class Program;

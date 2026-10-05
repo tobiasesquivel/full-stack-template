@@ -14,6 +14,8 @@ public sealed class ApiFixture : IAsyncLifetime
     private WebApplicationFactory<Program>? _factory;
     private PostgreSqlContainer? _postgres;
     private string? _externalConnection;
+    private string? _connectionString;
+    private readonly List<WebApplicationFactory<Program>> _isolatedFactories = new();
 
     public HttpClient CreateClient() => _factory!.CreateClient(new WebApplicationFactoryClientOptions
     {
@@ -22,14 +24,37 @@ public sealed class ApiFixture : IAsyncLifetime
 
     public IServiceProvider Services => _factory!.Services;
 
+    public HttpClient CreateIsolatedClient(out IServiceProvider services)
+    {
+        // Fábrica propia con la misma DB real: el rate limiter "auth" (fijo por app)
+        // deja de compartirse con el resto de la suite. Sin tocar la política.
+        WebApplicationFactory<Program> isolated = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+        {
+            builder.UseEnvironment("Testing");
+
+            builder.UseSetting("ConnectionStrings:DefaultConnection", _connectionString);
+            builder.UseSetting("Jwt:Key", "test-jwt-key-must-be-at-least-32-chars-long!!");
+            builder.UseSetting("Jwt:Issuer", "https://tests.templateapp.local");
+            builder.UseSetting("Jwt:Audience", "api://tests");
+            builder.UseSetting("Jwt:AccessTokenExpirationMinutes", "15");
+            builder.UseSetting("Jwt:RefreshTokenExpirationDays", "7");
+        });
+
+        _isolatedFactories.Add(isolated);
+        services = isolated.Services;
+        return isolated.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false,
+        });
+    }
+
     public async ValueTask InitializeAsync()
     {
         _externalConnection = Environment.GetEnvironmentVariable("TEST_POSTGRES_CONNECTION");
 
-        string connectionString;
         if (!string.IsNullOrWhiteSpace(_externalConnection))
         {
-            connectionString = _externalConnection;
+            _connectionString = _externalConnection;
         }
         else
         {
@@ -40,7 +65,7 @@ public sealed class ApiFixture : IAsyncLifetime
                 .Build();
 
             await _postgres.StartAsync();
-            connectionString = _postgres.GetConnectionString();
+            _connectionString = _postgres.GetConnectionString();
         }
 
         string jwtKey = "test-jwt-key-must-be-at-least-32-chars-long!!";
@@ -49,7 +74,7 @@ public sealed class ApiFixture : IAsyncLifetime
         {
             builder.UseEnvironment("Testing");
 
-            builder.UseSetting("ConnectionStrings:DefaultConnection", connectionString);
+            builder.UseSetting("ConnectionStrings:DefaultConnection", _connectionString);
             builder.UseSetting("Jwt:Key", jwtKey);
             builder.UseSetting("Jwt:Issuer", "https://tests.templateapp.local");
             builder.UseSetting("Jwt:Audience", "api://tests");
@@ -67,10 +92,13 @@ public sealed class ApiFixture : IAsyncLifetime
     public async ValueTask DisposeAsync()
     {
         _factory?.Dispose();
+        foreach (WebApplicationFactory<Program> isolated in _isolatedFactories)
+            isolated.Dispose();
 
         if (_postgres is not null)
         {
             await _postgres.DisposeAsync();
         }
     }
+
 }
