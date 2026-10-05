@@ -20,6 +20,11 @@ Roslyn MUST comprobar por símbolos que Domain usa solo BCL, Shared.Domain y el 
 - WHEN ejecuta el analyzer.
 - THEN MUST NOT emitir los diagnósticos de dependencias prohibidas.
 
+#### Scenario: Adapter y módulo en un archivo mixto
+- GIVEN un archivo de caso de uso con declaraciones parciales de módulo y endpoint, sin Endpoint en el nombre de archivo.
+- WHEN el analyzer procesa los símbolos de cada declaración.
+- THEN MUST permitir EF en el módulo y MUST rechazar EF, Persistence o UserManager dentro del tipo endpoint, incluidos tipos anidados.
+
 ### Requirement: APIs prohibidas
 
 BannedApiAnalyzers MUST prohibir reloj local, Task.Wait, Task.Result y SQL raw sin parámetros. Alias y nombres calificados MUST NOT eludir diagnósticos. TimeProvider y SQL interpolado parametrizado MUST ser alternativas permitidas. Migraciones históricas y snapshot MUST tener excepciones exactas justificadas sin alterar historia para satisfacer las reglas.
@@ -37,6 +42,14 @@ El gate Node MUST exigir Features/<Name>/Tests y su exclusión de producción. M
 - GIVEN un fixture que respeta colocación y exclusiones.
 - WHEN corre el mismo gate.
 - THEN MUST devolver cero.
+
+#### Scenario: Caché local y artefacto indexado
+- GIVEN una caché Angular ignorada y no indexada.
+- WHEN corre el gate de estructura.
+- THEN MUST devolver cero si las demás reglas se cumplen.
+- GIVEN un artefacto ignorado agregado al índice Git, aunque ya no exista en el directorio de trabajo.
+- WHEN corre el mismo gate.
+- THEN MUST devolver código no cero sin sustituir el índice por un recorrido del directorio.
 
 ### Requirement: Gates de PR atómico
 

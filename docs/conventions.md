@@ -4,16 +4,20 @@ Estas convenciones acompañan [ADR-0003](adr/0003-full-stack-template-dune.md) y
 
 ## Localidad y nombres
 
-- Cada capacidad vive en `backend/Features/<Name>`. Modelos puros viven en `Domain`, mappings en `Persistence`, DTOs en `Contracts` y pruebas en `Tests`.
+- Cada capacidad vive en `backend/Features/<Name>`. Modelos puros viven en `Domain`, mappings en `Persistence`, contratos compartidos en `Contracts` y pruebas en `Tests`. Requests y validators locales pueden vivir junto al caso de uso.
 - `*Module` implementa la operación. `*Endpoints` adapta HTTP. `*Request`, `*Response`, `*Validator` y `*Tests` tienen un significado único.
 - Namespace coincide con la ruta bajo `TemplateApp`. Usa namespaces file-scoped, nullable e implicit usings.
 - Requests y responses son records. Validación de entrada usa FluentValidation. Mappings EF usan Fluent API fuera de Domain.
 - No hay handlers de bus, controllers parciales, wrappers genéricos de repositorio ni aliases de APIs retiradas.
 - Coloca documentación normativa en `docs` y contratos activos solo en `openspec/specs`. `CONTEXT.md` contiene únicamente vocabulario del dominio.
 
+Tarea es el patrón de casos de uso colocados. Un archivo por operación contiene las declaraciones parciales de `TasksModule` y `TasksEndpoints`. Crear y actualizar contienen además sus requests y validators. No agregues un módulo ni registro por archivo. Mantén un solo constructor con las dependencias compartidas y un solo mapa de rutas. Coloca cliente HTTP y modelos exclusivos de Tarea en la feature Angular, no en Core.
+
 ## Adaptación HTTP y persistencia
 
 Endpoints llaman módulos y adaptan ErrorOr mediante `ApiResults`. No acceden a EF, Persistence o UserManager. Módulos cargan recursos individuales por Id antes de owner-or-permission. Separa ausencia 404 de prohibición 403. La lista propia sí filtra OwnerId.
+
+DUNE0002 aplica también al tipo endpoint dentro de archivos mixtos, incluidos tipos anidados. EF en `TasksModule` no autoriza su uso en el adapter vecino. No renombres el archivo para eludir la regla.
 
 ErrorOr Validation produce 400 ValidationProblem. Unauthorized produce 401, Forbidden 403, NotFound 404, Conflict 409 y Unexpected 500. No publiques detalles internos en errores 500. Usa JSON camelCase y `/api/v1`.
 
@@ -34,7 +38,11 @@ Usa `TimeProvider` para tiempo UTC. No uses reloj local, bloqueo síncrono de Ta
 
 Pruebas de feature cruzan HTTP con WebApplicationFactory y PostgreSQL real. El soporte compartido vive en `backend/Tests/Support`. No uses EF InMemory ni mocks que solo repiten respuestas. Prueba autorización, transacciones, replay, cascadas, health y exportación por comportamiento.
 
+`TestSession` concentra cookies, antiforgery, Bearer, JSON y envío HTTP. Cada sesión conserva su propio cliente y cookie jar. Las pruebas de cada feature conservan las expectativas de estados, payloads y reglas. Las pruebas de carreras copian solo el refresh token y mantienen tokens antiforgery independientes. `ApiFixture.CreateIsolatedClient` separa el rate limiter por aplicación sin sustituir PostgreSQL.
+
 Pruebas de analyzer compilan casos válidos y violaciones deliberadas y observan diagnósticos. Pruebas de estructura usan fixtures y códigos de salida. No reemplaces la prueba por búsquedas de nombres o cadenas del source.
+
+El inventario de artefactos versionados usa `git ls-files --cached`. Un archivo ignorado agregado al índice falla, incluso si ya se borró del directorio de trabajo. Una caché local ignorada y no indexada no falla. La detección de repositorios anidados es una comprobación separada. Si Git no puede entregar el inventario, el gate falla.
 
 Un PR contiene un cambio observable completo. Si cambia un contrato, incluye backend, frontend, tests y OpenSpec juntos. No impongas un límite de líneas. No desactives analyzers, no omitas pruebas ni uses continue-on-error para conseguir CI verde. Describe checks ejecutados y bloqueos reales por separado.
 
