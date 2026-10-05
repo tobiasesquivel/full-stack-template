@@ -128,16 +128,6 @@ public sealed class DomainDependencyAnalyzer : DiagnosticAnalyzer
 
         if (DuneSymbols.InNamespace(named.OriginalDefinition, "System"))
         {
-            if (named.IsGenericType)
-            {
-                foreach (var argument in named.TypeArguments)
-                {
-                    if (!IsAllowed(argument, compilation, owner))
-                    {
-                        return false;
-                    }
-                }
-            }
 
             return true;
         }

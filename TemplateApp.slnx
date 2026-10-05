@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="backend/TemplateApp.csproj" />
+  <Project Path="backend/Tests/TemplateApp.Tests.csproj" />
+  <Project Path="tools/Dune.Analyzers/Dune.Analyzers.csproj" />
+  <Project Path="tools/Dune.Analyzers.Tests/Dune.Analyzers.Tests.csproj" />
+</Solution>
