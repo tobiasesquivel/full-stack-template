@@ -1,8 +1,8 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { TasksService } from '../../../core/tasks.service';
+import { TasksService } from '../tasks.service';
 import { describeHttpError } from '../../../core/http-error';
-import type { TaskResponse } from '../../../core/api-models';
+import type { TaskResponse } from '../tasks-models';
 
 const PAGE_SIZE = 10;
 
