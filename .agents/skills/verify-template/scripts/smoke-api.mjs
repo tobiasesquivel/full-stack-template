@@ -185,6 +185,8 @@ const fresh = await alice.request('POST', 'auth/refresh', undefined, { authentic
 alice.acceptToken(fresh.payload);
 assert.notEqual([...alice.cookies.values()].find(cookie => cookie.name === staleCookieCopy.name)?.value,
   staleCookieCopy.value, 'La renovación debe rotar el token de sesión');
+alice.acceptToken((await alice.request('POST', 'auth/refresh', undefined, { authenticated: false })).payload);
+await alice.request('GET', 'users/me');
 const replay = new ApiClient();
 for (const [key, value] of alice.cookies) replay.cookies.set(key, { ...value });
 replay.cookies.set(staleCookieCopy.name, staleCookieCopy);

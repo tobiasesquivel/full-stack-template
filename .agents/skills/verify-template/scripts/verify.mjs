@@ -647,22 +647,6 @@ async function checkPrereqs(evidenceDir, timeouts) {
   return { notes, versions };
 }
 
-function parseTrxCounters(xml) {
-  const match = String(xml).match(/<Counters\b([^>]*)\/>/i) || String(xml).match(/<Counters\b([^>]*)>/i);
-  if (!match) return null;
-  const attrs = Object.fromEntries(
-    [...match[1].matchAll(/(\w+)="(\d+)"/g)].map((entry) => [entry[1], Number(entry[2])]),
-  );
-  if (!Number.isFinite(attrs.total)) return null;
-  return {
-    total: attrs.total,
-    passed: attrs.passed ?? 0,
-    failed: attrs.failed ?? 0,
-    skipped: (attrs.notExecuted ?? 0) + (attrs.inconclusive ?? 0),
-    source: 'trx',
-  };
-}
-
 function parseDotnetSummary(stdout) {
   const text = String(stdout);
   let match = text.match(/Failed:\s*(\d+),\s*Passed:\s*(\d+),\s*Skipped:\s*(\d+),\s*Total:\s*(\d+)/i);
@@ -671,22 +655,16 @@ function parseDotnetSummary(stdout) {
   }
   match = text.match(/Passed:\s*(\d+),\s*Failed:\s*(\d+)/i);
   if (match) return { passed: Number(match[1]), failed: Number(match[2]), skipped: 0, total: Number(match[1]) + Number(match[2]), source: 'console' };
+  const total = text.match(/^\s*total:\s*(\d+)\s*$/im);
+  const failed = text.match(/^\s*(?:failed|error):\s*(\d+)\s*$/im);
+  const passed = text.match(/^\s*(?:passed|correcto):\s*(\d+)\s*$/im);
+  const skipped = text.match(/^\s*(?:skipped|omitido):\s*(\d+)\s*$/im);
+  if (total && failed && passed && skipped) {
+    return { total: Number(total[1]), failed: Number(failed[1]), passed: Number(passed[1]), skipped: Number(skipped[1]), source: 'console' };
+  }
   return null;
 }
 
-// Zero executed tests is FAIL, never PASS: require positive proof that tests ran.
-async function resolveTestCounts(test, evidenceDir) {
-  const trxPath = path.join(evidenceDir, 'test-results', 'verify.trx');
-  if (await pathExists(trxPath)) {
-    try {
-      const counts = parseTrxCounters(await fs.readFile(trxPath, 'utf8'));
-      if (counts) return counts;
-    } catch {
-      // Fall through to console parsing.
-    }
-  }
-  return parseDotnetSummary(test.stdout);
-}
 
 function firstInspectEntry(text) {
   const parsed = JSON.parse(String(text));
@@ -989,8 +967,6 @@ async function launch(flags) {
       cmd: 'dotnet',
       args: [
         'test', TESTS_CSPROJ, '-c', 'Release',
-        '--results-directory', path.join(evidenceDir, 'test-results'),
-        '--logger', 'trx;LogFileName=verify.trx',
       ],
       cwd: REPO_ROOT,
       env: { TEST_POSTGRES_CONNECTION: '' },
@@ -998,7 +974,7 @@ async function launch(flags) {
       stdoutPath: path.join(evidenceDir, 'dotnet-test.stdout.log'),
       stderrPath: path.join(evidenceDir, 'dotnet-test.stderr.log'),
     });
-    const counts = await resolveTestCounts(test, evidenceDir);
+    const counts = parseDotnetSummary(test.stdout);
     if (test.exitCode !== 0 || test.timedOut || test.spawnError) {
       mark('dotnet-test', 'FAIL', { ...test, counts }, Date.now() - t0);
       await failStage(
