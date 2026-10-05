@@ -4,6 +4,10 @@
 
 Accepted
 
+## Supersesión parcial
+
+[ADR-0003](0003-full-stack-template-dune.md) conserva owner-or-permission, JWT de identidad pura y la distinción entre 404 y 403. Sustituye los handlers Wolverine por módulos directos y la cache global con invalidación por consultas scoped en cada request. El seam compartido es `ResourceAuthorizer` sobre `IPermissionService`. Las consecuencias originales siguientes son evidencia histórica, no instrucciones vigentes.
+
 ## Context
 
 El template implementaba el mismo concepto de autorización de recursos tres veces, distinto cada
