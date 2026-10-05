@@ -82,35 +82,44 @@ public sealed class TokenService
 
     public async Task<ErrorOr<IssuedSession>> RotateAsync(string plaintext, CancellationToken ct)
     {
-        DateTimeOffset now = _clock.GetUtcNow();
         string hash = RefreshToken.Hash(plaintext);
+
+        RefreshToken? probe = await _db.RefreshTokens
+            .AsNoTracking()
+            .SingleOrDefaultAsync(rt => rt.TokenHash == hash, ct);
+        if (probe is null)
+            return AuthErrors.InvalidSession;
+
+        // Redención atómica: el lock advisory transaccional por familia serializa
+        // refresh, replay y logout de la misma familia. Sin él, dos redenciones
+        // concurrentes del mismo token verían RevokedAt null y ambas insertarían
+        // sucesor, o un sucesor se emitiría después de revocar la familia.
+        await using var tx = await _db.Database.BeginTransactionAsync(ct);
+        await AcquireFamilyLockAsync(probe.FamilyId, ct);
+
+        DateTimeOffset now = _clock.GetUtcNow();
 
         RefreshToken? presented = await _db.RefreshTokens
             .SingleOrDefaultAsync(rt => rt.TokenHash == hash, ct);
         if (presented is null)
+        {
+            await tx.RollbackAsync(ct);
             return AuthErrors.InvalidSession;
-
+        }
         if (presented.RevokedAt is not null || presented.ExpiresAt <= now)
         {
             await RevokeFamilyAsync(presented.FamilyId, now, ct);
             await _db.SaveChangesAsync(ct);
-            return AuthErrors.SessionRevoked;
-        }
-
-        int revokedSiblings = await _db.RefreshTokens
-            .Where(rt => rt.FamilyId == presented.FamilyId && rt.Id != presented.Id && rt.RevokedAt != null)
-            .CountAsync(ct);
-        if (revokedSiblings > 0)
-        {
-            await RevokeFamilyAsync(presented.FamilyId, now, ct);
-            await _db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
             return AuthErrors.SessionRevoked;
         }
 
         AppIdentityUser? user = await _users.FindByIdAsync(presented.UserId);
         if (user is null)
+        {
+            await tx.RollbackAsync(ct);
             return AuthErrors.InvalidSession;
-
+        }
         string nextPlaintext = RefreshToken.NewPlaintext();
         DateTimeOffset nextExpiry = presented.ExpiresAt <= now.AddDays(_options.RefreshTokenExpirationDays)
             ? presented.ExpiresAt
@@ -128,6 +137,7 @@ public sealed class TokenService
         presented.Revoke(now, next.TokenHash);
         _db.RefreshTokens.Add(next);
         await _db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
 
         string accessToken = BuildAccessToken(user, presented.FamilyId, now, out DateTimeOffset expiresAt);
 
@@ -137,15 +147,41 @@ public sealed class TokenService
     public async Task RevokePresentedAsync(string plaintext, CancellationToken ct)
     {
         string hash = RefreshToken.Hash(plaintext);
+        RefreshToken? probe = await _db.RefreshTokens
+            .AsNoTracking()
+            .SingleOrDefaultAsync(rt => rt.TokenHash == hash, ct);
+
+        if (probe is null)
+            return;
+
+        await using var tx = await _db.Database.BeginTransactionAsync(ct);
+        await AcquireFamilyLockAsync(probe.FamilyId, ct);
+
         RefreshToken? presented = await _db.RefreshTokens
             .SingleOrDefaultAsync(rt => rt.TokenHash == hash, ct);
 
         if (presented is null)
+        {
+            await tx.RollbackAsync(ct);
             return;
+        }
 
         DateTimeOffset now = _clock.GetUtcNow();
         await RevokeFamilyAsync(presented.FamilyId, now, ct);
         await _db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
+    }
+
+    private async Task AcquireFamilyLockAsync(Guid familyId, CancellationToken ct)
+    {
+        // Lock advisory de alcance transaccional (se libera en commit/rollback).
+        // Misma clave en refresh y logout para serializar escritores de la familia.
+        // Formattable → parámetro, sin concatenación (ver BannedSymbols.txt).
+        Span<byte> key = stackalloc byte[16];
+        familyId.TryWriteBytes(key);
+        int lockHi = BitConverter.ToInt32(key[..4]);
+        int lockLo = BitConverter.ToInt32(key[4..8]);
+        await _db.Database.ExecuteSqlAsync($"SELECT pg_advisory_xact_lock({lockHi}, {lockLo})", ct);
     }
 
     public async Task RevokeFamilyAsync(Guid familyId, DateTimeOffset now, CancellationToken ct)

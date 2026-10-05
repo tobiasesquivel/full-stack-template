@@ -1,6 +1,6 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Identity;
-using TemplateApp.Domain.Authorization;
+using TemplateApp.Shared.Authorization;
 
 namespace TemplateApp.Infrastructure.Seeders;
 
@@ -13,10 +13,14 @@ public static class RoleSeeder
         foreach (string roleName in AppRoles.GetAll())
         {
             bool roleExists = await roleManager.RoleExistsAsync(roleName);
-
             if (!roleExists)
             {
-                await roleManager.CreateAsync(new IdentityRole(roleName));
+                IdentityResult createdResult = await roleManager.CreateAsync(new IdentityRole(roleName));
+                if (!createdResult.Succeeded)
+                {
+                    throw new InvalidOperationException(
+                        $"Failed to seed role '{roleName}': {string.Join("; ", createdResult.Errors.Select(e => e.Description))}");
+                }
             }
 
             IdentityRole? role = await roleManager.FindByNameAsync(roleName);
@@ -42,7 +46,12 @@ public static class RoleSeeder
         {
             if (!existingPermissions.Contains(permission))
             {
-                await roleManager.AddClaimAsync(role, new Claim(AppPermissions.ClaimType, permission));
+                IdentityResult claimResult = await roleManager.AddClaimAsync(role, new Claim(AppPermissions.ClaimType, permission));
+                if (!claimResult.Succeeded)
+                {
+                    throw new InvalidOperationException(
+                        $"Failed to seed permission '{permission}' for role '{roleName}': {string.Join("; ", claimResult.Errors.Select(e => e.Description))}");
+                }
             }
         }
     }

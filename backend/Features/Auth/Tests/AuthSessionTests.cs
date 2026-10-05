@@ -49,6 +49,7 @@ public sealed class AuthSessionTests : IClassFixture<ApiFixture>
 
     private Session NewSession() => new() { Client = _fixture.CreateClient() };
 
+    private Session NewIsolatedSession() => new() { Client = _fixture.CreateIsolatedClient(out _) };
     private static string UniqueName(string prefix) =>
         $"{prefix}{Guid.NewGuid():N}"[..Math.Min(prefix.Length + 16, prefix.Length + 32)];
 
@@ -259,6 +260,168 @@ public sealed class AuthSessionTests : IClassFixture<ApiFixture>
             Assert.False(root.TryGetProperty("refreshToken", out _));
         }
         Assert.Contains(login.Cookies.Values, c => c.HttpOnly && c.Path == "/api/v1/auth");
+    }
+
+    [Fact]
+    public async Task Refresh_ConcurrentSameToken_OnlyOneRotates_And_FamilyRevoked_OtherSessionSurvives()
+    {
+        // Fábrica propia: el limiter "auth" es por app (20/min). Los dos tests nuevos
+        // consumen ~10 permisos cada uno; en la fábrica compartida agotan el cupo y
+        // contaminan al resto de la suite con 503. Misma DB real, sin tocar la política.
+        Session alice = NewIsolatedSession();
+        await RegisterAsync(alice, UniqueName("alice"));
+
+        Session second = NewIsolatedSession();
+        await CsrfAsync(second);
+        Response relogin = await SendAsync(
+            second,
+            HttpMethod.Post,
+            "api/v1/auth/login",
+            new { userName = alice.UserName, password = alice.Password },
+            authenticated: false);
+        Assert.Equal(HttpStatusCode.OK, relogin.Status);
+        using (relogin.Payload!)
+            second.AccessToken = relogin.Payload.RootElement.GetProperty("accessToken").GetString();
+
+        // Dos redenciones concurrentes del mismo token vigente (scenario Dos redenciones):
+        // sesiones independientes con XSRF propio (patrón SendAsync existente) que
+        // comparten solo el valor de la cookie de refresh, como dos pestañas.
+        Session racerB = NewIsolatedSession();
+        await CsrfAsync(racerB);
+        racerB.Cookies["template_refresh"] = new CookieDatum { Value = alice.Cookies.Values.Single(c => c.HttpOnly && c.Path == "/api/v1/auth").Value, Path = "/api/v1/auth", HttpOnly = true };
+        Session racerA = NewIsolatedSession();
+        await CsrfAsync(racerA);
+        racerA.Cookies["template_refresh"] = new CookieDatum { Value = racerB.Cookies["template_refresh"].Value, Path = "/api/v1/auth", HttpOnly = true };
+        string sharedRefresh = racerA.Cookies["template_refresh"].Value;
+
+        Task<Response> left = SendAsync(racerA, HttpMethod.Post, "api/v1/auth/refresh", body: null, authenticated: false);
+        Task<Response> right = SendAsync(racerB, HttpMethod.Post, "api/v1/auth/refresh", body: null, authenticated: false);
+        Response[] raced = await Task.WhenAll(left, right);
+
+        // Solo una rota (200); el reuso es replay y revoca la familia (401).
+        Assert.Contains(raced, r => r.Status == HttpStatusCode.OK);
+        Assert.Contains(raced, r => r.Status == HttpStatusCode.Unauthorized);
+        string? winnerAccess = null;
+        foreach (Response r in raced)
+        {
+            if (r.Status == HttpStatusCode.OK)
+            {
+                Assert.NotNull(r.Payload);
+                using (r.Payload)
+                    winnerAccess = r.Payload.RootElement.GetProperty("accessToken").GetString();
+            }
+            else
+            {
+                r.Payload?.Dispose();
+            }
+        }
+        Assert.False(string.IsNullOrEmpty(winnerAccess));
+
+        // El access del ganador muere con la familia: el replay del perdedor la
+        // revocó (sid revocable, sin gracia hasta expiración).
+        Session winnerProbe = NewIsolatedSession();
+        winnerProbe.AccessToken = winnerAccess;
+        Response winnerMe = await SendAsync(winnerProbe, HttpMethod.Get, "api/v1/users/me", authenticated: true, csrf: false);
+        winnerMe.Payload?.Dispose();
+        Assert.Equal(HttpStatusCode.Unauthorized, winnerMe.Status);
+
+        // Cualquier token restante de la familia también cae.
+        Session probe = NewIsolatedSession();
+        await CsrfAsync(probe);
+        probe.Cookies["template_refresh"] = new CookieDatum { Value = sharedRefresh, Path = "/api/v1/auth", HttpOnly = true };
+        Response after = await SendAsync(probe, HttpMethod.Post, "api/v1/auth/refresh", body: null, authenticated: false);
+        after.Payload?.Dispose();
+        Assert.Equal(HttpStatusCode.Unauthorized, after.Status);
+
+        Response survivor = await SendAsync(second, HttpMethod.Get, "api/v1/users/me", authenticated: true, csrf: false);
+        survivor.Payload?.Dispose();
+        Assert.Equal(HttpStatusCode.OK, survivor.Status);
+    }
+
+    [Fact]
+    public async Task Refresh_TwoConsecutiveRotationsSucceed_Then_ReplayRevokesFamily_And_OtherSessionSurvives()
+    {
+        Session alice = NewIsolatedSession();
+        await RegisterAsync(alice, UniqueName("alice"));
+
+        Session second = NewIsolatedSession();
+        await CsrfAsync(second);
+        Response relogin = await SendAsync(
+            second,
+            HttpMethod.Post,
+            "api/v1/auth/login",
+            new { userName = alice.UserName, password = alice.Password },
+            authenticated: false);
+        Assert.Equal(HttpStatusCode.OK, relogin.Status);
+        using (relogin.Payload!)
+            second.AccessToken = relogin.Payload.RootElement.GetProperty("accessToken").GetString();
+
+        CookieDatum firstStale = new()
+        {
+            Value = alice.Cookies.Values.Single(c => c.HttpOnly && c.Path == "/api/v1/auth").Value,
+            Path = "/api/v1/auth",
+            HttpOnly = true,
+        };
+
+        Response first = await SendAsync(alice, HttpMethod.Post, "api/v1/auth/refresh", body: null, authenticated: false);
+        Assert.Equal(HttpStatusCode.OK, first.Status);
+        using (first.Payload!)
+        {
+            alice.AccessToken = first.Payload.RootElement.GetProperty("accessToken").GetString();
+            Assert.False(first.Payload.RootElement.TryGetProperty("refreshToken", out _));
+        }
+        AssertJwtIsIdentityOnly(alice.AccessToken!);
+
+        Response meAfterFirst = await SendAsync(alice, HttpMethod.Get, "api/v1/users/me", authenticated: true, csrf: false);
+        meAfterFirst.Payload?.Dispose();
+        Assert.Equal(HttpStatusCode.OK, meAfterFirst.Status);
+
+        CookieDatum secondStale = new()
+        {
+            Value = alice.Cookies.Values.Single(c => c.HttpOnly && c.Path == "/api/v1/auth").Value,
+            Path = "/api/v1/auth",
+            HttpOnly = true,
+        };
+        Assert.NotEqual(firstStale.Value, secondStale.Value);
+
+        Response secondRefresh = await SendAsync(alice, HttpMethod.Post, "api/v1/auth/refresh", body: null, authenticated: false);
+        Assert.Equal(HttpStatusCode.OK, secondRefresh.Status);
+        using (secondRefresh.Payload!)
+        {
+            alice.AccessToken = secondRefresh.Payload.RootElement.GetProperty("accessToken").GetString();
+            Assert.False(secondRefresh.Payload.RootElement.TryGetProperty("refreshToken", out _));
+        }
+        AssertJwtIsIdentityOnly(alice.AccessToken!);
+        Assert.NotEqual(secondStale.Value, alice.Cookies.Values.Single(c => c.HttpOnly && c.Path == "/api/v1/auth").Value);
+
+        Response meAfterSecond = await SendAsync(alice, HttpMethod.Get, "api/v1/users/me", authenticated: true, csrf: false);
+        meAfterSecond.Payload?.Dispose();
+        Assert.Equal(HttpStatusCode.OK, meAfterSecond.Status);
+
+        // Replay con XSRF propio (no se copia el ajeno): solo se comparte el refresh.
+        Session replay = NewIsolatedSession();
+        await CsrfAsync(replay);
+        replay.Cookies["template_refresh"] = secondStale;
+
+        Response replayed = await SendAsync(replay, HttpMethod.Post, "api/v1/auth/refresh", body: null, authenticated: false);
+        replayed.Payload?.Dispose();
+        Assert.Equal(HttpStatusCode.Unauthorized, replayed.Status);
+
+        Response revoked = await SendAsync(alice, HttpMethod.Get, "api/v1/users/me", authenticated: true, csrf: false);
+        revoked.Payload?.Dispose();
+        Assert.Equal(HttpStatusCode.Unauthorized, revoked.Status);
+
+        Response survivor = await SendAsync(second, HttpMethod.Get, "api/v1/users/me", authenticated: true, csrf: false);
+        survivor.Payload?.Dispose();
+        Assert.Equal(HttpStatusCode.OK, survivor.Status);
+
+        Session replayFirst = NewIsolatedSession();
+        await CsrfAsync(replayFirst);
+        replayFirst.Cookies["template_refresh"] = firstStale;
+
+        Response replayedFirst = await SendAsync(replayFirst, HttpMethod.Post, "api/v1/auth/refresh", body: null, authenticated: false);
+        replayedFirst.Payload?.Dispose();
+        Assert.Equal(HttpStatusCode.Unauthorized, replayedFirst.Status);
     }
 
     [Fact]
