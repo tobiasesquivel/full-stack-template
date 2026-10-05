@@ -25,12 +25,7 @@ internal static class BannedApiHost
                 file.Path))
             .ToArray();
 
-        var references = System.AppDomain.CurrentDomain.GetAssemblies()
-            .Where(assembly => !assembly.IsDynamic && !string.IsNullOrEmpty(assembly.Location))
-            .GroupBy(assembly => assembly.Location, System.StringComparer.OrdinalIgnoreCase)
-            .Select(group => MetadataReference.CreateFromFile(group.Key))
-            .Cast<MetadataReference>()
-            .ToList();
+        var references = TestReferences.All();
 
         var compilation = CSharpCompilation.Create(
             "DuneBannedBehavior",
@@ -43,6 +38,8 @@ internal static class BannedApiHost
         var compilationWithAnalyzers = compilation.WithAnalyzers(
             ImmutableArray.Create<DiagnosticAnalyzer>(analyzer),
             new AnalyzerOptions(ImmutableArray.Create<AdditionalText>(additionalText)));
+
+        TestReferences.ThrowOnFixtureErrors(compilation);
 
         return await compilationWithAnalyzers.GetAnalyzerDiagnosticsAsync();
     }
