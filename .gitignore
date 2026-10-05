@@ -6,6 +6,7 @@
 **/coverage/
 **/TestResults/
 **/artifacts/
+otel-export/
 **/.atl/
 **/.scratch/
 **/.codegraph/
