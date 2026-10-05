@@ -4,7 +4,7 @@ Angular 22.2.1. La app consume la API del mismo origen bajo `/api/v1`
 (registro, login, perfil y tareas). Los textos de la interfaz están en español.
 ## Desarrollo
 
-Sin suite vigente 2026-10-05: no existe `*.spec.ts` (`app.spec` eliminado incidental) y `npm test` (`ng test`) no tiene runner configurado. La prueba real es el navegador contra la API (`artifacts/compose-final/browser-result.json`, `browser-network.json`, `tasks.png`): register, create, dos reloads sin perder login, checkbox persiste, perfil persiste, logout y login.
+Sin suite vigente 2026-10-05: no existe `*.spec.ts` (`app.spec` eliminado incidental) y `npm test` (`ng test`) no tiene runner configurado. Angular build PASS local (artifact://640, commit `7ba6a4c`). La prueba real es el navegador contra la API (`artifacts/compose-final/browser-result.json`, `browser-network.json`, `tasks.png`): register, create, dos reloads sin perder login, checkbox persiste, perfil persiste, logout y login.
 
 ```bash
 npm ci
