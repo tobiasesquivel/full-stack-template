@@ -17,7 +17,7 @@ namespace TemplateApp.Infrastructure.Persistence.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.4")
+                .HasAnnotation("ProductVersion", "10.0.12")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -154,43 +154,44 @@ namespace TemplateApp.Infrastructure.Persistence.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
-            modelBuilder.Entity("TemplateApp.Domain.Entities.RefreshToken", b =>
+            modelBuilder.Entity("TemplateApp.Features.Auth.Domain.RefreshToken", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("FamilyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ReplacedByTokenHash")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<DateTimeOffset?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
                     b.Property<string>("UserId")
                         .IsRequired()
                         .HasMaxLength(450)
-                        .HasColumnType("character varying(450)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime>("ExpiresAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("JwtId")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<string>("ReplacedByToken")
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)");
-
-                    b.Property<DateTime?>("RevokedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Token")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)");
+                        .HasColumnType("character varying(450)")
+                        .HasColumnName("AppIdentityUserId");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Token")
+                    b.HasIndex("FamilyId");
+
+                    b.HasIndex("TokenHash")
                         .IsUnique();
 
                     b.HasIndex("UserId", "RevokedAt");
@@ -198,55 +199,62 @@ namespace TemplateApp.Infrastructure.Persistence.Migrations
                     b.ToTable("RefreshTokens");
                 });
 
-            modelBuilder.Entity("TemplateApp.Domain.Entities.TaskItem", b =>
+            modelBuilder.Entity("TemplateApp.Features.Tasks.Domain.TaskItem", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<string>("AuthId")
-                        .IsRequired()
-                        .HasMaxLength(450)
-                        .HasColumnType("character varying(450)");
-
-                    b.Property<DateTime>("CreatedAt")
+                    b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<bool>("IsCompleted")
                         .HasColumnType("boolean");
+
+                    b.Property<string>("OwnerId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("character varying(450)");
 
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
-                    b.Property<DateTime?>("UpdatedAt")
+                    b.Property<DateTimeOffset?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("AuthId");
+                    b.HasIndex("OwnerId");
 
-                    b.ToTable("TaskItems");
+                    b.ToTable("TaskItems", (string)null);
                 });
 
-            modelBuilder.Entity("TemplateApp.Domain.Entities.User", b =>
+            modelBuilder.Entity("TemplateApp.Features.Users.Domain.UserProfile", b =>
                 {
                     b.Property<string>("AuthId")
                         .HasMaxLength(450)
                         .HasColumnType("character varying(450)");
 
-                    b.Property<string>("Username")
+                    b.Property<string>("DisplayName")
                         .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Timezone")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
                         .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
+                        .HasColumnType("character varying(100)")
+                        .HasDefaultValue("UTC");
 
                     b.HasKey("AuthId");
 
-                    b.ToTable("Users");
+                    b.ToTable("UserProfiles", (string)null);
                 });
 
-            modelBuilder.Entity("TemplateApp.Infrastructure.Persistence.AppIdentityUser", b =>
+            modelBuilder.Entity("TemplateApp.Infrastructure.Identity.AppIdentityUser", b =>
                 {
                     b.Property<string>("Id")
                         .HasColumnType("text");
@@ -321,7 +329,7 @@ namespace TemplateApp.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<string>", b =>
                 {
-                    b.HasOne("TemplateApp.Infrastructure.Persistence.AppIdentityUser", null)
+                    b.HasOne("TemplateApp.Infrastructure.Identity.AppIdentityUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -330,7 +338,7 @@ namespace TemplateApp.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<string>", b =>
                 {
-                    b.HasOne("TemplateApp.Infrastructure.Persistence.AppIdentityUser", null)
+                    b.HasOne("TemplateApp.Infrastructure.Identity.AppIdentityUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -345,7 +353,7 @@ namespace TemplateApp.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("TemplateApp.Infrastructure.Persistence.AppIdentityUser", null)
+                    b.HasOne("TemplateApp.Infrastructure.Identity.AppIdentityUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -354,39 +362,40 @@ namespace TemplateApp.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<string>", b =>
                 {
-                    b.HasOne("TemplateApp.Infrastructure.Persistence.AppIdentityUser", null)
+                    b.HasOne("TemplateApp.Infrastructure.Identity.AppIdentityUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("TemplateApp.Domain.Entities.RefreshToken", b =>
+            modelBuilder.Entity("TemplateApp.Features.Auth.Domain.RefreshToken", b =>
                 {
-                    b.HasOne("TemplateApp.Infrastructure.Persistence.AppIdentityUser", null)
+                    b.HasOne("TemplateApp.Infrastructure.Identity.AppIdentityUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("TemplateApp.Domain.Entities.TaskItem", b =>
-                {
-                    b.HasOne("TemplateApp.Infrastructure.Persistence.AppIdentityUser", null)
-                        .WithMany()
-                        .HasForeignKey("AuthId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("TemplateApp.Domain.Entities.User", b =>
-                {
-                    b.HasOne("TemplateApp.Infrastructure.Persistence.AppIdentityUser", null)
-                        .WithOne()
-                        .HasForeignKey("TemplateApp.Domain.Entities.User", "AuthId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
-                        .HasConstraintName("FK_Users_AspNetUsers_AuthId");
+                        .HasConstraintName("FK_RefreshTokens_AspNetUsers_AppIdentityUserId");
+                });
+
+            modelBuilder.Entity("TemplateApp.Features.Tasks.Domain.TaskItem", b =>
+                {
+                    b.HasOne("TemplateApp.Features.Users.Domain.UserProfile", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("TemplateApp.Features.Users.Domain.UserProfile", b =>
+                {
+                    b.HasOne("TemplateApp.Infrastructure.Identity.AppIdentityUser", null)
+                        .WithOne()
+                        .HasForeignKey("TemplateApp.Features.Users.Domain.UserProfile", "AuthId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_UserProfiles_AspNetUsers_AuthId");
                 });
 #pragma warning restore 612, 618
         }

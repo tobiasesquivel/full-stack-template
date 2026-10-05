@@ -162,13 +162,13 @@ namespace TemplateApp.Infrastructure.Persistence.Migrations
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    Token = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
-                    JwtId = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
+                    TokenHash = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
+                    FamilyId = table.Column<Guid>(type: "uuid", nullable: false),
                     AppIdentityUserId = table.Column<string>(type: "character varying(450)", maxLength: 450, nullable: false),
-                    ExpiresAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    RevokedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    ReplacedByToken = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true)
+                    ExpiresAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    RevokedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
+                    ReplacedByTokenHash = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true)
                 },
                 constraints: table =>
                 {
@@ -182,23 +182,43 @@ namespace TemplateApp.Infrastructure.Persistence.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "Users",
+                name: "UserProfiles",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     AuthId = table.Column<string>(type: "character varying(450)", maxLength: 450, nullable: false),
-                    Username = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
-                    DisplayName = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false)
+                    DisplayName = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    Timezone = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false, defaultValue: "UTC")
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Users", x => x.Id);
+                    table.PrimaryKey("PK_UserProfiles", x => x.AuthId);
                     table.ForeignKey(
-                        name: "FK_Users_AspNetUsers_AuthId",
+                        name: "FK_UserProfiles_AspNetUsers_AuthId",
                         column: x => x.AuthId,
                         principalTable: "AspNetUsers",
                         principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "TaskItems",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    OwnerId = table.Column<string>(type: "character varying(450)", maxLength: 450, nullable: false),
+                    Title = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    IsCompleted = table.Column<bool>(type: "boolean", nullable: false),
+                    CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    UpdatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_TaskItems", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_TaskItems_UserProfiles_OwnerId",
+                        column: x => x.OwnerId,
+                        principalTable: "UserProfiles",
+                        principalColumn: "AuthId",
                         onDelete: ReferentialAction.Cascade);
                 });
 
@@ -245,16 +265,20 @@ namespace TemplateApp.Infrastructure.Persistence.Migrations
                 columns: new[] { "AppIdentityUserId", "RevokedAt" });
 
             migrationBuilder.CreateIndex(
-                name: "IX_RefreshTokens_Token",
+                name: "IX_RefreshTokens_FamilyId",
                 table: "RefreshTokens",
-                column: "Token",
+                column: "FamilyId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RefreshTokens_TokenHash",
+                table: "RefreshTokens",
+                column: "TokenHash",
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_Users_AuthId",
-                table: "Users",
-                column: "AuthId",
-                unique: true);
+                name: "IX_TaskItems_OwnerId",
+                table: "TaskItems",
+                column: "OwnerId");
         }
 
         /// <inheritdoc />
@@ -279,10 +303,13 @@ namespace TemplateApp.Infrastructure.Persistence.Migrations
                 name: "RefreshTokens");
 
             migrationBuilder.DropTable(
-                name: "Users");
+                name: "TaskItems");
 
             migrationBuilder.DropTable(
                 name: "AspNetRoles");
+
+            migrationBuilder.DropTable(
+                name: "UserProfiles");
 
             migrationBuilder.DropTable(
                 name: "AspNetUsers");
