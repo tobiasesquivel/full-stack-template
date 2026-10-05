@@ -199,28 +199,6 @@ public sealed class TokenService
             rt => rt.FamilyId == familyId && rt.UserId == userId && rt.RevokedAt == null,
             ct);
 
-    public static string CookieHeader(string plaintext, IHostEnvironment environment)
-    {
-        bool secure = !environment.IsDevelopment();
-        return $"template_refresh={Uri.EscapeDataString(plaintext)}; Path=/api/v1/auth; HttpOnly; SameSite=Strict{(secure ? "; Secure" : string.Empty)}";
-    }
-
-    public static string ClearedCookieHeader(IHostEnvironment environment)
-    {
-        bool secure = !environment.IsDevelopment();
-        return $"template_refresh=; Path=/api/v1/auth; HttpOnly; Max-Age=0; SameSite=Strict{(secure ? "; Secure" : string.Empty)}";
-    }
-
-    public static bool TryGetRefreshPlaintext(HttpRequest request, out string? plaintext)
-    {
-        plaintext = null;
-        if (!request.Cookies.TryGetValue("template_refresh", out string? raw) || string.IsNullOrEmpty(raw))
-            return false;
-
-        plaintext = raw;
-        return true;
-    }
-
     public AuthResponse ToAuthResponse(AppIdentityUser user, UserProfileSnapshot profile, IList<string> roles, IReadOnlySet<string> permissions, IssuedSession session) =>
         new(
             new TemplateApp.Features.Users.Contracts.UserResponse(

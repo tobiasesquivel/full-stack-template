@@ -33,6 +33,7 @@ public static class BackendInfrastructure
         services.AddScoped<ResourceAuthorizer>();
         services.AddScoped<TokenService>();
         services.AddScoped<AuthModule>();
+        services.AddScoped<SessionHttpPolicy>();
         services.AddScoped<UsersModule>();
         services.AddScoped<TasksModule>();
 
