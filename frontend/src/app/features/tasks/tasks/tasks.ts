@@ -40,9 +40,9 @@ const PAGE_SIZE = 10;
       } @else if (items().length === 0) {
         <p>No tienes tareas todavía. Crea la primera arriba.</p>
       } @else {
-        <ul>
+        <ul class="task-list">
           @for (task of items(); track task.id) {
-            <li>
+            <li class="task-row" [class.task-done]="task.isCompleted">
               <input
                 type="checkbox"
                 [id]="'done-' + task.id"
@@ -94,6 +94,30 @@ const PAGE_SIZE = 10;
         </nav>
       }
     </section>
+  `,
+  styles: `
+    :host {
+      display: block;
+    }
+    :host button:focus-visible,
+    :host input:focus-visible {
+      outline: 2px solid #1d4ed8;
+      outline-offset: 2px;
+    }
+    .task-list {
+      gap: 0.625rem;
+    }
+    .task-row {
+      border-left-width: 3px;
+      transition: border-color 120ms ease-in-out;
+    }
+    .task-row:hover {
+      border-color: #93c5fd;
+    }
+    .task-row.task-done {
+      border-left-color: #22c55e;
+      background: #f0fdf4;
+    }
   `,
 })
 export class Tasks {
