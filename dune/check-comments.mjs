@@ -38,7 +38,6 @@ function isGeneratedPath(rel) {
   if (rel.startsWith('frontend/.angular/')) return true;
   if (rel.includes('/obj/') || rel.includes('/bin/')) return true;
   if (rel.endsWith('.d.ts')) return true;
-  if (rel.startsWith('openspec/changes/archive/')) return true;
   return false;
 }
 

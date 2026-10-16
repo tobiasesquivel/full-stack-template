@@ -1,6 +1,6 @@
 # Convenciones del monorepo
 
-Estas convenciones acompañan [ADR-0003](adr/0003-full-stack-template-dune.md) y los [contratos activos](../openspec/specs/dune/spec.md). Sustituyen `backend/docs/AspNetConventions.md` y `project-goals.md`. Verificación real 2026-10-05: backend 24/24 pass (reporte parent artifact://611), Docker `up --build` final con éxito, smoke `--compose` exit 0 y navegador PASS. Dune 22/22 PASS local (artifact://640) con gate duro real DUNE0001 en throwaway y `dotnet build TemplateApp.slnx` exit 0, 0 errores (artifact://643). GitHub Actions no ejecutado; sin afirmación de cero warnings. No son una lista de capacidades pendientes ni evidencia por sí solas de que los gates hayan pasado.
+Estas convenciones acompañan [ADR-0003](adr/0003-full-stack-template-dune.md) y la [arquitectura](architecture.md). Sustituyen `backend/docs/AspNetConventions.md` y `project-goals.md`. Verificación real 2026-10-05: backend 24/24 pass (reporte parent artifact://611), Docker `up --build` final con éxito, smoke `--compose` exit 0 y navegador PASS. Dune 22/22 PASS local (artifact://640) con gate duro real DUNE0001 en throwaway y `dotnet build TemplateApp.slnx` exit 0, 0 errores (artifact://643). GitHub Actions no ejecutado; sin afirmación de cero warnings. No son una lista de capacidades pendientes ni evidencia por sí solas de que los gates hayan pasado.
 
 ## Localidad y nombres
 
@@ -9,7 +9,7 @@ Estas convenciones acompañan [ADR-0003](adr/0003-full-stack-template-dune.md) y
 - Namespace coincide con la ruta bajo `TemplateApp`. Usa namespaces file-scoped, nullable e implicit usings.
 - Requests y responses son records. Validación de entrada usa FluentValidation. Mappings EF usan Fluent API fuera de Domain.
 - No hay handlers de bus, controllers parciales, wrappers genéricos de repositorio ni aliases de APIs retiradas.
-- Coloca documentación normativa en `docs` y contratos activos solo en `openspec/specs`. `CONTEXT.md` contiene únicamente vocabulario del dominio.
+- Coloca documentación normativa en `docs`. `CONTEXT.md` contiene únicamente vocabulario del dominio.
 
 Tarea es el patrón de casos de uso colocados. Un archivo por operación contiene las declaraciones parciales de `TasksModule` y `TasksEndpoints`. Crear y actualizar contienen además sus requests y validators. No agregues un módulo ni registro por archivo. Mantén un solo constructor con las dependencias compartidas y un solo mapa de rutas. Coloca cliente HTTP y modelos exclusivos de Tarea en la feature Angular, no en Core.
 
@@ -44,6 +44,6 @@ Pruebas de analyzer compilan casos válidos y violaciones deliberadas y observan
 
 El inventario de artefactos versionados usa `git ls-files --cached`. Un archivo ignorado agregado al índice falla, incluso si ya se borró del directorio de trabajo. Una caché local ignorada y no indexada no falla. La detección de repositorios anidados es una comprobación separada. Si Git no puede entregar el inventario, el gate falla.
 
-Un PR contiene un cambio observable completo. Si cambia un contrato, incluye backend, frontend, tests y OpenSpec juntos. No impongas un límite de líneas. No desactives analyzers, no omitas pruebas ni uses continue-on-error para conseguir CI verde. Describe checks ejecutados y bloqueos reales por separado.
+Un PR contiene un cambio observable completo. Si cambia un contrato, incluye backend, frontend y tests juntos. No impongas un límite de líneas. No desactives analyzers, no omitas pruebas ni uses continue-on-error para conseguir CI verde. Describe checks ejecutados y bloqueos reales por separado.
 
 Los [comandos de gates](../README.md#ejecutar-gates) están en README. Comandos vigentes desde la raíz: `node dune/check-structure.mjs`, `node --test dune/check-structure.test.mjs`, `node dune/check-comments.mjs --root .`, `node --test dune/check-comments.test.mjs`, `dotnet run --project dune/Dune.CommentVerifier -- --root .`, `dotnet test TemplateApp.slnx` con runner MTP (proyectos backend `Tests` y `dune/Dune.Analyzers.Tests`); desde `frontend/`: `node --test ../dune/check-frontend.test.mjs` y `node ../dune/check-frontend.mjs --root ..`. El inventario de tests usa el glob `../Features/*/Tests/**/*.cs`: una feature nueva sin `Tests/` con `*.cs` falla. Sin suite `ng test` vigente (`*.spec.ts` ausente; prueba real en navegador). Migraciones solo por CLI (`InitialCreate` en commit `6687af8`); original no tocado. No conviertas reportes heredados en evidencia del estado actual. Los gates nuevos figuran NOT VERIFIED hasta la ejecución integrada del parent.

@@ -213,26 +213,12 @@ async function checkNoNestedGit() {
   if (offenders.length > 0) fail(`git anidado: ${offenders.join(', ')}`);
 }
 
-async function checkOpenspecSingleSource() {
-  const active = [];
-  await collectFiles(path.join(root, 'openspec', 'specs'), active);
-  const legacy = path.join(root, 'backend', 'openspec');
-  if (await exists(legacy)) {
-    const leftovers = [];
-    await collectFiles(legacy, leftovers);
-    if (leftovers.length > 0) fail(`openspec duplicado: backend/openspec aún contiene ${leftovers.length} archivo(s)`);
-  }
-  const specs = active.filter((file) => file.endsWith('.md'));
-  if (specs.length === 0) fail('openspec/specs sin especificaciones activas');
-}
-
 await checkTestsColocated();
 await checkProductExcludesTests();
 await checkNoWolverine();
 await checkNoToggleAlias();
 await checkTrackedArtifacts();
 await checkNoNestedGit();
-await checkOpenspecSingleSource();
 
 if (failures.length > 0) {
   console.error('check-structure: FAIL');

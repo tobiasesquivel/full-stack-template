@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-10-15. Retiro de OpenSpec
+
+- Se elimina `openspec/`. Los tests de integración por feature fijan los contratos HTTP. Las reglas Dune viven en `dune/` y se describen en `docs/architecture.md`.
+- `check-structure` deja de exigir `openspec/specs` y `check-comments` deja de excluir su archivo histórico.
+- Las entradas anteriores y las ADR conservan sus menciones a OpenSpec como historia.
+
 ## 2026-10-03. Contratos de la copia
 
 - La fuente activa OpenSpec queda en la raíz con Auth, Users, Tasks, Health, Observability y Dune. Las cuatro specs antes activas del backend y su config se conservan bajo `openspec/changes/archive/pre-0003-backend-contract`. Los cinco cambios históricos conservan sus carpetas y contenido en el archivo raíz.
