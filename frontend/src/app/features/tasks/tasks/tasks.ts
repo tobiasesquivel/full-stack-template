@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, ElementRef, Injector, afterNextRender, computed, inject, signal, viewChild } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { TasksService } from '../tasks.service';
 import { describeHttpError } from '../../../core/http-error';
@@ -11,7 +11,7 @@ const PAGE_SIZE = 10;
   imports: [ReactiveFormsModule],
   template: `
     <section aria-labelledby="tasks-title">
-      <h1 id="tasks-title">Mis tareas</h1>
+      <h1 id="tasks-title" #tasksHeading tabindex="-1">Mis tareas</h1>
 
       <form [formGroup]="createForm" (ngSubmit)="create()" aria-label="Crear tarea" novalidate>
         <label for="new-task-title">Nueva tarea</label>
@@ -69,7 +69,12 @@ const PAGE_SIZE = 10;
                 <button type="button" [disabled]="pendingId() === task.id" (click)="startEdit(task)">
                   Editar
                 </button>
-                <button type="button" [disabled]="pendingId() === task.id" (click)="remove(task)">
+                <button
+                  type="button"
+                  #deleteButton
+                  [disabled]="pendingId() === task.id"
+                  (click)="askRemove(task, deleteButton)"
+                >
                   Eliminar
                 </button>
               }
@@ -94,8 +99,30 @@ const PAGE_SIZE = 10;
         </nav>
       }
     </section>
+    <dialog
+      #confirmDialog
+      aria-labelledby="delete-confirm-title"
+      aria-describedby="delete-confirm-body"
+      aria-modal="true"
+      (cancel)="cancelRemove($event)"
+      style="border: 1px solid #e2e8f0; border-radius: 0.75rem; padding: 1.25rem; width: min(24rem, calc(100vw - 2rem)); max-width: calc(100vw - 2rem); box-sizing: border-box; background: #ffffff; color: #0f172a;"
+    >
+      <h2 id="delete-confirm-title" style="margin: 0 0 0.5rem; font-size: 1.125rem; line-height: 1.25;">
+        Confirmar eliminación
+      </h2>
+      <p id="delete-confirm-body" style="margin: 0 0 1rem; overflow-wrap: anywhere;">
+        ¿Eliminar «{{ pendingDelete()?.title }}»? Esta acción no se puede deshacer.
+      </p>
+      <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: flex-end;">
+        <button type="button" autofocus (click)="cancelRemove()">Cancelar</button>
+        <button type="button" (click)="confirmRemove()">Confirmar</button>
+      </div>
+    </dialog>
   `,
   styles: `
+    dialog::backdrop {
+      background: rgb(15 23 42 / 0.4);
+    }
     :host {
       display: block;
     }
@@ -109,6 +136,8 @@ const PAGE_SIZE = 10;
     }
     .task-row {
       border-left-width: 3px;
+      border-left-style: solid;
+      border-left-color: transparent;
       transition: border-color 120ms ease-in-out;
     }
     .task-row:hover {
@@ -138,7 +167,11 @@ export class Tasks {
   protected readonly pendingId = signal<string | null>(null);
   protected readonly editingId = signal<string | null>(null);
   protected readonly editTitle = signal('');
-
+  protected readonly pendingDelete = signal<TaskResponse | null>(null);
+  private deleteTrigger: HTMLButtonElement | null = null;
+  private readonly injector = inject(Injector);
+  private readonly confirmDialog = viewChild<ElementRef<HTMLDialogElement>>('confirmDialog');
+  private readonly tasksHeading = viewChild<ElementRef<HTMLElement>>('tasksHeading');
   protected readonly createForm = this.fb.group({
     title: ['', [Validators.required, Validators.maxLength(200)]],
   });
@@ -187,7 +220,6 @@ export class Tasks {
     }
   }
 
-  /** El checkbox envía el estado final por PUT con el valor deseado. */
   protected async setCompleted(task: TaskResponse, completed: boolean): Promise<void> {
     await this.runRowAction(task.id, () =>
       this.tasksApi.update(task.id, { title: task.title, isCompleted: completed }),
@@ -219,12 +251,43 @@ export class Tasks {
     }
   }
 
-  protected async remove(task: TaskResponse): Promise<void> {
-    if (!window.confirm(`¿Eliminar «${task.title}»?`)) {
+  protected askRemove(task: TaskResponse, trigger: HTMLButtonElement): void {
+    this.deleteTrigger = trigger;
+    this.pendingDelete.set(task);
+    const dialog = this.confirmDialog()?.nativeElement;
+    if (dialog && !dialog.open) {
+      dialog.showModal();
+    }
+  }
+
+  protected cancelRemove(event?: Event): void {
+    if (event) {
+      event.preventDefault();
+    }
+    this.pendingDelete.set(null);
+    this.confirmDialog()?.nativeElement.close();
+    const trigger = this.deleteTrigger;
+    this.deleteTrigger = null;
+    trigger?.focus();
+  }
+
+  protected async confirmRemove(): Promise<void> {
+    const task = this.pendingDelete();
+    const trigger = this.deleteTrigger;
+    if (!task) {
       return;
     }
+    this.pendingDelete.set(null);
+    this.deleteTrigger = null;
+    this.confirmDialog()?.nativeElement.close();
+    await this.remove(task, trigger);
+  }
+
+  protected async remove(task: TaskResponse, trigger?: HTMLButtonElement | null): Promise<void> {
+    const fallback = trigger ?? null;
     this.actionError.set(null);
     this.pendingId.set(task.id);
+    let failed = false;
     try {
       await this.tasksApi.remove(task.id);
       if (this.items().length === 1 && this.page() > 1) {
@@ -232,10 +295,32 @@ export class Tasks {
       }
       await this.load();
     } catch (err) {
+      failed = true;
       this.actionError.set(describeHttpError(err));
     } finally {
       this.pendingId.set(null);
     }
+    this.focusAfterRemove(fallback, failed);
+  }
+
+  private focusAfterRemove(trigger: HTMLButtonElement | null, failed: boolean): void {
+    const active = document.activeElement;
+    const dialog = this.confirmDialog()?.nativeElement;
+    const inDialog = !!dialog && !!active && dialog.contains(active);
+    const onBody = active === null || active === document.body;
+    if (!inDialog && !onBody) {
+      return;
+    }
+    afterNextRender(
+      () => {
+        if (failed && trigger && trigger.isConnected && !trigger.disabled) {
+          trigger.focus();
+          return;
+        }
+        this.tasksHeading()?.nativeElement.focus();
+      },
+      { injector: this.injector },
+    );
   }
 
   private async runRowAction(id: string, action: () => Promise<TaskResponse>): Promise<void> {

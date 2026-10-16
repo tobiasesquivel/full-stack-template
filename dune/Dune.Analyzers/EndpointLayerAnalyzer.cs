@@ -7,9 +7,6 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace Dune.Analyzers;
 
-// DUNE0002. Endpoints adapt HTTP and call their module. Direct touches of EF,
-// Persistence, or Identity managers are a layer violation, whatever spelling
-// the reference uses.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class EndpointLayerAnalyzer : DiagnosticAnalyzer
 {
@@ -34,9 +31,6 @@ public sealed class EndpointLayerAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        // AliasQualifiedName (EF::DbSet<T>, Identity::UserManager<TUser>) is a
-        // distinct syntax kind from SimpleMemberAccessExpression; resolving the
-        // whole node surfaces the bound symbol through the alias.
         var symbol = context.SemanticModel.GetSymbolInfo(context.Node, context.CancellationToken).Symbol;
         if (symbol is null)
         {

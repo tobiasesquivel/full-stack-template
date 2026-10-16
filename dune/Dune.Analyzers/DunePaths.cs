@@ -2,11 +2,7 @@ using System;
 
 namespace Dune.Analyzers;
 
-// File layout helpers shared by every Dune analyzer. Paths come from
-// SyntaxTree.FilePath, so tests set them explicitly and production builds
-// carry the real backend-relative location. Migrations and the model snapshot
-// are historical evidence and stay exempt from every rule.
-internal static class DunePaths
+public static class DunePaths
 {
     private const string BackendMarker = "backend/";
 
@@ -63,8 +59,6 @@ internal static class DunePaths
         return fileName.IndexOf("Endpoint", StringComparison.Ordinal) >= 0;
     }
 
-    // backend/Features/Auth/Login/LoginRequest.cs -> TemplateApp.Features.Auth.Login.
-    // Files without a backend-relative C# path fall outside every Dune rule.
     public static string? ExpectedNamespace(string normalizedPath)
     {
         var marker = normalizedPath.IndexOf(BackendMarker, StringComparison.Ordinal);

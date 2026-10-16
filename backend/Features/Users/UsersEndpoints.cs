@@ -1,8 +1,5 @@
 using System.Security.Claims;
 using ErrorOr;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Routing;
 using TemplateApp.Features.Users.Contracts;
 using TemplateApp.Shared.Http;
 

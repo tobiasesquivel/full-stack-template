@@ -5,10 +5,6 @@ using Xunit;
 
 namespace Dune.Analyzers.Tests;
 
-// DUNE0001 through DUNE0004 observe diagnostics through the real analyzer
-// pipeline. Each negative case must produce the expected id; each positive
-// case must stay silent. Duplicated assertions across rules would couple the
-// tests to incidental overlap, so one rule owns each fixture file.
 public sealed class LayerAnalyzerTests
 {
     [Fact]

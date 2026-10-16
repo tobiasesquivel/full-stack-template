@@ -4,12 +4,6 @@ import { Router } from '@angular/router';
 import { catchError, from, switchMap, throwError } from 'rxjs';
 import { AuthService } from './auth.service';
 
-/**
- * Adjunta el Bearer en memoria y, ante un 401 de la API (salvo endpoints de
- * auth como login), renueva la sesión con singleflight y repite la petición
- * una sola vez. Sin bucles: la repetición no se reintenta; si falla,
- * limpia la sesión y vuelve al login.
- */
 export const authInterceptor: HttpInterceptorFn = (request, next) => {
   const auth = inject(AuthService);
   const router = inject(Router);

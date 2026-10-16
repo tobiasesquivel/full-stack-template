@@ -26,9 +26,9 @@ async function makeRepo() {
 
 async function seedValid(repo) {
   for (const feature of ['Auth', 'Users', 'Tasks', 'Health']) {
-    await repo.write(`backend/Features/${feature}/Tests/${feature}Tests.cs`, '// test');
+    await repo.write(`backend/Features/${feature}/Tests/${feature}Tests.cs`, ' ');
   }
-  await repo.write('backend/Program.cs', '// composition');
+  await repo.write('backend/Program.cs', ' ');
   await repo.write(
     'backend/TemplateApp.csproj',
     '<Project><ItemGroup>'
@@ -38,7 +38,9 @@ async function seedValid(repo) {
   );
   await repo.write(
     'backend/Tests/TemplateApp.Tests.csproj',
-    '<Project><ItemGroup><ProjectReference Include="../TemplateApp.csproj" /></ItemGroup></Project>',
+    '<Project><ItemGroup><ProjectReference Include="../TemplateApp.csproj" />'
+      + '<Compile Include="..\\Features\\*\\Tests\\**\\*.cs" />'
+      + '</ItemGroup></Project>',
   );
   await repo.write('openspec/specs/tasks/spec.md', '# tasks');
   await repo.git(['init']);
@@ -206,6 +208,47 @@ describe('check-structure', () => {
       assert.match(result.output, /openspec duplicado/);
       assert.match(result.output, /artefactos versionados/);
       assert.match(result.output, /bundle\.nupkg/);
+    } finally {
+      await repo.cleanup();
+    }
+  });
+
+  it('acepta una feature nueva con Tests colocados', async () => {
+    const repo = await makeRepo();
+    try {
+      await seedValid(repo);
+      await repo.write('backend/Features/Billing/Tests/BillingTests.cs', ' ');
+      const result = await runGate(repo.dir);
+      assert.equal(result.code, 0, result.output);
+    } finally {
+      await repo.cleanup();
+    }
+  });
+
+  it('rechaza una feature nueva sin Tests', async () => {
+    const repo = await makeRepo();
+    try {
+      await seedValid(repo);
+      await repo.write('backend/Features/Billing/BillingModule.cs', ' ');
+      const result = await runGate(repo.dir);
+      assert.equal(result.code, 1);
+      assert.match(result.output, /tests de Billing fuera de su feature/);
+    } finally {
+      await repo.cleanup();
+    }
+  });
+
+  it('rechaza inventario de tests sin glob de Features', async () => {
+    const repo = await makeRepo();
+    try {
+      await seedValid(repo);
+      await repo.write(
+        'backend/Tests/TemplateApp.Tests.csproj',
+        '<Project><ItemGroup></ItemGroup></Project>',
+      );
+      const result = await runGate(repo.dir);
+      assert.equal(result.code, 1);
+      assert.match(result.output, /no referencia el producto/);
     } finally {
       await repo.cleanup();
     }

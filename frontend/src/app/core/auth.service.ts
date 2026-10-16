@@ -4,18 +4,15 @@ import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import type { AuthResponse, RegisterPayload, TokenResponse, UserResponse } from './api-models';
 
-/**
- * Sesión del usuario. El access token vive solo en memoria (nunca en
- * localStorage ni sessionStorage); la sesión persistente es la cookie
- * HttpOnly de refresh que el navegador gestiona en el mismo origen.
- */
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
 
-  readonly currentUser = signal<UserResponse | null>(null);
-  readonly initialized = signal(false);
+  private readonly currentUserSignal = signal<UserResponse | null>(null);
+  private readonly initializedSignal = signal(false);
+  readonly currentUser = this.currentUserSignal.asReadonly();
+  readonly initialized = this.initializedSignal.asReadonly();
 
   private accessToken: string | null = null;
   private refreshPromise: Promise<TokenResponse> | null = null;
@@ -24,7 +21,6 @@ export class AuthService {
     this.readyResolve = resolve;
   });
 
-  /** Se resuelve cuando el arranque (restaurar sesión) termina. */
   ready(): Promise<void> {
     return this.readyPromise;
   }
@@ -38,17 +34,16 @@ export class AuthService {
   }
 
   setUser(user: UserResponse): void {
-    this.currentUser.set(user);
+    this.currentUserSignal.set(user);
   }
 
-  /** Arranque no bloqueante: pide CSRF e intenta restaurar la sesión. */
   bootstrap(): void {
     this.ensureCsrf()
       .then(() => this.refreshNow())
       .then(() => this.loadMe())
       .catch(() => this.clearSession())
       .finally(() => {
-        this.initialized.set(true);
+        this.initializedSignal.set(true);
         this.readyResolve();
       });
   }
@@ -69,11 +64,6 @@ export class AuthService {
     await this.router.navigate(['/tasks']);
   }
 
-  /**
-   * Cierra la sesión en el servidor (revoca la cookie) y limpia la memoria.
-   * Si falla (p. ej. sin red), la sesión local se conserva y el error
-   * lo muestra quien llama con una acción de reintento explícita.
-   */
   async logout(): Promise<void> {
     await this.ensureCsrf();
     await firstValueFrom(this.http.post('/api/v1/auth/logout', {}, { responseType: 'text' }));
@@ -81,7 +71,6 @@ export class AuthService {
     await this.router.navigate(['/login']);
   }
 
-  /** Renovación con singleflight: las llamadas concurrentes comparten una sola petición. */
   refreshNow(): Promise<TokenResponse> {
     if (!this.refreshPromise) {
       this.refreshPromise = this.doRefresh();
@@ -91,7 +80,7 @@ export class AuthService {
 
   clearSession(): void {
     this.accessToken = null;
-    this.currentUser.set(null);
+    this.currentUserSignal.set(null);
   }
 
   private async doRefresh(): Promise<TokenResponse> {
@@ -111,15 +100,14 @@ export class AuthService {
 
   private applyAuth(response: AuthResponse): void {
     this.accessToken = response.accessToken;
-    this.currentUser.set(response.user);
+    this.currentUserSignal.set(response.user);
   }
 
   private async loadMe(): Promise<void> {
     const me = await firstValueFrom(this.http.get<UserResponse>('/api/v1/users/me'));
-    this.currentUser.set(me);
+    this.currentUserSignal.set(me);
   }
 
-  /** Descarga la cookie antiforgery; exigible antes de las mutaciones de auth. */
   async ensureCsrf(): Promise<void> {
     await firstValueFrom(this.http.get('/api/v1/auth/csrf', { responseType: 'text' }));
   }

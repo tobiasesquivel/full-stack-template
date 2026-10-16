@@ -7,9 +7,6 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace Dune.Analyzers;
 
-// DUNE0003. Infrastructure knows models and configurations, never application
-// modules or endpoints. The single composition seam AddBackendInfrastructure
-// may reference them; every other file reports.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class InfrastructureBoundaryAnalyzer : DiagnosticAnalyzer
 {
@@ -58,7 +55,6 @@ public sealed class InfrastructureBoundaryAnalyzer : DiagnosticAnalyzer
             return false;
         }
 
-        // Only the central composition seam may wire modules.
         return !node.Ancestors()
             .OfType<MethodDeclarationSyntax>()
             .Any(method => method.Identifier.Text.Equals(

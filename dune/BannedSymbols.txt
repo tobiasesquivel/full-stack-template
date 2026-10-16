@@ -1,9 +1,3 @@
-// Dune banned symbols. Local clocks break multi-instance correctness
-// (inject TimeProvider and use UtcNow). Blocking on Task breaks async
-// pipelines. Raw EF SQL interpolates untrusted input (use the Formattable
-// FromSql/ExecuteSql overloads, which parameterize). Entries use stable
-// doc-comment ids so the check is semantic: aliases and fully qualified
-// names cannot bypass it.
 P:System.DateTime.Now;Do not use local clock time. Inject TimeProvider and use UtcNow.
 P:System.DateTime.Today;Do not use local clock date. Inject TimeProvider and use UtcNow.
 P:System.DateTimeOffset.Now;Do not use local clock time. Inject TimeProvider and use UtcNow.

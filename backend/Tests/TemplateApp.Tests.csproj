@@ -27,10 +27,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="..\Features\Auth\Tests\**\*.cs" />
-    <Compile Include="..\Features\Users\Tests\**\*.cs" />
-    <Compile Include="..\Features\Tasks\Tests\**\*.cs" />
-    <Compile Include="..\Features\Health\Tests\**\*.cs" />
+    <Compile Include="..\Features\*\Tests\**\*.cs" />
   </ItemGroup>
 
 </Project>

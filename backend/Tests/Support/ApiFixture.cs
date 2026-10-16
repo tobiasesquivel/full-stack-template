@@ -26,8 +26,6 @@ public sealed class ApiFixture : IAsyncLifetime
 
     public HttpClient CreateIsolatedClient(out IServiceProvider services)
     {
-        // Fábrica propia con la misma DB real: el rate limiter "auth" (fijo por app)
-        // deja de compartirse con el resto de la suite. Sin tocar la política.
         WebApplicationFactory<Program> isolated = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
             builder.UseEnvironment("Testing");

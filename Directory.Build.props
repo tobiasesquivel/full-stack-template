@@ -1,25 +1,3 @@
 <Project>
-
-  <!-- Shared Dune build wiring. Analyzer references resolve from this file's
-       directory so backend/TemplateApp.csproj and backend/Tests both work.
-       The analyzer projects themselves stay exempt: applying TreatWarningsAsErrors
-       plus their own Roslyn reference inside their build would be circular. -->
-  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'TemplateApp' Or '$(MSBuildProjectName)' == 'TemplateApp.Tests'">
-    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
-    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
-    <WarningsAsErrors>DUNE0001;DUNE0002;DUNE0003;DUNE0004;DUNE0005;DUNE0006;DUNE0007;DUNE0008;RS0030;RS0031;RS0032;RS0033;RS0034;CA1849</WarningsAsErrors>
-    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
-    <AnalysisMode>All</AnalysisMode>
-    <CodeAnalysisTreatWarningsAsErrors>false</CodeAnalysisTreatWarningsAsErrors>
-  </PropertyGroup>
-
-  <ItemGroup Condition="'$(MSBuildProjectName)' == 'TemplateApp' Or '$(MSBuildProjectName)' == 'TemplateApp.Tests'">
-    <ProjectReference Include="$(MSBuildThisFileDirectory)tools/Dune.Analyzers/Dune.Analyzers.csproj"
-                      PrivateAssets="all"
-                      ReferenceOutputAssembly="false"
-                      OutputItemType="Analyzer" />
-    <PackageReference Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" Version="5.6.0" PrivateAssets="all" />
-    <AdditionalFiles Include="$(MSBuildThisFileDirectory)BannedSymbols.txt" />
-  </ItemGroup>
-
+  <Import Project="dune/Dune.props" />
 </Project>

@@ -11,9 +11,6 @@ using Microsoft.CodeAnalysis.Text;
 
 namespace Dune.Analyzers.Tests;
 
-// Behavioral host: runs the real analyzers over real compilations and returns
-// the diagnostics they produce. Tests assert on diagnostic ids and locations,
-// never on source text.
 internal static class AnalyzerHost
 {
     public static async Task<ImmutableArray<Diagnostic>> AnalyzeAsync(
@@ -39,8 +36,6 @@ internal static class AnalyzerHost
             analyzers().ToImmutableArray(),
             new AnalyzerOptions(ImmutableArray<AdditionalText>.Empty));
 
-        // A fixture with missing references resolves to error types and every
-        // symbol-gated rule silently passes. Fail loud instead of green.
         TestReferences.ThrowOnFixtureErrors(compilation);
 
         return await compilationWithAnalyzers.GetAnalyzerDiagnosticsAsync();
@@ -54,26 +49,18 @@ internal static class AnalyzerHost
             new CrossFeatureAnalyzer(),
             new NamingAnalyzer(),
             new DbSetShadowAnalyzer(),
-            new OwnerPredicateAnalyzer());
+            new OwnerPredicateAnalyzer(),
+            new NoCommentsAnalyzer());
 
     public static Func<ImmutableArray<DiagnosticAnalyzer>> Only<T>()
         where T : DiagnosticAnalyzer, new() =>
         () => ImmutableArray.Create<DiagnosticAnalyzer>(new T());
 }
 
-// In-memory compilations resolve fixture symbols against the test process's
-// loaded assemblies. EF/Identity assemblies load on first use, so touching
-// the fixture-relevant types before the AppDomain scan keeps DbContext,
-// relational extensions, and Identity managers resolvable instead of
-// degrading to error types.
 internal static class TestReferences
 {
     public static List<MetadataReference> All()
     {
-        // TRUSTED_PLATFORM_ASSEMBLIES is the full shared-framework closure.
-        // The AppDomain scan only sees already-loaded assemblies, so TPA is
-        // the complete host. Touching fixture-relevant types forces their
-        // loads before TPA is read.
         _ = typeof(Microsoft.EntityFrameworkCore.DbContext).Assembly;
         _ = typeof(Microsoft.EntityFrameworkCore.RelationalQueryableExtensions).Assembly;
         _ = typeof(Microsoft.AspNetCore.Identity.IdentityUser).Assembly;
@@ -95,9 +82,6 @@ internal static class TestReferences
             locations.Add(file);
         }
 
-        // TPA already carries the framework closure; the test output dir adds
-        // the NuGet closure. Same filename in both (e.g. xunit) must resolve
-        // once, preferring the test dir copy.
         return locations
             .GroupBy(location => Path.GetFileName(location), StringComparer.OrdinalIgnoreCase)
             .Select(group => group.OrderByDescending(location =>

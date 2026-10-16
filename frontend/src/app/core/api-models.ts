@@ -1,6 +1,3 @@
-// Contratos HTTP consumidos del backend (/api/v1, JSON en camelCase).
-// Fuente: docs/adr/0003-full-stack-template-dune.md y contrato de integración.
-
 export interface UserResponse {
   authId: string;
   userName: string;

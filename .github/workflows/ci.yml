@@ -36,6 +36,8 @@ jobs:
         env:
           ConnectionStrings__DefaultConnection: Host=localhost;Port=5432;Database=template_tests;Username=postgres;Password=template-ci;
           Jwt__Key: ci-jwt-key-at-least-32-characters-long!
+      - name: Verificador de comentarios C#
+        run: dotnet run --project dune/Dune.CommentVerifier -- --root .
       - name: Backend tests con PostgreSQL real
         run: dotnet test backend/Tests/TemplateApp.Tests.csproj --configuration Release --no-build
         env:
@@ -43,14 +45,14 @@ jobs:
           Jwt__Key: ci-jwt-key-at-least-32-characters-long!
           TEST_POSTGRES_CONNECTION: Host=localhost;Port=5432;Database=template_tests;Username=postgres;Password=template-ci;
       - name: Analyzer tests Dune
-        run: dotnet test tools/Dune.Analyzers.Tests/Dune.Analyzers.Tests.csproj --configuration Release
+        run: dotnet test dune/Dune.Analyzers.Tests/Dune.Analyzers.Tests.csproj --configuration Release
       - name: Gate de estructura
-        run: node tools/check-structure.mjs
+        run: node dune/check-structure.mjs
       - name: Tests del gate de estructura
-        run: node --test tools/check-structure.test.mjs
+        run: node --test dune/check-structure.test.mjs
 
   frontend:
-    name: Frontend build
+    name: Frontend build y gates
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -64,6 +66,27 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - run: npm run build
+      - name: Tests del gate de frontend
+        run: node --test ../dune/check-frontend.test.mjs
+      - name: Gate de frontend
+        run: node ../dune/check-frontend.mjs --root ..
+
+  comments:
+    name: Comentarios del codigo propio
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26.7.0
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Instalar dependencias de analisis
+        run: npm ci --prefix frontend
+      - name: Tests del gate de comentarios
+        run: node --test dune/check-comments.test.mjs
+      - name: Gate de comentarios
+        run: node dune/check-comments.mjs --root .
 
   compose:
     name: Docker config y smoke runtime

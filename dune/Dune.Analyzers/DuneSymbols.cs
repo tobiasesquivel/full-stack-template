@@ -3,9 +3,6 @@ using Microsoft.CodeAnalysis;
 
 namespace Dune.Analyzers;
 
-// Symbol helpers shared by the layer analyzers. Every check resolves the
-// bound symbol first, so using aliases and fully qualified names cannot
-// bypass a rule that a plain name would trigger.
 internal static class DuneSymbols
 {
     public static string NamespaceOf(ISymbol symbol) =>
@@ -56,8 +53,6 @@ internal static class DuneSymbols
         return isManager && InNamespace(type.OriginalDefinition, "Microsoft.AspNetCore.Identity");
     }
 
-    // Entity Framework, any Persistence configuration, a DbContext subclass,
-    // or an Identity manager type. Used by the endpoint rule.
     public static bool TouchesPersistenceOrEf(ISymbol symbol, Compilation compilation)
     {
         if (symbol is INamedTypeSymbol named)
@@ -96,5 +91,4 @@ internal static class DuneSymbols
         return ContainsSegment(ns, ".Persistence.")
             || ns.EndsWith(".Persistence", StringComparison.Ordinal);
     }
-
 }

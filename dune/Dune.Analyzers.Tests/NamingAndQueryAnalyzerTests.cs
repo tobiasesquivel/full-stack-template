@@ -5,9 +5,6 @@ using Xunit;
 
 namespace Dune.Analyzers.Tests;
 
-// DUNE0005 through DUNE0008: namespace placement, DbSet shadowing, and the
-// Id-plus-owner query rule. Behavioral tests observe diagnostics, never
-// source text.
 public sealed class NamingAndQueryAnalyzerTests
 {
     [Fact]

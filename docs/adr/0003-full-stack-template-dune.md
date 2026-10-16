@@ -45,8 +45,9 @@ backend/
   Tests/       proyecto de tests y soporte de Postgres/WebApplicationFactory
   Program.cs
   TemplateApp.csproj
-tools/Dune.Analyzers/  analizadores semánticos y pruebas positivas/negativas
-tools/                 controles de estructura y escenarios HTTP
+dune/Dune.Analyzers/   analizadores semánticos y pruebas positivas/negativas
+dune/                  controles de estructura, frontend y comentarios, BannedSymbols.txt y Dune.props
+raíz/                  Directory.Build.props, .editorconfig, TemplateApp.slnx y CI solo adaptan dune/
 frontend/src/app/features/{auth,users,tasks}/
 openspec/              única fuente activa de contratos full-stack
 docs/adr/              decisiones de toda la copia
