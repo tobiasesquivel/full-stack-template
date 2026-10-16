@@ -4,7 +4,7 @@ Consulta: 2026-10-05. Esta nota describe el framework de Lauren (@poteto), no el
 
 ## Uso en próximas sesiones
 
-Consultar esta nota antes de explicar Dune, comparar su arquitectura con este template o diseñar cambios inspirados en él. Las fuentes externas describen el framework de Lauren; las reglas locales vigentes están en `openspec/specs/dune/spec.md`.
+Consultar esta nota antes de explicar Dune, comparar su arquitectura con este template o diseñar cambios inspirados en él. Las fuentes externas describen el framework de Lauren; las reglas locales vigentes viven en `dune/` y se describen en `docs/architecture.md`.
 
 Conservar la distinción entre declaraciones de la autora, transcripción de terceros e inferencias. Los ejemplos de chat de la conversación eran ilustrativos, no APIs reales. Para actualizar un dato, citar la nueva fuente y su fecha. Verificar especialmente disponibilidad pública y APIs: pueden cambiar después de esta consulta.
 

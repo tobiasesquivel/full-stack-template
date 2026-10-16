@@ -42,7 +42,6 @@ async function seedValid(repo) {
       + '<Compile Include="..\\Features\\*\\Tests\\**\\*.cs" />'
       + '</ItemGroup></Project>',
   );
-  await repo.write('openspec/specs/tasks/spec.md', '# tasks');
   await repo.git(['init']);
   await repo.git(['add', '.']);
 }
@@ -196,16 +195,14 @@ describe('check-structure', () => {
     }
   });
 
-  it('rechaza openspec duplicado y artefacto rastreado', async () => {
+  it('rechaza artefacto rastreado', async () => {
     const repo = await makeRepo();
     try {
       await seedValid(repo);
-      await repo.write('backend/openspec/changes/legacy.md', 'legacy');
       await repo.write('backend/Features/Tasks/bundle.nupkg', 'binary');
       await repo.git(['add', 'backend/Features/Tasks/bundle.nupkg']);
       const result = await runGate(repo.dir);
       assert.equal(result.code, 1);
-      assert.match(result.output, /openspec duplicado/);
       assert.match(result.output, /artefactos versionados/);
       assert.match(result.output, /bundle\.nupkg/);
     } finally {

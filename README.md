@@ -1,6 +1,6 @@
 # TemplateApp full-stack
 
-Usa este monorepo como Git template para una aplicación con registro, sesión, perfil y tareas personales. Backend ASP.NET Core 10, frontend Angular 22 y PostgreSQL comparten contratos en OpenSpec.
+Usa este monorepo como Git template para una aplicación con registro, sesión, perfil y tareas personales. Combina backend ASP.NET Core 10, frontend Angular 22 y PostgreSQL.
 
 ## Estado de esta entrega
 
@@ -70,7 +70,7 @@ Regístrate con nombre de login, email, contraseña y nombre visible. Inicia ses
 
 Si consumes HTTP directamente, primero pide `GET /api/v1/auth/csrf` y conserva cookies. Envía el valor de `XSRF-TOKEN` como `X-XSRF-TOKEN` en register, login, refresh y logout. Usa el access token como Bearer para Users y Tasks. Refresh y logout tienen body vacío y no necesitan un access token vigente. No leas la cookie HttpOnly ni envíes refresh tokens en JSON.
 
-Los errores usan ProblemDetails. Un recurso inexistente devuelve 404 y un recurso ajeno sin permiso devuelve 403. La lista Tasks siempre es personal, incluso para un administrador. Consulta los contratos [Auth](openspec/specs/auth/spec.md), [Users](openspec/specs/users/spec.md) y [Tasks](openspec/specs/tasks/spec.md) para payloads y estados exactos.
+Los errores usan ProblemDetails. Un recurso inexistente devuelve 404 y un recurso ajeno sin permiso devuelve 403. La lista Tasks siempre es personal, incluso para un administrador. Los tests de integración en `backend/Features/*/Tests` fijan payloads y estados exactos.
 
 ## Ejecutar gates
 
@@ -116,4 +116,4 @@ Comprueba `GET /api/v1/health/live` y `/ready` antes y después de interrumpir P
 
 Entrega un PR atómico por cambio observable. Incluye backend, frontend, tests y spec juntos cuando cambie HTTP. No impongas límite artificial de líneas ni uses continue-on-error. Adjunta comandos realmente ejecutados, resultados y evidencia de fallos. Un PR sin runtime observado no puede afirmar runtime verificado.
 
-Lee [arquitectura](docs/architecture.md), [convenciones](docs/conventions.md), [ADR-0003](docs/adr/0003-full-stack-template-dune.md) y [Dune](openspec/specs/dune/spec.md). [CONTEXT](CONTEXT.md) es el glosario del dominio. [Changelog](docs/changelog.md) describe la consolidación. [Archivo OpenSpec](openspec/changes/archive/README.md) conserva historia y supersesiones sin convertirla en evidencia actual.
+Lee [arquitectura](docs/architecture.md), [convenciones](docs/conventions.md) y [ADR-0003](docs/adr/0003-full-stack-template-dune.md). [CONTEXT](CONTEXT.md) es el glosario del dominio. [Changelog](docs/changelog.md) describe la consolidación.
