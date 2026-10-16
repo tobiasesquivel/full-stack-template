@@ -6,8 +6,6 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace Dune.Analyzers;
 
-// DUNE0004. A feature never calls another feature's implementation. References
-// to the other feature's Domain or Contracts are explicit and allowed.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class CrossFeatureAnalyzer : DiagnosticAnalyzer
 {

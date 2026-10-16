@@ -75,4 +75,13 @@ internal static class DuneDiagnostics
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
         description: "Module/Endpoints viven en la raíz de la feature; Tests bajo Tests/; Request/Response/Validator fuera de Domain.");
+
+    public static readonly DiagnosticDescriptor NoComments = new(
+        id: "DUNE0009",
+        title: "Comentario en código propio",
+        messageFormat: "El código propio no lleva comentarios",
+        category: "Dune",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "Los comentarios se prohíben en backend y dune salvo el directorio EF generado exacto.");
 }

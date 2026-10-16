@@ -17,9 +17,6 @@ indent_size = 2
 [*.md]
 trim_trailing_whitespace = false
 
-# Dune diagnostics fail the build. No per-rule suppression is accepted to
-# hide a defect; each rule documents its exact historical exception where one
-# exists (migrations keep their historical namespaces and source).
 dotnet_diagnostic.DUNE0001.severity = error
 dotnet_diagnostic.DUNE0002.severity = error
 dotnet_diagnostic.DUNE0003.severity = error
@@ -28,16 +25,14 @@ dotnet_diagnostic.DUNE0005.severity = error
 dotnet_diagnostic.DUNE0006.severity = error
 dotnet_diagnostic.DUNE0007.severity = error
 dotnet_diagnostic.DUNE0008.severity = error
+dotnet_diagnostic.DUNE0009.severity = error
 
-# Banned APIs are errors. RS0030 covers every BannedSymbols.txt entry by its
-# resolved symbol, so aliases and qualified names report the same violation.
 dotnet_diagnostic.RS0030.severity = error
 dotnet_diagnostic.RS0031.severity = error
 dotnet_diagnostic.RS0032.severity = error
 dotnet_diagnostic.RS0033.severity = error
 dotnet_diagnostic.RS0034.severity = error
 
-# Keep the async pipeline honest without a boolean strictness switch.
 dotnet_diagnostic.CA1849.severity = error
 dotnet_diagnostic.CA1031.severity = suggestion
 dotnet_diagnostic.CA1034.severity = suggestion

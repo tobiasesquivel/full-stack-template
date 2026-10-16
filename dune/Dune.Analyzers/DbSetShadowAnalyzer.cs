@@ -6,8 +6,6 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace Dune.Analyzers;
 
-// DUNE0006. Identity owns Users. A second DbSet hiding it with new breaks the
-// cascade story and the single-profile model, so it is an error.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class DbSetShadowAnalyzer : DiagnosticAnalyzer
 {

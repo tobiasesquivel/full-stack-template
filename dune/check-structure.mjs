@@ -48,7 +48,6 @@ function toPosix(target) {
   return path.relative(root, target).replaceAll(path.sep, '/');
 }
 
-// Product sources exclude colocated feature tests; the tests project owns them.
 async function productSources() {
   const all = [];
   await collectFiles(path.join(backend, 'Features'), all);
@@ -62,16 +61,32 @@ async function productSources() {
     .filter((file) => !toPosix(file).includes('/Tests/'));
 }
 
+async function listFeatures() {
+  const featuresRoot = path.join(backend, 'Features');
+  let entries = [];
+  try {
+    entries = await readdir(featuresRoot, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+  return entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort();
+}
+
 async function checkTestsColocated() {
-  const features = ['Auth', 'Users', 'Tasks', 'Health'];
+  const features = await listFeatures();
+  if (features.length === 0) {
+    fail('sin features: falta backend/Features con al menos un directorio');
+    return;
+  }
   for (const feature of features) {
     const dir = path.join(backend, 'Features', feature, 'Tests');
     if (!(await exists(dir))) {
       fail(`tests de ${feature} fuera de su feature: falta backend/Features/${feature}/Tests/`);
       continue;
     }
-    const entries = await readdir(dir);
-    if (!entries.some((entry) => entry.endsWith('.cs'))) {
+    const collected = [];
+    await collectFiles(dir, collected);
+    if (!collected.some((file) => file.endsWith('.cs'))) {
       fail(`tests de ${feature} fuera de su feature: backend/Features/${feature}/Tests/ sin *.cs`);
     } else {
       notes.push(`tests colocados: backend/Features/${feature}/Tests/`);
@@ -97,8 +112,11 @@ async function checkProductExcludesTests() {
     return;
   }
   const testsText = await readText(testsCsproj);
-  if (!testsText.includes('TemplateApp.csproj') && !testsText.includes('Features/')) {
-    fail('backend/Tests/TemplateApp.Tests.csproj no referencia el producto ni incluye Features/*/Tests');
+  const normalized = testsText.replaceAll('\\', '/');
+  const includesTestsGlob = /<Compile\s+Include="[^"]*Features\/\*\/Tests\/\*\*\/\*\.cs"[^>]*\/>/.test(normalized)
+    || /<Compile\s+Include="[^"]*Features\/\*\*\/\*\.cs"[^>]*\/>/.test(normalized);
+  if (!testsText.includes('TemplateApp.csproj') && !includesTestsGlob) {
+    fail('backend/Tests/TemplateApp.Tests.csproj no referencia el producto ni incluye Features Tests por glob');
   }
 }
 

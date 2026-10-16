@@ -17,10 +17,6 @@ function validationText(problem: ProblemDetails | null): string | null {
   return messages.length > 0 ? messages.join(' ') : null;
 }
 
-/**
- * Mensaje en español para mostrar en la UI según el estado HTTP.
- * Cubre 400 (validación), 401, 403, 404, 409 y fallo de red (estado 0).
- */
 export function describeHttpError(error: unknown): string {
   if (!(error instanceof HttpErrorResponse)) {
     return 'Error inesperado. Inténtalo de nuevo.';

@@ -9,9 +9,6 @@ using Microsoft.CodeAnalysis.Text;
 
 namespace Dune.Analyzers.Tests;
 
-// Runs the real BannedApiAnalyzers package against an in-memory compilation.
-// The banned entries travel as AdditionalText so the behavior under test is
-// symbol resolution, not string matching.
 internal static class BannedApiHost
 {
     public static async Task<ImmutableArray<Diagnostic>> AnalyzeAsync(

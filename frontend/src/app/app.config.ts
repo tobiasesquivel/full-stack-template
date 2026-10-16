@@ -14,8 +14,6 @@ export const appConfig: ApplicationConfig = {
       withInterceptors([authInterceptor]),
       withXsrfConfiguration({ cookieName: 'XSRF-TOKEN', headerName: 'X-XSRF-TOKEN' }),
     ),
-    // Arranque no bloqueante: restaura la sesión en segundo plano.
-    // Los guards esperan a AuthService.ready() antes de decidir.
     {
       provide: APP_INITIALIZER,
       multi: true,

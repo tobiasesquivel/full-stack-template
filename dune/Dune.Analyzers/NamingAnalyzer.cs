@@ -7,10 +7,6 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace Dune.Analyzers;
 
-// DUNE0005 and DUNE0008. Namespaces track the file location so a reader can
-// find the owning module, and each meaningful suffix lives in exactly one
-// place. Migrations and the model snapshot keep their historical namespaces
-// and stay exempt.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class NamingAnalyzer : DiagnosticAnalyzer
 {
@@ -45,10 +41,6 @@ public sealed class NamingAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        // backend/Program.cs uses top-level statements. The compiler synthesizes
-        // a Program type in the global namespace for that file shape. Naming the
-        // file Program and keeping top-level statements is deliberate, so the
-        // synthesized type stays out of DUNE0005 regardless of its display name.
         if (DunePaths.Normalize(declaration.SyntaxTree.FilePath).EndsWith("backend/Program.cs", System.StringComparison.Ordinal))
         {
             return;

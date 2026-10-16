@@ -46,9 +46,11 @@ Compose contiene PostgreSQL 18 con volumen, collector OpenTelemetry, API sin roo
 
 ## Dune y fuentes normativas
 
-[Dune](../openspec/specs/dune/spec.md) aplica restricciones semánticas Roslyn, APIs prohibidas y estructura Node. Pruebas de reglas ejecutan fixtures válidos y negativos, no búsquedas de texto incidental. Las excepciones para migraciones históricas son exactas y justificadas.
+[Dune](../openspec/specs/dune/spec.md) aplica restricciones semánticas Roslyn, APIs prohibidas y estructura Node. Pruebas de reglas ejecutan fixtures válidos y negativos, no búsquedas de texto incidental. Las excepciones para migraciones históricas son exactas y justificadas. El motor vive en `dune/`: `Dune.Analyzers` + tests, `Dune.CommentVerifier`, `check-structure.mjs` + tests, `check-frontend.mjs` + tests, `check-comments.mjs` + tests, `BannedSymbols.txt` y `Dune.props`. La raíz solo adapta: `Directory.Build.props` importa `dune/Dune.props`, `.editorconfig` fija severidades incluido DUNE0009, `TemplateApp.slnx` y CI cablean `dune/`. El gate de estructura descubre cada directorio bajo `backend/Features/` y exige `Tests/` con fuentes; el inventario de tests usa el glob `../Features/*/Tests/**/*.cs`. Estado de los gates nuevos: NOT VERIFIED hasta la ejecución integrada del parent.
 
 DUNE0002 reconoce el tipo endpoint que contiene el símbolo, incluidas declaraciones parciales y tipos anidados. Así protege el adapter dentro de `CreateTask.cs` sin prohibir EF en el módulo vecino. La regla anterior por nombre de archivo se conserva para archivos endpoint. El gate de estructura consulta el índice Git para artefactos versionados y recorre por separado los repositorios anidados. La caché local ignorada no cuenta como artefacto versionado.
+
+Dune de Lauren: al investigar su framework, comparar este template con él o proponer cambios inspirados en Dune, leer [la investigación pública](research-dune.md). Distingue fuentes, inferencias y APIs desconocidas. El sistema local de reglas no equivale al framework React de Grok Bot.
 
 [Convenciones](conventions.md) describe los nombres y las restricciones de contribución. [README](../README.md) contiene comandos de uso y gates. [CONTEXT](../CONTEXT.md) es solo glosario del dominio. [Archivo OpenSpec](../openspec/changes/archive/README.md) conserva evidencia y supersesiones. ADR-0001 y ADR-0002 conservan su historia con notas explícitas de los mecanismos sustituidos.
 

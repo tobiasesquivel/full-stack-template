@@ -16,7 +16,6 @@ export class TasksService {
     return firstValueFrom(this.http.post<TaskResponse>('/api/v1/tasks', { title }));
   }
 
-  /** PUT con estado final: el cliente siempre envía título y completado. */
   update(id: string, payload: UpdateTaskPayload): Promise<TaskResponse> {
     return firstValueFrom(this.http.put<TaskResponse>(`/api/v1/tasks/${id}`, payload));
   }

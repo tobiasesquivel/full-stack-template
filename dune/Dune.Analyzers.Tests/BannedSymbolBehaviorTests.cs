@@ -5,10 +5,6 @@ using Xunit;
 
 namespace Dune.Analyzers.Tests;
 
-// Banned symbols are semantic: the check keys on the resolved symbol, so an
-// alias or a fully qualified name hits the same entry. Tests declare the
-// entry list in code because the repo-level BannedSymbols.txt is resolved by
-// MSBuild at compile time, not by an in-memory test compilation.
 public sealed class BannedSymbolBehaviorTests
 {
     private const string BannedSymbols = """

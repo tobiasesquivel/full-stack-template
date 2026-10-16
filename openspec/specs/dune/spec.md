@@ -31,7 +31,7 @@ BannedApiAnalyzers MUST prohibir reloj local, Task.Wait, Task.Result y SQL raw s
 
 ### Requirement: Estructura y pruebas colocadas
 
-El gate Node MUST exigir Features/<Name>/Tests y su exclusión de producción. MUST rechazar dependencias legacy, fuentes OpenSpec duplicadas, repositorios Git anidados y artefactos generados o binarios versionados. Cada regla MUST tener prueba válida y violación deliberada que observe diagnóstico o exit code. MUST NOT usar búsquedas de cadenas incidentales como prueba del comportamiento del analyzer.
+El gate Node `dune/check-structure.mjs` MUST descubrir cada directorio bajo `backend/Features/` y exigir `Tests/` con fuentes `*.cs` en cada uno, con exclusión de producción. El inventario de tests MUST usar el glob `../Features/*/Tests/**/*.cs` sin enumerar features. MUST rechazar dependencias legacy, fuentes OpenSpec duplicadas, repositorios Git anidados y artefactos generados o binarios versionados. Cada regla MUST tener prueba válida y violación deliberada que observe diagnóstico o exit code. MUST NOT usar búsquedas de cadenas incidentales como prueba del comportamiento del analyzer.
 
 #### Scenario: Repositorio inválido
 - GIVEN un fixture con tests incluidos en producción o una segunda raíz OpenSpec.
@@ -41,6 +41,16 @@ El gate Node MUST exigir Features/<Name>/Tests y su exclusión de producción. M
 #### Scenario: Repositorio válido
 - GIVEN un fixture que respeta colocación y exclusiones.
 - WHEN corre el mismo gate.
+- THEN MUST devolver cero.
+
+#### Scenario: Feature nueva sin Tests
+- GIVEN un fixture con un directorio nuevo bajo `backend/Features/` sin `Tests/` con fuentes.
+- WHEN corre el gate de estructura.
+- THEN MUST devolver código no cero.
+
+#### Scenario: Feature nueva con Tests
+- GIVEN un fixture con un directorio nuevo bajo `backend/Features/` con `Tests/` y fuentes incluidas por el glob.
+- WHEN corre el gate de estructura.
 - THEN MUST devolver cero.
 
 #### Scenario: Caché local y artefacto indexado
@@ -53,4 +63,5 @@ El gate Node MUST exigir Features/<Name>/Tests y su exclusión de producción. M
 
 ### Requirement: Gates de PR atómico
 
-CI MUST ejecutar estructura, analyzer tests, build backend, tests HTTP con PostgreSQL real, tests y build frontend, y smoke Docker. MUST NOT usar continue-on-error ni omitir analyzers o tests. Cambio observable de contrato MUST incluir backend, frontend, tests y spec en el mismo PR, sin presupuesto artificial de líneas. Resultados MUST reportar checks realmente ejecutados. Una entrega sin compilación o runtime observado MUST figurar NOT VERIFIED. Disponibilidad del SDK MUST NOT confundirse con gates aprobados.
+CI MUST ejecutar estructura (`node dune/check-structure.mjs`, `node --test dune/check-structure.test.mjs`), reglas C# (`dotnet build TemplateApp.slnx`, `dotnet test dune/Dune.Analyzers.Tests/Dune.Analyzers.Tests.csproj`, `dotnet run --project dune/Dune.CommentVerifier -- --root .`), frontend (`npm ci`, `npm run build`, `node --test ../dune/check-frontend.test.mjs`, `node ../dune/check-frontend.mjs --root ..`), comentarios amplios (`npm ci --prefix frontend`, `node --test dune/check-comments.test.mjs`, `node dune/check-comments.mjs --root .`), tests HTTP con PostgreSQL real y smoke Docker. MUST NOT usar continue-on-error ni omitir analyzers o tests. La política MSBuild central MUST vivir en `dune/Dune.props` con `Directory.Build.props` solo como Import, y los símbolos prohibidos MUST vivir en `dune/BannedSymbols.txt`. Cambio observable de contrato MUST incluir backend, frontend, tests y spec en el mismo PR, sin presupuesto artificial de líneas. Resultados MUST reportar checks realmente ejecutados. Una entrega sin compilación o runtime observado MUST figurar NOT VERIFIED. Disponibilidad del SDK MUST NOT confundirse con gates aprobados.
+

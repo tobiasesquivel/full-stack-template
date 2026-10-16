@@ -8,9 +8,6 @@ using Microsoft.CodeAnalysis.Operations;
 
 namespace Dune.Analyzers;
 
-// DUNE0007. Loading one resource by Id must not AND the owner into the same
-// predicate: a missing resource is 404, someone else's is 403. Owner filters
-// belong to the personal list query, not to the single lookup.
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class OwnerPredicateAnalyzer : DiagnosticAnalyzer
 {

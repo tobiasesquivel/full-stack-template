@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// verify.mjs — launch/doctor/api/cleanup owner for verify-template (Node builtins only).
-// Repro-first: failures with evidence are the product; never fix the template for green.
-// Invocation (repo root): node .agents/skills/verify-template/scripts/verify.mjs <launch|doctor|api|cleanup> --run-id <id>
-// Evidence: artifacts/verify-template/<runId>/{run.json,summary.json,commands.jsonl,...}. Secrets in memory only.
+
+
+
+
 
 import { spawn, spawnSync } from 'node:child_process';
 import { promises as fs, mkdirSync, writeFileSync, appendFileSync } from 'node:fs';
@@ -139,8 +139,8 @@ function evidenceRootOf(flags) {
   const raw = typeof flags['evidence-root'] === 'string' && flags['evidence-root'] !== ''
     ? flags['evidence-root']
     : 'artifacts/verify-template';
-  // No shell is ever used, so unicode is fine; only confinement matters:
-  // relative path, no absolute/drive prefix, no dotdot/empty segments.
+  
+  
   if (raw.includes('\0') || path.isAbsolute(raw) || /^[A-Za-z]:[\\/]/.test(raw)) {
     throw new Error(`invalid --evidence-root (must be a repo-relative path): ${raw}`);
   }
@@ -225,11 +225,11 @@ function httpGet(urlText, { timeoutMs = 10000, headers = {} } = {}) {
     req.on('error', reject);
   });
 }
-// Health contract (backend/Features/Health/HealthEndpoints.cs): GET
-// /api/v1/health/live -> {"status":"live",...}; GET /api/v1/health/ready ->
-// {"status":"ready",...} with 200 only when the DB probe is healthy.
-// Readiness therefore requires the body marker, never a bare HTTP 200 (a
-// stale server/proxy on a fixed port answers 200 with the wrong body).
+
+
+
+
+
 function healthBodySays(body, expected) {
   try {
     const parsed = typeof body === 'string' ? JSON.parse(body) : body;
@@ -240,8 +240,8 @@ function healthBodySays(body, expected) {
   }
 }
 function trackedStartProblem(tracked) {
-  // spawn() throws synchronously on ENOENT; otherwise 'error' fires async.
-  // Surface both: missing pid/early async error fail fast with the cause.
+  
+  
   if (tracked.spawnError) return tracked.spawnError;
   if (!tracked.child || tracked.child.pid === undefined || tracked.child.exitCode !== null) {
     return `process never started (pid ${tracked.child?.pid ?? 'none'}, exit ${tracked.child?.exitCode ?? 'none'})`;
@@ -352,9 +352,9 @@ function capAppend(current, text, truncated) {
   const room = MEM_CAP - current.length;
   return { text: current + text.slice(0, room), truncated: truncated || text.length > room };
 }
-// Secrets can straddle chunk (or UTF-8 codepoint) boundaries, so per-chunk
-// redact() leaks split secrets. Decode incrementally, buffer to full lines,
-// redact+write only complete lines, flush the tail at close.
+
+
+
 function lineWriter(handle, onText) {
   const decoder = new StringDecoder('utf8');
   let pending = '';
@@ -372,11 +372,11 @@ function lineWriter(handle, onText) {
         pending = pending.slice(nl + 1);
       }
       if (pending.length > 1048576) {
-        // Newline-free megaline: redact the whole buffer jointly so a secret
-        // crossing any cut point still matches, emit all but a KEEP tail, and
-        // retain that (already redacted; redact is idempotent on placeholders)
-        // for the next pass. Safe while every single secret is shorter than
-        // KEEP (here passwords/keys ~32-150 chars, JWTs ~1-2KB, all << 8192).
+        
+        
+        
+        
+        
         const redacted = redact(pending);
         const keep = 8192;
         emit(redacted.slice(0, Math.max(0, redacted.length - keep)));
@@ -390,7 +390,7 @@ function lineWriter(handle, onText) {
   };
 }
 
-// Async command with redacted streaming logs + one commands.jsonl ledger line.
+
 async function runCommand({ cmd, args, cwd, env, timeoutMs, stdoutPath, stderrPath }) {
   const startedAt = new Date().toISOString();
   const started = Date.now();
@@ -461,7 +461,7 @@ async function runCommand({ cmd, args, cwd, env, timeoutMs, stdoutPath, stderrPa
   return { ...record, stdout: stdoutMem, stdoutTruncated, stderr: stderrMem, stderrTruncated };
 }
 
-// Sync command (docker inspect/rm, pg_isready): captured output to evidence + ledger.
+
 function runSync({ cmd, args, cwd, timeoutMs, stdoutPath, stderrPath }) {
   const startedAt = new Date().toISOString();
   const started = Date.now();
@@ -510,11 +510,11 @@ function runSync({ cmd, args, cwd, timeoutMs, stdoutPath, stderrPath }) {
   return { ...record, stdout: out.text, stdoutTruncated: out.truncated, stderr: err.text, stderrTruncated: err.truncated };
 }
 
-// Tracked long-running child (API / frontend): redacted logs to evidence files.
-// Order matters: log handles open FIRST (awaited, errors thrown with exact
-// paths), then spawn, then data listeners attach synchronously before any
-// further await — no fire-and-forget block, no swallowed open failure, no
-// lost early output, no missed close.
+
+
+
+
+
 async function spawnTracked({ cmd, args, cwd, env, stdoutPath, stderrPath }) {
   let outHandle;
   let errHandle;
@@ -671,8 +671,8 @@ function firstInspectEntry(text) {
   return Array.isArray(parsed) ? parsed[0] : parsed;
 }
 
-// Ownership proof against the REAL docker objects (never bare names): the stored
-// container id plus the run labels must match what inspect returns right now.
+
+
 async function verifyOwnership(runRecord, timeout, evidenceDir, tag) {
   const verdict = {
     container: { state: 'unknown' },
@@ -736,9 +736,9 @@ async function verifyOwnership(runRecord, timeout, evidenceDir, tag) {
   return verdict;
 }
 
-// Single teardown path for every flow: owned child handles, then only owned
-// container/volume. Evidence is never touched. verify=true re-proves ownership
-// via live inspect first and deletes nothing it cannot prove.
+
+
+
 async function teardownOwned({
   children = null,
   containerName = null,
@@ -849,8 +849,8 @@ async function launch(flags) {
   const pgImage = typeof flags['pg-image'] === 'string' && flags['pg-image'] !== '' ? flags['pg-image'] : DEFAULT_PG_IMAGE;
   const wantFrontBuild = flags['front-build'] === true || flags['front-build'] === 'true';
 
-  // Never overwrite previous evidence: any existing directory content refuses
-  // the run before a single byte is written.
+  
+  
   if (await pathExists(evidenceDir)) {
     const entries = await fs.readdir(evidenceDir).catch(() => ['?']);
     if (entries.length > 0) {
@@ -987,9 +987,9 @@ async function launch(flags) {
       await launchCleanup('dotnet test failed');
       process.exit(1);
     }
-    // Skipped-only is zero executed: executed = passed + failed must be > 0.
-    // A nonzero failed count with exit 0 is contradictory evidence (the exit
-    // gate above normally catches failures); it also fails here, never PASS.
+    
+    
+    
     const executed = (counts?.passed ?? NaN) + (counts?.failed ?? NaN);
     if (!counts || !Number.isFinite(executed) || executed <= 0 || (counts.failed ?? 0) !== 0) {
       mark('dotnet-test', 'FAIL', { ...test, counts: counts ?? null, executed: Number.isFinite(executed) ? executed : 0 }, Date.now() - t0);
@@ -1054,22 +1054,22 @@ async function launch(flags) {
       }
       state.containerCreated = true;
       state.containerId = dockerRun.stdout.trim().split(/\s+/)[0] || null;
-      // Port bind is a harness-level gate only: TCP open never passes this
-      // stage. PASS requires a real `pg_isready` exit 0 below. Waiting here
-      // (harness readiness) prevents the API driver from hitting a
-      // half-ready PG and fabricating a template failure that is really a
-      // driver-too-early artifact.
+      
+      
+      
+      
+      
       await waitFor({
         timeoutMs: timeouts.pg,
         intervalMs: 1000,
         label: `postgres port bind on 127.0.0.1:${pgPort}`,
         check: () => tcpConnectable('127.0.0.1', pgPort, 2000),
       });
-      // Real readiness: poll `pg_isready` to exit 0 within timeouts.pg. Each
-      // probe is ledgered in commands.jsonl (same evidence paths, last probe
-      // wins the file). A non-zero exit is NEVER a pass-note; only exit 0
-      // advances. Container liveness is observed every probe: an exited/dead
-      // container fails fast with its exit code + tail logs captured.
+      
+      
+      
+      
+      
       const pgReadyDeadline = Date.now() + timeouts.pg;
       let pgAttempts = 0;
       for (;;) {
@@ -1263,10 +1263,10 @@ async function launch(flags) {
     );
     const frontStdout = path.join(evidenceDir, 'frontend.stdout.log');
     const frontStderr = path.join(evidenceDir, 'frontend.stderr.log');
-    // ng serve runs WITHOUT a shell on every platform: direct ng.js argv via
-    // process.execPath, so proxy paths with spaces/ampersands cannot split.
-    // npm ci/build above stay on static argv; evidence-root is confined to a
-    // repo-relative path (evidenceRootOf) so proxyFile is constant-derived.
+    
+    
+    
+    
     const ngEntry = path.join(FRONTEND_DIR, 'node_modules', '@angular', 'cli', 'bin', 'ng.js');
     const frontTracked = await spawnTracked({
       cmd: process.execPath,
@@ -1412,7 +1412,7 @@ async function launch(flags) {
     await writeJson('run.json', runRecord);
     mark('ready', 'PASS', { controlPort: runRecord.control.port, apiBase, frontUrl }, Date.now() - t0);
 
-    // READY, not PASS: servers are up, api-smoke and browser are still NOT_RUN.
+    
     await writeJson('summary.json', {
       runId,
       status: 'READY',
@@ -1562,7 +1562,7 @@ async function api(flags) {
     emitAndExit(payload, 1);
     return;
   }
-  // Own launch uses `docker run` (not compose), so smoke runs WITHOUT --compose here.
+  
   const apiBaseUrl = runRecord.apiBase.endsWith('/') ? runRecord.apiBase : `${runRecord.apiBase}/`;
   const result = await runCommand({
     cmd: process.execPath,
@@ -1589,7 +1589,7 @@ async function api(flags) {
     note: 'API scope only; browser verification still NOT_RUN, no UI PASS claimed',
   };
   await fs.writeFile(path.join(evidenceDir, 'api-smoke.json'), `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
-  // Narrow scope update: flip only the api-smoke stage, never the browser stage.
+  
   try {
     const summaryPath = path.join(evidenceDir, 'summary.json');
     const summary = await readJsonIfExists(summaryPath);
@@ -1627,8 +1627,8 @@ async function cleanup(flags) {
   const timeout = timeoutMs(flags, 'timeout-cleanup-ms', 'VERIFY_TIMEOUT_CLEANUP_MS', 120000);
   const evidenceDir = path.join(REPO_ROOT, evidenceRoot, runId);
 
-  // Idempotent replay: a previous cleanup already wrote its verdict; report it
-  // verbatim without touching summary.json or any other evidence.
+  
+  
   const prior = await readJsonIfExists(path.join(evidenceDir, 'cleanup.json'));
   if (prior && prior.ok === true) {
     console.log(JSON.stringify({ ...prior, replayed: true }, null, 2));
@@ -1640,8 +1640,8 @@ async function cleanup(flags) {
     loaded = await loadRun(runId, evidenceRoot);
   } catch (err) {
     if (prior) {
-      // Failed launch path: internalCleanup already recorded the verdict, but
-      // run.json was never written. Report the recorded verdict, keep evidence.
+      
+      
       console.log(JSON.stringify({ ...prior, replayed: true }, null, 2));
       process.exit(prior.ok ? 0 : 1);
     }
@@ -1668,10 +1668,10 @@ async function cleanup(flags) {
     console.log(JSON.stringify(payload, null, 2));
     process.exit(payload.status === 'PASS' ? 0 : 1);
   } catch {
-    // Owner unreachable: verify against the REAL objects before touching
-    // anything. Bare names prove nothing (PID/name reuse); without an id +
-    // label match nothing is deleted and the result is UNKNOWN, never PASS,
-    // because child state is unknowable from here.
+    
+    
+    
+    
     const result = await teardownOwned({
       children: null,
       containerName: runRecord.containerName,

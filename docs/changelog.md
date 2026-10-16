@@ -32,3 +32,12 @@ No se ejecutaron builds, tests, linters, formatters ni runtime durante este trab
 - Tarea usa archivos por caso de uso con módulo y adapter HTTP colocados. Crear y actualizar incluyen su request y validator. El cliente y los modelos exclusivos Angular salen de Core. Se retiran los archivos y exports anteriores sin aliases. No cambian las rutas, payloads, estado final por PUT ni precedencia de validación y autorización.
 - DUNE0002 identifica el tipo endpoint por símbolos en archivos mixtos y conserva la regla anterior por nombre de archivo. Las 24 pruebas de analyzers pasan. Un build real con EF dentro de `TasksEndpoints` en `GuardProbe.cs` falla con DUNE0002; el archivo temporal se retira antes del build final.
 - Verificación final `architecture-final-20261005` con builds backend y Angular, 28/28 pruebas backend, smoke HTTP y navegador PASS. El navegador cubre edición, estado completado, paginación, borrado en límite de página, perfil, reload, logout y login. La recuperación de un click fuera de pantalla queda registrada. Solo se limpian recursos propios. No se ejecuta CI remoto ni se afirma cero warnings.
+
+## 2026-10-06. Upgrade Dune verificado
+
+- Analizadores 44/44 PASS (`dotnet test dune/Dune.Analyzers.Tests`), backend 28/28 PASS con PostgreSQL real, build `TemplateApp.slnx` 0 errores.
+- Gates Node PASS: estructura 14/14 + OK, frontend 13/13 + OK, comentarios 12/12 + OK en `frontend/` y `dune/`, verificador C# exit 0.
+- DUNE0001 cubre cuerpos (método/propiedad/lambda/local/typeof/genérico/alias) con spans distintos por parámetro; DUNE0009 reporta comentarios fuera de migraciones EF, con CLI `--fix`/`--dry-run` y exención exacta del directorio generado.
+- AuthService usa señales privadas con vistas `asReadonly`; frontend rechaza HTTP/storage directo en componentes con aliases y shadowing cubiertos.
+- Huellas EF intactas en `artifacts/dune-upgrade/ef-before.json`; `tools/` eliminado, política en `dune/Dune.props`, `verify.mjs` sin comentarios.
+- Recorrido navegador/API: NOT_RUN. El helper levantó API+front (READY) pero los procesos hijos murieron antes del smoke (ECONNREFUSED en api/front/control); la evidencia queda en `artifacts/verify-template/dune-final*/`. No se afirma PASS runtime.

@@ -90,10 +90,6 @@ public sealed class TokenService
         if (probe is null)
             return AuthErrors.InvalidSession;
 
-        // Redención atómica: el lock advisory transaccional por familia serializa
-        // refresh, replay y logout de la misma familia. Sin él, dos redenciones
-        // concurrentes del mismo token verían RevokedAt null y ambas insertarían
-        // sucesor, o un sucesor se emitiría después de revocar la familia.
         await using var tx = await _db.Database.BeginTransactionAsync(ct);
         await AcquireFamilyLockAsync(probe.FamilyId, ct);
 
@@ -174,9 +170,6 @@ public sealed class TokenService
 
     private async Task AcquireFamilyLockAsync(Guid familyId, CancellationToken ct)
     {
-        // Lock advisory de alcance transaccional (se libera en commit/rollback).
-        // Misma clave en refresh y logout para serializar escritores de la familia.
-        // Formattable → parámetro, sin concatenación (ver BannedSymbols.txt).
         Span<byte> key = stackalloc byte[16];
         familyId.TryWriteBytes(key);
         int lockHi = BitConverter.ToInt32(key[..4]);

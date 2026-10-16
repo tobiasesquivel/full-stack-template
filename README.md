@@ -76,22 +76,27 @@ Los errores usan ProblemDetails. Un recurso inexistente devuelve 404 y un recurs
 
 Ejecuta los gates sin desactivar analyzers ni omitir tests. Verificación real 2026-10-05: backend 24/24 pass (reporte parent artifact://611); Docker `up --build` final con éxito; smoke `--compose` exit 0 con OTLP `correlatedLogs true` + `httpDurationMetric true`; navegador PASS con register, create, dos reloads, checkbox y perfil persistentes, logout y login. Dune 22/22 PASS local (artifact://640) con gate duro real DUNE0001 verificado en throwaway (`artifacts/compose-final/dune-negative-build.stdout.log`) y `dotnet build TemplateApp.slnx` exit 0, 0 errores (artifact://643). GitHub Actions no ejecutado; sin afirmación de cero warnings.
 
-Desde la raíz, ejecuta estructura, compilación y pruebas backend. Las pruebas de integración necesitan Docker para PostgreSQL real.
+Desde la raíz, ejecuta estructura, comentarios, compilación y pruebas backend. Las pruebas de integración necesitan Docker para PostgreSQL real. El estado de esta entrega es NOT VERIFIED para los nuevos gates hasta que el integrador los ejecute.
 
 ```sh
-node tools/check-structure.mjs
-node --test tools/check-structure.test.mjs
+node dune/check-structure.mjs
+node --test dune/check-structure.test.mjs
+node --test dune/check-comments.test.mjs
+node dune/check-comments.mjs --root .
 dotnet build TemplateApp.slnx --configuration Release
+dotnet run --project dune/Dune.CommentVerifier -- --root .
 dotnet test TemplateApp.slnx --configuration Release
 ```
 
-Backend usa Microsoft Testing Platform (MTP): `dotnet test` ejecuta el runner MTP de `backend/Tests/TemplateApp.Tests.csproj` y de `tools/Dune.Analyzers.Tests/Dune.Analyzers.Tests.csproj` (xunit.v3). No hay `vstest` ni adaptador clásico; los proyectos Dune viven bajo `tools/`, no bajo `backend/`.
+Backend usa Microsoft Testing Platform (MTP): `dotnet test` ejecuta el runner MTP de `backend/Tests/TemplateApp.Tests.csproj` y de `dune/Dune.Analyzers.Tests/Dune.Analyzers.Tests.csproj` (xunit.v3). No hay `vstest` ni adaptador clásico; los proyectos Dune viven bajo `dune/`, no bajo `backend/`. La política MSBuild central vive en `dune/Dune.props`; `Directory.Build.props` solo la importa. Los símbolos prohibidos viven en `dune/BannedSymbols.txt`.
 
 No hay suite frontend vigente: no existe `*.spec.ts` en `frontend/` (`app.spec` fue eliminado de forma incidental) y `npm test` (`ng test`) no tiene runner configurado. La prueba real es el navegador contra la API: registro, login, restauración tras dos reloads, perfil, tareas y logout (`artifacts/compose-final/browser-result.json`, `browser-network.json`, `tasks.png`). Desde `frontend`, instala lo fijado y compila:
 
 ```sh
 npm ci
 npm run build
+node --test ../dune/check-frontend.test.mjs
+node ../dune/check-frontend.mjs --root ..
 ```
 
 Con el conjunto Docker iniciado, ejecuta el escenario HTTP desde la raíz.
