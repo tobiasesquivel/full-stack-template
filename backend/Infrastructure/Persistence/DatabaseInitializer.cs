@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
-using TemplateApp.Infrastructure.Seeders;
 
 namespace TemplateApp.Infrastructure.Persistence;
 
@@ -29,7 +28,8 @@ public static class DatabaseInitializer
         try
         {
             await db.Database.MigrateAsync(ct);
-            await RoleSeeder.SeedRolesAsync(services);
+            foreach (IDatabaseSeeder seeder in services.GetServices<IDatabaseSeeder>())
+                await seeder.SeedAsync(ct);
         }
         finally
         {

@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 
-namespace TemplateApp.Infrastructure.Identity;
+namespace TemplateApp.Features.Auth.Contracts;
 
 public sealed class AppIdentityUser : IdentityUser
 {

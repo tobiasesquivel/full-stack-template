@@ -2,7 +2,8 @@ using System.Security.Claims;
 using ErrorOr;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
-using TemplateApp.Shared.Authorization;
+using TemplateApp.Features.Auth.Contracts;
+using TemplateApp.Features.Tasks.Contracts;
 using TemplateApp.Shared.Http;
 
 namespace TemplateApp.Features.Tasks;
@@ -15,7 +16,7 @@ public sealed partial class TasksModule
         if (item is null)
             return TaskErrors.NotFound(id);
 
-        if (!await _authorizer.CanAccessAsync(callerId, item, AppPermissions.Tasks.Delete, ct))
+        if (!await _access.CanAccessAsync(callerId, item, TaskPermissions.Delete, ct))
             return Error.Forbidden(code: "Task.Forbidden", description: "Access denied.");
 
         _db.TaskItems.Remove(item);
@@ -27,7 +28,7 @@ public sealed partial class TasksModule
 
 public static partial class TasksEndpoints
 {
-    private static async Task<IResult> DeleteAsync(
+    internal static async Task<IResult> DeleteAsync(
         Guid id,
         TasksModule module,
         ClaimsPrincipal user,

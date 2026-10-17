@@ -158,7 +158,7 @@ public sealed class LayerAnalyzerTests
     }
 
     [Fact]
-    public async Task CompositionSeamMayWireModules()
+    public async Task CompositionInInfrastructureIsRejected()
     {
         var diagnostics = await AnalyzerHost.AnalyzeAsync(
             new List<(string, string)>
@@ -173,6 +173,73 @@ public sealed class LayerAnalyzerTests
                     public static class Composition
                     {
                         public static object AddBackendInfrastructure(TasksModule module) => module;
+                    }
+                    """),
+            },
+            AnalyzerHost.Only<InfrastructureBoundaryAnalyzer>());
+
+        Assert.Contains(diagnostics, diagnostic => diagnostic.Id == "DUNE0003");
+    }
+
+    [Fact]
+    public async Task InfrastructureRejectsFeatureRegistrationAndServices()
+    {
+        var diagnostics = await AnalyzerHost.AnalyzeAsync(
+            new List<(string, string)>
+            {
+                ("backend/Features/Auth/AuthFeature.cs", """
+                    namespace TemplateApp.Features.Auth;
+                    public static class AuthFeature
+                    {
+                        public static int AddAuthFeature(this string services) => services.Length;
+                    }
+                    """),
+                ("backend/Features/Auth/Access/RoleSeeder.cs", """
+                    namespace TemplateApp.Features.Auth.Access;
+                    public sealed class RoleSeeder { }
+                    """),
+                ("backend/Infrastructure/Persistence/DatabaseInitializer.cs", """
+                    using TemplateApp.Features.Auth;
+                    namespace TemplateApp.Infrastructure.Persistence;
+                    public static class DatabaseInitializer
+                    {
+                        public static int Seed(string services) => services.AddAuthFeature();
+                        public static object Create() => new TemplateApp.Features.Auth.Access.RoleSeeder();
+                    }
+                    """),
+            },
+            AnalyzerHost.Only<InfrastructureBoundaryAnalyzer>());
+
+        var messages = diagnostics
+            .Where(diagnostic => diagnostic.Id == "DUNE0003")
+            .Select(diagnostic => diagnostic.GetMessage(System.Globalization.CultureInfo.InvariantCulture))
+            .ToList();
+        Assert.Contains(messages, message => message.Contains("AddAuthFeature", System.StringComparison.Ordinal));
+        Assert.Contains(messages, message => message.Contains("RoleSeeder", System.StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task InfrastructureAcceptsFeatureDomainAndContracts()
+    {
+        var diagnostics = await AnalyzerHost.AnalyzeAsync(
+            new List<(string, string)>
+            {
+                ("backend/Features/Tasks/Domain/TaskItem.cs", """
+                    namespace TemplateApp.Features.Tasks.Domain;
+                    public sealed class TaskItem { }
+                    """),
+                ("backend/Features/Auth/Contracts/AppIdentityUser.cs", """
+                    namespace TemplateApp.Features.Auth.Contracts;
+                    public sealed class AppIdentityUser { }
+                    """),
+                ("backend/Infrastructure/Persistence/AppDbContext.cs", """
+                    using TemplateApp.Features.Auth.Contracts;
+                    using TemplateApp.Features.Tasks.Domain;
+                    namespace TemplateApp.Infrastructure.Persistence;
+                    public sealed class AppDbContext
+                    {
+                        public TaskItem? Task { get; set; }
+                        public AppIdentityUser? User { get; set; }
                     }
                     """),
             },

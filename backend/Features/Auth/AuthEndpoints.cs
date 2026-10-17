@@ -5,28 +5,13 @@ namespace TemplateApp.Features.Auth;
 
 public static class AuthEndpoints
 {
-    public static IEndpointRouteBuilder MapAuthEndpoints(this IEndpointRouteBuilder app)
-    {
-        RouteGroupBuilder group = app.MapGroup("/api/v1/auth");
-        group.AddEndpointFilter<SessionHttpPolicy>();
-
-        group.MapGet("/csrf", IssueCsrf).AllowAnonymous();
-
-        group.MapPost("/register", RegisterAsync).AllowAnonymous().RequireRateLimiting("auth");
-        group.MapPost("/login", LoginAsync).AllowAnonymous().RequireRateLimiting("auth");
-        group.MapPost("/refresh", RefreshAsync).AllowAnonymous().RequireRateLimiting("auth");
-        group.MapPost("/logout", LogoutAsync).AllowAnonymous().RequireRateLimiting("auth");
-
-        return app;
-    }
-
-    private static IResult IssueCsrf(HttpContext http, SessionHttpPolicy policy)
+    internal static IResult IssueCsrf(HttpContext http, SessionHttpPolicy policy)
     {
         policy.IssueCsrf(http);
         return Results.Ok();
     }
 
-    private static async Task<IResult> RegisterAsync(
+    internal static async Task<IResult> RegisterAsync(
         RegisterRequest request,
         HttpContext http,
         AuthModule module,
@@ -42,7 +27,7 @@ public static class AuthEndpoints
         return Results.Created($"/api/v1/users/{response.User.AuthId}", response);
     }
 
-    private static async Task<IResult> LoginAsync(
+    internal static async Task<IResult> LoginAsync(
         LoginRequest request,
         HttpContext http,
         AuthModule module,
@@ -62,7 +47,7 @@ public static class AuthEndpoints
         return Results.Ok(response);
     }
 
-    private static async Task<IResult> RefreshAsync(
+    internal static async Task<IResult> RefreshAsync(
         HttpContext http,
         AuthModule module,
         SessionHttpPolicy policy,
@@ -86,7 +71,7 @@ public static class AuthEndpoints
         return Results.Ok(response);
     }
 
-    private static async Task<IResult> LogoutAsync(
+    internal static async Task<IResult> LogoutAsync(
         HttpContext http,
         AuthModule module,
         SessionHttpPolicy policy,

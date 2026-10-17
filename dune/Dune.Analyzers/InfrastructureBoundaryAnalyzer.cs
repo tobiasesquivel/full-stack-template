@@ -1,5 +1,4 @@
 using System.Collections.Immutable;
-using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -10,6 +9,8 @@ namespace Dune.Analyzers;
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class InfrastructureBoundaryAnalyzer : DiagnosticAnalyzer
 {
+    private const string FeaturesNamespace = "TemplateApp.Features.";
+
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
         ImmutableArray.Create(DuneDiagnostics.InfrastructureModule);
 
@@ -30,7 +31,7 @@ public sealed class InfrastructureBoundaryAnalyzer : DiagnosticAnalyzer
         }
 
         var symbol = context.SemanticModel.GetSymbolInfo(identifier, context.CancellationToken).Symbol;
-        ReportIfModuleOrEndpoint(context, identifier, symbol);
+        ReportIfFeatureInterior(context, identifier, symbol);
     }
 
     private static void AnalyzeMemberAccess(SyntaxNodeAnalysisContext context)
@@ -42,65 +43,55 @@ public sealed class InfrastructureBoundaryAnalyzer : DiagnosticAnalyzer
         }
 
         var symbol = context.SemanticModel.GetSymbolInfo(access, context.CancellationToken).Symbol;
-        ReportIfModuleOrEndpoint(context, access, symbol);
+        ReportIfFeatureInterior(context, access, symbol);
     }
 
     private static bool IsGuardedInfrastructure(SyntaxNode node)
     {
         var path = DunePaths.Normalize(node.SyntaxTree.FilePath);
-        if (!DunePaths.IsBackendFile(path)
-            || DunePaths.IsMigration(path)
-            || !DunePaths.IsInfrastructureFile(path))
-        {
-            return false;
-        }
-
-        return !node.Ancestors()
-            .OfType<MethodDeclarationSyntax>()
-            .Any(method => method.Identifier.Text.Equals(
-                "AddBackendInfrastructure",
-                System.StringComparison.Ordinal));
+        return DunePaths.IsBackendFile(path)
+            && !DunePaths.IsMigration(path)
+            && DunePaths.IsInfrastructureFile(path);
     }
 
-    private static void ReportIfModuleOrEndpoint(
+    private static void ReportIfFeatureInterior(
         SyntaxNodeAnalysisContext context,
         SyntaxNode node,
         ISymbol? symbol)
     {
-        if (symbol is null)
+        var type = symbol switch
+        {
+            INamedTypeSymbol named => named,
+            IMethodSymbol method => method.ReducedFrom?.ContainingType ?? method.ContainingType,
+            IPropertySymbol or IFieldSymbol or IEventSymbol => symbol.ContainingType,
+            _ => null,
+        };
+
+        if (type is null || !IsFeatureInterior(DuneSymbols.NamespaceOf(type)))
         {
             return;
         }
 
-        if (symbol is INamedTypeSymbol named)
-        {
-            if (IsModuleOrEndpointType(named))
-            {
-                context.ReportDiagnostic(Diagnostic.Create(
-                    DuneDiagnostics.InfrastructureModule,
-                    node.GetLocation(),
-                    named.ToDisplayString()));
-            }
-
-            return;
-        }
-
-        if (symbol is IMethodSymbol method
-            && (IsModuleOrEndpointType(method.ContainingType)
-                || IsMapEndpointsMethod(method)))
-        {
-            context.ReportDiagnostic(Diagnostic.Create(
-                DuneDiagnostics.InfrastructureModule,
-                node.GetLocation(),
-                method.ToDisplayString()));
-        }
+        context.ReportDiagnostic(Diagnostic.Create(
+            DuneDiagnostics.InfrastructureModule,
+            node.GetLocation(),
+            symbol!.ToDisplayString()));
     }
 
-    private static bool IsModuleOrEndpointType(INamedTypeSymbol type) =>
-        type.Name.EndsWith("Module", System.StringComparison.Ordinal)
-        || type.Name.EndsWith("Endpoints", System.StringComparison.Ordinal);
+    private static bool IsFeatureInterior(string ns)
+    {
+        if (!ns.StartsWith(FeaturesNamespace, System.StringComparison.Ordinal))
+        {
+            return false;
+        }
 
-    private static bool IsMapEndpointsMethod(IMethodSymbol method) =>
-        method.Name.StartsWith("Map", System.StringComparison.Ordinal)
-        && method.Name.EndsWith("Endpoints", System.StringComparison.Ordinal);
+        var rest = ns.Substring(FeaturesNamespace.Length);
+        var dot = rest.IndexOf('.');
+        var tail = dot < 0 ? string.Empty : rest.Substring(dot + 1);
+        return !IsPublicSegment(tail, "Domain") && !IsPublicSegment(tail, "Contracts");
+    }
+
+    private static bool IsPublicSegment(string tail, string segment) =>
+        tail.Equals(segment, System.StringComparison.Ordinal)
+        || tail.StartsWith(segment + ".", System.StringComparison.Ordinal);
 }

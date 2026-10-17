@@ -1,7 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 
-namespace TemplateApp.Shared.Http;
+namespace TemplateApp.Features.Auth.Contracts;
 
 public static class ClaimsPrincipalExtensions
 {

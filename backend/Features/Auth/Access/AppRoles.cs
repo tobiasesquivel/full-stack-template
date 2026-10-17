@@ -1,4 +1,4 @@
-namespace TemplateApp.Shared.Authorization;
+namespace TemplateApp.Features.Auth.Access;
 
 public static class AppRoles
 {

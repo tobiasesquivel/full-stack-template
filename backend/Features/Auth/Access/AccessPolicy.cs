@@ -1,22 +1,17 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using TemplateApp.Infrastructure.Identity;
+using TemplateApp.Features.Auth.Contracts;
+using TemplateApp.Shared.Domain;
 
-namespace TemplateApp.Shared.Authorization;
+namespace TemplateApp.Features.Auth.Access;
 
-public interface IPermissionService
-{
-    Task<IReadOnlySet<string>> GetPermissionsAsync(string userId, CancellationToken ct = default);
-    Task<bool> HasPermissionAsync(string userId, string permission, CancellationToken ct = default);
-}
-
-public sealed class PermissionService : IPermissionService
+public sealed class AccessPolicy : IAccessPolicy
 {
     private readonly UserManager<AppIdentityUser> _users;
     private readonly RoleManager<IdentityRole> _roles;
 
-    public PermissionService(UserManager<AppIdentityUser> users, RoleManager<IdentityRole> roles)
+    public AccessPolicy(UserManager<AppIdentityUser> users, RoleManager<IdentityRole> roles)
     {
         _users = users;
         _roles = roles;
@@ -42,7 +37,7 @@ public sealed class PermissionService : IPermissionService
             IList<Claim> claims = await _roles.GetClaimsAsync(role);
             foreach (Claim claim in claims)
             {
-                if (claim.Type == AppPermissions.ClaimType)
+                if (claim.Type == RolePermissions.ClaimType)
                     permissions.Add(claim.Value);
             }
         }
@@ -54,5 +49,17 @@ public sealed class PermissionService : IPermissionService
     {
         IReadOnlySet<string> permissions = await GetPermissionsAsync(userId, ct);
         return permissions.Contains(permission);
+    }
+
+    public async Task<bool> CanAccessAsync(
+        string callerId,
+        IOwnedResource resource,
+        string permission,
+        CancellationToken ct = default)
+    {
+        if (string.Equals(callerId, resource.OwnerId, StringComparison.Ordinal))
+            return true;
+
+        return await HasPermissionAsync(callerId, permission, ct);
     }
 }

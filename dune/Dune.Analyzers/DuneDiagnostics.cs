@@ -24,12 +24,12 @@ internal static class DuneDiagnostics
 
     public static readonly DiagnosticDescriptor InfrastructureModule = new(
         id: "DUNE0003",
-        title: "Infrastructure invoca módulo de aplicación",
-        messageFormat: "Infrastructure no referencia módulos ni endpoints salvo en AddBackendInfrastructure; '{0}' no está permitido aquí",
+        title: "Infrastructure conoce el interior de una feature",
+        messageFormat: "Infrastructure solo conoce Domain y Contracts de las features; '{0}' no está permitido aquí",
         category: "Dune",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
-        description: "Infrastructure puede conocer modelos y configuraciones, pero no endpoints ni módulos, salvo composición central.");
+        description: "Infrastructure es fontanería: no registra ni invoca features. Cada feature es su propio composition root y Program.cs las lista.");
 
     public static readonly DiagnosticDescriptor CrossFeature = new(
         id: "DUNE0004",

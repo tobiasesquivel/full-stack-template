@@ -1,11 +1,10 @@
 using ErrorOr;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using TemplateApp.Features.Auth.Access;
 using TemplateApp.Features.Auth.Contracts;
 using TemplateApp.Features.Users.Domain;
-using TemplateApp.Infrastructure.Identity;
 using TemplateApp.Infrastructure.Persistence;
-using TemplateApp.Shared.Authorization;
 
 namespace TemplateApp.Features.Auth;
 
@@ -14,20 +13,20 @@ public sealed class AuthModule
     private readonly UserManager<AppIdentityUser> _users;
     private readonly AppDbContext _db;
     private readonly TokenService _tokens;
-    private readonly IPermissionService _permissions;
+    private readonly IAccessPolicy _access;
     private readonly TimeProvider _clock;
 
     public AuthModule(
         UserManager<AppIdentityUser> users,
         AppDbContext db,
         TokenService tokens,
-        IPermissionService permissions,
+        IAccessPolicy access,
         TimeProvider clock)
     {
         _users = users;
         _db = db;
         _tokens = tokens;
-        _permissions = permissions;
+        _access = access;
         _clock = clock;
     }
 
@@ -66,7 +65,7 @@ public sealed class AuthModule
         await tx.CommitAsync(ct);
 
         IList<string> roles = await _users.GetRolesAsync(identity);
-        IReadOnlySet<string> permissions = await _permissions.GetPermissionsAsync(identity.Id, ct);
+        IReadOnlySet<string> permissions = await _access.GetPermissionsAsync(identity.Id, ct);
 
         AuthResponse response = _tokens.ToAuthResponse(
             identity,
@@ -110,7 +109,7 @@ public sealed class AuthModule
         await _db.SaveChangesAsync(ct);
 
         IList<string> roles = await _users.GetRolesAsync(identity);
-        IReadOnlySet<string> permissions = await _permissions.GetPermissionsAsync(identity.Id, ct);
+        IReadOnlySet<string> permissions = await _access.GetPermissionsAsync(identity.Id, ct);
 
         AuthResponse response = _tokens.ToAuthResponse(
             identity,

@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using ErrorOr;
+using TemplateApp.Features.Auth.Contracts;
 using TemplateApp.Features.Users.Contracts;
 using TemplateApp.Shared.Http;
 
@@ -7,20 +8,7 @@ namespace TemplateApp.Features.Users;
 
 public static class UsersEndpoints
 {
-    public static IEndpointRouteBuilder MapUsersEndpoints(this IEndpointRouteBuilder app)
-    {
-        RouteGroupBuilder group = app.MapGroup("/api/v1/users").RequireAuthorization();
-
-        group.MapGet("/me", GetMeAsync);
-        group.MapPut("/me", UpdateMeAsync);
-        group.MapDelete("/me", DeleteMeAsync);
-        group.MapGet("/{authId}", GetByIdAsync);
-        group.MapDelete("/{authId}", DeleteByIdAsync);
-
-        return app;
-    }
-
-    private static async Task<IResult> GetMeAsync(
+    internal static async Task<IResult> GetMeAsync(
         ClaimsPrincipal user,
         UsersModule module,
         CancellationToken ct)
@@ -29,7 +17,7 @@ public static class UsersEndpoints
         return ApiResults.ToResult(result, value => Results.Ok(value));
     }
 
-    private static async Task<IResult> UpdateMeAsync(
+    internal static async Task<IResult> UpdateMeAsync(
         UpdateProfileRequest request,
         ClaimsPrincipal user,
         UsersModule module,
@@ -39,7 +27,7 @@ public static class UsersEndpoints
         return ApiResults.ToResult(result, value => Results.Ok(value));
     }
 
-    private static async Task<IResult> DeleteMeAsync(
+    internal static async Task<IResult> DeleteMeAsync(
         ClaimsPrincipal user,
         UsersModule module,
         CancellationToken ct)
@@ -48,7 +36,7 @@ public static class UsersEndpoints
         return ApiResults.ToResult(result, _ => Results.NoContent());
     }
 
-    private static async Task<IResult> GetByIdAsync(
+    internal static async Task<IResult> GetByIdAsync(
         string authId,
         ClaimsPrincipal user,
         UsersModule module,
@@ -58,7 +46,7 @@ public static class UsersEndpoints
         return ApiResults.ToResult(result, value => Results.Ok(value));
     }
 
-    private static async Task<IResult> DeleteByIdAsync(
+    internal static async Task<IResult> DeleteByIdAsync(
         string authId,
         ClaimsPrincipal user,
         UsersModule module,

@@ -36,12 +36,10 @@ El código todavía no tiene la forma de arriba. La Fase 0 del [plan](evolucion/
 
 | Diferencia | Paso que la resuelve |
 |---|---|
-| Código de features en `Shared/` e `Infrastructure/` (JWT, `AppIdentityUser`, permisos, roles, registro central) | 0.3 |
-| Código muerto: `ITemplateMetrics`, `ValidationExceptionHandler` | 0.3 |
-| `Tasks` usa partials de `TasksModule`; `Users`, `Auth` y `Health` no tienen slices | 0.4 |
-| Auth y Users se usan por dentro en las dos direcciones | 0.5 |
+| `Tasks` usa partials de `TasksModule`; `Users`, `Auth` y `Health` no tienen slices. Los handlers HTTP viven en `<Feature>Endpoints` | 0.4 |
+| Auth y Users se usan por dentro en las dos direcciones. `AppIdentityUser`, una entidad de Identity, está en `Auth/Contracts` porque Users todavía la usa | 0.5 |
 | Los servicios de Auth y Users del frontend están en `core/` | 0.6 |
-| Un solo `AppDbContext` para todas las features | Paso 22 |
+| Un solo `AppDbContext` para todas las features: `Infrastructure` todavía nombra los `Domain` y `Contracts` de las features | Paso 22 |
 
 ## Perfil y propiedad
 

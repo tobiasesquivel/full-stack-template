@@ -1,11 +1,10 @@
 using ErrorOr;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using TemplateApp.Features.Auth.Contracts;
 using TemplateApp.Features.Users.Contracts;
 using TemplateApp.Features.Users.Domain;
-using TemplateApp.Infrastructure.Identity;
 using TemplateApp.Infrastructure.Persistence;
-using TemplateApp.Shared.Authorization;
 
 namespace TemplateApp.Features.Users;
 
@@ -13,20 +12,17 @@ public sealed class UsersModule
 {
     private readonly UserManager<AppIdentityUser> _users;
     private readonly AppDbContext _db;
-    private readonly IPermissionService _permissions;
-    private readonly ResourceAuthorizer _authorizer;
+    private readonly IAccessPolicy _access;
     private readonly UpdateProfileRequestValidator _updateValidator = new();
 
     public UsersModule(
         UserManager<AppIdentityUser> users,
         AppDbContext db,
-        IPermissionService permissions,
-        ResourceAuthorizer authorizer)
+        IAccessPolicy access)
     {
         _users = users;
         _db = db;
-        _permissions = permissions;
-        _authorizer = authorizer;
+        _access = access;
     }
 
     public async Task<ErrorOr<UserResponse>> GetMeAsync(string callerId, CancellationToken ct)
@@ -76,7 +72,7 @@ public sealed class UsersModule
         if (profile is null)
             return UserErrors.NotFound(authId);
 
-        if (!await _authorizer.CanAccessAsync(callerId, profile, AppPermissions.Users.Read, ct))
+        if (!await _access.CanAccessAsync(callerId, profile, UserPermissions.Read, ct))
             return Error.Forbidden(code: "User.Forbidden", description: "Access denied.");
 
         AppIdentityUser? identity = await _users.FindByIdAsync(authId);
@@ -93,7 +89,7 @@ public sealed class UsersModule
         if (profile is null)
             return UserErrors.NotFound(authId);
 
-        if (!await _authorizer.CanAccessAsync(callerId, profile, AppPermissions.Users.Manage, ct))
+        if (!await _access.CanAccessAsync(callerId, profile, UserPermissions.Manage, ct))
             return Error.Forbidden(code: "User.Forbidden", description: "Access denied.");
 
         AppIdentityUser? identity = await _users.FindByIdAsync(authId);
@@ -112,7 +108,7 @@ public sealed class UsersModule
     private async Task<UserResponse> ToResponseAsync(AppIdentityUser identity, UserProfile profile, CancellationToken ct)
     {
         IList<string> roles = await _users.GetRolesAsync(identity);
-        IReadOnlySet<string> permissions = await _permissions.GetPermissionsAsync(identity.Id, ct);
+        IReadOnlySet<string> permissions = await _access.GetPermissionsAsync(identity.Id, ct);
 
         return new UserResponse(
             identity.Id,

@@ -1,21 +1,26 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Identity;
-using TemplateApp.Shared.Authorization;
+using TemplateApp.Infrastructure.Persistence;
 
-namespace TemplateApp.Infrastructure.Seeders;
+namespace TemplateApp.Features.Auth.Access;
 
-public static class RoleSeeder
+public sealed class RoleSeeder : IDatabaseSeeder
 {
-    public static async Task SeedRolesAsync(IServiceProvider serviceProvider)
-    {
-        RoleManager<IdentityRole> roleManager = serviceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+    private readonly RoleManager<IdentityRole> _roleManager;
 
+    public RoleSeeder(RoleManager<IdentityRole> roleManager)
+    {
+        _roleManager = roleManager;
+    }
+
+    public async Task SeedAsync(CancellationToken ct)
+    {
         foreach (string roleName in AppRoles.GetAll())
         {
-            bool roleExists = await roleManager.RoleExistsAsync(roleName);
+            bool roleExists = await _roleManager.RoleExistsAsync(roleName);
             if (!roleExists)
             {
-                IdentityResult createdResult = await roleManager.CreateAsync(new IdentityRole(roleName));
+                IdentityResult createdResult = await _roleManager.CreateAsync(new IdentityRole(roleName));
                 if (!createdResult.Succeeded)
                 {
                     throw new InvalidOperationException(
@@ -23,30 +28,29 @@ public static class RoleSeeder
                 }
             }
 
-            IdentityRole? role = await roleManager.FindByNameAsync(roleName);
+            IdentityRole? role = await _roleManager.FindByNameAsync(roleName);
             if (role is null)
             {
                 continue;
             }
 
-            await SeedRolePermissionsAsync(roleManager, role, roleName);
+            await SeedRolePermissionsAsync(role, roleName);
         }
     }
 
-    private static async Task SeedRolePermissionsAsync(
-        RoleManager<IdentityRole> roleManager, IdentityRole role, string roleName)
+    private async Task SeedRolePermissionsAsync(IdentityRole role, string roleName)
     {
-        IList<Claim> existingClaims = await roleManager.GetClaimsAsync(role);
+        IList<Claim> existingClaims = await _roleManager.GetClaimsAsync(role);
         HashSet<string> existingPermissions = existingClaims
-            .Where(c => c.Type == AppPermissions.ClaimType)
+            .Where(c => c.Type == RolePermissions.ClaimType)
             .Select(c => c.Value)
             .ToHashSet(StringComparer.Ordinal);
 
-        foreach (string permission in AppPermissions.GetForRole(roleName))
+        foreach (string permission in RolePermissions.GetForRole(roleName))
         {
             if (!existingPermissions.Contains(permission))
             {
-                IdentityResult claimResult = await roleManager.AddClaimAsync(role, new Claim(AppPermissions.ClaimType, permission));
+                IdentityResult claimResult = await _roleManager.AddClaimAsync(role, new Claim(RolePermissions.ClaimType, permission));
                 if (!claimResult.Succeeded)
                 {
                     throw new InvalidOperationException(
