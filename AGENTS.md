@@ -23,6 +23,8 @@ El dominio (tareas) es simple a propósito: importa el rigor técnico. **Todo el
 | [docs/evolucion/informe-dotnet-empresarial.md](docs/evolucion/informe-dotnet-empresarial.md) | Arquitectura .NET para apps grandes: paquetes, patrones, observabilidad, pagos, colas, sagas, licencias. |
 | [docs/evolucion/informe-angular-moderno.md](docs/evolucion/informe-angular-moderno.md) | Angular v20-v22: nombres sin sufijo, `@Service()`, Signal Forms y la skill oficial `angular-developer`. |
 | [docs/evolucion/informe-sesion-angular.md](docs/evolucion/informe-sesion-angular.md) | Sesión en Angular: estado con signals, guards, interceptor con renovación, varias pestañas y BFF frente a token en memoria. |
+| [docs/evolucion/informe-componentes-angular.md](docs/evolucion/informe-componentes-angular.md) | Componentes ruteados y presentacionales en Angular v22: cuándo separar, cómo fluye el estado con signals y qué conviene en `Tasks`. |
+| [docs/evolucion/informe-frontend-para-agentes.md](docs/evolucion/informe-frontend-para-agentes.md) | Qué hace que un frontend sea fácil para agentes de código, comparado con lo que ya tiene el repo, y los huecos por prioridad. |
 | [CONTEXT.md](CONTEXT.md) | Vocabulario del dominio. Usá esos términos. |
 | [docs/architecture.md](docs/architecture.md), [docs/conventions.md](docs/conventions.md) | Arquitectura vigente y reglas para escribir código. |
 | [docs/decisions.tsv](docs/decisions.tsv), [docs/adr/](docs/adr/) | Decisiones tomadas y su porqué. |
