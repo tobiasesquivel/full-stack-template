@@ -7,7 +7,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const require = createRequire(path.join(here, '..', 'frontend', 'package.json'));
 const ts = require('typescript');
 
-export const RULES = ['FRONT001', 'FRONT002', 'FRONT003', 'FRONT004', 'FRONT005', 'FRONT006', 'FRONT007', 'FRONT008', 'FRONT009', 'FRONT010', 'FRONT011', 'FRONT012'];
+export const RULES = ['FRONT001', 'FRONT002', 'FRONT003', 'FRONT004', 'FRONT005', 'FRONT006', 'FRONT007', 'FRONT008', 'FRONT009', 'FRONT010', 'FRONT011', 'FRONT012', 'FRONT014'];
 
 const INITIALIZER_TOKENS = new Map([
   ['APP_INITIALIZER', 'provideAppInitializer'],
@@ -21,6 +21,9 @@ const INLINE_VIEW_PROPERTIES = new Map([
 ]);
 
 const STYLE_FILE_PROPERTIES = new Set(['styleUrl', 'styleUrls']);
+
+const COMPONENT_SCHEMATIC = '@schematics/angular:component';
+const CLI_STYLE_RULE = `must set style "none" for ${COMPONENT_SCHEMATIC} so ng generate component creates no .css file and no styleUrl`;
 
 const LEGACY_FORMS_MODULE = 'external:@angular/forms';
 
@@ -373,6 +376,41 @@ function symbolIsUnresolved(symbol) {
   return false;
 }
 
+function jsonProperty(object, name) {
+  if (!object || !ts.isObjectLiteralExpression(object)) return null;
+  return object.properties.find((property) =>
+    ts.isPropertyAssignment(property)
+    && (ts.isStringLiteral(property.name) || ts.isIdentifier(property.name))
+    && property.name.text === name) ?? null;
+}
+
+async function checkCliDefaults(file, rel, report) {
+  let text;
+  try {
+    text = await readFile(file, 'utf8');
+  } catch {
+    report('FRONT014', rel, 1, `${rel} is missing; the frontend ${CLI_STYLE_RULE}`);
+    return;
+  }
+  const json = ts.parseJsonText(file, text);
+  const line = (node) => lineOf(json, node.getStart(json));
+  const projects = jsonProperty(json.statements[0]?.expression, 'projects');
+  if (!projects || !ts.isObjectLiteralExpression(projects.initializer) || projects.initializer.properties.length === 0) {
+    report('FRONT014', rel, projects ? line(projects) : 1, `${rel} declares no projects; each project ${CLI_STYLE_RULE}`);
+    return;
+  }
+  for (const project of projects.initializer.properties) {
+    if (!ts.isPropertyAssignment(project)) continue;
+    const name = project.name.text;
+    const schematics = jsonProperty(project.initializer, 'schematics');
+    const component = jsonProperty(schematics?.initializer, COMPONENT_SCHEMATIC);
+    const style = jsonProperty(component?.initializer, 'style');
+    if (style && ts.isStringLiteral(style.initializer) && style.initializer.text === 'none') continue;
+    const where = style ?? component ?? schematics ?? project;
+    report('FRONT014', rel, line(where), `project ${name} ${CLI_STYLE_RULE}`);
+  }
+}
+
 export function resolveRoot(input) {
   if (input) return path.resolve(input);
   return path.resolve(here, '..');
@@ -481,6 +519,8 @@ export async function analyzeFrontend({ root, project } = {}) {
       }
     }
   }
+  const cliConfig = path.join(base, 'angular.json');
+  await checkCliDefaults(cliConfig, toPosix(path.relative(resolvedRoot, cliConfig)), report);
   diagnostics.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : a.line - b.line || (a.rule < b.rule ? -1 : 1)));
   return { diagnostics, files: [...graph.values()] };
 }

@@ -4,7 +4,7 @@ Registro vivo del [plan](plan.md). El agente lo actualiza al cerrar cada paso.
 
 ## Paso actual
 
-**Fase 1, paso 2: un solo comando de verificación local.** Estado: pendiente. Los pasos 0.10 a 0.16 cerraron. Tobi pidió el 2026-10-17 separar la vista de los componentes (0.10), un archivo por tipo (0.11), Tailwind (0.12), ordenar los archivos sueltos de cada feature (0.13) e investigar y aplicar el manejo de sesión en Angular (0.14 a 0.16, [informe-sesion-angular.md](informe-sesion-angular.md)). Los pasos 0.6 a 0.16 esperan el merge de Tobi.
+**Paso 0.18: componente de ruta y componente de presentación (`TaskPager`).** Estado: pendiente. Los pasos 0.10 a 0.17 cerraron. Tobi pidió el 2026-10-17 separar la vista de los componentes (0.10), un archivo por tipo (0.11), Tailwind (0.12), ordenar los archivos sueltos de cada feature (0.13), investigar y aplicar el manejo de sesión en Angular (0.14 a 0.16, [informe-sesion-angular.md](informe-sesion-angular.md)) y aplicar lo que no necesita decisión de herramienta de [informe-componentes-angular.md](informe-componentes-angular.md) y [informe-frontend-para-agentes.md](informe-frontend-para-agentes.md) (0.17 a 0.20). Después de 0.20 sigue la Fase 1, paso 2. Los pasos 0.6 a 0.17 esperan el merge de Tobi.
 
 La Fase 0 va antes del paso 2. El paso 1 (línea base) ya cerró y sirve de referencia para la Fase 0.
 
@@ -31,6 +31,10 @@ Estados: `pendiente`, `en curso`, `cerrado`, `bloqueado (⏸ decisión de Tobi)`
 | 0.14 | Forma de la sesión | cerrado | `artifacts/verify-template/fase0-14-session-shape/`, `artifacts/verify-template/fase0-14-runtime/` |
 | 0.15 | Interceptor y vuelta a la página pedida | cerrado | `artifacts/verify-template/fase0-15-session-interceptor/`, `artifacts/verify-template/fase0-15-runtime-red/` (rojo), `artifacts/verify-template/fase0-15-runtime/` |
 | 0.16 | Varias pestañas | cerrado | `artifacts/verify-template/fase0-16-session-tabs/`, `artifacts/verify-template/fase0-16-runtime-red/` (rojo), `artifacts/verify-template/fase0-16-runtime/` |
+| 0.17 | El CLI genera código que pasa el gate | cerrado | `artifacts/verify-template/fase0-17-cli-defaults/`, `artifacts/verify-template/fase0-17-runtime/` |
+| 0.18 | Componente de ruta y componente de presentación: `TaskPager` | pendiente | |
+| 0.19 | Estado local en el hijo: `TaskRow` | pendiente | |
+| 0.20 | Diálogo de presentación: `TaskDeleteDialog` | pendiente | |
 | 1 | Línea base: qué funciona hoy, con evidencia | cerrado | [linea-base.md](linea-base.md); `artifacts/verify-template/baseline-20261016/` |
 | 2 | Un solo comando de verificación local | pendiente | |
 | 3 | CI verde de verdad | pendiente | |
@@ -97,6 +101,19 @@ Una entrada por paso cerrado, con este formato:
 - Preguntas: qué preguntó Tobi.
 - Evidencia: artifacts/verify-template/<runId>/
 ```
+
+### Paso 0.17 — 2026-10-17
+- Enseñado: la herramienta oficial y el gate tienen que decir lo mismo. `ng generate component` creaba un `.css` y un `styleUrl`, y FRONT009 los rechaza: cada componente nuevo costaba una corrección a mano. `angular.json` fija ahora `"style": "none"` para `@schematics/angular:component`, y FRONT014 exige esa línea. La regla lee `angular.json` con el parser JSON de TypeScript y marca la línea exacta que falta o que está mal.
+- Hallazgo: `frontend/README.md` decía que `npm test` no tenía runner. Sí lo tiene: el builder `@angular/build:unit-test` usa Vitest con jsdom. Falla solo porque no hay ningún `*.spec.ts` (`ng-test-no-specs.log`). Adoptar la suite sigue siendo decisión de Tobi.
+- Preguntas: Tobi pidió aplicar lo que no necesita decisión de herramienta de los dos informes nuevos.
+- Decisiones: dos filas nuevas en `docs/decisions.tsv`. La regla se llama FRONT014: el informe ya reservaba FRONT013 para el límite de componentes del paso 0.18. `conventions.md`, `plan.md` (pasos 0.17 a 0.20), `README.md` y `frontend/README.md` actualizados.
+- Evidencia: artifacts/verify-template/fase0-17-cli-defaults/ y artifacts/verify-template/fase0-17-runtime/.
+  - Rojo antes de verde, gate: con el `check-frontend` del 0.16 fallan los 2 tests nuevos (`check-frontend-test-red.log`: 24 pasan, 2 fallan). Con el nuevo pasan 26/26 (`check-frontend-test-green.log`). Las fixtures cubren `angular.json` válido, `"schematics": {}`, `"style": "css"`, un proyecto sin `schematics` y un frontend sin `angular.json`.
+  - Rojo antes de verde, producto: FRONT014 frena el `angular.json` del 0.16 en la línea 11, `"schematics": {}` (`check-frontend-product-red.log`).
+  - CLI antes: `ng generate component features/tasks/probe --dry-run` lista `probe.css` (`ng-generate-dry-run-before.log`). Un componente generado de verdad trae `styleUrl` y FRONT009 lo frena (`check-frontend-generated-before.log`).
+  - CLI después: el dry-run ya no lista `.css` (`ng-generate-dry-run-after.log`). Un componente generado de verdad pasa `check-frontend` (`check-frontend-generated-after.log`) y se borró sin versionarlo. El CLI sigue creando `probe.spec.ts`: depende de la decisión sobre la suite.
+  - Build de Angular: PASS. `check-frontend`, `check-structure`, `check-comments` y `CommentVerifier`: PASS.
+  - verify-template: launch PASS, smoke HTTP PASS (45 requests). Después de 65 segundos, navegador PASS con el recorrido del 0.16 (24 pasos), sin cambios: el paso no cambia la app. Cleanup PASS.
 
 ### Paso 0.16 — 2026-10-17
 - Enseñado: coordinar pestañas del mismo origen con dos APIs del navegador. Las pestañas comparten la cookie de refresh, pero cada una tiene su access token en memoria. Si dos recargan a la vez, las dos presentan el mismo refresh token; el backend ve un reuso y revoca la familia, y las dos quedan sin sesión. `navigator.locks.request('session-refresh', …)` pone las renovaciones en fila: la segunda sale cuando la primera ya dejó la cookie nueva. `BroadcastChannel('session')` avisa `opened` y `closed`: el logout en una pestaña cierra las otras al instante, y un login o registro las abre con el mismo usuario.

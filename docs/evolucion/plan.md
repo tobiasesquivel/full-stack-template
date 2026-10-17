@@ -50,7 +50,7 @@ Regla de oro: **un paso no termina con tests verdes.** Termina cuando el caso qu
 
 ## 4. El plan
 
-### Fase 0 — Bases (pasos 0.0-0.16)
+### Fase 0 — Bases (pasos 0.0-0.20)
 
 Llevan el repo a la forma de [ADR-0004](../adr/0004-vertical-slices-deep-modules.md). Ningún paso cambia un contrato HTTP: el smoke de la API prueba que nada se rompió.
 
@@ -148,6 +148,28 @@ Los pasos 0.14 a 0.16 se agregaron el 2026-10-17, a pedido de Tobi: "investigá 
 **Concepto**: coordinar pestañas del mismo origen: Web Locks para que dos renovaciones no se pisen y `BroadcastChannel` para avisar que la sesión se abrió o se cerró.
 **Cambia**: `Session.refresh()` corre dentro de `navigator.locks.request`; `Session` publica `opened` y `closed` en un `BroadcastChannel` y reacciona a los de otras pestañas.
 **Verifica**: build de Angular, `check-frontend` y navegador con dos páginas del mismo contexto: rojo en el código del 0.15 y verde después para dos recargas a la vez, el logout en otra pestaña y el login de otro usuario en otra pestaña.
+
+Los pasos 0.17 a 0.20 se agregaron el 2026-10-17, a pedido de Tobi: "aplicá lo que tengas que aplicar". Salen de [informe-componentes-angular.md](informe-componentes-angular.md) y [informe-frontend-para-agentes.md](informe-frontend-para-agentes.md). Ninguno cambia el contrato HTTP ni lo que ve el usuario. Lo que pide una herramienta o una regla nueva (suite de Vitest, e2e con Playwright, `prettier --check`, el MCP del CLI de Angular, un Stop hook) espera la decisión de Tobi.
+
+**0.17. El CLI genera código que pasa el gate.**
+**Concepto**: la herramienta oficial y el gate dicen lo mismo. Si el generador produce algo que el gate rechaza, cada componente nuevo cuesta una vuelta de corrección.
+**Cambia**: `angular.json` fija `"style": "none"` para `@schematics/angular:component`; `frontend/README.md` y `README.md` dicen la verdad sobre el runner de tests (Vitest conectado, sin specs); una regla nueva en `check-frontend.mjs` (FRONT014) con su fixture válida y su violación deliberada.
+**Verifica**: `ng generate component --dry-run` antes y después: antes lista un `.css`, después no; un componente generado de verdad pasa `check-frontend` y se borra; build de Angular y navegador con el recorrido del paso 0.16, como regresión.
+
+**0.18. Componente de ruta y componente de presentación: `TaskPager`.**
+**Concepto**: un componente de ruta orquesta: inyecta servicios y llama a la API. Uno de presentación recibe datos con `input()` y avisa con `output()`. El gate los distingue por las rutas.
+**Cambia**: `features/tasks/task-pager/` nuevo; `Tasks` usa `<app-task-pager />`; una regla nueva en `check-frontend.mjs` (FRONT013) que mira el tipo de cada `inject()`, con su fixture válida y sus violaciones deliberadas; `conventions.md` y `architecture.md`.
+**Verifica**: build de Angular, tests del gate en rojo antes y en verde después, `check-frontend` y navegador: con 11 tareas, `Siguiente` habilitado, "Página 2 de 2 (11)" y `Anterior` vuelve.
+
+**0.19. Estado local en el hijo: `TaskRow`.**
+**Concepto**: el borrador del título es estado de la fila (`linkedSignal`); quién edita es estado de la página (`editingId`).
+**Cambia**: `features/tasks/task-row/` nuevo; la edición en línea usa Signal Forms (`form`, `[formField]`, `required`, `maxLength(200)`); `Tasks` pierde `editTitle`, el `$any` y la validación manual. El mensaje de error queda en el mismo lugar y con el mismo texto.
+**Verifica**: build de Angular, gates y navegador: renombrar da `PUT` 200; un título vacío muestra el mismo mensaje y no manda `PUT`; `Cancelar` restaura el título; abrir otra fila cierra la primera; el checkbox manda `PUT` con `isCompleted=true`; el dato sigue después de recargar.
+
+**0.20. Diálogo de presentación: `TaskDeleteDialog`.**
+**Concepto**: un hijo maneja su propio DOM con `viewChild` y `afterRenderEffect`; el padre decide el foco.
+**Cambia**: `features/tasks/task-delete-dialog/` nuevo; `Tasks` pierde `confirmDialog` y el `showModal()`.
+**Verifica**: build de Angular, gates y navegador: `Escape` cierra y el foco vuelve al `Eliminar` de esa fila; `Confirmar` da `DELETE` 204 y el foco va a "Mis tareas"; borrar la única tarea de la página 2 vuelve a la página 1.
 
 ### Fase 1 — Base verificable (pasos 1-3)
 

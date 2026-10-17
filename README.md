@@ -89,7 +89,7 @@ node --test dune/check-comments.test.mjs
 
 Backend usa Microsoft Testing Platform (MTP): `dotnet test` ejecuta el runner MTP de `backend/Tests/TemplateApp.Tests.csproj` y de `dune/Dune.Analyzers.Tests/Dune.Analyzers.Tests.csproj` (xunit.v3). No hay `vstest` ni adaptador clásico; los proyectos Dune viven bajo `dune/`, no bajo `backend/`. La política MSBuild central vive en `dune/Dune.props`; `Directory.Build.props` solo la importa. Los símbolos prohibidos viven en `dune/BannedSymbols.txt`.
 
-No hay suite de tests frontend. La prueba real es el navegador contra la API: registro, login, restauración tras recargar, perfil, tareas y logout. Desde `frontend`, compilá y corré su gate:
+No hay suite de tests frontend: el runner (Vitest con jsdom) está conectado en `angular.json`, pero no existe ningún `*.spec.ts`. Adoptar la suite es una decisión pendiente de Tobi. La prueba real es el navegador contra la API: registro, login, restauración tras recargar, perfil, tareas y logout. Desde `frontend`, compilá y corré su gate:
 
 ```sh
 npm run build

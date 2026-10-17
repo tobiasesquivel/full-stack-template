@@ -41,6 +41,7 @@ El código actual todavía no cumple todas estas reglas. La Fase 0 del [plan](ev
 - La inicialización usa providers funcionales: `provideAppInitializer()`, `provideEnvironmentInitializer()` y `providePlatformInitializer()`, no los tokens `APP_INITIALIZER`, `ENVIRONMENT_INITIALIZER` ni `PLATFORM_INITIALIZER`. FRONT007 lo hace cumplir.
 - Cada componente separa vista y lógica: `tasks.ts` declara `templateUrl: './tasks.html'`. No se usan `template` ni `styles` en línea. FRONT008 lo hace cumplir.
 - Los estilos son clases de Tailwind v4 en el template: `class="rounded-lg border border-slate-200 bg-white p-5"`. No hay `.css` por componente ni `style=""`. Se repiten las clases en lugar de inventar clases con `@apply`. `src/styles.css` guarda solo `@import 'tailwindcss'`, los tokens de `@theme` y el foco visible por defecto (`@layer base`). FRONT009 rechaza `styleUrl` y `styleUrls`.
+- El CLI genera código que el gate acepta. `angular.json` fija `"style": "none"` en `@schematics/angular:component`: `ng generate component` no crea `.css` ni `styleUrl`. FRONT014 lo hace cumplir.
 
 ## Comentarios
 

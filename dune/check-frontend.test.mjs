@@ -5,7 +5,17 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { analyzeFrontend } from './check-frontend.mjs';
 
+const ANGULAR_JSON = JSON.stringify({
+  version: 1,
+  projects: { frontend: { projectType: 'application', schematics: { '@schematics/angular:component': { style: 'none' } } } },
+}, null, 2);
+
+const TASKS_COMPONENT = {
+  'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';\n@Component({ selector: 'app-tasks', templateUrl: './tasks.html' })\nexport class Tasks {}\n`,
+};
+
 async function makeProject(files) {
+  files = { 'frontend/angular.json': ANGULAR_JSON, ...files };
   const root = await mkdtemp(path.join(tmpdir(), 'dune-frontend-'));
   const frontend = path.join(root, 'frontend');
   await mkdir(path.join(frontend, 'src', 'app'), { recursive: true });
@@ -493,6 +503,74 @@ export class Login {}
       const { diagnostics } = await analyzeFrontend({ root: project.root });
       const writable = diagnostics.filter((entry) => entry.rule === 'FRONT012').map((entry) => `${path.basename(entry.path)}:${entry.line}`);
       assert.deepEqual(writable, ['tasks-api.ts:5', 'tasks-api.ts:6', 'tasks-api.ts:7']);
+    } finally {
+      await project.cleanup();
+    }
+  });
+
+  it('accepts a CLI that generates components without a style file and rejects one that does not say so', async () => {
+    const valid = await makeProject(TASKS_COMPONENT);
+    try {
+      await seedAngular(valid.root);
+      const { diagnostics } = await analyzeFrontend({ root: valid.root });
+      assert.deepEqual(diagnostics, []);
+    } finally {
+      await valid.cleanup();
+    }
+    const cases = [
+      [`{
+  "version": 1,
+  "projects": {
+    "frontend": {
+      "schematics": {},
+      "root": ""
+    }
+  }
+}
+`, 5, /@schematics\/angular:component/],
+      [`{
+  "version": 1,
+  "projects": {
+    "frontend": {
+      "schematics": {
+        "@schematics/angular:component": {
+          "style": "css"
+        }
+      }
+    }
+  }
+}
+`, 7, /style "none"/],
+      [`{
+  "version": 1,
+  "projects": {
+    "frontend": {
+      "root": ""
+    }
+  }
+}
+`, 4, /schematics/],
+    ];
+    for (const [config, line, message] of cases) {
+      const project = await makeProject({ ...TASKS_COMPONENT, 'frontend/angular.json': config });
+      try {
+        await seedAngular(project.root);
+        const { diagnostics } = await analyzeFrontend({ root: project.root });
+        assert.deepEqual(diagnostics.map((entry) => [entry.rule, entry.path, entry.line]), [['FRONT014', 'frontend/angular.json', line]]);
+        assert.match(diagnostics[0].message, message);
+      } finally {
+        await project.cleanup();
+      }
+    }
+  });
+
+  it('rejects a frontend without angular.json', async () => {
+    const project = await makeProject(TASKS_COMPONENT);
+    try {
+      await rm(path.join(project.root, 'frontend', 'angular.json'));
+      await seedAngular(project.root);
+      const { diagnostics } = await analyzeFrontend({ root: project.root });
+      assert.deepEqual(diagnostics.map((entry) => [entry.rule, entry.path, entry.line]), [['FRONT014', 'frontend/angular.json', 1]]);
     } finally {
       await project.cleanup();
     }
