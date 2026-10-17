@@ -7,7 +7,22 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const require = createRequire(path.join(here, '..', 'frontend', 'package.json'));
 const ts = require('typescript');
 
-export const RULES = ['FRONT001', 'FRONT002', 'FRONT003', 'FRONT004', 'FRONT005'];
+export const RULES = ['FRONT001', 'FRONT002', 'FRONT003', 'FRONT004', 'FRONT005', 'FRONT006', 'FRONT007', 'FRONT008', 'FRONT009', 'FRONT010', 'FRONT011', 'FRONT012'];
+
+const INITIALIZER_TOKENS = new Map([
+  ['APP_INITIALIZER', 'provideAppInitializer'],
+  ['ENVIRONMENT_INITIALIZER', 'provideEnvironmentInitializer'],
+  ['PLATFORM_INITIALIZER', 'providePlatformInitializer'],
+]);
+
+const INLINE_VIEW_PROPERTIES = new Map([
+  ['template', 'use templateUrl with its own file instead of inline template'],
+  ['styles', 'style the template with Tailwind classes instead of inline styles'],
+]);
+
+const STYLE_FILE_PROPERTIES = new Set(['styleUrl', 'styleUrls']);
+
+const LEGACY_FORMS_MODULE = 'external:@angular/forms';
 
 const TYPE_SUFFIX_FILE = /\.(service|component|directive|pipe|guard|interceptor|resolver|module)\.ts$/;
 const TYPE_SUFFIX_CLASS = /(Service|Component|Directive|Pipe|Module)$/;
@@ -99,7 +114,22 @@ function decoratorName(expression) {
 function collectNaming(sourceFile) {
   const suffixedClasses = [];
   const rootInjectables = [];
+  const initializerTokens = [];
+  const inlineViews = [];
+  const styleFiles = [];
   function visit(node) {
+    if (ts.isImportDeclaration(node)
+      && ts.isStringLiteral(node.moduleSpecifier)
+      && node.moduleSpecifier.text === '@angular/core'
+      && node.importClause?.namedBindings
+      && ts.isNamedImports(node.importClause.namedBindings)) {
+      for (const element of node.importClause.namedBindings.elements) {
+        const imported = (element.propertyName ?? element.name).text;
+        if (INITIALIZER_TOKENS.has(imported)) {
+          initializerTokens.push({ line: lineOf(sourceFile, element.getStart()), token: imported });
+        }
+      }
+    }
     if (ts.isClassDeclaration(node) && node.name) {
       const decorators = ts.getDecorators?.(node) ?? node.decorators ?? [];
       for (const decorator of decorators) {
@@ -107,6 +137,10 @@ function collectNaming(sourceFile) {
         if (!name || !ANGULAR_CLASS_DECORATORS.has(name)) continue;
         if (TYPE_SUFFIX_CLASS.test(node.name.text)) {
           suffixedClasses.push({ line: lineOf(sourceFile, node.name.getStart()), name: node.name.text });
+        }
+        if (name === 'Component') {
+          inlineViews.push(...componentProperties(sourceFile, decorator.expression, INLINE_VIEW_PROPERTIES));
+          styleFiles.push(...componentProperties(sourceFile, decorator.expression, STYLE_FILE_PROPERTIES));
         }
         if (name === 'Injectable' && providesInRoot(decorator.expression)) {
           rootInjectables.push({ line: lineOf(sourceFile, decorator.getStart()), name: node.name.text });
@@ -116,7 +150,31 @@ function collectNaming(sourceFile) {
     ts.forEachChild(node, visit);
   }
   visit(sourceFile);
-  return { suffixedClasses, rootInjectables };
+  return { suffixedClasses, rootInjectables, initializerTokens, inlineViews, styleFiles };
+}
+
+function exportedTypes(sourceFile) {
+  return sourceFile.statements
+    .filter((statement) =>
+      (ts.isClassDeclaration(statement)
+        || ts.isInterfaceDeclaration(statement)
+        || ts.isTypeAliasDeclaration(statement)
+        || ts.isEnumDeclaration(statement))
+      && statement.name
+      && (ts.getModifiers?.(statement) ?? statement.modifiers ?? []).some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword))
+    .map((statement) => ({ line: lineOf(sourceFile, statement.name.getStart()), name: statement.name.text }));
+}
+
+function componentProperties(sourceFile, expression, names) {
+  if (!ts.isCallExpression(expression)) return [];
+  const options = expression.arguments[0];
+  if (!options || !ts.isObjectLiteralExpression(options)) return [];
+  return options.properties
+    .filter((property) =>
+      ts.isPropertyAssignment(property)
+      && (ts.isIdentifier(property.name) || ts.isStringLiteral(property.name))
+      && names.has(property.name.text))
+    .map((property) => ({ line: lineOf(sourceFile, property.getStart()), property: property.name.text }));
 }
 
 function providesInRoot(expression) {
@@ -129,6 +187,41 @@ function providesInRoot(expression) {
     && property.name.text === 'providedIn'
     && ts.isStringLiteral(property.initializer)
     && property.initializer.text === 'root');
+}
+
+const SERVICE_DECORATORS = new Set(['Service', 'Injectable']);
+
+function isAngularWritableSignal(type) {
+  if (type.isUnion()) return type.types.some((member) => isAngularWritableSignal(member));
+  return [type.aliasSymbol, type.getSymbol()].some((symbol) => {
+    if (!symbol || symbol.name !== 'WritableSignal') return false;
+    const file = declarationFile(symbol);
+    return Boolean(file) && toPosix(file).includes('/@angular/core/');
+  });
+}
+
+function isPublicMember(member) {
+  if (member.name && ts.isPrivateIdentifier(member.name)) return false;
+  const modifiers = ts.getModifiers?.(member) ?? member.modifiers ?? [];
+  return !modifiers.some((modifier) => modifier.kind === ts.SyntaxKind.PrivateKeyword || modifier.kind === ts.SyntaxKind.ProtectedKeyword);
+}
+
+function collectWritableState(sourceFile, checker) {
+  const writableState = [];
+  function visit(node) {
+    if (ts.isClassDeclaration(node) && node.name && classDecoratorNames(node).some((name) => SERVICE_DECORATORS.has(name))) {
+      for (const member of node.members) {
+        if (!ts.isPropertyDeclaration(member) && !ts.isGetAccessorDeclaration(member)) continue;
+        if (!isPublicMember(member)) continue;
+        if (isAngularWritableSignal(checker.getTypeAtLocation(member))) {
+          writableState.push({ line: lineOf(sourceFile, member.name.getStart()), service: node.name.text, name: member.name.getText(sourceFile) });
+        }
+      }
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(sourceFile);
+  return { writableState };
 }
 
 function classDecoratorNames(node) {
@@ -156,6 +249,13 @@ function classifyFile(rel, sourceFile) {
   if (inCore) return 'core';
   if (inFeature) return 'feature';
   return 'outside';
+}
+
+function isLooseFeatureFile(rel) {
+  const feature = featureOf(rel);
+  if (!feature) return false;
+  const inside = rel.slice('frontend/src/app/features/'.length + feature.length + 1);
+  return !inside.includes('/') && inside !== 'index.ts' && inside !== `${feature}.routes.ts`;
 }
 
 function featureOf(rel) {
@@ -323,13 +423,16 @@ export async function analyzeFrontend({ root, project } = {}) {
       throw new Error(`cannot resolve imports in ${rel}: ${error.message}`);
     }
     const refs = collectRefs(sourceFile, checker);
-    graph.set(rel, { path: rel, kind: classifyFile(rel, sourceFile), ...edges, ...refs, ...collectNaming(sourceFile) });
+    graph.set(rel, { path: rel, kind: classifyFile(rel, sourceFile), ...edges, ...refs, ...collectNaming(sourceFile), ...collectWritableState(sourceFile, checker), exportedTypes: exportedTypes(sourceFile) });
   }
   for (const [rel, node] of graph) {
     for (const edge of [...node.imports, ...node.reexports]) {
       const target = edge.resolved;
       if (node.kind === 'core' && target.startsWith('frontend/src/app/features/')) {
         report('FRONT001', rel, edge.line, `core must not depend on feature ${target}`);
+      }
+      if (target === LEGACY_FORMS_MODULE) {
+        report('FRONT006', rel, edge.line, 'forms must use Signal Forms from @angular/forms/signals, not Reactive or template-driven forms from @angular/forms');
       }
       const fromFeature = featureOf(rel);
       const toFeature = target.startsWith('external:') ? null : featureOf(target);
@@ -338,11 +441,29 @@ export async function analyzeFrontend({ root, project } = {}) {
         report('FRONT001', rel, edge.line, `${from} must import feature ${toFeature} through features/${toFeature}/index.ts, not ${target}`);
       }
     }
+    if (isLooseFeatureFile(rel)) {
+      report('FRONT011', rel, 1, `only index.ts and ${featureOf(rel)}.routes.ts live at the feature root; move ${path.posix.basename(rel)} into a folder named for its purpose`);
+    }
     if (TYPE_SUFFIX_FILE.test(rel)) {
       report('FRONT004', rel, 1, `file name must describe its purpose without a type suffix: ${path.posix.basename(rel)}`);
     }
     for (const entry of node.suffixedClasses) {
       report('FRONT004', rel, entry.line, `class ${entry.name} must be named for its purpose without a type suffix`);
+    }
+    for (const entry of node.initializerTokens) {
+      report('FRONT007', rel, entry.line, `use ${INITIALIZER_TOKENS.get(entry.token)}() instead of the ${entry.token} token`);
+    }
+    for (const entry of node.exportedTypes.slice(1)) {
+      report('FRONT010', rel, entry.line, `${entry.name} must live in its own file; a type used only here stays in this file without export`);
+    }
+    for (const entry of node.inlineViews) {
+      report('FRONT008', rel, entry.line, `component must ${INLINE_VIEW_PROPERTIES.get(entry.property)}`);
+    }
+    for (const entry of node.styleFiles) {
+      report('FRONT009', rel, entry.line, `component must not declare ${entry.property}; style the template with Tailwind classes`);
+    }
+    for (const entry of node.writableState) {
+      report('FRONT012', rel, entry.line, `${entry.service}.${entry.name} must not expose a WritableSignal; keep the signal private and expose computed() or asReadonly()`);
     }
     for (const entry of node.rootInjectables) {
       report('FRONT005', rel, entry.line, `${entry.name} must use @Service() instead of @Injectable({ providedIn: 'root' })`);

@@ -1,7 +1,9 @@
 import { Service, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
-import type { TaskListResponse, TaskResponse, UpdateTaskRequest } from './tasks-models';
+import type { TaskListResponse } from './task-list-response';
+import type { TaskResponse } from './task-response';
+import type { UpdateTaskRequest } from './update-task-request';
 
 @Service()
 export class TasksApi {

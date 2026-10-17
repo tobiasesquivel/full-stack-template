@@ -4,7 +4,7 @@ Registro vivo del [plan](plan.md). El agente lo actualiza al cerrar cada paso.
 
 ## Paso actual
 
-**Fase 0, paso 0.8: Signal Forms.** Estado: sin empezar. Los pasos 0.7 a 0.9 se agregaron el 2026-10-17 a pedido de Tobi ([informe](informe-angular-moderno.md)). Los pasos 0.6 y 0.7 esperan el merge de Tobi.
+**Fase 1, paso 2: un solo comando de verificación local.** Estado: pendiente. Los pasos 0.10 a 0.16 cerraron. Tobi pidió el 2026-10-17 separar la vista de los componentes (0.10), un archivo por tipo (0.11), Tailwind (0.12), ordenar los archivos sueltos de cada feature (0.13) e investigar y aplicar el manejo de sesión en Angular (0.14 a 0.16, [informe-sesion-angular.md](informe-sesion-angular.md)). Los pasos 0.6 a 0.16 esperan el merge de Tobi.
 
 La Fase 0 va antes del paso 2. El paso 1 (línea base) ya cerró y sirve de referencia para la Fase 0.
 
@@ -22,8 +22,15 @@ Estados: `pendiente`, `en curso`, `cerrado`, `bloqueado (⏸ decisión de Tobi)`
 | 0.5 | Límite entre Auth y Users | cerrado | `artifacts/verify-template/fase0-05-auth-users/`, `artifacts/verify-template/fase0-05-runtime/` |
 | 0.6 | Frontend por feature | cerrado | `artifacts/verify-template/fase0-06-frontend/`, `artifacts/verify-template/fase0-06-runtime/` (fallo), `artifacts/verify-template/fase0-06-runtime-2/` |
 | 0.7 | Servicios y nombres de Angular v22 | cerrado | `artifacts/verify-template/fase0-07-services/`, `artifacts/verify-template/fase0-07-runtime/` |
-| 0.8 | Signal Forms | pendiente | |
-| 0.9 | Arranque con `provideAppInitializer()` | pendiente | |
+| 0.8 | Signal Forms | cerrado | `artifacts/verify-template/fase0-08-signal-forms/`, `artifacts/verify-template/fase0-08-runtime/` |
+| 0.9 | Arranque con `provideAppInitializer()` | cerrado | `artifacts/verify-template/fase0-09-app-initializer/`, `artifacts/verify-template/fase0-09-runtime/` |
+| 0.10 | Componentes en archivos separados | cerrado | `artifacts/verify-template/fase0-10-component-files/`, `artifacts/verify-template/fase0-10-runtime/` |
+| 0.11 | Un archivo, un tipo | cerrado | `artifacts/verify-template/fase0-11-one-type-per-file/`, `artifacts/verify-template/fase0-11-runtime/` |
+| 0.12 | Estilos con Tailwind | cerrado | `artifacts/verify-template/fase0-12-tailwind/`, `artifacts/verify-template/fase0-12-runtime/` |
+| 0.13 | Carpetas por propósito en cada feature del frontend | cerrado | `artifacts/verify-template/fase0-13-feature-folders/`, `artifacts/verify-template/fase0-13-runtime/` |
+| 0.14 | Forma de la sesión | cerrado | `artifacts/verify-template/fase0-14-session-shape/`, `artifacts/verify-template/fase0-14-runtime/` |
+| 0.15 | Interceptor y vuelta a la página pedida | cerrado | `artifacts/verify-template/fase0-15-session-interceptor/`, `artifacts/verify-template/fase0-15-runtime-red/` (rojo), `artifacts/verify-template/fase0-15-runtime/` |
+| 0.16 | Varias pestañas | cerrado | `artifacts/verify-template/fase0-16-session-tabs/`, `artifacts/verify-template/fase0-16-runtime-red/` (rojo), `artifacts/verify-template/fase0-16-runtime/` |
 | 1 | Línea base: qué funciona hoy, con evidencia | cerrado | [linea-base.md](linea-base.md); `artifacts/verify-template/baseline-20261016/` |
 | 2 | Un solo comando de verificación local | pendiente | |
 | 3 | CI verde de verdad | pendiente | |
@@ -73,9 +80,12 @@ Cosas vistas durante un paso que no le corresponden. Cada una espera su paso.
 - `"Task.Forbidden"` y `"User.Forbidden"` siguen escritos en línea en cada slice. Paso 6.
 - El rate limiter `auth` es una sola ventana de 20 requests por minuto para toda la API, sin partición por cliente. Un recorrido de navegador seguido del smoke HTTP da 503 (`fase0-06-runtime`). Paso 12.
 - `AuthErrors.AccountNotFound` (`Auth.AccountNotFound`) es nuevo y `DeleteUser` lo traduce a `User.NotFound`. Entra en el catálogo del paso 6.
-- `Tests/Support/TestSession.cs` declara tres tipos en un archivo. La regla de un tipo por archivo hoy cubre solo las features. Sin paso asignado.
 - Hay una carpeta vacía y sin versionar, `backend/Features/Health/Test/`, de antes de este paso. Git la ignora. Borrarla es decisión de Tobi.
+- El diálogo de borrar tarea se abre arriba a la izquierda, no centrado. El preflight de Tailwind pone `margin: 0` a todo y le quita el `margin: auto` del navegador. Pasaba antes del paso 0.12 y el paso lo dejó igual. Centrarlo es una línea (`m-auto`): decisión de Tobi.
 - `backend/AGENTS.md` y `backend/docs/agents/` describen un issue tracker en `.scratch/`, que `.gitignore` excluye: los issues nunca se versionan.
+- `Profile` vuelve a pedir `/users/me` al abrirse, aunque `Session` ya tiene el usuario. Podría leerlo con `httpResource()`. Es de la feature `users`, fuera del paso 0.14.
+- Al restaurar, un error de red (`status 0`) deja la sesión `closed`, igual que un 401. Distinguir "sin conexión" de "sin sesión" queda pendiente.
+- Una regla que limite `HttpClient` a los archivos de `api/` haría ejecutable la división del paso 0.13 (`api/` hace el HTTP). Hoy FRONT002 solo lo prohíbe en componentes. Sin paso asignado.
 
 ## Cierres
 
@@ -87,6 +97,104 @@ Una entrada por paso cerrado, con este formato:
 - Preguntas: qué preguntó Tobi.
 - Evidencia: artifacts/verify-template/<runId>/
 ```
+
+### Paso 0.16 — 2026-10-17
+- Enseñado: coordinar pestañas del mismo origen con dos APIs del navegador. Las pestañas comparten la cookie de refresh, pero cada una tiene su access token en memoria. Si dos recargan a la vez, las dos presentan el mismo refresh token; el backend ve un reuso y revoca la familia, y las dos quedan sin sesión. `navigator.locks.request('session-refresh', …)` pone las renovaciones en fila: la segunda sale cuando la primera ya dejó la cookie nueva. `BroadcastChannel('session')` avisa `opened` y `closed`: el logout en una pestaña cierra las otras al instante, y un login o registro las abre con el mismo usuario.
+- Preguntas: ninguna nueva; aplica la investigación del 0.14.
+- Decisiones: dos filas nuevas en `docs/decisions.tsv`. `conventions.md` y `architecture.md` actualizados. El margen de rotación en el backend sigue como decisión de Tobi: con el lock no hace falta para un mismo navegador.
+- Evidencia: artifacts/verify-template/fase0-16-session-tabs/, artifacts/verify-template/fase0-16-runtime-red/ y artifacts/verify-template/fase0-16-runtime/.
+  - Sin regla nueva de Dune. `check-frontend` sigue con 24/24 tests.
+  - Rojo antes de verde, navegador (`fase0-16-runtime-red`, código del 0.15): las 3 comprobaciones nuevas fallan. Con dos páginas del mismo contexto y las dos renovaciones retenidas hasta llegar juntas, las renovaciones dan `[401, 200, 401]` y las dos páginas terminan en `/login?returnUrl=%2Ftasks`. El logout en A deja a B en `/tasks`. El registro en A deja a B en `/login`.
+  - Verde (`fase0-16-runtime`): 24 pasos PASS: los 15 del 0.14, las 6 del 0.15 y las 3 nuevas. Las dos recargas dan dos `POST /auth/refresh`, los dos 200, una después de la otra, y las dos páginas siguen abiertas. El logout en A lleva a B a `/login` sin tocar B. El registro de otro usuario en A abre B con ese usuario y la lleva a `/tasks`.
+  - Build de Angular: PASS. `check-frontend`, `check-structure`, `check-comments` y `CommentVerifier`: PASS.
+  - verify-template: launch PASS, smoke HTTP PASS (45 requests). Las comprobaciones corren en tres tandas separadas por 61 segundos, bajo 20 requests de `/auth` por minuto. Cleanup PASS.
+
+### Paso 0.15 — 2026-10-17
+- Enseñado: un interceptor funcional con renovación. El token va solo a `/api/`. Las peticiones de `/auth` llevan un `HttpContextToken` (`SKIP_SESSION`): es un dato de la petición que lee el interceptor y que el backend nunca ve, más firme que comparar el texto de la URL. Ante un 401, varias peticiones esperan la misma renovación y cada una reintenta una vez. El `catchError` va antes del `switchMap`: atrapa solo la renovación fallida, no el error del reintento. `returnUrl` vuelve a la página pedida y solo acepta rutas internas, para que nadie arme un link de login que lleve a otro sitio.
+- Hallazgo: el informe marcaba un riesgo sin probar, y el rojo lo confirmó. Con el código del 0.14, `/auth/refresh` viajaba con el JWT todavía válido. El token antiforgery se había emitido como anónimo antes del login, así que el backend respondía 400 y la sesión se cerraba. Pasaba en cada 401 con el token vigente (por ejemplo, una familia revocada en otra pestaña). Sin el JWT en `/auth`, todas esas peticiones son anónimas y el token coincide.
+- Preguntas: ninguna nueva; aplica la investigación del 0.14.
+- Decisiones: dos filas nuevas en `docs/decisions.tsv`. `conventions.md` y `architecture.md` actualizados.
+- Evidencia: artifacts/verify-template/fase0-15-session-interceptor/, artifacts/verify-template/fase0-15-runtime-red/ y artifacts/verify-template/fase0-15-runtime/.
+  - Sin regla nueva de Dune: el paso cambia comportamiento y lo prueba el navegador. `check-frontend` sigue con 24/24 tests.
+  - Rojo antes de verde, navegador (`fase0-15-runtime-red`, código del 0.14): 5 de 6 comprobaciones nuevas fallan. Sin `returnUrl` en `/login` (dos casos). Un 401 seguido de un 404 termina en `/login`. Dos 401 a la vez terminan en `/login` porque la renovación da 400. 9 de 39 peticiones de `/auth` llevan `Authorization`. La única que pasa es la del `returnUrl` externo: antes también iba a `/tasks`.
+  - Verde (`fase0-15-runtime`): los 15 pasos del 0.14 y las 6 comprobaciones pasan. Un 401 y un 404 en el reintento dejan la sesión abierta y muestran "El recurso solicitado no existe o ya fue eliminado." Dos 401 retenidos y soltados juntos dan un solo `POST /auth/refresh` y dos reintentos. Una renovación fallida lleva a `/login?returnUrl=%2Ftasks`. La contraseña mala no dispara renovación.
+  - Build de Angular: PASS. `check-frontend`, `check-structure`, `check-comments` y `CommentVerifier`: PASS.
+  - verify-template: launch PASS, smoke HTTP PASS (45 requests). Las comprobaciones nuevas corren después de 61 segundos más, para quedar bajo 20 requests de `/auth` por minuto. Cleanup PASS.
+
+### Paso 0.14 — 2026-10-17
+- Enseñado: un solo estado para la sesión. Antes eran tres piezas sueltas: `currentUser`, `initialized` y una `Promise` con `readyResolve` armada a mano. Ahora `Session` guarda una unión discriminada en un `signal` privado: `restoring`, `open` (con el usuario) o `closed`. TypeScript no deja escribir un usuario con la sesión cerrada. Lo público es `computed`: `status`, `currentUser` e `isOpen`. Los guards esperan con `toObservable(session.status).pipe(first(...))`, sin una segunda fuente de verdad. El HTTP de Auth pasó a `AuthApi`, como `UsersApi`; `Session` solo decide el estado. Las acciones usan los verbos del backend: `open`, `refresh`, `close`.
+- Preguntas: Tobi pidió investigar la forma más profesional de manejar la sesión en Angular y aplicarla.
+- Decisiones: tres filas nuevas en `docs/decisions.tsv`. `conventions.md`, `architecture.md`, `plan.md` (pasos 0.14 a 0.16) y `AGENTS.md` (el informe nuevo) actualizados.
+- Evidencia: artifacts/verify-template/fase0-14-session-shape/ y artifacts/verify-template/fase0-14-runtime/.
+  - Rojo antes de verde, gate: con el `check-frontend` del 0.13 falla el test nuevo (`check-frontend-red.log`: 23 pasan, 1 falla). Con el nuevo pasan 24/24 (`check-frontend-green.log`).
+  - Producto: el código del 0.13 ya cumplía FRONT012 (`check-frontend-product-before.log`: OK), porque `Session` exponía `asReadonly()`. La regla es preventiva. Para probarla con los tipos reales de Angular se cambió una línea de `Session` a `readonly currentUser = this.currentUserSignal` y se revirtió: FRONT012 la frena (`check-frontend-product-probe-red.log`).
+  - Build de Angular: PASS. `check-frontend`, `check-structure`, `check-comments` y `CommentVerifier`: PASS.
+  - verify-template: launch PASS, smoke HTTP PASS (45 requests). Después de 65 segundos, navegador PASS con el recorrido del 0.13 (15 pasos), sin cambios: el paso no cambia comportamiento. Cleanup PASS.
+
+### Paso 0.13 — 2026-10-17
+- Enseñado: agrupar por propósito, no por tipo técnico. La raíz de cada feature muestra solo su puerta (`index.ts`) y sus rutas. Lo demás vive en una carpeta que dice para qué sirve: `auth/session/` junta todo lo que mantiene la sesión; `tasks/api/` junta el cliente HTTP con sus modelos. Es la misma idea que las slices del backend, y la guía de estilo de Angular desaconseja carpetas como `services/` o `models/`.
+- Preguntas: Tobi vio muchos archivos sueltos en `auth/` y pidió agruparlos.
+- Decisiones: dos filas nuevas en `docs/decisions.tsv`. `conventions.md` y `architecture.md` actualizados.
+- Evidencia: artifacts/verify-template/fase0-13-feature-folders/ y artifacts/verify-template/fase0-13-runtime/.
+  - Rojo antes de verde, gate: con el `check-frontend` del 0.12 falla el test nuevo (`check-frontend-red.log`). Con el nuevo pasan 23/23. Cuatro tests viejos tenían fixtures en la raíz de la feature: pasaron a `api/` o `session/`.
+  - Rojo antes de verde, producto: FRONT011 frena 13 archivos sueltos en auth, tasks y users (`check-frontend-product-red.log`).
+  - Build de Angular: PASS. `check-frontend`, `check-structure` y `check-comments`: PASS.
+  - verify-template: launch PASS, smoke HTTP PASS (45 requests). Después de 65 segundos, navegador PASS con el recorrido del 0.12 (15 pasos): incluye restaurar la sesión al recargar, los dos guards y el interceptor en cada request. Cleanup PASS.
+
+### Paso 0.12 — 2026-10-17
+- Enseñado: CSS utility-first. El estilo de cada elemento está en su `class`: `rounded-lg border border-slate-200 bg-white p-5` reemplaza la regla `section { … }` de `styles.css`. Ya no hay que buscar qué selector pinta un elemento. `styles.css` pasó de 234 líneas a 14: `@import 'tailwindcss'`, un breakpoint `xs` (32rem) en `@theme` y el foco visible en `@layer base`. Se repiten las clases en lugar de usar `@apply`, como recomienda Tailwind.
+- Hallazgo: `.field-error` y `.done` vivían en `app.css`. Angular encapsula los estilos de cada componente, así que esas reglas solo valían dentro de `App` y nunca llegaron a los formularios ni a la lista. Con Tailwind la clase está en el mismo elemento: ahora los errores de campo se ven en rojo y las tareas hechas, tachadas.
+- Preguntas: Tobi pidió "migrá de CSS a Tailwind".
+- Decisiones: cuatro filas nuevas en `docs/decisions.tsv`. `conventions.md` actualizado.
+- Evidencia: artifacts/verify-template/fase0-12-tailwind/ y artifacts/verify-template/fase0-12-runtime/.
+  - Rojo antes de verde, gate: con el `check-frontend` del 0.10 falla el test nuevo (`check-frontend-red.log`). Con el nuevo pasan 21/21.
+  - Rojo antes de verde, producto: FRONT009 frena `app.ts` y `tasks.ts` (`check-frontend-product-red.log`).
+  - Build de Angular: PASS. `check-frontend`, `check-structure`, `check-comments` y `CommentVerifier`: PASS.
+  - Capturas: 13 por versión en `before/` y `after/`, con la API simulada. La comparación píxel a píxel (`pixel-diff-threshold150.json`) da 0 diferencias de forma salvo los errores en rojo y el texto tachado. Con umbral bajo (`pixel-diff-threshold24.json`) aparecen los tonos: la paleta de Tailwind v4 usa OKLCH y, por ejemplo, `blue-700` no es exactamente `#1d4ed8`.
+  - verify-template: launch PASS, smoke HTTP PASS (45 requests). Después de 65 segundos, navegador PASS (15 pasos): el recorrido del 0.10 con dos comprobaciones cambiadas. La fila tiene `border-left-width` 3px; al marcarla hecha (PUT 200) gana borde verde y texto tachado; el fondo del diálogo tiene alfa 0.4. Cleanup PASS.
+
+### Paso 0.11 — 2026-10-17
+- Enseñado: un archivo, un tipo. Buscar `TaskListResponse` lleva a `task-list-response.ts`, sin abrir un archivo de modelos. La excepción de Tobi (un tipo que usa solo otro queda junto a él) la hace cumplir el compilador: en C#, un tipo `file` no puede usarse fuera de su archivo; en TypeScript, un tipo sin `export` tampoco. Por eso `SessionCookie` y `SessionResponse` no entran en la excepción: los usan los tests de Auth.
+- Preguntas: Tobi pidió la regla, con la excepción del tipo auxiliar.
+- Decisiones: tres filas nuevas en `docs/decisions.tsv`. `conventions.md` y `architecture.md` actualizados.
+- Evidencia: artifacts/verify-template/fase0-11-one-type-per-file/ y artifacts/verify-template/fase0-11-runtime/.
+  - Rojo antes de verde, Dune: con un `OneTypePerFileAnalyzer` vacío falla `SecondTopLevelTypeIsRejected` (`dune-red.log`). Con el analyzer pasan 66/66.
+  - Rojo antes de verde, producto backend: DUNE0010 frena `SessionCookie` y `SessionResponse` en `TestSession.cs` (`product-red.log`), y ningún otro archivo.
+  - Rojo antes de verde, gate frontend: con el `check-frontend` del 0.10 falla el test nuevo (`check-frontend-red.log`). Con el nuevo pasan 21/21.
+  - Rojo antes de verde, producto frontend: FRONT010 frena 5 tipos en `auth-models.ts`, `tasks-models.ts` y `users-models.ts` (`check-frontend-product-red.log`).
+  - Build Release: PASS (0 errores). Tests `TemplateApp.slnx`: PASS (96/96: 30 de producto y 66 de Dune). Build de Angular: PASS. `check-frontend`, `check-comments` y `CommentVerifier`: PASS. `check-structure`: PASS en una copia limpia de la rama; en la carpeta de trabajo falla por el worktree de otro agente en `.claude/worktrees/`.
+  - `TestReferences` también salió de `AnalyzerHost.cs` a su archivo. Dune no analiza sus propios proyectos: ahí la regla se cumple a mano.
+  - verify-template: launch PASS, smoke HTTP PASS (45 requests). Después de 65 segundos, navegador PASS con el recorrido del 0.10 (15 pasos). Cleanup PASS.
+
+### Paso 0.10 — 2026-10-17
+- Enseñado: cada archivo cambia por un solo motivo. Un cambio de vista toca `tasks.html`, uno de estilo toca `tasks.css` y uno de comportamiento toca `tasks.ts`. `tasks.ts` pasó de 333 a 199 líneas. Angular compila `templateUrl` igual que `template`: el resultado en el navegador no cambia.
+- Preguntas: Tobi marcó `tasks.ts` como un archivo que junta todo.
+- Decisiones: dos filas nuevas en `docs/decisions.tsv`. `conventions.md` actualizado.
+- Evidencia: artifacts/verify-template/fase0-10-component-files/ y artifacts/verify-template/fase0-10-runtime/.
+  - Rojo antes de verde, gate: con el `check-frontend` del 0.9 falla el test nuevo (`check-frontend-red.log`). Con el nuevo pasan 20/20. Las fixtures de los tests viejos pasaron de `template: ''` a `templateUrl`.
+  - Rojo antes de verde, producto: FRONT008 frena login, registro, tareas (vista y estilos) y perfil (`check-frontend-product-red.log`).
+  - Build de Angular: PASS. `check-frontend`, `check-structure`, `check-comments` y `CommentVerifier`: PASS.
+  - verify-template: launch PASS, smoke HTTP PASS (45 requests). Después de 65 segundos, navegador PASS (15 pasos): el recorrido del 0.8 más un paso nuevo. Ese paso comprueba que `tasks.css` se aplica (borde de la fila y fondo del diálogo) y borra una tarea con el diálogo (DELETE 204). Cleanup PASS.
+
+### Paso 0.9 — 2026-10-17
+- Enseñado: providers funcionales. `provideAppInitializer(() => inject(Session).bootstrap())` reemplaza un token multi con `useFactory` y `deps` escritos a mano: la función corre en un contexto de inyección y pide lo que necesita con `inject()`. `bootstrap()` devuelve `void`, así que Angular no lo espera, igual que antes; los guards siguen esperando `session.ready()`.
+- Preguntas: ninguna nueva.
+- Decisiones: dos filas nuevas en `docs/decisions.tsv`. `conventions.md` actualizado.
+- Evidencia: artifacts/verify-template/fase0-09-app-initializer/ y artifacts/verify-template/fase0-09-runtime/.
+  - Rojo antes de verde, gate: con el `check-frontend` del 0.8 falla el test nuevo (`check-frontend-red.log`). Con el nuevo pasan 19/19.
+  - Rojo antes de verde, producto: FRONT007 frena `app.config.ts` (`check-frontend-product-red.log`).
+  - Build de Angular: PASS. `check-frontend`, `check-structure`, `check-comments` y `CommentVerifier`: PASS.
+  - verify-template: launch PASS, smoke HTTP PASS (45 requests). Después de 65 segundos, navegador PASS con el recorrido del 0.8 (14 pasos), que incluye la restauración de sesión al recargar y el guard sin sesión. Cleanup PASS.
+
+### Paso 0.8 — 2026-10-17
+- Enseñado: el formulario como signals. El modelo es un `signal` (`credentials`, `account`, `newTask`, `profile`), `form()` le agrega reglas y estado (`touched`, `invalid`, `submitting`), y `[formRoot]` llama a `submit()`: marca todo como tocado y corre la acción solo si el formulario es válido. Eso reemplaza el `markAllAsTouched()` y los signals `loading`, `creating` y `saving` escritos a mano. Las reglas escriben `required` y `maxlength` en el HTML: ponerlos a mano es un error de compilación (NG8022).
+- Preguntas: ninguna nueva; Tobi aprobó la modernización.
+- Decisiones: dos filas nuevas en `docs/decisions.tsv`. `conventions.md` actualizado.
+- Evidencia: artifacts/verify-template/fase0-08-signal-forms/ y artifacts/verify-template/fase0-08-runtime/.
+  - Rojo antes de verde, gate: con el `check-frontend` del 0.7 falla el test nuevo (`check-frontend-red.log`). Con el nuevo pasan 18/18.
+  - Rojo antes de verde, producto: FRONT006 frena los cuatro formularios del código del 0.7 (`check-frontend-product-red.log`).
+  - Build de Angular: PASS. `check-frontend`, `check-structure`, `check-comments` y `CommentVerifier`: PASS.
+  - verify-template: launch PASS (build y tests .NET incluidos), smoke HTTP PASS (45 requests). Después de 65 segundos, navegador PASS (14 pasos): los formularios inválidos de registro, tareas, perfil y login muestran los mismos mensajes y no mandan la request; el input de tarea conserva `maxlength=200`; crear limpia el formulario sin error; el registro con nombre visible vacío usa el usuario; y el recorrido del 0.6 completo. Cleanup PASS.
 
 ### Paso 0.7 — 2026-10-17
 - Enseñado: *Intent over Role*. El nombre dice para qué sirve la clase y la carpeta dice de qué feature es: `session.ts` / `Session` maneja la sesión, `tasks-api.ts` / `TasksApi` es el cliente HTTP de Tasks. `@Service()` reemplaza a `@Injectable({ providedIn: 'root' })` en v22. Los otros nombres solo cambian en la puerta (`index.ts`) de cada feature.

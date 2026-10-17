@@ -1,0 +1,42 @@
+<section aria-labelledby="login-title" class="rounded-xl border border-slate-200 bg-white p-5 shadow-xs max-xs:p-4">
+  <h1 id="login-title" class="mb-4 text-2xl leading-tight">Entrar</h1>
+  <form [formRoot]="loginForm">
+    <div class="mb-3">
+      <label for="login-user" class="mb-1 block text-sm/normal font-semibold">Usuario</label>
+      <input
+        id="login-user"
+        type="text"
+        class="w-full max-w-sm rounded-lg border border-slate-400 bg-white px-3 py-2 focus:border-blue-600"
+        [formField]="loginForm.userName"
+        autocomplete="username"
+      />
+      @if (loginForm.userName().touched() && loginForm.userName().invalid()) {
+        <p class="text-red-800">Escribe tu nombre de usuario.</p>
+      }
+    </div>
+    <div class="mb-3">
+      <label for="login-password" class="mb-1 block text-sm/normal font-semibold">Contraseña</label>
+      <input
+        id="login-password"
+        type="password"
+        class="w-full max-w-sm rounded-lg border border-slate-400 bg-white px-3 py-2 focus:border-blue-600"
+        [formField]="loginForm.password"
+        autocomplete="current-password"
+      />
+      @if (loginForm.password().touched() && loginForm.password().invalid()) {
+        <p class="text-red-800">Escribe tu contraseña.</p>
+      }
+    </div>
+    @if (error()) {
+      <p role="alert" class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-red-800">{{ error() }}</p>
+    }
+    <button
+      type="submit"
+      class="cursor-pointer rounded-lg border border-blue-700 bg-blue-700 px-4 py-2 text-white hover:enabled:border-blue-800 hover:enabled:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
+      [disabled]="loginForm().submitting()"
+    >
+      {{ loginForm().submitting() ? 'Entrando…' : 'Entrar' }}
+    </button>
+  </form>
+  <p>¿Sin cuenta? <a routerLink="/register" class="text-blue-700 hover:underline">Crea una cuenta</a>.</p>
+</section>
