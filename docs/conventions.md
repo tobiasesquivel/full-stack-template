@@ -31,6 +31,7 @@ El código actual todavía no cumple todas estas reglas. La Fase 0 del [plan](ev
 - `core/` del frontend no nombra ninguna feature: queda para lo transversal.
 - En el frontend, los archivos y las clases se nombran por su propósito, sin sufijo de tipo (*Intent over Role*, Angular v20+): `session.ts` / `Session`, `tasks-api.ts` / `TasksApi`, `profile.ts` / `Profile`. Guards e interceptores usan guion: `auth-guard.ts`. Se mantienen las convenciones del propio Angular: `*.routes.ts`, `app.config.ts`, `*.spec.ts`. FRONT004 lo hace cumplir.
 - Los servicios de una sola instancia usan `@Service()` (Angular v22), no `@Injectable({ providedIn: 'root' })`. FRONT005 lo hace cumplir.
+- Los formularios usan Signal Forms (`@angular/forms/signals`): un `signal` con el modelo, `form()` con las reglas (`required`, `maxLength`…) y `submission.action` para enviar. El `<form>` lleva `[formRoot]` y cada input `[formField]`. Las reglas escriben los atributos `required` y `maxlength`: no se ponen a mano. FRONT006 rechaza importar `@angular/forms`.
 
 ## Comentarios
 

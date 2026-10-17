@@ -1,5 +1,5 @@
 import { Component, ElementRef, Injector, afterNextRender, computed, inject, signal, viewChild } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormField, FormRoot, form, maxLength, required } from '@angular/forms/signals';
 import { TasksApi } from '../tasks-api';
 import { describeHttpError } from '../../../core/http-error';
 import type { TaskResponse } from '../tasks-models';
@@ -8,23 +8,21 @@ const PAGE_SIZE = 10;
 
 @Component({
   selector: 'app-tasks',
-  imports: [ReactiveFormsModule],
+  imports: [FormField, FormRoot],
   template: `
     <section aria-labelledby="tasks-title">
       <h1 id="tasks-title" #tasksHeading tabindex="-1">Mis tareas</h1>
 
-      <form [formGroup]="createForm" (ngSubmit)="create()" aria-label="Crear tarea" novalidate>
+      <form [formRoot]="createForm" aria-label="Crear tarea">
         <label for="new-task-title">Nueva tarea</label>
         <input
           id="new-task-title"
           type="text"
-          formControlName="title"
-          maxlength="200"
+          [formField]="createForm.title"
           placeholder="¿Qué hay que hacer?"
-          required
         />
-        <button type="submit" [disabled]="creating()">Crear</button>
-        @if (createForm.controls.title.touched && createForm.controls.title.invalid) {
+        <button type="submit" [disabled]="createForm().submitting()">Crear</button>
+        @if (createForm.title().touched() && createForm.title().invalid()) {
           <p class="field-error">El título es obligatorio (máximo 200 caracteres).</p>
         }
         @if (createError()) {
@@ -151,7 +149,6 @@ const PAGE_SIZE = 10;
 })
 export class Tasks {
   private readonly tasksApi = inject(TasksApi);
-  private readonly fb = inject(FormBuilder);
 
   protected readonly items = signal<TaskResponse[]>([]);
   protected readonly totalCount = signal(0);
@@ -161,7 +158,6 @@ export class Tasks {
   );
   protected readonly loading = signal(true);
   protected readonly error = signal<string | null>(null);
-  protected readonly creating = signal(false);
   protected readonly createError = signal<string | null>(null);
   protected readonly actionError = signal<string | null>(null);
   protected readonly pendingId = signal<string | null>(null);
@@ -172,9 +168,15 @@ export class Tasks {
   private readonly injector = inject(Injector);
   private readonly confirmDialog = viewChild<ElementRef<HTMLDialogElement>>('confirmDialog');
   private readonly tasksHeading = viewChild<ElementRef<HTMLElement>>('tasksHeading');
-  protected readonly createForm = this.fb.group({
-    title: ['', [Validators.required, Validators.maxLength(200)]],
-  });
+  private readonly newTask = signal({ title: '' });
+  protected readonly createForm = form(
+    this.newTask,
+    (path) => {
+      required(path.title);
+      maxLength(path.title, 200);
+    },
+    { submission: { action: () => this.create() } },
+  );
 
   constructor() {
     void this.load();
@@ -200,24 +202,17 @@ export class Tasks {
     await this.load();
   }
 
-  protected async create(): Promise<void> {
-    if (this.createForm.invalid) {
-      this.createForm.markAllAsTouched();
-      return;
-    }
-    this.creating.set(true);
+  private async create(): Promise<undefined> {
     this.createError.set(null);
     try {
-      const { title } = this.createForm.getRawValue();
-      await this.tasksApi.create((title ?? '').trim());
-      this.createForm.reset();
+      await this.tasksApi.create(this.newTask().title.trim());
+      this.createForm().reset({ title: '' });
       this.page.set(1);
       await this.load();
     } catch (err) {
       this.createError.set(describeHttpError(err));
-    } finally {
-      this.creating.set(false);
     }
+    return undefined;
   }
 
   protected async setCompleted(task: TaskResponse, completed: boolean): Promise<void> {

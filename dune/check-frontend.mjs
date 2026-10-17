@@ -7,7 +7,9 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const require = createRequire(path.join(here, '..', 'frontend', 'package.json'));
 const ts = require('typescript');
 
-export const RULES = ['FRONT001', 'FRONT002', 'FRONT003', 'FRONT004', 'FRONT005'];
+export const RULES = ['FRONT001', 'FRONT002', 'FRONT003', 'FRONT004', 'FRONT005', 'FRONT006'];
+
+const LEGACY_FORMS_MODULE = 'external:@angular/forms';
 
 const TYPE_SUFFIX_FILE = /\.(service|component|directive|pipe|guard|interceptor|resolver|module)\.ts$/;
 const TYPE_SUFFIX_CLASS = /(Service|Component|Directive|Pipe|Module)$/;
@@ -330,6 +332,9 @@ export async function analyzeFrontend({ root, project } = {}) {
       const target = edge.resolved;
       if (node.kind === 'core' && target.startsWith('frontend/src/app/features/')) {
         report('FRONT001', rel, edge.line, `core must not depend on feature ${target}`);
+      }
+      if (target === LEGACY_FORMS_MODULE) {
+        report('FRONT006', rel, edge.line, 'forms must use Signal Forms from @angular/forms/signals, not Reactive or template-driven forms from @angular/forms');
       }
       const fromFeature = featureOf(rel);
       const toFeature = target.startsWith('external:') ? null : featureOf(target);

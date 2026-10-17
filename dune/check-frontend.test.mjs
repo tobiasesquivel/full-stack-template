@@ -342,6 +342,22 @@ describe('check-frontend', () => {
     }
   });
 
+  it('accepts Signal Forms and rejects Reactive or template-driven forms', async () => {
+    const project = await makeProject({
+      'frontend/src/app/features/auth/login/login.ts': `import { Component } from '@angular/core';\nimport { FormField, form } from '@angular/forms/signals';\n@Component({ selector: 'x', template: '', imports: [FormField] })\nexport class Login {\n  readonly loginForm = form;\n}\n`,
+      'frontend/src/app/features/users/profile/profile.ts': `import { Component } from '@angular/core';\nimport { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';\n@Component({ selector: 'x', template: '', imports: [ReactiveFormsModule] })\nexport class Profile {\n  readonly builder = FormBuilder;\n  readonly rules = Validators;\n}\n`,
+      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';\nimport { FormsModule } from '@angular/forms';\n@Component({ selector: 'x', template: '', imports: [FormsModule] })\nexport class Tasks {}\n`,
+    });
+    try {
+      await seedAngular(project.root);
+      const { diagnostics } = await analyzeFrontend({ root: project.root });
+      const forms = diagnostics.filter((entry) => entry.rule === 'FRONT006').map((entry) => `${path.basename(entry.path)}:${entry.line}`);
+      assert.deepEqual(forms, ['tasks.ts:2', 'profile.ts:2']);
+    } finally {
+      await project.cleanup();
+    }
+  });
+
   it('fails configuration errors instead of reporting green', async () => {
     await assert.rejects(() => analyzeFrontend({ root: '/nonexistent-root-xyz', project: '/nonexistent.json' }), /cannot read project/);
   });

@@ -4,7 +4,7 @@ Registro vivo del [plan](plan.md). El agente lo actualiza al cerrar cada paso.
 
 ## Paso actual
 
-**Fase 0, paso 0.8: Signal Forms.** Estado: sin empezar. Los pasos 0.7 a 0.9 se agregaron el 2026-10-17 a pedido de Tobi ([informe](informe-angular-moderno.md)). Los pasos 0.6 y 0.7 esperan el merge de Tobi.
+**Fase 0, paso 0.9: arranque con `provideAppInitializer()`.** Estado: sin empezar. Los pasos 0.7 a 0.9 se agregaron el 2026-10-17 a pedido de Tobi ([informe](informe-angular-moderno.md)). Los pasos 0.6 a 0.8 esperan el merge de Tobi.
 
 La Fase 0 va antes del paso 2. El paso 1 (línea base) ya cerró y sirve de referencia para la Fase 0.
 
@@ -22,7 +22,7 @@ Estados: `pendiente`, `en curso`, `cerrado`, `bloqueado (⏸ decisión de Tobi)`
 | 0.5 | Límite entre Auth y Users | cerrado | `artifacts/verify-template/fase0-05-auth-users/`, `artifacts/verify-template/fase0-05-runtime/` |
 | 0.6 | Frontend por feature | cerrado | `artifacts/verify-template/fase0-06-frontend/`, `artifacts/verify-template/fase0-06-runtime/` (fallo), `artifacts/verify-template/fase0-06-runtime-2/` |
 | 0.7 | Servicios y nombres de Angular v22 | cerrado | `artifacts/verify-template/fase0-07-services/`, `artifacts/verify-template/fase0-07-runtime/` |
-| 0.8 | Signal Forms | pendiente | |
+| 0.8 | Signal Forms | cerrado | `artifacts/verify-template/fase0-08-signal-forms/`, `artifacts/verify-template/fase0-08-runtime/` |
 | 0.9 | Arranque con `provideAppInitializer()` | pendiente | |
 | 1 | Línea base: qué funciona hoy, con evidencia | cerrado | [linea-base.md](linea-base.md); `artifacts/verify-template/baseline-20261016/` |
 | 2 | Un solo comando de verificación local | pendiente | |
@@ -87,6 +87,16 @@ Una entrada por paso cerrado, con este formato:
 - Preguntas: qué preguntó Tobi.
 - Evidencia: artifacts/verify-template/<runId>/
 ```
+
+### Paso 0.8 — 2026-10-17
+- Enseñado: el formulario como signals. El modelo es un `signal` (`credentials`, `account`, `newTask`, `profile`), `form()` le agrega reglas y estado (`touched`, `invalid`, `submitting`), y `[formRoot]` llama a `submit()`: marca todo como tocado y corre la acción solo si el formulario es válido. Eso reemplaza el `markAllAsTouched()` y los signals `loading`, `creating` y `saving` escritos a mano. Las reglas escriben `required` y `maxlength` en el HTML: ponerlos a mano es un error de compilación (NG8022).
+- Preguntas: ninguna nueva; Tobi aprobó la modernización.
+- Decisiones: dos filas nuevas en `docs/decisions.tsv`. `conventions.md` actualizado.
+- Evidencia: artifacts/verify-template/fase0-08-signal-forms/ y artifacts/verify-template/fase0-08-runtime/.
+  - Rojo antes de verde, gate: con el `check-frontend` del 0.7 falla el test nuevo (`check-frontend-red.log`). Con el nuevo pasan 18/18.
+  - Rojo antes de verde, producto: FRONT006 frena los cuatro formularios del código del 0.7 (`check-frontend-product-red.log`).
+  - Build de Angular: PASS. `check-frontend`, `check-structure`, `check-comments` y `CommentVerifier`: PASS.
+  - verify-template: launch PASS (build y tests .NET incluidos), smoke HTTP PASS (45 requests). Después de 65 segundos, navegador PASS (14 pasos): los formularios inválidos de registro, tareas, perfil y login muestran los mismos mensajes y no mandan la request; el input de tarea conserva `maxlength=200`; crear limpia el formulario sin error; el registro con nombre visible vacío usa el usuario; y el recorrido del 0.6 completo. Cleanup PASS.
 
 ### Paso 0.7 — 2026-10-17
 - Enseñado: *Intent over Role*. El nombre dice para qué sirve la clase y la carpeta dice de qué feature es: `session.ts` / `Session` maneja la sesión, `tasks-api.ts` / `TasksApi` es el cliente HTTP de Tasks. `@Service()` reemplaza a `@Injectable({ providedIn: 'root' })` en v22. Los otros nombres solo cambian en la puerta (`index.ts`) de cada feature.

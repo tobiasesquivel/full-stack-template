@@ -1,5 +1,5 @@
 import { Component, inject, signal } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormField, FormRoot, form, maxLength, required } from '@angular/forms/signals';
 import { HttpErrorResponse } from '@angular/common/http';
 import { RouterLink } from '@angular/router';
 import { Session } from '../session';
@@ -7,15 +7,15 @@ import { describeHttpError } from '../../../core/http-error';
 
 @Component({
   selector: 'app-login',
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [FormField, FormRoot, RouterLink],
   template: `
     <section aria-labelledby="login-title">
       <h1 id="login-title">Entrar</h1>
-      <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+      <form [formRoot]="loginForm">
         <div>
           <label for="login-user">Usuario</label>
-          <input id="login-user" type="text" formControlName="userName" autocomplete="username" required />
-          @if (form.controls.userName.touched && form.controls.userName.invalid) {
+          <input id="login-user" type="text" [formField]="loginForm.userName" autocomplete="username" />
+          @if (loginForm.userName().touched() && loginForm.userName().invalid()) {
             <p class="field-error">Escribe tu nombre de usuario.</p>
           }
         </div>
@@ -24,19 +24,18 @@ import { describeHttpError } from '../../../core/http-error';
           <input
             id="login-password"
             type="password"
-            formControlName="password"
+            [formField]="loginForm.password"
             autocomplete="current-password"
-            required
           />
-          @if (form.controls.password.touched && form.controls.password.invalid) {
+          @if (loginForm.password().touched() && loginForm.password().invalid()) {
             <p class="field-error">Escribe tu contraseña.</p>
           }
         </div>
         @if (error()) {
           <p role="alert">{{ error() }}</p>
         }
-        <button type="submit" [disabled]="loading()">
-          {{ loading() ? 'Entrando…' : 'Entrar' }}
+        <button type="submit" [disabled]="loginForm().submitting()">
+          {{ loginForm().submitting() ? 'Entrando…' : 'Entrar' }}
         </button>
       </form>
       <p>¿Sin cuenta? <a routerLink="/register">Crea una cuenta</a>.</p>
@@ -45,33 +44,31 @@ import { describeHttpError } from '../../../core/http-error';
 })
 export class Login {
   private readonly session = inject(Session);
-  private readonly fb = inject(FormBuilder);
 
-  protected readonly form = this.fb.group({
-    userName: ['', [Validators.required, Validators.maxLength(50)]],
-    password: ['', Validators.required],
-  });
-  protected readonly loading = signal(false);
+  private readonly credentials = signal({ userName: '', password: '' });
+  protected readonly loginForm = form(
+    this.credentials,
+    (path) => {
+      required(path.userName);
+      maxLength(path.userName, 50);
+      required(path.password);
+    },
+    { submission: { action: () => this.enter() } },
+  );
   protected readonly error = signal<string | null>(null);
 
-  protected async submit(): Promise<void> {
-    if (this.form.invalid) {
-      this.form.markAllAsTouched();
-      return;
-    }
-    this.loading.set(true);
+  private async enter(): Promise<undefined> {
     this.error.set(null);
     try {
-      const { userName, password } = this.form.getRawValue();
-      await this.session.login(userName ?? '', password ?? '');
+      const { userName, password } = this.credentials();
+      await this.session.login(userName, password);
     } catch (err) {
       this.error.set(
         err instanceof HttpErrorResponse && err.status === 401
           ? 'Usuario o contraseña incorrectos.'
           : describeHttpError(err),
       );
-    } finally {
-      this.loading.set(false);
     }
+    return undefined;
   }
 }
