@@ -4,7 +4,7 @@ Registro vivo del [plan](plan.md). El agente lo actualiza al cerrar cada paso.
 
 ## Paso actual
 
-**Fase 1, paso 1: línea base.** Estado: sin empezar.
+**Fase 1, paso 2: un solo comando de verificación local.** Estado: sin empezar.
 
 ## Estado por paso
 
@@ -12,7 +12,7 @@ Estados: `pendiente`, `en curso`, `cerrado`, `bloqueado (⏸ decisión de Tobi)`
 
 | Paso | Título | Estado | Evidencia |
 |---|---|---|---|
-| 1 | Línea base: qué funciona hoy, con evidencia | pendiente | |
+| 1 | Línea base: qué funciona hoy, con evidencia | cerrado | [linea-base.md](linea-base.md); `artifacts/verify-template/baseline-20261016/` |
 | 2 | Un solo comando de verificación local | pendiente | |
 | 3 | CI verde de verdad | pendiente | |
 | 4 | Versionado de API declarado | pendiente | |
@@ -59,3 +59,8 @@ Una entrada por paso cerrado, con este formato:
 - Preguntas: qué preguntó Tobi.
 - Evidencia: artifacts/verify-template/<runId>/
 ```
+
+### Paso 1 — 2026-10-16
+- Enseñado: línea base; "compila" no es "funciona"; PASS/FAIL/NOT_RUN; verificación reproducible con run ID y evidencia que sobrevive al cleanup.
+- Preguntas: qué concepto enseña el paso.
+- Evidencia: artifacts/verify-template/baseline-20261016/ y [linea-base.md](linea-base.md).
