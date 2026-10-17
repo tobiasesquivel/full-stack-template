@@ -81,10 +81,11 @@ frontend/src/app/
         ├── index.ts, tasks.routes.ts
         ├── api/                   TasksApi y sus modelos: TaskResponse, UpdateTaskRequest…
         ├── tasks/                 Tasks: componente de ruta; orquesta la lista y llama a TasksApi
-        └── task-pager/            TaskPager: presentación; recibe la página con input() y la pide con output()
+        ├── task-pager/            TaskPager: presentación; recibe la página con input() y la pide con output()
+        └── task-row/              TaskRow: presentación; una fila con su borrador y su edición en línea
 ```
 
-- **Componente de ruta y de presentación.** `Tasks` es el destino de `/tasks`: guarda el estado de la lista y es el único que llama a `TasksApi`. `TaskPager` no inyecta nada de la app: recibe `page`, `totalPages`, `totalCount` y `disabled`, y avisa `pageChange`. Los datos bajan por `input()` y los hechos suben por `output()`. FRONT013 frena un componente que no es de ruta y que inyecta un servicio de la app, `Router` o `ActivatedRoute`.
+- **Componente de ruta y de presentación.** `Tasks` es el destino de `/tasks`: guarda el estado de la lista y es el único que llama a `TasksApi`. `TaskPager` no inyecta nada de la app: recibe `page`, `totalPages`, `totalCount` y `disabled`, y avisa `pageChange`. `TaskRow` es el `<li>` de cada tarea (`li[app-task-row]`): recibe `task`, `editing` y `pending`, guarda el borrador del título y avisa `completedChange`, `editStarted`, `renamed`, `renameRejected`, `editCancelled` y `removeRequested`. `Tasks` decide qué fila edita, llama a la API y muestra el error bajo la lista. Los datos bajan por `input()` y los hechos suben por `output()`. FRONT013 frena un componente que no es de ruta y que inyecta un servicio de la app, `Router` o `ActivatedRoute`.
 
 - En la raíz de una feature solo viven `index.ts` y `<feature>.routes.ts`. El resto va en una carpeta con nombre de propósito: `session/`, `api/` o la carpeta del componente. FRONT011 lo hace cumplir.
 

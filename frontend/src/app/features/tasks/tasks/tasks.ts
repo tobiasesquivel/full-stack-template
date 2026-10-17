@@ -4,12 +4,13 @@ import { TasksApi } from '../api/tasks-api';
 import { describeHttpError } from '../../../core/http-error';
 import type { TaskResponse } from '../api/task-response';
 import { TaskPager } from '../task-pager/task-pager';
+import { TaskRow } from '../task-row/task-row';
 
 const PAGE_SIZE = 10;
 
 @Component({
   selector: 'app-tasks',
-  imports: [FormField, FormRoot, TaskPager],
+  imports: [FormField, FormRoot, TaskPager, TaskRow],
   templateUrl: './tasks.html',
   host: { class: 'block' },
 })
@@ -28,7 +29,6 @@ export class Tasks {
   protected readonly actionError = signal<string | null>(null);
   protected readonly pendingId = signal<string | null>(null);
   protected readonly editingId = signal<string | null>(null);
-  protected readonly editTitle = signal('');
   protected readonly pendingDelete = signal<TaskResponse | null>(null);
   private deleteTrigger: HTMLButtonElement | null = null;
   private readonly injector = inject(Injector);
@@ -89,21 +89,18 @@ export class Tasks {
 
   protected startEdit(task: TaskResponse): void {
     this.editingId.set(task.id);
-    this.editTitle.set(task.title);
     this.actionError.set(null);
   }
 
   protected cancelEdit(): void {
     this.editingId.set(null);
-    this.editTitle.set('');
   }
 
-  protected async saveTitle(task: TaskResponse): Promise<void> {
-    const title = this.editTitle().trim();
-    if (!title || title.length > 200) {
-      this.actionError.set('El título es obligatorio (máximo 200 caracteres).');
-      return;
-    }
+  protected rejectTitle(): void {
+    this.actionError.set('El título es obligatorio (máximo 200 caracteres).');
+  }
+
+  protected async saveTitle(task: TaskResponse, title: string): Promise<void> {
     await this.runRowAction(task.id, () =>
       this.tasksApi.update(task.id, { title, isCompleted: task.isCompleted }),
     );

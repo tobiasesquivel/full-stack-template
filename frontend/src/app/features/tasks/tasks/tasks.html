@@ -42,64 +42,17 @@
     <ul class="mt-4 grid gap-2.5">
       @for (task of items(); track task.id) {
         <li
-          class="flex flex-wrap items-center gap-2 rounded-lg border border-l-3 border-slate-200 px-3 py-2.5 transition-colors duration-120 ease-in-out hover:border-blue-300"
-          [class]="task.isCompleted ? 'border-l-green-500 bg-green-50 hover:border-l-green-500' : 'border-l-transparent bg-slate-50'"
-        >
-          <input
-            type="checkbox"
-            class="size-4.5 flex-none accent-blue-700 focus-visible:outline-blue-700"
-            [id]="'done-' + task.id"
-            [checked]="task.isCompleted"
-            [disabled]="pendingId() === task.id"
-            (change)="setCompleted(task, !task.isCompleted)"
-            [attr.aria-label]="(task.isCompleted ? 'Marcar pendiente: ' : 'Marcar hecha: ') + task.title"
-          />
-          @if (editingId() === task.id) {
-            <input
-              type="text"
-              class="w-full max-w-sm rounded-lg border border-slate-400 bg-white px-3 py-2 focus:border-blue-600 focus-visible:outline-blue-700"
-              [id]="'edit-' + task.id"
-              [value]="editTitle()"
-              (input)="editTitle.set($any($event.target).value)"
-              maxlength="200"
-              aria-label="Editar título"
-            />
-            <button
-              type="button"
-              class="cursor-pointer rounded-lg border border-blue-700 bg-white px-4 py-2 text-blue-700 hover:enabled:border-blue-800 hover:enabled:bg-blue-50 hover:enabled:text-blue-800 focus-visible:outline-blue-700 disabled:cursor-not-allowed disabled:opacity-60 max-xs:flex-auto"
-              [disabled]="pendingId() === task.id"
-              (click)="saveTitle(task)"
-            >
-              Guardar
-            </button>
-            <button
-              type="button"
-              class="cursor-pointer rounded-lg border border-blue-700 bg-white px-4 py-2 text-blue-700 hover:enabled:border-blue-800 hover:enabled:bg-blue-50 hover:enabled:text-blue-800 focus-visible:outline-blue-700 disabled:cursor-not-allowed disabled:opacity-60 max-xs:flex-auto"
-              (click)="cancelEdit()"
-            >
-              Cancelar
-            </button>
-          } @else {
-            <span class="flex-[1_1_12rem] wrap-anywhere" [class.line-through]="task.isCompleted">{{ task.title }}</span>
-            <button
-              type="button"
-              class="cursor-pointer rounded-lg border border-blue-700 bg-white px-4 py-2 text-blue-700 hover:enabled:border-blue-800 hover:enabled:bg-blue-50 hover:enabled:text-blue-800 focus-visible:outline-blue-700 disabled:cursor-not-allowed disabled:opacity-60 max-xs:flex-auto"
-              [disabled]="pendingId() === task.id"
-              (click)="startEdit(task)"
-            >
-              Editar
-            </button>
-            <button
-              type="button"
-              #deleteButton
-              class="cursor-pointer rounded-lg border border-blue-700 bg-white px-4 py-2 text-blue-700 hover:enabled:border-blue-800 hover:enabled:bg-blue-50 hover:enabled:text-blue-800 focus-visible:outline-blue-700 disabled:cursor-not-allowed disabled:opacity-60 max-xs:flex-auto"
-              [disabled]="pendingId() === task.id"
-              (click)="askRemove(task, deleteButton)"
-            >
-              Eliminar
-            </button>
-          }
-        </li>
+          app-task-row
+          [task]="task"
+          [editing]="editingId() === task.id"
+          [pending]="pendingId() === task.id"
+          (completedChange)="setCompleted(task, $event)"
+          (editStarted)="startEdit(task)"
+          (renamed)="saveTitle(task, $event)"
+          (renameRejected)="rejectTitle()"
+          (editCancelled)="cancelEdit()"
+          (removeRequested)="askRemove(task, $event)"
+        ></li>
       }
     </ul>
     @if (actionError()) {

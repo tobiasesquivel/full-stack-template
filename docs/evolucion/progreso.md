@@ -4,7 +4,7 @@ Registro vivo del [plan](plan.md). El agente lo actualiza al cerrar cada paso.
 
 ## Paso actual
 
-**Paso 0.19: estado local en el hijo (`TaskRow`).** Estado: pendiente. Los pasos 0.10 a 0.18 cerraron. Tobi pidió el 2026-10-17 separar la vista de los componentes (0.10), un archivo por tipo (0.11), Tailwind (0.12), ordenar los archivos sueltos de cada feature (0.13), investigar y aplicar el manejo de sesión en Angular (0.14 a 0.16, [informe-sesion-angular.md](informe-sesion-angular.md)) y aplicar lo que no necesita decisión de herramienta de [informe-componentes-angular.md](informe-componentes-angular.md) y [informe-frontend-para-agentes.md](informe-frontend-para-agentes.md) (0.17 a 0.20). Después de 0.20 sigue la Fase 1, paso 2. Los pasos 0.6 a 0.18 esperan el merge de Tobi.
+**Paso 0.20: diálogo de presentación (`TaskDeleteDialog`).** Estado: pendiente. Los pasos 0.10 a 0.19 cerraron. Tobi pidió el 2026-10-17 separar la vista de los componentes (0.10), un archivo por tipo (0.11), Tailwind (0.12), ordenar los archivos sueltos de cada feature (0.13), investigar y aplicar el manejo de sesión en Angular (0.14 a 0.16, [informe-sesion-angular.md](informe-sesion-angular.md)) y aplicar lo que no necesita decisión de herramienta de [informe-componentes-angular.md](informe-componentes-angular.md) y [informe-frontend-para-agentes.md](informe-frontend-para-agentes.md) (0.17 a 0.20). Después de 0.20 sigue la Fase 1, paso 2. Los pasos 0.6 a 0.19 esperan el merge de Tobi.
 
 La Fase 0 va antes del paso 2. El paso 1 (línea base) ya cerró y sirve de referencia para la Fase 0.
 
@@ -33,7 +33,7 @@ Estados: `pendiente`, `en curso`, `cerrado`, `bloqueado (⏸ decisión de Tobi)`
 | 0.16 | Varias pestañas | cerrado | `artifacts/verify-template/fase0-16-session-tabs/`, `artifacts/verify-template/fase0-16-runtime-red/` (rojo), `artifacts/verify-template/fase0-16-runtime/` |
 | 0.17 | El CLI genera código que pasa el gate | cerrado | `artifacts/verify-template/fase0-17-cli-defaults/`, `artifacts/verify-template/fase0-17-runtime/` |
 | 0.18 | Componente de ruta y componente de presentación: `TaskPager` | cerrado | `artifacts/verify-template/fase0-18-task-pager/`, `artifacts/verify-template/fase0-18-runtime/` |
-| 0.19 | Estado local en el hijo: `TaskRow` | pendiente | |
+| 0.19 | Estado local en el hijo: `TaskRow` | cerrado | `artifacts/verify-template/fase0-19-task-row/`, `artifacts/verify-template/fase0-19-runtime-baseline/` (línea base), `artifacts/verify-template/fase0-19-runtime/` |
 | 0.20 | Diálogo de presentación: `TaskDeleteDialog` | pendiente | |
 | 1 | Línea base: qué funciona hoy, con evidencia | cerrado | [linea-base.md](linea-base.md); `artifacts/verify-template/baseline-20261016/` |
 | 2 | Un solo comando de verificación local | pendiente | |
@@ -101,6 +101,17 @@ Una entrada por paso cerrado, con este formato:
 - Preguntas: qué preguntó Tobi.
 - Evidencia: artifacts/verify-template/<runId>/
 ```
+
+### Paso 0.19 — 2026-10-17
+- Enseñado: el estado vive en quien lo usa. El borrador del título es estado de la fila: `TaskRow` lo guarda en un `linkedSignal` cuya fuente es el título y `editing`. Cuando llega una tarea nueva o se abre la edición, el borrador vuelve solo al título guardado, sin `effect` y sin `startEdit` que lo copie. Quién edita es estado de la página: `editingId` queda en `Tasks`, así abrir otra fila cierra la primera. La edición usa Signal Forms aunque no tenga `<form>`: `form(draft, …)` con `required`, `maxLength(200)` y un `validate` que rechaza el blanco, `[formField]` en el input y `submit()` en `Guardar`. Se van el `$any($event.target)` y la validación a mano de `saveTitle`. `TaskRow` es el propio `<li>` (`li[app-task-row]`), así el DOM y las clases de Tailwind quedan iguales.
+- Preguntas: ninguna nueva; aplica [informe-componentes-angular.md](informe-componentes-angular.md), paso B.
+- Decisiones: dos filas nuevas en `docs/decisions.tsv`. El mensaje sigue en el mismo lugar y con el mismo texto: `TaskRow` avisa `renameRejected` y `Tasks` escribe `actionError`. Moverlo bajo el campo es decisión de Tobi. Los outputs se nombran como hechos (`completedChange`, `renamed`, `removeRequested`…), no `toggle` ni `cancel`, que son eventos del DOM. `conventions.md` y `architecture.md` actualizados.
+- Evidencia: artifacts/verify-template/fase0-19-task-row/, artifacts/verify-template/fase0-19-runtime-baseline/ y artifacts/verify-template/fase0-19-runtime/.
+  - Sin regla nueva de Dune: el paso cambia la forma, no una regla. FRONT013 sigue en verde con `TaskRow`, que no inyecta nada. `check-frontend` sigue con 28/28 tests.
+  - Línea base (`fase0-19-runtime-baseline`, código del 0.18): las 7 comprobaciones nuevas de los pasos 0.19 y 0.20 pasan también con el código viejo. Prueba que miden el comportamiento de hoy y que el paso no lo cambia. No hay rojo posible: el paso es solo forma. Dos corridas anteriores se cayeron porque Docker Desktop se detuvo (Postgres cortó la conexión con `57P01` y después el daemon no respondía). Quedaron en `fase0-19-runtime-baseline-flaky-db/` y `fase0-19-runtime-baseline-docker-down/`.
+  - Verde (`fase0-19-runtime`): 32 pasos PASS: los 24 del 0.16, la paginación del 0.18 y las 7 nuevas. Renombrar da `PUT` 200 con el título nuevo e `isCompleted=false`. Un título vacío y uno en blanco muestran "El título es obligatorio (máximo 200 caracteres)." bajo la lista y no mandan `PUT` (`10-inline-edit-invalid.png`). `Cancelar` restaura el título, y reabrir muestra el guardado. Abrir `Editar` en otra fila deja un solo input y la primera fila vuelve a su título. El checkbox manda `PUT` con `isCompleted=true`, y después de recargar la fila sigue hecha.
+  - Build de Angular: PASS. `check-frontend`, `check-structure`, `check-comments` y `CommentVerifier`: PASS.
+  - verify-template: launch PASS, smoke HTTP PASS (45 requests). Cleanup PASS.
 
 ### Paso 0.18 — 2026-10-17
 - Enseñado: componente de ruta frente a componente de presentación. `Tasks` es el destino de `/tasks`: guarda la lista y es el único que llama a `TasksApi`. `TaskPager` no inyecta nada de la app: recibe `page`, `totalPages` y `totalCount` con `input.required()`, más `disabled`, y pide otra página con `pageChange: output<number>()`. Así su contrato se lee en su firma: lo que entra y lo que sale. Con OnPush por defecto, Angular revisa el paginador solo cuando cambia una entrada. FRONT013 hace cumplir el límite. Calcula qué componentes son de ruta: los que nombran `loadComponent` o `component` en un `*.routes.ts` (también un `import()` con export default) y el que recibe `bootstrapApplication`. En los demás, pide al type checker el tipo de cada `inject(...)` y de cada parámetro del constructor. Falla si ese tipo se declara bajo `frontend/src/app/` o si es `Router` o `ActivatedRoute`. Como mira el tipo y no el texto, `const api = TasksApi; inject(api)` no lo esquiva.
