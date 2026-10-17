@@ -40,7 +40,6 @@ El código todavía no tiene la forma de arriba. La Fase 0 del [plan](evolucion/
 
 | Diferencia | Paso que la resuelve |
 |---|---|
-| Los servicios de Auth y Users del frontend están en `core/` | 0.6 |
 | Un solo `AppDbContext` para todas las features: `Infrastructure` todavía nombra los `Domain` y `Contracts` de las features. Por eso `AppIdentityUser`, una entidad de Identity, sigue en `Auth/Contracts`: `AppDbContext` hereda de `IdentityDbContext<AppIdentityUser>` y `Domain` no admite ASP.NET | Paso 22 |
 
 ## Perfil y propiedad
@@ -65,7 +64,24 @@ El registro crea identidad, perfil, rol y sesión en una transacción explícita
 
 ## Frontend
 
-Angular consume `/api/v1` del mismo origen, mediante un proxy. No guarda tokens en el storage del navegador. Cada feature tiene su cliente HTTP y sus modelos. `core/` queda para lo transversal.
+Angular consume `/api/v1` del mismo origen, mediante un proxy. No guarda tokens en el storage del navegador.
+
+```text
+frontend/src/app/
+├── app.config.ts, app.routes.ts   raíz: compone las features
+├── core/                          transversal: errores HTTP (ProblemDetails)
+└── features/
+    └── auth/
+        ├── index.ts               la puerta: lo único que ve el resto de la app
+        ├── auth.service.ts, auth.guard.ts, auth.interceptor.ts
+        ├── auth-models.ts         AuthResponse, RegisterRequest…
+        ├── auth.routes.ts         rutas de la feature, sin guards
+        └── login/, register/      componentes
+```
+
+- Cada feature tiene su cliente HTTP, sus modelos y sus rutas. Su `index.ts` es el equivalente de `Contracts/` en el backend.
+- La raíz de la app compone las rutas y decide qué grupo protege cada guard (`canActivateChild`). Las features no declaran guards: así `auth` y `users` no se importan entre sí al cargar la app.
+- Las dependencias siguen la dirección del backend: Auth usa `UsersService` y `UserResponse` desde `features/users`; el perfil usa `AuthService` desde `features/auth`. Los componentes se cargan lazy.
 
 ## Operación
 

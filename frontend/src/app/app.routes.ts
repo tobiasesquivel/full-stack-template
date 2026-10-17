@@ -1,27 +1,11 @@
 import { Routes } from '@angular/router';
-import { authGuard, guestGuard } from './core/auth.guard';
+import { authGuard, authRoutes, guestGuard } from './features/auth';
+import { tasksRoutes } from './features/tasks';
+import { usersRoutes } from './features/users';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'tasks', pathMatch: 'full' },
-  {
-    path: 'login',
-    canActivate: [guestGuard],
-    loadComponent: () => import('./features/auth/login/login').then((m) => m.Login),
-  },
-  {
-    path: 'register',
-    canActivate: [guestGuard],
-    loadComponent: () => import('./features/auth/register/register').then((m) => m.Register),
-  },
-  {
-    path: 'tasks',
-    canActivate: [authGuard],
-    loadComponent: () => import('./features/tasks/tasks/tasks').then((m) => m.Tasks),
-  },
-  {
-    path: 'profile',
-    canActivate: [authGuard],
-    loadComponent: () => import('./features/users/profile/profile').then((m) => m.Profile),
-  },
+  { path: '', canActivateChild: [guestGuard], children: authRoutes },
+  { path: '', canActivateChild: [authGuard], children: [...tasksRoutes, ...usersRoutes] },
   { path: '**', redirectTo: 'tasks' },
 ];
