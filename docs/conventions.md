@@ -30,9 +30,10 @@ No se escriben comentarios en el código. El porqué de una decisión va en un A
 
 La regla cubre C#, TypeScript, JavaScript, HTML, CSS, XML, YAML y Dockerfile. La hacen cumplir DUNE0009, `Dune.CommentVerifier` y `dune/check-comments.mjs`.
 
-Excepciones:
-- Las migraciones generadas por EF.
-- Las directivas de herramientas, como `// @ts-expect-error` o `# syntax=`. Las excepciones de herramientas y de migraciones fuera de `Infrastructure/Persistence/Migrations/` llegan con el paso 0.2 del plan.
+Excepciones (la lista es cerrada):
+- Las migraciones generadas por EF, en `backend/Infrastructure/Persistence/Migrations/` o en `backend/Features/<Feature>/Persistence/Migrations/`. Una carpeta `Migrations/` en otro lugar no queda exenta.
+- `// @ts-expect-error` sola, sin texto. Con texto, en bloque `/* */` o como `@ts-ignore`, cuenta como comentario.
+- Las directivas del parser de Docker (`# syntax=`, `# escape=`, `# check=`), solo al principio del Dockerfile. Después de una línea vacía, un comentario o una instrucción, cuentan como comentario, igual que en Docker.
 
 ## HTTP
 
@@ -47,7 +48,7 @@ Excepciones:
 - Se propaga el `CancellationToken` en toda llamada que lo acepte.
 - El tiempo sale de `TimeProvider`, en UTC. No se usa el reloj local, ni bloqueos síncronos de `Task`, ni SQL crudo sin parámetros.
 - Las migraciones se generan por CLI y son forward, con backfill. No se editan a mano.
-- Reintentos, caché y bus entran solo con su paso del plan (29, 33 y 25).
+- Reintentos, caché y bus entran solo con su paso del plan (29, 33 y 25). Hasta el paso 25, `check-structure.mjs` rechaza cualquier librería de bus o mediator (MediatR, MassTransit, Wolverine, NServiceBus, Rebus y otras), sea paquete, `<Using>` o `using`.
 
 ## Seguridad
 

@@ -17,6 +17,7 @@ indent_size = 2
 [*.md]
 trim_trailing_whitespace = false
 
+[*.cs]
 dotnet_diagnostic.DUNE0001.severity = error
 dotnet_diagnostic.DUNE0002.severity = error
 dotnet_diagnostic.DUNE0003.severity = error

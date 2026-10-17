@@ -94,14 +94,77 @@ describe('check-structure', () => {
     }
   });
 
-  it('rechaza residuo Wolverine', async () => {
+  it('acepta paquetes y usings que no son bus', async () => {
     const repo = await makeRepo();
     try {
       await seedValid(repo);
-      await repo.write('backend/Infrastructure/Composition.cs', 'using Wolverine;');
+      await repo.write(
+        'backend/TemplateApp.csproj',
+        '<Project><ItemGroup>'
+          + '<Compile Remove="Features/**/Tests/**/*.cs" />'
+          + '<Compile Remove="Tests/**/*.cs" />'
+          + '<PackageReference Include="FluentValidation" Version="12.0.0" />'
+          + '<PackageReference Include="MediatorKit" Version="1.0.0" />'
+          + '</ItemGroup></Project>',
+      );
+      await repo.write('backend/Features/Tasks/TaskModule.cs', 'using ErrorOr;\nusing TemplateApp.Shared.Messaging;\n');
+      const result = await runGate(repo.dir);
+      assert.equal(result.code, 0, result.output);
+    } finally {
+      await repo.cleanup();
+    }
+  });
+
+  for (const [name, rel, content] of [
+    ['paquete MediatR en el producto', 'backend/TemplateApp.csproj', '<Project><ItemGroup><Compile Remove="Features/**/Tests/**/*.cs" /><Compile Remove="Tests/**/*.cs" /><PackageReference Include="MediatR" Version="12.0.0" /></ItemGroup></Project>'],
+    ['paquete MassTransit en Directory.Build.props', 'Directory.Build.props', '<Project><ItemGroup><PackageReference Include="MassTransit.RabbitMQ" Version="8.0.0" /></ItemGroup></Project>'],
+    ['paquete Wolverine en Dune.props', 'dune/Dune.props', '<Project><ItemGroup><PackageReference Include="WolverineFx" Version="3.0.0" /></ItemGroup></Project>'],
+    ['global using de NServiceBus en el csproj', 'backend/TemplateApp.csproj', '<Project><ItemGroup><Compile Remove="Features/**/Tests/**/*.cs" /><Compile Remove="Tests/**/*.cs" /><Using Include="NServiceBus" /></ItemGroup></Project>'],
+    ['using de Wolverine en el código', 'backend/Infrastructure/Composition.cs', 'using Wolverine;\n'],
+    ['global using de Rebus en el código', 'backend/Shared/GlobalUsings.cs', 'global using Rebus.Bus;\n'],
+    ['alias de MediatR en el código', 'backend/Features/Tasks/TaskModule.cs', 'using Bus = MediatR.IMediator;\n'],
+  ]) {
+    it(`rechaza ${name}`, async () => {
+      const repo = await makeRepo();
+      try {
+        await seedValid(repo);
+        await repo.write(rel, content);
+        const result = await runGate(repo.dir);
+        assert.equal(result.code, 1);
+        assert.match(result.output, /bus o mediator antes del paso 25/);
+      } finally {
+        await repo.cleanup();
+      }
+    });
+  }
+
+  it('acepta severidades bajo secciones que cubren C#', async () => {
+    const repo = await makeRepo();
+    try {
+      await seedValid(repo);
+      await repo.write(
+        '.editorconfig',
+        'root = true\n\n[*.cs]\ndotnet_diagnostic.DUNE0001.severity = error\n\n'
+          + '[*.{cs,csproj}]\ndotnet_diagnostic.CA1062.severity = none\n',
+      );
+      const result = await runGate(repo.dir);
+      assert.equal(result.code, 0, result.output);
+    } finally {
+      await repo.cleanup();
+    }
+  });
+
+  it('rechaza severidades bajo una sección que no cubre C#', async () => {
+    const repo = await makeRepo();
+    try {
+      await seedValid(repo);
+      await repo.write(
+        '.editorconfig',
+        'root = true\n\n[*.md]\ntrim_trailing_whitespace = false\n\ndotnet_diagnostic.DUNE0001.severity = error\n',
+      );
       const result = await runGate(repo.dir);
       assert.equal(result.code, 1);
-      assert.match(result.output, /residuo Wolverine/);
+      assert.match(result.output, /severidades que no aplican a \*\.cs: línea 6 bajo \[\*\.md\]/);
     } finally {
       await repo.cleanup();
     }
