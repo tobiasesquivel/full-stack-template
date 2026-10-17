@@ -403,6 +403,24 @@ export class Profile {}
     }
   });
 
+  it('accepts one exported type per file and rejects files that export several', async () => {
+    const project = await makeProject({
+      'frontend/src/app/features/tasks/index.ts': `export type { TaskResponse } from './task-response';\nexport type { TaskListResponse } from './task-list-response';\n`,
+      'frontend/src/app/features/tasks/task-response.ts': `export interface TaskResponse {\n  id: string;\n}\n`,
+      'frontend/src/app/features/tasks/task-list-response.ts': `import type { TaskResponse } from './task-response';\ninterface Page {\n  page: number;\n}\nexport interface TaskListResponse extends Page {\n  items: TaskResponse[];\n}\n`,
+      'frontend/src/app/features/users/users-models.ts': `export interface UserResponse {\n  id: string;\n}\n\nexport type UserId = string;\nexport enum UserKind {\n  Person,\n}\n`,
+      'frontend/src/app/features/auth/session.ts': `export class Session {}\nexport class SessionClock {}\nexport const timeout = 5;\n`,
+    });
+    try {
+      await seedAngular(project.root);
+      const { diagnostics } = await analyzeFrontend({ root: project.root });
+      const types = diagnostics.filter((entry) => entry.rule === 'FRONT010').map((entry) => `${path.basename(entry.path)}:${entry.line}`);
+      assert.deepEqual(types, ['session.ts:2', 'users-models.ts:5', 'users-models.ts:6']);
+    } finally {
+      await project.cleanup();
+    }
+  });
+
   it('fails configuration errors instead of reporting green', async () => {
     await assert.rejects(() => analyzeFrontend({ root: '/nonexistent-root-xyz', project: '/nonexistent.json' }), /cannot read project/);
   });

@@ -74,7 +74,7 @@ frontend/src/app/
     └── auth/
         ├── index.ts               la puerta: lo único que ve el resto de la app
         ├── session.ts, auth-guard.ts, auth-interceptor.ts
-        ├── auth-models.ts         AuthResponse, RegisterRequest…
+        ├── auth-response.ts…      un modelo por archivo: AuthResponse, RegisterRequest…
         ├── auth.routes.ts         rutas de la feature, sin guards
         └── login/, register/      componentes
 ```

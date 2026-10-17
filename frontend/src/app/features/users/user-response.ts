@@ -7,8 +7,3 @@ export interface UserResponse {
   roles: string[];
   permissions: string[];
 }
-
-export interface UpdateProfileRequest {
-  displayName: string;
-  timezone: string;
-}

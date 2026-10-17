@@ -2,7 +2,7 @@ import { Component, ElementRef, Injector, afterNextRender, computed, inject, sig
 import { FormField, FormRoot, form, maxLength, required } from '@angular/forms/signals';
 import { TasksApi } from '../tasks-api';
 import { describeHttpError } from '../../../core/http-error';
-import type { TaskResponse } from '../tasks-models';
+import type { TaskResponse } from '../task-response';
 
 const PAGE_SIZE = 10;
 

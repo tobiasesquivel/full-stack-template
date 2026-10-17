@@ -7,7 +7,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const require = createRequire(path.join(here, '..', 'frontend', 'package.json'));
 const ts = require('typescript');
 
-export const RULES = ['FRONT001', 'FRONT002', 'FRONT003', 'FRONT004', 'FRONT005', 'FRONT006', 'FRONT007', 'FRONT008'];
+export const RULES = ['FRONT001', 'FRONT002', 'FRONT003', 'FRONT004', 'FRONT005', 'FRONT006', 'FRONT007', 'FRONT008', 'FRONT010'];
 
 const INITIALIZER_TOKENS = new Map([
   ['APP_INITIALIZER', 'provideAppInitializer'],
@@ -147,6 +147,18 @@ function collectNaming(sourceFile) {
   }
   visit(sourceFile);
   return { suffixedClasses, rootInjectables, initializerTokens, inlineViews };
+}
+
+function exportedTypes(sourceFile) {
+  return sourceFile.statements
+    .filter((statement) =>
+      (ts.isClassDeclaration(statement)
+        || ts.isInterfaceDeclaration(statement)
+        || ts.isTypeAliasDeclaration(statement)
+        || ts.isEnumDeclaration(statement))
+      && statement.name
+      && (ts.getModifiers?.(statement) ?? statement.modifiers ?? []).some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword))
+    .map((statement) => ({ line: lineOf(sourceFile, statement.name.getStart()), name: statement.name.text }));
 }
 
 function inlineViewProperties(sourceFile, expression) {
@@ -365,7 +377,7 @@ export async function analyzeFrontend({ root, project } = {}) {
       throw new Error(`cannot resolve imports in ${rel}: ${error.message}`);
     }
     const refs = collectRefs(sourceFile, checker);
-    graph.set(rel, { path: rel, kind: classifyFile(rel, sourceFile), ...edges, ...refs, ...collectNaming(sourceFile) });
+    graph.set(rel, { path: rel, kind: classifyFile(rel, sourceFile), ...edges, ...refs, ...collectNaming(sourceFile), exportedTypes: exportedTypes(sourceFile) });
   }
   for (const [rel, node] of graph) {
     for (const edge of [...node.imports, ...node.reexports]) {
@@ -391,6 +403,9 @@ export async function analyzeFrontend({ root, project } = {}) {
     }
     for (const entry of node.initializerTokens) {
       report('FRONT007', rel, entry.line, `use ${INITIALIZER_TOKENS.get(entry.token)}() instead of the ${entry.token} token`);
+    }
+    for (const entry of node.exportedTypes.slice(1)) {
+      report('FRONT010', rel, entry.line, `${entry.name} must live in its own file; a type used only here stays in this file without export`);
     }
     for (const entry of node.inlineViews) {
       report('FRONT008', rel, entry.line, `component must use ${INLINE_VIEW_PROPERTIES.get(entry.property)} with its own file instead of inline ${entry.property}`);

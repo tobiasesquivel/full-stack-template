@@ -9,7 +9,7 @@ El código actual todavía no cumple todas estas reglas. La Fase 0 del [plan](ev
 - Cada capacidad vive en `backend/Features/<Feature>/`. La carpeta de la feature va en plural: `Tasks`, `Users`.
 - Cada caso de uso es una slice: una carpeta con el nombre del caso de uso, en verbo + sustantivo (`CreateTask/`, `ListTasks/`). Adentro, un archivo por pieza: `CreateTaskRequest.cs`, `CreateTaskRequestValidator.cs`, `CreateTask.cs`, `CreateTaskEndpoint.cs` y `CreateTaskTests.cs`. Las piezas que el caso de uso no necesita no existen.
 - La operación (`CreateTask`) es una clase propia con sus dependencias. El endpoint (`CreateTaskEndpoint`) es estático: expone `Map` y un handler privado que llama a la operación. No hay una clase compartida por todas las slices ni una interface por slice.
-- Un archivo por tipo en las features.
+- Un archivo, un tipo, en todo el repo: backend, tests, Dune y frontend. Un tipo auxiliar que usa solo otro tipo queda en el archivo de ese tipo, pero el compilador le impide salir: en C# se declara `file` o anidado y privado; en TypeScript, sin `export`. DUNE0010 lo hace cumplir en el backend y FRONT010 en el frontend (un solo `export` de clase, interface, type o enum por archivo). Las migraciones generadas quedan exentas.
 - Un tipo que usa una sola slice vive en la carpeta de la slice.
 - `Contracts/` contiene lo que ven otras features y las responses HTTP que comparten varias slices.
 - Lo interno que comparten varias slices (errores, servicios, mapeos) vive en la raíz de la feature o en una carpeta técnica propia (`Access/`, `Jwt/`). No va a `Contracts/`.
@@ -25,7 +25,7 @@ El código actual todavía no cumple todas estas reglas. La Fase 0 del [plan](ev
 - El namespace coincide con la ruta, bajo `TemplateApp`. Namespaces file-scoped, nullable e implicit usings.
 - Sufijos con significado único: `*Request`, `*Response`, `*Validator`, `*Endpoint`, `*Tests`, `*Feature`. No se usan `*Module` ni `*Endpoints` en features. DUNE0008 lo hace cumplir.
 - Requests y responses son records. La validación de entrada usa FluentValidation. Los mappings de EF usan Fluent API, fuera de `Domain`.
-- En el frontend, los modelos usan los mismos nombres que el backend: `*Request` y `*Response`.
+- En el frontend, los modelos usan los mismos nombres que el backend: `*Request` y `*Response`. Cada uno va en su archivo: `task-response.ts` / `TaskResponse`.
 - En el frontend, cada feature publica en `features/<feature>/index.ts` lo que ven las demás y la raíz de la app. Fuera de una feature, se importa solo su `index.ts`. FRONT001 lo hace cumplir, también para `app.routes.ts` y `app.config.ts`.
 - Las rutas de una feature van en `<feature>.routes.ts`, sin guards. `app.routes.ts` las compone y aplica los guards.
 - `core/` del frontend no nombra ninguna feature: queda para lo transversal.

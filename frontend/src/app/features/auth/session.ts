@@ -3,7 +3,9 @@ import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { UsersApi, type UserResponse } from '../users';
-import type { AuthResponse, RegisterRequest, TokenResponse } from './auth-models';
+import type { AuthResponse } from './auth-response';
+import type { RegisterRequest } from './register-request';
+import type { TokenResponse } from './token-response';
 
 @Service()
 export class Session {

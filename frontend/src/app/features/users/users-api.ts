@@ -1,7 +1,8 @@
 import { Service, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
-import type { UpdateProfileRequest, UserResponse } from './users-models';
+import type { UpdateProfileRequest } from './update-profile-request';
+import type { UserResponse } from './user-response';
 
 @Service()
 export class UsersApi {

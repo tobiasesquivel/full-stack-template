@@ -4,7 +4,7 @@ Registro vivo del [plan](plan.md). El agente lo actualiza al cerrar cada paso.
 
 ## Paso actual
 
-**Paso 0.11: un archivo, un tipo.** Estado: en curso. El paso 0.10 cerró. Tobi pidió el 2026-10-17 los pasos 0.10 y 0.11: separar la vista de los componentes y un archivo por tipo en todo el repo. Después sigue la Fase 1, paso 2. Los pasos 0.6 a 0.9 esperan el merge de Tobi.
+**Paso 0.12: estilos con Tailwind.** Estado: en curso. Los pasos 0.10 y 0.11 cerraron. Tobi pidió el 2026-10-17 los pasos 0.10 y 0.11: separar la vista de los componentes y un archivo por tipo en todo el repo. Después sigue la Fase 1, paso 2. Los pasos 0.6 a 0.9 esperan el merge de Tobi.
 
 La Fase 0 va antes del paso 2. El paso 1 (línea base) ya cerró y sirve de referencia para la Fase 0.
 
@@ -25,7 +25,7 @@ Estados: `pendiente`, `en curso`, `cerrado`, `bloqueado (⏸ decisión de Tobi)`
 | 0.8 | Signal Forms | cerrado | `artifacts/verify-template/fase0-08-signal-forms/`, `artifacts/verify-template/fase0-08-runtime/` |
 | 0.9 | Arranque con `provideAppInitializer()` | cerrado | `artifacts/verify-template/fase0-09-app-initializer/`, `artifacts/verify-template/fase0-09-runtime/` |
 | 0.10 | Componentes en archivos separados | cerrado | `artifacts/verify-template/fase0-10-component-files/`, `artifacts/verify-template/fase0-10-runtime/` |
-| 0.11 | Un archivo, un tipo | pendiente | |
+| 0.11 | Un archivo, un tipo | cerrado | `artifacts/verify-template/fase0-11-one-type-per-file/`, `artifacts/verify-template/fase0-11-runtime/` |
 | 1 | Línea base: qué funciona hoy, con evidencia | cerrado | [linea-base.md](linea-base.md); `artifacts/verify-template/baseline-20261016/` |
 | 2 | Un solo comando de verificación local | pendiente | |
 | 3 | CI verde de verdad | pendiente | |
@@ -75,7 +75,6 @@ Cosas vistas durante un paso que no le corresponden. Cada una espera su paso.
 - `"Task.Forbidden"` y `"User.Forbidden"` siguen escritos en línea en cada slice. Paso 6.
 - El rate limiter `auth` es una sola ventana de 20 requests por minuto para toda la API, sin partición por cliente. Un recorrido de navegador seguido del smoke HTTP da 503 (`fase0-06-runtime`). Paso 12.
 - `AuthErrors.AccountNotFound` (`Auth.AccountNotFound`) es nuevo y `DeleteUser` lo traduce a `User.NotFound`. Entra en el catálogo del paso 6.
-- `Tests/Support/TestSession.cs` declara tres tipos en un archivo. La regla de un tipo por archivo hoy cubre solo las features. Paso 0.11.
 - Hay una carpeta vacía y sin versionar, `backend/Features/Health/Test/`, de antes de este paso. Git la ignora. Borrarla es decisión de Tobi.
 - `backend/AGENTS.md` y `backend/docs/agents/` describen un issue tracker en `.scratch/`, que `.gitignore` excluye: los issues nunca se versionan.
 
@@ -89,6 +88,19 @@ Una entrada por paso cerrado, con este formato:
 - Preguntas: qué preguntó Tobi.
 - Evidencia: artifacts/verify-template/<runId>/
 ```
+
+### Paso 0.11 — 2026-10-17
+- Enseñado: un archivo, un tipo. Buscar `TaskListResponse` lleva a `task-list-response.ts`, sin abrir un archivo de modelos. La excepción de Tobi (un tipo que usa solo otro queda junto a él) la hace cumplir el compilador: en C#, un tipo `file` no puede usarse fuera de su archivo; en TypeScript, un tipo sin `export` tampoco. Por eso `SessionCookie` y `SessionResponse` no entran en la excepción: los usan los tests de Auth.
+- Preguntas: Tobi pidió la regla, con la excepción del tipo auxiliar.
+- Decisiones: tres filas nuevas en `docs/decisions.tsv`. `conventions.md` y `architecture.md` actualizados.
+- Evidencia: artifacts/verify-template/fase0-11-one-type-per-file/ y artifacts/verify-template/fase0-11-runtime/.
+  - Rojo antes de verde, Dune: con un `OneTypePerFileAnalyzer` vacío falla `SecondTopLevelTypeIsRejected` (`dune-red.log`). Con el analyzer pasan 66/66.
+  - Rojo antes de verde, producto backend: DUNE0010 frena `SessionCookie` y `SessionResponse` en `TestSession.cs` (`product-red.log`), y ningún otro archivo.
+  - Rojo antes de verde, gate frontend: con el `check-frontend` del 0.10 falla el test nuevo (`check-frontend-red.log`). Con el nuevo pasan 21/21.
+  - Rojo antes de verde, producto frontend: FRONT010 frena 5 tipos en `auth-models.ts`, `tasks-models.ts` y `users-models.ts` (`check-frontend-product-red.log`).
+  - Build Release: PASS (0 errores). Tests `TemplateApp.slnx`: PASS (96/96: 30 de producto y 66 de Dune). Build de Angular: PASS. `check-frontend`, `check-comments` y `CommentVerifier`: PASS. `check-structure`: PASS en una copia limpia de la rama; en la carpeta de trabajo falla por el worktree de otro agente en `.claude/worktrees/`.
+  - `TestReferences` también salió de `AnalyzerHost.cs` a su archivo. Dune no analiza sus propios proyectos: ahí la regla se cumple a mano.
+  - verify-template: launch PASS, smoke HTTP PASS (45 requests). Después de 65 segundos, navegador PASS con el recorrido del 0.10 (15 pasos). Cleanup PASS.
 
 ### Paso 0.10 — 2026-10-17
 - Enseñado: cada archivo cambia por un solo motivo. Un cambio de vista toca `tasks.html`, uno de estilo toca `tasks.css` y uno de comportamiento toca `tasks.ts`. `tasks.ts` pasó de 333 a 199 líneas. Angular compila `templateUrl` igual que `template`: el resultado en el navegador no cambia.

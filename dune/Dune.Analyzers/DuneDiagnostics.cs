@@ -84,4 +84,13 @@ internal static class DuneDiagnostics
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
         description: "Los comentarios se prohíben en backend y dune salvo las migraciones EF generadas de Infrastructure y de cada feature.");
+
+    public static readonly DiagnosticDescriptor OneTypePerFile = new(
+        id: "DUNE0010",
+        title: "Más de un tipo en un archivo",
+        messageFormat: "'{0}' va en su propio archivo; si solo lo usa '{1}', se declara 'file' o anidado y privado",
+        category: "Dune",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "Un archivo declara un solo tipo de primer nivel. Un tipo auxiliar que usa solo ese tipo queda en el mismo archivo con el modificador file o anidado. Las migraciones generadas quedan exentas.");
 }
