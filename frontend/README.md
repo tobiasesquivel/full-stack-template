@@ -39,11 +39,11 @@ Si tu backend escucha en otro puerto, ajusta el `target` de ese archivo
 
 ## Rutas
 
-| Ruta        | Acceso | Contenido                              |
-| ----------- | ------ | -------------------------------------- |
-| `/login`    | libre  | Entrar con usuario y contraseña        |
-| `/register` | libre  | Crear cuenta                           |
-| `/tasks`    | sesión | Lista paginada y CRUD de tareas        |
+| Ruta        | Acceso | Contenido                                        |
+| ----------- | ------ | ------------------------------------------------ |
+| `/login`    | libre  | Entrar con usuario y contraseña                  |
+| `/register` | libre  | Crear cuenta                                     |
+| `/tasks`    | sesión | Lista paginada y CRUD de tareas                  |
 | `/profile`  | sesión | Datos y edición de nombre visible y zona horaria |
 
 Los guards esperan a que el arranque termine antes de decidir:

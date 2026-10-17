@@ -8,9 +8,7 @@ import type { RegisterRequest } from '../api/register-request';
 import { loginUrl, returnTarget } from './return-url';
 
 type SessionState =
-  | { status: 'restoring' }
-  | { status: 'open'; user: UserResponse }
-  | { status: 'closed' };
+  { status: 'restoring' } | { status: 'open'; user: UserResponse } | { status: 'closed' };
 
 type SessionMessage = 'opened' | 'closed';
 
@@ -75,9 +73,11 @@ export class Session {
   }
 
   refresh(): Promise<void> {
-    this.refreshing ??= navigator.locks.request('session-refresh', () => this.rotate()).finally(() => {
-      this.refreshing = null;
-    });
+    this.refreshing ??= navigator.locks
+      .request('session-refresh', () => this.rotate())
+      .finally(() => {
+        this.refreshing = null;
+      });
     return this.refreshing;
   }
 
@@ -103,7 +103,9 @@ export class Session {
     await this.restore();
     const url = this.router.url;
     if (this.isOpen() && GUEST_PATHS.has(url.split(/[?#]/)[0])) {
-      await this.router.navigateByUrl(returnTarget(this.router.parseUrl(url).queryParamMap.get('returnUrl')));
+      await this.router.navigateByUrl(
+        returnTarget(this.router.parseUrl(url).queryParamMap.get('returnUrl')),
+      );
     }
   }
 

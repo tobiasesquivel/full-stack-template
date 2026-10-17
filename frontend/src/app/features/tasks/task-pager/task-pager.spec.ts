@@ -6,7 +6,9 @@ describe('TaskPager', () => {
   let requested: number[];
 
   function button(name: string): HTMLButtonElement {
-    const buttons = Array.from(fixture.nativeElement.querySelectorAll('button')) as HTMLButtonElement[];
+    const buttons = Array.from(
+      fixture.nativeElement.querySelectorAll('button'),
+    ) as HTMLButtonElement[];
     const found = buttons.find((candidate) => candidate.textContent?.trim() === name);
     if (!found) throw new Error(`button ${name} not found`);
     return found;
@@ -16,7 +18,12 @@ describe('TaskPager', () => {
     return fixture.nativeElement.querySelector('[role="status"]').textContent.trim();
   }
 
-  async function show(page: number, totalPages: number, totalCount: number, disabled = false): Promise<void> {
+  async function show(
+    page: number,
+    totalPages: number,
+    totalCount: number,
+    disabled = false,
+  ): Promise<void> {
     fixture.componentRef.setInput('page', page);
     fixture.componentRef.setInput('totalPages', totalPages);
     fixture.componentRef.setInput('totalCount', totalCount);
@@ -32,7 +39,9 @@ describe('TaskPager', () => {
 
   it('shows the page, the total pages and the total count inside the Paginación nav', async () => {
     await show(2, 3, 25);
-    expect(fixture.nativeElement.querySelector('nav').getAttribute('aria-label')).toBe('Paginación');
+    expect(fixture.nativeElement.querySelector('nav').getAttribute('aria-label')).toBe(
+      'Paginación',
+    );
     expect(status()).toBe('Página 2 de 3 (25)');
   });
 

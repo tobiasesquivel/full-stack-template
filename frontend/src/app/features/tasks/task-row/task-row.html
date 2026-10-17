@@ -18,7 +18,9 @@
       aria-label="Editar título"
     />
     @if (showTitleError()) {
-      <p class="text-red-800" [id]="'edit-error-' + task().id">El título es obligatorio (máximo 200 caracteres).</p>
+      <p class="text-red-800" [id]="'edit-error-' + task().id">
+        El título es obligatorio (máximo 200 caracteres).
+      </p>
     }
   </div>
   <button
@@ -37,7 +39,9 @@
     Cancelar
   </button>
 } @else {
-  <span class="flex-[1_1_12rem] wrap-anywhere" [class.line-through]="task().isCompleted">{{ task().title }}</span>
+  <span class="flex-[1_1_12rem] wrap-anywhere" [class.line-through]="task().isCompleted">{{
+    task().title
+  }}</span>
   <button
     type="button"
     class="cursor-pointer rounded-lg border border-blue-700 bg-white px-4 py-2 text-blue-700 hover:enabled:border-blue-800 hover:enabled:bg-blue-50 hover:enabled:text-blue-800 focus-visible:outline-blue-700 disabled:cursor-not-allowed disabled:opacity-60 max-xs:flex-auto"

@@ -3,7 +3,11 @@ import type { ProblemDetails } from './problem-details';
 
 function asProblem(error: HttpErrorResponse): ProblemDetails | null {
   const body = error.error as Partial<ProblemDetails> | string | null | undefined;
-  if (body && typeof body === 'object' && ('title' in body || 'detail' in body || 'errors' in body)) {
+  if (
+    body &&
+    typeof body === 'object' &&
+    ('title' in body || 'detail' in body || 'errors' in body)
+  ) {
     return body as ProblemDetails;
   }
   return null;
@@ -28,7 +32,11 @@ export function describeHttpError(error: unknown): string {
   const detail = problem && problem.detail ? problem.detail : null;
   switch (error.status) {
     case 400:
-      return validationText(problem) ?? detail ?? 'Los datos enviados no son válidos. Revísalos e inténtalo de nuevo.';
+      return (
+        validationText(problem) ??
+        detail ??
+        'Los datos enviados no son válidos. Revísalos e inténtalo de nuevo.'
+      );
     case 401:
       return detail ?? 'La sesión ha caducado. Vuelve a entrar.';
     case 403:

@@ -12,11 +12,15 @@ function restored(session: Session) {
 export const authGuard: CanActivateFn = (_route, state) => {
   const session = inject(Session);
   const router = inject(Router);
-  return restored(session).pipe(map((status) => (status === 'open' ? true : loginUrl(router, state.url))));
+  return restored(session).pipe(
+    map((status) => (status === 'open' ? true : loginUrl(router, state.url))),
+  );
 };
 
 export const guestGuard: CanActivateFn = () => {
   const session = inject(Session);
   const router = inject(Router);
-  return restored(session).pipe(map((status) => (status === 'open' ? router.createUrlTree(['/tasks']) : true)));
+  return restored(session).pipe(
+    map((status) => (status === 'open' ? router.createUrlTree(['/tasks']) : true)),
+  );
 };

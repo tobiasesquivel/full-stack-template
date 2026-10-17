@@ -1,5 +1,10 @@
-<section aria-labelledby="tasks-title" class="rounded-xl border border-slate-200 bg-white p-5 shadow-xs max-xs:p-4">
-  <h1 id="tasks-title" #tasksHeading tabindex="-1" class="mb-4 text-2xl leading-tight">Mis tareas</h1>
+<section
+  aria-labelledby="tasks-title"
+  class="rounded-xl border border-slate-200 bg-white p-5 shadow-xs max-xs:p-4"
+>
+  <h1 id="tasks-title" #tasksHeading tabindex="-1" class="mb-4 text-2xl leading-tight">
+    Mis tareas
+  </h1>
 
   <form [formRoot]="createForm" aria-label="Crear tarea">
     <label for="new-task-title" class="mb-1 block text-sm/normal font-semibold">Nueva tarea</label>
@@ -21,14 +26,18 @@
       <p class="text-red-800">El título es obligatorio (máximo 200 caracteres).</p>
     }
     @if (createError()) {
-      <p role="alert" class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-red-800">{{ createError() }}</p>
+      <p role="alert" class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-red-800">
+        {{ createError() }}
+      </p>
     }
   </form>
 
   @if (loading()) {
     <p role="status" class="text-slate-600">Cargando tareas…</p>
   } @else if (error()) {
-    <p role="alert" class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-red-800">{{ error() }}</p>
+    <p role="alert" class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-red-800">
+      {{ error() }}
+    </p>
     <button
       type="button"
       class="cursor-pointer rounded-lg border border-blue-700 bg-white px-4 py-2 text-blue-700 hover:enabled:border-blue-800 hover:enabled:bg-blue-50 hover:enabled:text-blue-800 focus-visible:outline-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
@@ -55,7 +64,9 @@
       }
     </ul>
     @if (actionError()) {
-      <p role="alert" class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-red-800">{{ actionError() }}</p>
+      <p role="alert" class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-red-800">
+        {{ actionError() }}
+      </p>
     }
     <app-task-pager
       [page]="page()"
@@ -66,4 +77,8 @@
     />
   }
 </section>
-<app-task-delete-dialog [task]="pendingDelete()" (confirmed)="confirmRemove()" (cancelled)="cancelRemove()" />
+<app-task-delete-dialog
+  [task]="pendingDelete()"
+  (confirmed)="confirmRemove()"
+  (cancelled)="cancelRemove()"
+/>

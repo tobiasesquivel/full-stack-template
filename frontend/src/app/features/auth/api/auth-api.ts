@@ -41,7 +41,11 @@ export class AuthApi {
 
   async close(): Promise<void> {
     await firstValueFrom(
-      this.http.post('/api/v1/auth/logout', {}, { responseType: 'text', context: withoutSession() }),
+      this.http.post(
+        '/api/v1/auth/logout',
+        {},
+        { responseType: 'text', context: withoutSession() },
+      ),
     );
   }
 }
