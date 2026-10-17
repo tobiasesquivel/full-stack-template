@@ -9,7 +9,12 @@ namespace Dune.Analyzers;
 public static class DuneCommentPolicy
 {
     public static bool IsExemptPath(string normalizedPath) =>
-        DunePaths.ContainsOrdinal(normalizedPath, "backend/Infrastructure/Persistence/Migrations/");
+        DunePaths.ContainsOrdinal(normalizedPath, "backend/Infrastructure/Persistence/Migrations/")
+        || IsFeatureMigration(normalizedPath);
+
+    private static bool IsFeatureMigration(string normalizedPath) =>
+        DunePaths.TryGetFeature(normalizedPath, out var feature)
+        && DunePaths.ContainsOrdinal(normalizedPath, "backend/Features/" + feature + "/Persistence/Migrations/");
 
     public static bool IsComment(SyntaxTrivia trivia) => trivia.IsKind(SyntaxKind.SingleLineCommentTrivia) || trivia.IsKind(SyntaxKind.MultiLineCommentTrivia) || trivia.IsKind(SyntaxKind.SingleLineDocumentationCommentTrivia) || trivia.IsKind(SyntaxKind.MultiLineDocumentationCommentTrivia);
 

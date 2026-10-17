@@ -20,6 +20,8 @@ const YAML_EXTENSIONS = new Set(['.yaml', '.yml']);
 const CONFIG_EXTENSIONS = new Set(['.editorconfig']);
 const DOCKER_NAMES = new Set(['Dockerfile', 'dockerfile']);
 const SYMBOLS_NAMES = new Set(['BannedSymbols.txt']);
+const TS_DIRECTIVE = /^\/\/\s*@ts-expect-error\s*$/;
+const DOCKER_PARSER_DIRECTIVE = /^#\s*(syntax|escape|check)\s*=\s*\S/i;
 
 function toPosix(value) {
   return value.split(path.sep).join('/');
@@ -81,19 +83,20 @@ function scriptKindFor(fileName) {
 
 export function inspectTs(text, fileName) {
   const sourceFile = ts.createSourceFile(fileName, text, ts.ScriptTarget.ES2022, true, scriptKindFor(fileName));
+  const full = sourceFile.getFullText();
   const diagnostics = [];
   const ranges = [];
   const seen = new Set();
   function record(pos, end) {
     const key = `${pos}:${end}`;
     if (seen.has(key)) return;
+    if (TS_DIRECTIVE.test(full.slice(pos, end))) return;
     seen.add(key);
     ranges.push({ pos, end });
     const { line } = sourceFile.getLineAndCharacterOfPosition(pos);
     diagnostics.push({ line: line + 1, pos, end });
   }
   function walk(node) {
-    const full = sourceFile.getFullText();
     for (const comment of ts.getLeadingCommentRanges(full, node.getFullStart()) ?? []) record(comment.pos, comment.end);
     for (const comment of ts.getTrailingCommentRanges(full, node.getEnd()) ?? []) record(comment.pos, comment.end);
     ts.forEachChild(node, walk);
@@ -269,12 +272,18 @@ export function inspectEditorconfig(text) {
   return toDiagnostics(text, spans);
 }
 
-export function inspectDockerfile(text) {
+function inspectHashLines(text, { parserDirectives }) {
   const spans = [];
   const lines = text.split('\n');
   let offset = 0;
+  let inDirectives = parserDirectives;
   for (const line of lines) {
     const trimmed = line.trimStart();
+    if (inDirectives && DOCKER_PARSER_DIRECTIVE.test(trimmed.trimEnd())) {
+      offset += line.length + 1;
+      continue;
+    }
+    inDirectives = false;
     if (trimmed.startsWith('#')) {
       const hash = line.indexOf('#');
       spans.push({ pos: offset + hash, end: offset + line.length });
@@ -284,8 +293,12 @@ export function inspectDockerfile(text) {
   return toDiagnostics(text, spans);
 }
 
+export function inspectDockerfile(text) {
+  return inspectHashLines(text, { parserDirectives: true });
+}
+
 export function inspectSymbols(text) {
-  return inspectDockerfile(text);
+  return inspectHashLines(text, { parserDirectives: false });
 }
 
 function toDiagnostics(text, spans) {

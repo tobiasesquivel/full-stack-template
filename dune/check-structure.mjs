@@ -120,19 +120,79 @@ async function checkProductExcludesTests() {
   }
 }
 
-async function checkNoWolverine() {
-  const files = await productSources();
-  const hits = [];
-  const generated = new Set(['Infrastructure/Wolverine/Generated']);
-  for (const file of files) {
-    const rel = toPosix(file);
-    if ([...generated].some((prefix) => rel.includes(prefix))) continue;
-    const text = await readText(file);
-    if (/\bWolverine(Fx)?\b/.test(text) || /\bJasperFx\b/.test(text) || /\bIMessageBus\b/.test(text)) {
-      hits.push(rel);
+const BUS_LIBRARIES = [
+  'MediatR',
+  'Mediator',
+  'MassTransit',
+  'Wolverine',
+  'WolverineFx',
+  'JasperFx',
+  'NServiceBus',
+  'Rebus',
+  'Paramore.Brighter',
+  'Paramore.Darker',
+  'DotNetCore.CAP',
+  'SlimMessageBus',
+  'LiteBus',
+];
+
+function isBusLibrary(name) {
+  return BUS_LIBRARIES.some((library) => name === library || name.startsWith(`${library}.`));
+}
+
+async function buildSources() {
+  const all = [];
+  for (const name of ['Directory.Build.props', 'Directory.Build.targets', 'Directory.Packages.props']) {
+    for (const dir of [root, backend]) {
+      const candidate = path.join(dir, name);
+      if (await exists(candidate)) all.push(candidate);
     }
   }
-  if (hits.length > 0) fail(`residuo Wolverine/JasperFx en producto: ${hits.join(', ')}`);
+  for (const candidate of [path.join(root, 'dune', 'Dune.props'), path.join(backend, 'Tests', 'TemplateApp.Tests.csproj')]) {
+    if (await exists(candidate)) all.push(candidate);
+  }
+  return all;
+}
+
+async function checkNoBus() {
+  const hits = [];
+  const references = /<(?:PackageReference|PackageVersion|Using)\s+(?:Include|Update)="([^"]+)"/g;
+  const usings = /^\s*(?:global\s+)?using\s+(?:static\s+)?(?:\w+\s*=\s*)?(?:global::)?([\w.]+)\s*;/gm;
+  for (const file of [...(await productSources()), ...(await buildSources())]) {
+    const text = await readText(file);
+    const pattern = file.endsWith('.cs') ? usings : references;
+    for (const match of text.matchAll(pattern)) {
+      if (isBusLibrary(match[1])) hits.push(`${toPosix(file)} (${match[1]})`);
+    }
+  }
+  if (hits.length > 0) fail(`bus o mediator antes del paso 25: ${hits.join(', ')}`);
+}
+
+function coversCSharp(section) {
+  if (section === '*' || section === '**') return true;
+  if (/^\*\*?\.cs$/.test(section)) return true;
+  const list = /^\*\*?\.\{([^}]*)\}$/.exec(section);
+  return list !== null && list[1].split(',').map((item) => item.trim()).includes('cs');
+}
+
+async function checkEditorconfigSeverities() {
+  const file = path.join(root, '.editorconfig');
+  if (!(await exists(file))) return;
+  const misplaced = [];
+  let section = null;
+  const lines = (await readText(file)).split(/\r?\n/);
+  lines.forEach((line, index) => {
+    const header = /^\s*\[(.+)\]\s*$/.exec(line);
+    if (header) {
+      section = header[1];
+      return;
+    }
+    if (!/^\s*dotnet_diagnostic\./.test(line)) return;
+    if (section === null || !coversCSharp(section)) misplaced.push(`línea ${index + 1} bajo [${section ?? ''}]`);
+  });
+  if (misplaced.length > 0) {
+    fail(`.editorconfig con severidades que no aplican a *.cs: ${misplaced.join(', ')}`);
+  }
 }
 
 async function checkNoToggleAlias() {
@@ -215,7 +275,8 @@ async function checkNoNestedGit() {
 
 await checkTestsColocated();
 await checkProductExcludesTests();
-await checkNoWolverine();
+await checkNoBus();
+await checkEditorconfigSeverities();
 await checkNoToggleAlias();
 await checkTrackedArtifacts();
 await checkNoNestedGit();

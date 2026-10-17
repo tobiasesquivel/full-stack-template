@@ -83,5 +83,5 @@ internal static class DuneDiagnostics
         category: "Dune",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
-        description: "Los comentarios se prohíben en backend y dune salvo el directorio EF generado exacto.");
+        description: "Los comentarios se prohíben en backend y dune salvo las migraciones EF generadas de Infrastructure y de cada feature.");
 }

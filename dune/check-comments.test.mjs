@@ -146,4 +146,63 @@ describe('check-comments', () => {
       await fixture.cleanup();
     }
   });
+
+  it('accepts a bare ts-expect-error directive', () => {
+    const inspected = inspectSource(
+      'frontend/src/app/core/a.ts',
+      'const a: number = 1;\n// @ts-expect-error\nconst b: string = a;\n',
+    );
+    assert.deepEqual(inspected.diagnostics, []);
+  });
+
+  it('rejects ts directives that carry prose or are not allowed', () => {
+    const prose = inspectSource('frontend/src/app/core/a.ts', '// @ts-expect-error legacy typing\nconst b = 1;\n');
+    assert.equal(prose.diagnostics.length, 1);
+    const ignore = inspectSource('frontend/src/app/core/a.ts', '// @ts-ignore\nconst b = 1;\n');
+    assert.equal(ignore.diagnostics.length, 1);
+    const block = inspectSource('frontend/src/app/core/a.ts', '/* @ts-expect-error */\nconst b = 1;\n');
+    assert.equal(block.diagnostics.length, 1);
+  });
+
+  it('accepts dockerfile parser directives at the top', () => {
+    const inspected = inspectSource(
+      'backend/Dockerfile',
+      '# syntax=docker/dockerfile:1\n# escape=`\n# check=error=true\nFROM scratch\n',
+    );
+    assert.deepEqual(inspected.diagnostics, []);
+  });
+
+  it('rejects dockerfile directives after the top and prose comments', () => {
+    const late = inspectSource('backend/Dockerfile', 'FROM scratch\n# syntax=docker/dockerfile:1\n');
+    assert.deepEqual(late.diagnostics.map((entry) => entry.line), [2]);
+    const afterComment = inspectSource('backend/Dockerfile', '# build stage\n# syntax=docker/dockerfile:1\nFROM scratch\n');
+    assert.deepEqual(afterComment.diagnostics.map((entry) => entry.line), [1, 2]);
+    const afterBlank = inspectSource('backend/Dockerfile', '\n# syntax=docker/dockerfile:1\nFROM scratch\n');
+    assert.deepEqual(afterBlank.diagnostics.map((entry) => entry.line), [2]);
+  });
+
+  it('keeps directives in banned symbols as comments', () => {
+    const inspected = inspectSource('dune/BannedSymbols.txt', '# syntax=docker/dockerfile:1\nT:System.Console\n');
+    assert.equal(inspected.diagnostics.length, 1);
+  });
+
+  it('fix keeps allowed directives', async () => {
+    const fixture = await makeRoot({
+      'frontend/src/app/core/a.ts': '// @ts-expect-error\nconst b: string = 1; // note\n',
+      'backend/Dockerfile': '# syntax=docker/dockerfile:1\n# note\nFROM scratch\n',
+    });
+    try {
+      await fixComments({ root: fixture.root });
+      const { readFile } = await import('node:fs/promises');
+      const ts = await readFile(path.join(fixture.root, 'frontend/src/app/core/a.ts'), 'utf8');
+      const docker = await readFile(path.join(fixture.root, 'backend/Dockerfile'), 'utf8');
+      assert.ok(ts.startsWith('// @ts-expect-error\n'));
+      assert.ok(!ts.includes('// note'));
+      assert.ok(docker.startsWith('# syntax=docker/dockerfile:1\n'));
+      assert.ok(!docker.includes('# note'));
+      assert.deepEqual((await analyzeComments({ root: fixture.root })).diagnostics, []);
+    } finally {
+      await fixture.cleanup();
+    }
+  });
 });
