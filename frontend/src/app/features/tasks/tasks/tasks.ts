@@ -1,8 +1,8 @@
 import { Component, ElementRef, Injector, afterNextRender, computed, inject, signal, viewChild } from '@angular/core';
 import { FormField, FormRoot, form, maxLength, required } from '@angular/forms/signals';
-import { TasksApi } from '../tasks-api';
+import { TasksApi } from '../api/tasks-api';
 import { describeHttpError } from '../../../core/http-error';
-import type { TaskResponse } from '../task-response';
+import type { TaskResponse } from '../api/task-response';
 
 const PAGE_SIZE = 10;
 

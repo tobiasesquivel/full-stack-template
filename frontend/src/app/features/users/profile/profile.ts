@@ -1,7 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormField, FormRoot, form, required } from '@angular/forms/signals';
 import { Session } from '../../auth';
-import { UsersApi } from '../users-api';
+import { UsersApi } from '../api/users-api';
 import { describeHttpError } from '../../../core/http-error';
 
 @Component({

@@ -55,8 +55,8 @@ describe('check-frontend', () => {
       'frontend/src/app/features/tasks/index.ts': `export { tasksRoutes } from './tasks.routes';\n`,
       'frontend/src/app/features/tasks/tasks.routes.ts': `export const tasksRoutes = [\n  { path: 'tasks', loadComponent: () => import('./tasks/tasks').then((m) => m.Tasks) },\n];\n`,
       'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';\nimport type { User } from '../../users';\n@Component({ selector: 'x', templateUrl: './x.html' })\nexport class Tasks {\n  readonly user: User | null = null;\n}\n`,
-      'frontend/src/app/features/users/index.ts': `export type { User } from './users-models';\n`,
-      'frontend/src/app/features/users/users-models.ts': `export interface User {\n  id: string;\n}\n`,
+      'frontend/src/app/features/users/index.ts': `export type { User } from './api/users-models';\n`,
+      'frontend/src/app/features/users/api/users-models.ts': `export interface User {\n  id: string;\n}\n`,
     });
     try {
       await seedAngular(project.root);
@@ -86,7 +86,7 @@ describe('check-frontend', () => {
 
   it('accepts the feature HTTP adapter while rejecting component HTTP', async () => {
     const project = await makeProject({
-      'frontend/src/app/features/tasks/tasks-api.ts': `import { Service, inject } from '@angular/core';\nimport { HttpClient } from '@angular/common/http';\n@Service()\nexport class TasksApi {\n  private readonly http = inject(HttpClient);\n}\n`,
+      'frontend/src/app/features/tasks/api/tasks-api.ts': `import { Service, inject } from '@angular/core';\nimport { HttpClient } from '@angular/common/http';\n@Service()\nexport class TasksApi {\n  private readonly http = inject(HttpClient);\n}\n`,
       'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component, inject } from '@angular/core';\nimport { HttpClient } from '@angular/common/http';\n@Component({ selector: 'x', templateUrl: './x.html' })\nexport class Tasks {\n  private readonly http = inject(HttpClient);\n}\n`,
     });
     try {
@@ -298,11 +298,11 @@ describe('check-frontend', () => {
 
   it('accepts intent names without type suffixes and @Service singletons', async () => {
     const project = await makeProject({
-      'frontend/src/app/features/tasks/tasks-api.ts': `import { Service } from '@angular/core';\n@Service()\nexport class TasksApi {}\n`,
+      'frontend/src/app/features/tasks/api/tasks-api.ts': `import { Service } from '@angular/core';\n@Service()\nexport class TasksApi {}\n`,
       'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';\n@Component({ selector: 'x', templateUrl: './x.html' })\nexport class Tasks {}\n`,
       'frontend/src/app/features/tasks/tasks.routes.ts': `export const tasksRoutes = [];\n`,
-      'frontend/src/app/features/auth/auth-guard.ts': `export const authGuard = () => true;\n`,
-      'frontend/src/app/features/auth/scoped-cache.ts': `import { Injectable } from '@angular/core';\n@Injectable()\nexport class ScopedCache {}\n`,
+      'frontend/src/app/features/auth/session/auth-guard.ts': `export const authGuard = () => true;\n`,
+      'frontend/src/app/features/auth/session/scoped-cache.ts': `import { Injectable } from '@angular/core';\n@Injectable()\nexport class ScopedCache {}\n`,
     });
     try {
       await seedAngular(project.root);
@@ -331,7 +331,7 @@ describe('check-frontend', () => {
 
   it('rejects @Injectable with providedIn root in favor of @Service', async () => {
     const project = await makeProject({
-      'frontend/src/app/features/tasks/tasks-api.ts': `import { Injectable } from '@angular/core';\n@Injectable({ providedIn: 'root' })\nexport class TasksApi {}\n`,
+      'frontend/src/app/features/tasks/api/tasks-api.ts': `import { Injectable } from '@angular/core';\n@Injectable({ providedIn: 'root' })\nexport class TasksApi {}\n`,
     });
     try {
       await seedAngular(project.root);
@@ -455,6 +455,28 @@ export class Login {}
       const { diagnostics } = await analyzeFrontend({ root: project.root });
       const types = diagnostics.filter((entry) => entry.rule === 'FRONT010').map((entry) => `${path.basename(entry.path)}:${entry.line}`);
       assert.deepEqual(types, ['session.ts:2', 'users-models.ts:5', 'users-models.ts:6']);
+    } finally {
+      await project.cleanup();
+    }
+  });
+
+  it('accepts only the door and the routes at a feature root and rejects other loose files', async () => {
+    const project = await makeProject({
+      'frontend/src/app/features/tasks/index.ts': `export { tasksRoutes } from './tasks.routes';\nexport type { TaskResponse } from './api/task-response';\n`,
+      'frontend/src/app/features/tasks/tasks.routes.ts': `export const tasksRoutes = [];\n`,
+      'frontend/src/app/features/tasks/api/task-response.ts': `export interface TaskResponse {\n  id: string;\n}\n`,
+      'frontend/src/app/features/auth/index.ts': `export { Session } from './session';\nexport { authGuard } from './auth-guard';\n`,
+      'frontend/src/app/features/auth/auth.routes.ts': `export const authRoutes = [];\n`,
+      'frontend/src/app/features/auth/session.ts': `export class Session {}\n`,
+      'frontend/src/app/features/auth/auth-guard.ts': `export const authGuard = () => true;\n`,
+      'frontend/src/app/features/auth/session/token-response.ts': `export interface TokenResponse {\n  accessToken: string;\n}\n`,
+      'frontend/src/app/core/http-error.ts': `export const describe = () => '';\n`,
+    });
+    try {
+      await seedAngular(project.root);
+      const { diagnostics } = await analyzeFrontend({ root: project.root });
+      const loose = diagnostics.filter((entry) => entry.rule === 'FRONT011').map((entry) => path.basename(entry.path));
+      assert.deepEqual(loose, ['auth-guard.ts', 'session.ts']);
     } finally {
       await project.cleanup();
     }

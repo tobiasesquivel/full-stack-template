@@ -2,7 +2,7 @@ import { Component, inject, signal } from '@angular/core';
 import { FormField, FormRoot, form, maxLength, required } from '@angular/forms/signals';
 import { HttpErrorResponse } from '@angular/common/http';
 import { RouterLink } from '@angular/router';
-import { Session } from '../session';
+import { Session } from '../session/session';
 import { describeHttpError } from '../../../core/http-error';
 
 @Component({

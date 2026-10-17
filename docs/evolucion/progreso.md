@@ -4,7 +4,7 @@ Registro vivo del [plan](plan.md). El agente lo actualiza al cerrar cada paso.
 
 ## Paso actual
 
-**Paso 0.13: carpetas por propósito en cada feature del frontend.** Estado: en curso. Los pasos 0.10 a 0.12 cerraron. Tobi pidió el 2026-10-17 separar la vista de los componentes (0.10), un archivo por tipo (0.11), Tailwind (0.12), ordenar los archivos sueltos de cada feature (0.13) y una investigación sobre manejo de sesión en Angular (0.14). Después sigue la Fase 1, paso 2. Los pasos 0.6 a 0.12 esperan el merge de Tobi.
+**Paso 0.14: manejo de sesión en Angular.** Estado: en investigación. Los pasos 0.10 a 0.13 cerraron. Tobi pidió el 2026-10-17 separar la vista de los componentes (0.10), un archivo por tipo (0.11), Tailwind (0.12), ordenar los archivos sueltos de cada feature (0.13) y una investigación sobre manejo de sesión en Angular (0.14). Después sigue la Fase 1, paso 2. Los pasos 0.6 a 0.12 esperan el merge de Tobi.
 
 La Fase 0 va antes del paso 2. El paso 1 (línea base) ya cerró y sirve de referencia para la Fase 0.
 
@@ -27,6 +27,7 @@ Estados: `pendiente`, `en curso`, `cerrado`, `bloqueado (⏸ decisión de Tobi)`
 | 0.10 | Componentes en archivos separados | cerrado | `artifacts/verify-template/fase0-10-component-files/`, `artifacts/verify-template/fase0-10-runtime/` |
 | 0.11 | Un archivo, un tipo | cerrado | `artifacts/verify-template/fase0-11-one-type-per-file/`, `artifacts/verify-template/fase0-11-runtime/` |
 | 0.12 | Estilos con Tailwind | cerrado | `artifacts/verify-template/fase0-12-tailwind/`, `artifacts/verify-template/fase0-12-runtime/` |
+| 0.13 | Carpetas por propósito en cada feature del frontend | cerrado | `artifacts/verify-template/fase0-13-feature-folders/`, `artifacts/verify-template/fase0-13-runtime/` |
 | 1 | Línea base: qué funciona hoy, con evidencia | cerrado | [linea-base.md](linea-base.md); `artifacts/verify-template/baseline-20261016/` |
 | 2 | Un solo comando de verificación local | pendiente | |
 | 3 | CI verde de verdad | pendiente | |
@@ -90,6 +91,16 @@ Una entrada por paso cerrado, con este formato:
 - Preguntas: qué preguntó Tobi.
 - Evidencia: artifacts/verify-template/<runId>/
 ```
+
+### Paso 0.13 — 2026-10-17
+- Enseñado: agrupar por propósito, no por tipo técnico. La raíz de cada feature muestra solo su puerta (`index.ts`) y sus rutas. Lo demás vive en una carpeta que dice para qué sirve: `auth/session/` junta todo lo que mantiene la sesión; `tasks/api/` junta el cliente HTTP con sus modelos. Es la misma idea que las slices del backend, y la guía de estilo de Angular desaconseja carpetas como `services/` o `models/`.
+- Preguntas: Tobi vio muchos archivos sueltos en `auth/` y pidió agruparlos.
+- Decisiones: dos filas nuevas en `docs/decisions.tsv`. `conventions.md` y `architecture.md` actualizados.
+- Evidencia: artifacts/verify-template/fase0-13-feature-folders/ y artifacts/verify-template/fase0-13-runtime/.
+  - Rojo antes de verde, gate: con el `check-frontend` del 0.12 falla el test nuevo (`check-frontend-red.log`). Con el nuevo pasan 23/23. Cuatro tests viejos tenían fixtures en la raíz de la feature: pasaron a `api/` o `session/`.
+  - Rojo antes de verde, producto: FRONT011 frena 13 archivos sueltos en auth, tasks y users (`check-frontend-product-red.log`).
+  - Build de Angular: PASS. `check-frontend`, `check-structure` y `check-comments`: PASS.
+  - verify-template: launch PASS, smoke HTTP PASS (45 requests). Después de 65 segundos, navegador PASS con el recorrido del 0.12 (15 pasos): incluye restaurar la sesión al recargar, los dos guards y el interceptor en cada request. Cleanup PASS.
 
 ### Paso 0.12 — 2026-10-17
 - Enseñado: CSS utility-first. El estilo de cada elemento está en su `class`: `rounded-lg border border-slate-200 bg-white p-5` reemplaza la regla `section { … }` de `styles.css`. Ya no hay que buscar qué selector pinta un elemento. `styles.css` pasó de 234 líneas a 14: `@import 'tailwindcss'`, un breakpoint `xs` (32rem) en `@theme` y el foco visible en `@layer base`. Se repiten las clases en lugar de usar `@apply`, como recomienda Tailwind.

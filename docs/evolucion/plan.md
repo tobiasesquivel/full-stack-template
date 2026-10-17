@@ -50,7 +50,7 @@ Regla de oro: **un paso no termina con tests verdes.** Termina cuando el caso qu
 
 ## 4. El plan
 
-### Fase 0 — Bases (pasos 0.0-0.12)
+### Fase 0 — Bases (pasos 0.0-0.13)
 
 Llevan el repo a la forma de [ADR-0004](../adr/0004-vertical-slices-deep-modules.md). Ningún paso cambia un contrato HTTP: el smoke de la API prueba que nada se rompió.
 
@@ -124,6 +124,13 @@ El paso 0.12 se agregó el 2026-10-17, a pedido de Tobi: "migrá de CSS a Tailwi
 **Concepto**: CSS utility-first: el estilo vive en clases del template y no en hojas por componente; el CSS global queda solo para lo que no es una clase.
 **Cambia**: los templates de app, login, registro, tareas y perfil usan clases de Tailwind v4 con los mismos colores (la paleta más cercana); se borran `app.css`, `tasks.css`, los `styleUrl` y los `style=""` del diálogo; `styles.css` queda con `@import 'tailwindcss'`, un breakpoint y el foco visible; una regla nueva en `check-frontend.mjs` (FRONT009) con su fixture válida y su violación deliberada.
 **Verifica**: build de Angular, `check-frontend`, capturas antes y después de cada vista, y navegador con el recorrido del paso 0.10 adaptado a las clases nuevas.
+
+El paso 0.13 se agregó el 2026-10-17, a pedido de Tobi: "hay muchos archivos sueltos en auth/".
+
+**0.13. Carpetas por propósito en cada feature del frontend.**
+**Concepto**: agrupar por propósito, no por tipo técnico; la raíz de la feature muestra solo su puerta y sus rutas.
+**Cambia**: `auth/session/` (Session, guards, interceptor y sus modelos), `tasks/api/` y `users/api/` (cliente HTTP y modelos); los imports se ajustan y las puertas `index.ts` exportan lo mismo; una regla nueva en `check-frontend.mjs` (FRONT011) con su fixture válida y su violación deliberada.
+**Verifica**: build de Angular, `check-frontend` y navegador con el recorrido del paso 0.12.
 
 ### Fase 1 — Base verificable (pasos 1-3)
 

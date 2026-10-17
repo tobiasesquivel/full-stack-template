@@ -28,6 +28,7 @@ El código actual todavía no cumple todas estas reglas. La Fase 0 del [plan](ev
 - En el frontend, los modelos usan los mismos nombres que el backend: `*Request` y `*Response`. Cada uno va en su archivo: `task-response.ts` / `TaskResponse`.
 - En el frontend, cada feature publica en `features/<feature>/index.ts` lo que ven las demás y la raíz de la app. Fuera de una feature, se importa solo su `index.ts`. FRONT001 lo hace cumplir, también para `app.routes.ts` y `app.config.ts`.
 - Las rutas de una feature van en `<feature>.routes.ts`, sin guards. `app.routes.ts` las compone y aplica los guards.
+- En la raíz de una feature del frontend solo viven `index.ts` y `<feature>.routes.ts`. Lo demás va en una carpeta con nombre de propósito: `api/` para el cliente HTTP y sus modelos, `session/` para la sesión de Auth y una carpeta por componente. No hay carpetas por tipo técnico (`services/`, `models/`). FRONT011 lo hace cumplir.
 - `core/` del frontend no nombra ninguna feature: queda para lo transversal.
 - En el frontend, los archivos y las clases se nombran por su propósito, sin sufijo de tipo (*Intent over Role*, Angular v20+): `session.ts` / `Session`, `tasks-api.ts` / `TasksApi`, `profile.ts` / `Profile`. Guards e interceptores usan guion: `auth-guard.ts`. Se mantienen las convenciones del propio Angular: `*.routes.ts`, `app.config.ts`, `*.spec.ts`. FRONT004 lo hace cumplir.
 - Los servicios de una sola instancia usan `@Service()` (Angular v22), no `@Injectable({ providedIn: 'root' })`. FRONT005 lo hace cumplir.

@@ -1,7 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormField, FormRoot, email, form, maxLength, minLength, required } from '@angular/forms/signals';
 import { RouterLink } from '@angular/router';
-import { Session } from '../session';
+import { Session } from '../session/session';
 import { describeHttpError } from '../../../core/http-error';
 
 @Component({

@@ -1,4 +1,4 @@
-export { UsersApi } from './users-api';
+export { UsersApi } from './api/users-api';
 export { usersRoutes } from './users.routes';
-export type { UpdateProfileRequest } from './update-profile-request';
-export type { UserResponse } from './user-response';
+export type { UpdateProfileRequest } from './api/update-profile-request';
+export type { UserResponse } from './api/user-response';

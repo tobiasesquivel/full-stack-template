@@ -7,7 +7,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const require = createRequire(path.join(here, '..', 'frontend', 'package.json'));
 const ts = require('typescript');
 
-export const RULES = ['FRONT001', 'FRONT002', 'FRONT003', 'FRONT004', 'FRONT005', 'FRONT006', 'FRONT007', 'FRONT008', 'FRONT009', 'FRONT010'];
+export const RULES = ['FRONT001', 'FRONT002', 'FRONT003', 'FRONT004', 'FRONT005', 'FRONT006', 'FRONT007', 'FRONT008', 'FRONT009', 'FRONT010', 'FRONT011'];
 
 const INITIALIZER_TOKENS = new Map([
   ['APP_INITIALIZER', 'provideAppInitializer'],
@@ -216,6 +216,13 @@ function classifyFile(rel, sourceFile) {
   return 'outside';
 }
 
+function isLooseFeatureFile(rel) {
+  const feature = featureOf(rel);
+  if (!feature) return false;
+  const inside = rel.slice('frontend/src/app/features/'.length + feature.length + 1);
+  return !inside.includes('/') && inside !== 'index.ts' && inside !== `${feature}.routes.ts`;
+}
+
 function featureOf(rel) {
   const marker = 'frontend/src/app/features/';
   if (!rel.startsWith(marker)) return null;
@@ -398,6 +405,9 @@ export async function analyzeFrontend({ root, project } = {}) {
         const from = fromFeature ? `feature ${fromFeature}` : rel;
         report('FRONT001', rel, edge.line, `${from} must import feature ${toFeature} through features/${toFeature}/index.ts, not ${target}`);
       }
+    }
+    if (isLooseFeatureFile(rel)) {
+      report('FRONT011', rel, 1, `only index.ts and ${featureOf(rel)}.routes.ts live at the feature root; move ${path.posix.basename(rel)} into a folder named for its purpose`);
     }
     if (TYPE_SUFFIX_FILE.test(rel)) {
       report('FRONT004', rel, 1, `file name must describe its purpose without a type suffix: ${path.posix.basename(rel)}`);
