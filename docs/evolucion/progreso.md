@@ -4,7 +4,7 @@ Registro vivo del [plan](plan.md). El agente lo actualiza al cerrar cada paso.
 
 ## Paso actual
 
-**Paso 0.16: varias pestañas.** Estado: pendiente. Los pasos 0.10 a 0.15 cerraron. Tobi pidió el 2026-10-17 separar la vista de los componentes (0.10), un archivo por tipo (0.11), Tailwind (0.12), ordenar los archivos sueltos de cada feature (0.13) e investigar y aplicar el manejo de sesión en Angular (0.14 a 0.16, [informe-sesion-angular.md](informe-sesion-angular.md)). Después sigue la Fase 1, paso 2. Los pasos 0.6 a 0.15 esperan el merge de Tobi.
+**Fase 1, paso 2: un solo comando de verificación local.** Estado: pendiente. Los pasos 0.10 a 0.16 cerraron. Tobi pidió el 2026-10-17 separar la vista de los componentes (0.10), un archivo por tipo (0.11), Tailwind (0.12), ordenar los archivos sueltos de cada feature (0.13) e investigar y aplicar el manejo de sesión en Angular (0.14 a 0.16, [informe-sesion-angular.md](informe-sesion-angular.md)). Los pasos 0.6 a 0.16 esperan el merge de Tobi.
 
 La Fase 0 va antes del paso 2. El paso 1 (línea base) ya cerró y sirve de referencia para la Fase 0.
 
@@ -30,7 +30,7 @@ Estados: `pendiente`, `en curso`, `cerrado`, `bloqueado (⏸ decisión de Tobi)`
 | 0.13 | Carpetas por propósito en cada feature del frontend | cerrado | `artifacts/verify-template/fase0-13-feature-folders/`, `artifacts/verify-template/fase0-13-runtime/` |
 | 0.14 | Forma de la sesión | cerrado | `artifacts/verify-template/fase0-14-session-shape/`, `artifacts/verify-template/fase0-14-runtime/` |
 | 0.15 | Interceptor y vuelta a la página pedida | cerrado | `artifacts/verify-template/fase0-15-session-interceptor/`, `artifacts/verify-template/fase0-15-runtime-red/` (rojo), `artifacts/verify-template/fase0-15-runtime/` |
-| 0.16 | Varias pestañas | pendiente | |
+| 0.16 | Varias pestañas | cerrado | `artifacts/verify-template/fase0-16-session-tabs/`, `artifacts/verify-template/fase0-16-runtime-red/` (rojo), `artifacts/verify-template/fase0-16-runtime/` |
 | 1 | Línea base: qué funciona hoy, con evidencia | cerrado | [linea-base.md](linea-base.md); `artifacts/verify-template/baseline-20261016/` |
 | 2 | Un solo comando de verificación local | pendiente | |
 | 3 | CI verde de verdad | pendiente | |
@@ -97,6 +97,17 @@ Una entrada por paso cerrado, con este formato:
 - Preguntas: qué preguntó Tobi.
 - Evidencia: artifacts/verify-template/<runId>/
 ```
+
+### Paso 0.16 — 2026-10-17
+- Enseñado: coordinar pestañas del mismo origen con dos APIs del navegador. Las pestañas comparten la cookie de refresh, pero cada una tiene su access token en memoria. Si dos recargan a la vez, las dos presentan el mismo refresh token; el backend ve un reuso y revoca la familia, y las dos quedan sin sesión. `navigator.locks.request('session-refresh', …)` pone las renovaciones en fila: la segunda sale cuando la primera ya dejó la cookie nueva. `BroadcastChannel('session')` avisa `opened` y `closed`: el logout en una pestaña cierra las otras al instante, y un login o registro las abre con el mismo usuario.
+- Preguntas: ninguna nueva; aplica la investigación del 0.14.
+- Decisiones: dos filas nuevas en `docs/decisions.tsv`. `conventions.md` y `architecture.md` actualizados. El margen de rotación en el backend sigue como decisión de Tobi: con el lock no hace falta para un mismo navegador.
+- Evidencia: artifacts/verify-template/fase0-16-session-tabs/, artifacts/verify-template/fase0-16-runtime-red/ y artifacts/verify-template/fase0-16-runtime/.
+  - Sin regla nueva de Dune. `check-frontend` sigue con 24/24 tests.
+  - Rojo antes de verde, navegador (`fase0-16-runtime-red`, código del 0.15): las 3 comprobaciones nuevas fallan. Con dos páginas del mismo contexto y las dos renovaciones retenidas hasta llegar juntas, las renovaciones dan `[401, 200, 401]` y las dos páginas terminan en `/login?returnUrl=%2Ftasks`. El logout en A deja a B en `/tasks`. El registro en A deja a B en `/login`.
+  - Verde (`fase0-16-runtime`): 24 pasos PASS: los 15 del 0.14, las 6 del 0.15 y las 3 nuevas. Las dos recargas dan dos `POST /auth/refresh`, los dos 200, una después de la otra, y las dos páginas siguen abiertas. El logout en A lleva a B a `/login` sin tocar B. El registro de otro usuario en A abre B con ese usuario y la lleva a `/tasks`.
+  - Build de Angular: PASS. `check-frontend`, `check-structure`, `check-comments` y `CommentVerifier`: PASS.
+  - verify-template: launch PASS, smoke HTTP PASS (45 requests). Las comprobaciones corren en tres tandas separadas por 61 segundos, bajo 20 requests de `/auth` por minuto. Cleanup PASS.
 
 ### Paso 0.15 — 2026-10-17
 - Enseñado: un interceptor funcional con renovación. El token va solo a `/api/`. Las peticiones de `/auth` llevan un `HttpContextToken` (`SKIP_SESSION`): es un dato de la petición que lee el interceptor y que el backend nunca ve, más firme que comparar el texto de la URL. Ante un 401, varias peticiones esperan la misma renovación y cada una reintenta una vez. El `catchError` va antes del `switchMap`: atrapa solo la renovación fallida, no el error del reintento. `returnUrl` vuelve a la página pedida y solo acepta rutas internas, para que nadie arme un link de login que lleve a otro sitio.
