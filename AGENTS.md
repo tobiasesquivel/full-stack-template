@@ -4,7 +4,7 @@ Instrucciones para agentes que trabajan en este repo. `CLAUDE.md` importa este a
 
 ## Qué es
 
-Monorepo template: backend ASP.NET Core 10, frontend Angular 22 con signals y PostgreSQL. La arquitectura es vertical slices dentro de features que funcionan como módulos profundos ([ADR-0004](docs/adr/0004-vertical-slices-deep-modules.md)). Dune (`dune/`) la hace cumplir con analyzers Roslyn y gates Node.
+Monorepo template: backend ASP.NET Core 10, frontend Angular 22 con signals y PostgreSQL. La arquitectura es vertical slices dentro de features que funcionan como módulos profundos ([ADR-0004](docs/adr/0004-vertical-slices-deep-modules.md)). Dune (`dune/`) la controla con analyzers Roslyn y gates Node; está en desarrollo.
 
 ## Para qué existe
 
@@ -36,6 +36,7 @@ El dominio (tareas) es simple a propósito: importa el rigor técnico. **Todo el
 7. **No amplíes el alcance del paso.** Si ves algo para mejorar fuera de él, anotalo como pendiente en `progreso.md`.
 8. **No adelantes pasos.** Si el plan parece equivocado, discutilo antes de ejecutar.
 9. **No cambies un gate, analyzer o test para tapar una falla.** Sí podés cambiarlo si ese cambio es el objetivo declarado del paso: con un ADR o una línea en `docs/decisions.tsv`, y con su fixture válida y su violación deliberada.
+10. **Los docs deciden el diseño; Dune los sigue.** La fuente de verdad es ADR-0004, `architecture.md`, `conventions.md` y los informes de `docs/evolucion/`. Justificá cada decisión de diseño con ellos. Si una regla de Dune choca con los docs, corregí la regla en el mismo paso, con lo que pide la regla 9. Si dos docs se contradicen, frená y preguntale a Tobi.
 
 ## Cómo enseñar
 
