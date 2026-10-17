@@ -50,9 +50,14 @@ Regla de oro: **un paso no termina con tests verdes.** Termina cuando el caso qu
 
 ## 4. El plan
 
-### Fase 0 — Bases (pasos 0.1-0.6)
+### Fase 0 — Bases (pasos 0.0-0.6)
 
 Llevan el repo a la forma de [ADR-0004](../adr/0004-vertical-slices-deep-modules.md). Ningún paso cambia un contrato HTTP: el smoke de la API prueba que nada se rompió.
+
+**0.0. Inicialización concurrente de la base.** (adelantado del paso 3)
+**Concepto**: inicialización concurrente; serializar con un advisory lock de PostgreSQL.
+**Cambia**: `DatabaseInitializer` toma un advisory lock antes de migrar y sembrar; `ApiFixture` deja de sembrar; test nuevo que corre 8 inicializaciones a la vez.
+**Verifica**: el test nuevo falla sin el lock y pasa con él; la suite completa pasa con una sola base compartida, como en CI.
 
 **0.1. Docs y reglas de trabajo.**
 **Concepto**: una sola fuente de verdad por regla; decisiones registradas en ADR.
@@ -98,6 +103,7 @@ Llevan el repo a la forma de [ADR-0004](../adr/0004-vertical-slices-deep-modules
 
 **3. CI verde de verdad.**
 **Concepto**: integración continua como gate efectivo, no como archivo versionado.
+**Nota**: el paso 0.0 ya arregló la falla de siembra concurrente que tumbaba el job de backend.
 **Cambia**: `ci.yml` solo si algún job falla; `docs/` con el estado real; `artifacts/`.
 **Verifica**: un PR de prueba dispara los 4 jobs; el job `compose` deja el artifact `otel-export` descargable.
 

@@ -1,10 +1,6 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using Testcontainers.PostgreSql;
-using TemplateApp.Infrastructure.Persistence;
-using TemplateApp.Infrastructure.Seeders;
 using Xunit;
 
 namespace TemplateApp.Tests.Support;
@@ -26,17 +22,7 @@ public sealed class ApiFixture : IAsyncLifetime
 
     public HttpClient CreateIsolatedClient(out IServiceProvider services)
     {
-        WebApplicationFactory<Program> isolated = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
-        {
-            builder.UseEnvironment("Testing");
-
-            builder.UseSetting("ConnectionStrings:DefaultConnection", _connectionString);
-            builder.UseSetting("Jwt:Key", "test-jwt-key-must-be-at-least-32-chars-long!!");
-            builder.UseSetting("Jwt:Issuer", "https://tests.templateapp.local");
-            builder.UseSetting("Jwt:Audience", "api://tests");
-            builder.UseSetting("Jwt:AccessTokenExpirationMinutes", "15");
-            builder.UseSetting("Jwt:RefreshTokenExpirationDays", "7");
-        });
+        WebApplicationFactory<Program> isolated = CreateFactory(_connectionString!);
 
         _isolatedFactories.Add(isolated);
         services = isolated.Services;
@@ -66,25 +52,26 @@ public sealed class ApiFixture : IAsyncLifetime
             _connectionString = _postgres.GetConnectionString();
         }
 
-        string jwtKey = "test-jwt-key-must-be-at-least-32-chars-long!!";
+        _factory = CreateFactory(_connectionString);
+        _ = _factory.Services;
+    }
 
-        _factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+    public static WebApplicationFactory<Program> CreateFactory(string connectionString) =>
+        new TestApiFactory(connectionString);
+
+    private sealed class TestApiFactory(string connectionString) : WebApplicationFactory<Program>
+    {
+        protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
             builder.UseEnvironment("Testing");
 
-            builder.UseSetting("ConnectionStrings:DefaultConnection", _connectionString);
-            builder.UseSetting("Jwt:Key", jwtKey);
+            builder.UseSetting("ConnectionStrings:DefaultConnection", connectionString);
+            builder.UseSetting("Jwt:Key", "test-jwt-key-must-be-at-least-32-chars-long!!");
             builder.UseSetting("Jwt:Issuer", "https://tests.templateapp.local");
             builder.UseSetting("Jwt:Audience", "api://tests");
             builder.UseSetting("Jwt:AccessTokenExpirationMinutes", "15");
             builder.UseSetting("Jwt:RefreshTokenExpirationDays", "7");
-        });
-
-        using IServiceScope scope = Services.CreateScope();
-        AppDbContext db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        await db.Database.MigrateAsync();
-
-        await RoleSeeder.SeedRolesAsync(scope.ServiceProvider);
+        }
     }
 
     public async ValueTask DisposeAsync()
