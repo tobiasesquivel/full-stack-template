@@ -4,7 +4,7 @@ Registro vivo del [plan](plan.md). El agente lo actualiza al cerrar cada paso.
 
 ## Paso actual
 
-**Fase 1, paso 2: un solo comando de verificación local.** Estado: sin empezar. La Fase 0 cerró; el paso 0.6 espera el merge de Tobi.
+**Fase 0, paso 0.7: servicios y nombres de Angular v22.** Estado: en curso. Los pasos 0.7 a 0.9 se agregaron el 2026-10-17 a pedido de Tobi ([informe](informe-angular-moderno.md)). El paso 0.6 espera el merge de Tobi.
 
 La Fase 0 va antes del paso 2. El paso 1 (línea base) ya cerró y sirve de referencia para la Fase 0.
 
@@ -21,6 +21,9 @@ Estados: `pendiente`, `en curso`, `cerrado`, `bloqueado (⏸ decisión de Tobi)`
 | 0.4 | Slices | cerrado | `artifacts/verify-template/fase0-04-slices/`, `artifacts/verify-template/fase0-04-runtime/` |
 | 0.5 | Límite entre Auth y Users | cerrado | `artifacts/verify-template/fase0-05-auth-users/`, `artifacts/verify-template/fase0-05-runtime/` |
 | 0.6 | Frontend por feature | cerrado | `artifacts/verify-template/fase0-06-frontend/`, `artifacts/verify-template/fase0-06-runtime/` (fallo), `artifacts/verify-template/fase0-06-runtime-2/` |
+| 0.7 | Servicios y nombres de Angular v22 | en curso | |
+| 0.8 | Signal Forms | pendiente | |
+| 0.9 | Arranque con `provideAppInitializer()` | pendiente | |
 | 1 | Línea base: qué funciona hoy, con evidencia | cerrado | [linea-base.md](linea-base.md); `artifacts/verify-template/baseline-20261016/` |
 | 2 | Un solo comando de verificación local | pendiente | |
 | 3 | CI verde de verdad | pendiente | |

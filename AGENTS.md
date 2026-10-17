@@ -21,6 +21,7 @@ El dominio (tareas) es simple a propósito: importa el rigor técnico. **Todo el
 | [docs/evolucion/informe-vsa-deep-modules.md](docs/evolucion/informe-vsa-deep-modules.md) | Vertical slices + módulos profundos: dónde vive cada pieza y por qué. |
 | [docs/evolucion/informe-deep-mediators.md](docs/evolucion/informe-deep-mediators.md) | Módulos profundos (Ousterhout) vs vertical slices, y mediators/buses en .NET. |
 | [docs/evolucion/informe-dotnet-empresarial.md](docs/evolucion/informe-dotnet-empresarial.md) | Arquitectura .NET para apps grandes: paquetes, patrones, observabilidad, pagos, colas, sagas, licencias. |
+| [docs/evolucion/informe-angular-moderno.md](docs/evolucion/informe-angular-moderno.md) | Angular v20-v22: nombres sin sufijo, `@Service()`, Signal Forms y la skill oficial `angular-developer`. |
 | [CONTEXT.md](CONTEXT.md) | Vocabulario del dominio. Usá esos términos. |
 | [docs/architecture.md](docs/architecture.md), [docs/conventions.md](docs/conventions.md) | Arquitectura vigente y reglas para escribir código. |
 | [docs/decisions.tsv](docs/decisions.tsv), [docs/adr/](docs/adr/) | Decisiones tomadas y su porqué. |
