@@ -7,12 +7,17 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const require = createRequire(path.join(here, '..', 'frontend', 'package.json'));
 const ts = require('typescript');
 
-export const RULES = ['FRONT001', 'FRONT002', 'FRONT003', 'FRONT004', 'FRONT005', 'FRONT006', 'FRONT007'];
+export const RULES = ['FRONT001', 'FRONT002', 'FRONT003', 'FRONT004', 'FRONT005', 'FRONT006', 'FRONT007', 'FRONT008'];
 
 const INITIALIZER_TOKENS = new Map([
   ['APP_INITIALIZER', 'provideAppInitializer'],
   ['ENVIRONMENT_INITIALIZER', 'provideEnvironmentInitializer'],
   ['PLATFORM_INITIALIZER', 'providePlatformInitializer'],
+]);
+
+const INLINE_VIEW_PROPERTIES = new Map([
+  ['template', 'templateUrl'],
+  ['styles', 'styleUrl'],
 ]);
 
 const LEGACY_FORMS_MODULE = 'external:@angular/forms';
@@ -108,6 +113,7 @@ function collectNaming(sourceFile) {
   const suffixedClasses = [];
   const rootInjectables = [];
   const initializerTokens = [];
+  const inlineViews = [];
   function visit(node) {
     if (ts.isImportDeclaration(node)
       && ts.isStringLiteral(node.moduleSpecifier)
@@ -129,6 +135,9 @@ function collectNaming(sourceFile) {
         if (TYPE_SUFFIX_CLASS.test(node.name.text)) {
           suffixedClasses.push({ line: lineOf(sourceFile, node.name.getStart()), name: node.name.text });
         }
+        if (name === 'Component') {
+          inlineViews.push(...inlineViewProperties(sourceFile, decorator.expression));
+        }
         if (name === 'Injectable' && providesInRoot(decorator.expression)) {
           rootInjectables.push({ line: lineOf(sourceFile, decorator.getStart()), name: node.name.text });
         }
@@ -137,7 +146,19 @@ function collectNaming(sourceFile) {
     ts.forEachChild(node, visit);
   }
   visit(sourceFile);
-  return { suffixedClasses, rootInjectables, initializerTokens };
+  return { suffixedClasses, rootInjectables, initializerTokens, inlineViews };
+}
+
+function inlineViewProperties(sourceFile, expression) {
+  if (!ts.isCallExpression(expression)) return [];
+  const options = expression.arguments[0];
+  if (!options || !ts.isObjectLiteralExpression(options)) return [];
+  return options.properties
+    .filter((property) =>
+      ts.isPropertyAssignment(property)
+      && (ts.isIdentifier(property.name) || ts.isStringLiteral(property.name))
+      && INLINE_VIEW_PROPERTIES.has(property.name.text))
+    .map((property) => ({ line: lineOf(sourceFile, property.getStart()), property: property.name.text }));
 }
 
 function providesInRoot(expression) {
@@ -370,6 +391,9 @@ export async function analyzeFrontend({ root, project } = {}) {
     }
     for (const entry of node.initializerTokens) {
       report('FRONT007', rel, entry.line, `use ${INITIALIZER_TOKENS.get(entry.token)}() instead of the ${entry.token} token`);
+    }
+    for (const entry of node.inlineViews) {
+      report('FRONT008', rel, entry.line, `component must use ${INLINE_VIEW_PROPERTIES.get(entry.property)} with its own file instead of inline ${entry.property}`);
     }
     for (const entry of node.rootInjectables) {
       report('FRONT005', rel, entry.line, `${entry.name} must use @Service() instead of @Injectable({ providedIn: 'root' })`);

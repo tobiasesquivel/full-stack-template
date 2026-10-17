@@ -1,0 +1,42 @@
+<section aria-labelledby="register-title">
+  <h1 id="register-title">Crear cuenta</h1>
+  <form [formRoot]="registerForm">
+    <div>
+      <label for="register-user">Usuario</label>
+      <input id="register-user" type="text" [formField]="registerForm.userName" autocomplete="username" />
+      @if (registerForm.userName().touched() && registerForm.userName().invalid()) {
+        <p class="field-error">El usuario es obligatorio (máximo 50 caracteres).</p>
+      }
+    </div>
+    <div>
+      <label for="register-email">Correo</label>
+      <input id="register-email" type="email" [formField]="registerForm.email" autocomplete="email" />
+      @if (registerForm.email().touched() && registerForm.email().invalid()) {
+        <p class="field-error">Escribe un correo válido.</p>
+      }
+    </div>
+    <div>
+      <label for="register-display">Nombre visible</label>
+      <input id="register-display" type="text" [formField]="registerForm.displayName" autocomplete="nickname" />
+    </div>
+    <div>
+      <label for="register-password">Contraseña</label>
+      <input
+        id="register-password"
+        type="password"
+        [formField]="registerForm.password"
+        autocomplete="new-password"
+      />
+      @if (registerForm.password().touched() && registerForm.password().invalid()) {
+        <p class="field-error">La contraseña necesita entre 6 y 128 caracteres.</p>
+      }
+    </div>
+    @if (error()) {
+      <p role="alert">{{ error() }}</p>
+    }
+    <button type="submit" [disabled]="registerForm().submitting()">
+      {{ registerForm().submitting() ? 'Creando…' : 'Crear cuenta' }}
+    </button>
+  </form>
+  <p>¿Ya tienes cuenta? <a routerLink="/login">Entra</a>.</p>
+</section>

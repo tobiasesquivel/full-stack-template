@@ -4,7 +4,7 @@ Registro vivo del [plan](plan.md). El agente lo actualiza al cerrar cada paso.
 
 ## Paso actual
 
-**Paso 0.10: componentes en archivos separados.** Estado: en curso. Tobi pidió el 2026-10-17 los pasos 0.10 y 0.11: separar la vista de los componentes y un archivo por tipo en todo el repo. Después sigue la Fase 1, paso 2. Los pasos 0.6 a 0.9 esperan el merge de Tobi.
+**Paso 0.11: un archivo, un tipo.** Estado: en curso. El paso 0.10 cerró. Tobi pidió el 2026-10-17 los pasos 0.10 y 0.11: separar la vista de los componentes y un archivo por tipo en todo el repo. Después sigue la Fase 1, paso 2. Los pasos 0.6 a 0.9 esperan el merge de Tobi.
 
 La Fase 0 va antes del paso 2. El paso 1 (línea base) ya cerró y sirve de referencia para la Fase 0.
 
@@ -24,7 +24,7 @@ Estados: `pendiente`, `en curso`, `cerrado`, `bloqueado (⏸ decisión de Tobi)`
 | 0.7 | Servicios y nombres de Angular v22 | cerrado | `artifacts/verify-template/fase0-07-services/`, `artifacts/verify-template/fase0-07-runtime/` |
 | 0.8 | Signal Forms | cerrado | `artifacts/verify-template/fase0-08-signal-forms/`, `artifacts/verify-template/fase0-08-runtime/` |
 | 0.9 | Arranque con `provideAppInitializer()` | cerrado | `artifacts/verify-template/fase0-09-app-initializer/`, `artifacts/verify-template/fase0-09-runtime/` |
-| 0.10 | Componentes en archivos separados | pendiente | |
+| 0.10 | Componentes en archivos separados | cerrado | `artifacts/verify-template/fase0-10-component-files/`, `artifacts/verify-template/fase0-10-runtime/` |
 | 0.11 | Un archivo, un tipo | pendiente | |
 | 1 | Línea base: qué funciona hoy, con evidencia | cerrado | [linea-base.md](linea-base.md); `artifacts/verify-template/baseline-20261016/` |
 | 2 | Un solo comando de verificación local | pendiente | |
@@ -89,6 +89,16 @@ Una entrada por paso cerrado, con este formato:
 - Preguntas: qué preguntó Tobi.
 - Evidencia: artifacts/verify-template/<runId>/
 ```
+
+### Paso 0.10 — 2026-10-17
+- Enseñado: cada archivo cambia por un solo motivo. Un cambio de vista toca `tasks.html`, uno de estilo toca `tasks.css` y uno de comportamiento toca `tasks.ts`. `tasks.ts` pasó de 333 a 199 líneas. Angular compila `templateUrl` igual que `template`: el resultado en el navegador no cambia.
+- Preguntas: Tobi marcó `tasks.ts` como un archivo que junta todo.
+- Decisiones: dos filas nuevas en `docs/decisions.tsv`. `conventions.md` actualizado.
+- Evidencia: artifacts/verify-template/fase0-10-component-files/ y artifacts/verify-template/fase0-10-runtime/.
+  - Rojo antes de verde, gate: con el `check-frontend` del 0.9 falla el test nuevo (`check-frontend-red.log`). Con el nuevo pasan 20/20. Las fixtures de los tests viejos pasaron de `template: ''` a `templateUrl`.
+  - Rojo antes de verde, producto: FRONT008 frena login, registro, tareas (vista y estilos) y perfil (`check-frontend-product-red.log`).
+  - Build de Angular: PASS. `check-frontend`, `check-structure`, `check-comments` y `CommentVerifier`: PASS.
+  - verify-template: launch PASS, smoke HTTP PASS (45 requests). Después de 65 segundos, navegador PASS (15 pasos): el recorrido del 0.8 más un paso nuevo. Ese paso comprueba que `tasks.css` se aplica (borde de la fila y fondo del diálogo) y borra una tarea con el diálogo (DELETE 204). Cleanup PASS.
 
 ### Paso 0.9 — 2026-10-17
 - Enseñado: providers funcionales. `provideAppInitializer(() => inject(Session).bootstrap())` reemplaza un token multi con `useFactory` y `deps` escritos a mano: la función corre en un contexto de inyección y pide lo que necesita con `inject()`. `bootstrap()` devuelve `void`, así que Angular no lo espera, igual que antes; los guards siguen esperando `session.ready()`.

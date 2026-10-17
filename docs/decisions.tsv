@@ -52,3 +52,5 @@ ts	phase	decision	why	evidence	result
 2026-10-17	gates	FRONT007 rechaza importar los tokens de inicialización desde @angular/core	Hace ejecutable la convención del paso 0.9	dune/check-frontend.test.mjs	aceptada
 2026-10-17	proceso	AGENTS.md suma cómo enseñar cuando Tobi quiere aprender un tema: el método de la skill /aprender, con Mermaid de a poco y páginas HTML en el chat	Pide Tobi; leer no fija lo aprendido, recordar sí (retrieval practice)	AGENTS.md	aceptada
 2026-10-17	proceso	Se agregan los pasos 0.10 (componentes en archivos separados) y 0.11 (un archivo, un tipo) a la Fase 0	Pide Tobi: tasks.ts junta vista, estilos y lógica en 333 líneas, y hay archivos con varios tipos	docs/evolucion/plan.md	aceptada
+2026-10-17	convenciones	Cada componente usa templateUrl y styleUrl con sus propios archivos; no usa template ni styles en línea	Pide Tobi: tasks.ts juntaba vista, estilos y lógica en 333 líneas. Es la forma que genera el CLI y la que ya tenía app.ts	docs/conventions.md	aceptada
+2026-10-17	gates	FRONT008 rechaza template y styles en línea en @Component	Hace ejecutable la convención del paso 0.10	dune/check-frontend.test.mjs	aceptada

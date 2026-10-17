@@ -8,39 +8,7 @@ import { describeHttpError } from '../../../core/http-error';
 @Component({
   selector: 'app-login',
   imports: [FormField, FormRoot, RouterLink],
-  template: `
-    <section aria-labelledby="login-title">
-      <h1 id="login-title">Entrar</h1>
-      <form [formRoot]="loginForm">
-        <div>
-          <label for="login-user">Usuario</label>
-          <input id="login-user" type="text" [formField]="loginForm.userName" autocomplete="username" />
-          @if (loginForm.userName().touched() && loginForm.userName().invalid()) {
-            <p class="field-error">Escribe tu nombre de usuario.</p>
-          }
-        </div>
-        <div>
-          <label for="login-password">Contraseña</label>
-          <input
-            id="login-password"
-            type="password"
-            [formField]="loginForm.password"
-            autocomplete="current-password"
-          />
-          @if (loginForm.password().touched() && loginForm.password().invalid()) {
-            <p class="field-error">Escribe tu contraseña.</p>
-          }
-        </div>
-        @if (error()) {
-          <p role="alert">{{ error() }}</p>
-        }
-        <button type="submit" [disabled]="loginForm().submitting()">
-          {{ loginForm().submitting() ? 'Entrando…' : 'Entrar' }}
-        </button>
-      </form>
-      <p>¿Sin cuenta? <a routerLink="/register">Crea una cuenta</a>.</p>
-    </section>
-  `,
+  templateUrl: './login.html',
 })
 export class Login {
   private readonly session = inject(Session);

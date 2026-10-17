@@ -54,7 +54,7 @@ describe('check-frontend', () => {
       'frontend/src/app/app.routes.ts': `import { tasksRoutes } from './features/tasks';\nexport const routes = [...tasksRoutes];\n`,
       'frontend/src/app/features/tasks/index.ts': `export { tasksRoutes } from './tasks.routes';\n`,
       'frontend/src/app/features/tasks/tasks.routes.ts': `export const tasksRoutes = [\n  { path: 'tasks', loadComponent: () => import('./tasks/tasks').then((m) => m.Tasks) },\n];\n`,
-      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';\nimport type { User } from '../../users';\n@Component({ selector: 'x', template: '' })\nexport class Tasks {\n  readonly user: User | null = null;\n}\n`,
+      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';\nimport type { User } from '../../users';\n@Component({ selector: 'x', templateUrl: './x.html' })\nexport class Tasks {\n  readonly user: User | null = null;\n}\n`,
       'frontend/src/app/features/users/index.ts': `export type { User } from './users-models';\n`,
       'frontend/src/app/features/users/users-models.ts': `export interface User {\n  id: string;\n}\n`,
     });
@@ -70,9 +70,9 @@ describe('check-frontend', () => {
   it('rejects composition roots and app components that reach inside a feature', async () => {
     const project = await makeProject({
       'frontend/src/app/app.routes.ts': `export const routes = [\n  { path: 'a', loadComponent: () => import('./features/tasks/tasks/tasks').then((m) => m.Tasks) },\n];\n`,
-      'frontend/src/app/app.ts': `import { Component } from '@angular/core';\nimport { TasksService } from './features/tasks/tasks.service';\n@Component({ selector: 'app-root', template: '' })\nexport class App {\n  readonly service = TasksService;\n}\n`,
+      'frontend/src/app/app.ts': `import { Component } from '@angular/core';\nimport { TasksService } from './features/tasks/tasks.service';\n@Component({ selector: 'app-root', templateUrl: './x.html' })\nexport class App {\n  readonly service = TasksService;\n}\n`,
       'frontend/src/app/features/tasks/tasks.service.ts': `export class TasksService {}\n`,
-      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';\n@Component({ selector: 'x', template: '' })\nexport class Tasks {}\n`,
+      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';\n@Component({ selector: 'x', templateUrl: './x.html' })\nexport class Tasks {}\n`,
     });
     try {
       await seedAngular(project.root);
@@ -87,7 +87,7 @@ describe('check-frontend', () => {
   it('accepts the feature HTTP adapter while rejecting component HTTP', async () => {
     const project = await makeProject({
       'frontend/src/app/features/tasks/tasks-api.ts': `import { Service, inject } from '@angular/core';\nimport { HttpClient } from '@angular/common/http';\n@Service()\nexport class TasksApi {\n  private readonly http = inject(HttpClient);\n}\n`,
-      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component, inject } from '@angular/core';\nimport { HttpClient } from '@angular/common/http';\n@Component({ selector: 'x', template: '' })\nexport class Tasks {\n  private readonly http = inject(HttpClient);\n}\n`,
+      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component, inject } from '@angular/core';\nimport { HttpClient } from '@angular/common/http';\n@Component({ selector: 'x', templateUrl: './x.html' })\nexport class Tasks {\n  private readonly http = inject(HttpClient);\n}\n`,
     });
     try {
       await seedAngular(project.root);
@@ -102,7 +102,7 @@ describe('check-frontend', () => {
 
   it('resolves relative paths and barrel reexports to the implementation target', async () => {
     const project = await makeProject({
-      'frontend/src/app/features/auth/login/login.ts': `import { Component } from '@angular/core';\nimport { thing } from '../../../shared/barrel';\n@Component({ selector: 'x', template: '' })\nexport class Login {\n  readonly value = thing;\n}\n`,
+      'frontend/src/app/features/auth/login/login.ts': `import { Component } from '@angular/core';\nimport { thing } from '../../../shared/barrel';\n@Component({ selector: 'x', templateUrl: './x.html' })\nexport class Login {\n  readonly value = thing;\n}\n`,
       'frontend/src/app/shared/barrel.ts': `export * from './impl';\n`,
       'frontend/src/app/shared/impl.ts': `export const thing = 1;\n`,
     });
@@ -147,7 +147,7 @@ describe('check-frontend', () => {
 
   it('rejects cross-feature imports that skip the index, models included', async () => {
     const project = await makeProject({
-      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';\nimport { helper } from '../../users/impl';\nimport type { User } from '../../users/users-models';\n@Component({ selector: 'x', template: '' })\nexport class Tasks {\n  readonly value = helper;\n  readonly user: User | null = null;\n}\n`,
+      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';\nimport { helper } from '../../users/impl';\nimport type { User } from '../../users/users-models';\n@Component({ selector: 'x', templateUrl: './x.html' })\nexport class Tasks {\n  readonly value = helper;\n  readonly user: User | null = null;\n}\n`,
       'frontend/src/app/features/users/impl.ts': `export const helper = 1;\n`,
       'frontend/src/app/features/users/users-models.ts': `export interface User {\n  id: string;\n}\n`,
     });
@@ -164,7 +164,7 @@ describe('check-frontend', () => {
 
   it('rejects type-only imports of foreign implementations', async () => {
     const project = await makeProject({
-      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';\nimport type { Helper } from '../../users/impl';\n@Component({ selector: 'x', template: '' })\nexport class Tasks {\n  readonly value: Helper | null = null;\n}\n`,
+      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';\nimport type { Helper } from '../../users/impl';\n@Component({ selector: 'x', templateUrl: './x.html' })\nexport class Tasks {\n  readonly value: Helper | null = null;\n}\n`,
       'frontend/src/app/features/users/impl.ts': `export interface Helper {\n  id: string;\n}\n`,
     });
     try {
@@ -178,7 +178,7 @@ describe('check-frontend', () => {
 
   it('flags aliased HttpClient reexports in components', async () => {
     const project = await makeProject({
-      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component, inject } from '@angular/core';\nimport { HttpClient as H } from '../../../http-shim';\n@Component({ selector: 'x', template: '' })\nexport class Tasks {\n  private readonly http = inject(H);\n}\n`,
+      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component, inject } from '@angular/core';\nimport { HttpClient as H } from '../../../http-shim';\n@Component({ selector: 'x', templateUrl: './x.html' })\nexport class Tasks {\n  private readonly http = inject(H);\n}\n`,
       'frontend/src/app/http-shim.ts': `export { HttpClient } from '@angular/common/http';\n`,
     });
     try {
@@ -192,7 +192,7 @@ describe('check-frontend', () => {
 
   it('rejects qualified storage in components while allowing local shadowing', async () => {
     const violating = await makeProject({
-      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';\n@Component({ selector: 'x', template: '' })\nexport class Tasks {\n  read(): string | null {\n    return window.localStorage.getItem('k');\n  }\n}\n`,
+      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';\n@Component({ selector: 'x', templateUrl: './x.html' })\nexport class Tasks {\n  read(): string | null {\n    return window.localStorage.getItem('k');\n  }\n}\n`,
     });
     try {
       await seedAngular(violating.root);
@@ -202,7 +202,7 @@ describe('check-frontend', () => {
       await violating.cleanup();
     }
     const shadowed = await makeProject({
-      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';\n@Component({ selector: 'x', template: '' })\nexport class Tasks {\n  read(localStorage: { getItem(k: string): string | null }): string | null {\n    return localStorage.getItem('k');\n  }\n}\n`,
+      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';\n@Component({ selector: 'x', templateUrl: './x.html' })\nexport class Tasks {\n  read(localStorage: { getItem(k: string): string | null }): string | null {\n    return localStorage.getItem('k');\n  }\n}\n`,
     });
     try {
       await seedAngular(shadowed.root);
@@ -215,7 +215,7 @@ describe('check-frontend', () => {
 
   it('ignores storage names inside strings templates and regex', async () => {
     const project = await makeProject({
-      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';\nconst a = "localStorage.getItem('x')";\nconst b = \`sessionStorage \${a}\`;\nconst c = /localStorage/;\n@Component({ selector: 'x', template: '' })\nexport class Tasks {\n  readonly values = [a, b, c];\n}\n`,
+      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';\nconst a = "localStorage.getItem('x')";\nconst b = \`sessionStorage \${a}\`;\nconst c = /localStorage/;\n@Component({ selector: 'x', templateUrl: './x.html' })\nexport class Tasks {\n  readonly values = [a, b, c];\n}\n`,
     });
     try {
       await seedAngular(project.root);
@@ -228,7 +228,7 @@ describe('check-frontend', () => {
 
   it('rejects fetch and XMLHttpRequest in components including globals and aliases', async () => {
     const project = await makeProject({
-      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';\n@Component({ selector: 'x', template: '' })\nexport class Tasks {\n  async load(): Promise<unknown> {\n    const direct = await fetch('/api/v1/tasks');\n    const global = await globalThis.fetch('/api/v1/tasks');\n    const xhr = new XMLHttpRequest();\n    return [direct, global, xhr];\n  }\n}\n`,
+      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';\n@Component({ selector: 'x', templateUrl: './x.html' })\nexport class Tasks {\n  async load(): Promise<unknown> {\n    const direct = await fetch('/api/v1/tasks');\n    const global = await globalThis.fetch('/api/v1/tasks');\n    const xhr = new XMLHttpRequest();\n    return [direct, global, xhr];\n  }\n}\n`,
     });
     try {
       await seedAngular(project.root);
@@ -239,7 +239,7 @@ describe('check-frontend', () => {
       await project.cleanup();
     }
     const aliased = await makeProject({
-      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';\nimport { fetch as get } from '../../../http-ambient';\n@Component({ selector: 'x', template: '' })\nexport class Tasks {\n  load(): unknown {\n    return get('/api/v1/tasks');\n  }\n}\n`,
+      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';\nimport { fetch as get } from '../../../http-ambient';\n@Component({ selector: 'x', templateUrl: './x.html' })\nexport class Tasks {\n  load(): unknown {\n    return get('/api/v1/tasks');\n  }\n}\n`,
       'frontend/src/app/http-ambient.ts': `export const fetch: typeof globalThis.fetch = globalThis.fetch;\n`,
     });
     try {
@@ -254,7 +254,7 @@ describe('check-frontend', () => {
 
   it('resolves long alias chains and terminates on import cycles', async () => {
     const chained = await makeProject({
-      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';\nimport { a1 } from '../../../chain';\n@Component({ selector: 'x', template: '' })\nexport class Tasks {\n  load(): unknown {\n    return a1('/api/v1/tasks');\n  }\n}\n`,
+      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';\nimport { a1 } from '../../../chain';\n@Component({ selector: 'x', templateUrl: './x.html' })\nexport class Tasks {\n  load(): unknown {\n    return a1('/api/v1/tasks');\n  }\n}\n`,
       'frontend/src/app/chain.ts': `import { a2 } from './chain2';\nexport const a1 = a2;\n`,
       'frontend/src/app/chain2.ts': `import { a3 } from './chain3';\nexport const a2 = a3;\n`,
       'frontend/src/app/chain3.ts': `import { a4 } from './chain4';\nexport const a3 = a4;\n`,
@@ -269,7 +269,7 @@ describe('check-frontend', () => {
       await chained.cleanup();
     }
     const cyclic = await makeProject({
-      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';\nimport { c1 } from '../../../cycle1';\n@Component({ selector: 'x', template: '' })\nexport class Tasks {\n  load(local: string): unknown {\n    return [c1, local];\n  }\n}\n`,
+      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';\nimport { c1 } from '../../../cycle1';\n@Component({ selector: 'x', templateUrl: './x.html' })\nexport class Tasks {\n  load(local: string): unknown {\n    return [c1, local];\n  }\n}\n`,
       'frontend/src/app/cycle1.ts': `import { c2 } from './cycle2';\nexport const c1 = c2;\n`,
       'frontend/src/app/cycle2.ts': `import { c1 } from './cycle1';\nexport const c2 = c1;\n`,
     });
@@ -299,7 +299,7 @@ describe('check-frontend', () => {
   it('accepts intent names without type suffixes and @Service singletons', async () => {
     const project = await makeProject({
       'frontend/src/app/features/tasks/tasks-api.ts': `import { Service } from '@angular/core';\n@Service()\nexport class TasksApi {}\n`,
-      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';\n@Component({ selector: 'x', template: '' })\nexport class Tasks {}\n`,
+      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';\n@Component({ selector: 'x', templateUrl: './x.html' })\nexport class Tasks {}\n`,
       'frontend/src/app/features/tasks/tasks.routes.ts': `export const tasksRoutes = [];\n`,
       'frontend/src/app/features/auth/auth-guard.ts': `export const authGuard = () => true;\n`,
       'frontend/src/app/features/auth/scoped-cache.ts': `import { Injectable } from '@angular/core';\n@Injectable()\nexport class ScopedCache {}\n`,
@@ -317,7 +317,7 @@ describe('check-frontend', () => {
     const project = await makeProject({
       'frontend/src/app/features/tasks/tasks.service.ts': `import { Service } from '@angular/core';\n@Service()\nexport class TasksService {}\n`,
       'frontend/src/app/features/auth/auth.guard.ts': `export const authGuard = () => true;\n`,
-      'frontend/src/app/features/tasks/tasks/tasks-view.ts': `import { Component } from '@angular/core';\n@Component({ selector: 'x', template: '' })\nexport class TasksComponent {}\n`,
+      'frontend/src/app/features/tasks/tasks/tasks-view.ts': `import { Component } from '@angular/core';\n@Component({ selector: 'x', templateUrl: './x.html' })\nexport class TasksComponent {}\n`,
     });
     try {
       await seedAngular(project.root);
@@ -344,9 +344,9 @@ describe('check-frontend', () => {
 
   it('accepts Signal Forms and rejects Reactive or template-driven forms', async () => {
     const project = await makeProject({
-      'frontend/src/app/features/auth/login/login.ts': `import { Component } from '@angular/core';\nimport { FormField, form } from '@angular/forms/signals';\n@Component({ selector: 'x', template: '', imports: [FormField] })\nexport class Login {\n  readonly loginForm = form;\n}\n`,
-      'frontend/src/app/features/users/profile/profile.ts': `import { Component } from '@angular/core';\nimport { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';\n@Component({ selector: 'x', template: '', imports: [ReactiveFormsModule] })\nexport class Profile {\n  readonly builder = FormBuilder;\n  readonly rules = Validators;\n}\n`,
-      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';\nimport { FormsModule } from '@angular/forms';\n@Component({ selector: 'x', template: '', imports: [FormsModule] })\nexport class Tasks {}\n`,
+      'frontend/src/app/features/auth/login/login.ts': `import { Component } from '@angular/core';\nimport { FormField, form } from '@angular/forms/signals';\n@Component({ selector: 'x', templateUrl: './x.html', imports: [FormField] })\nexport class Login {\n  readonly loginForm = form;\n}\n`,
+      'frontend/src/app/features/users/profile/profile.ts': `import { Component } from '@angular/core';\nimport { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';\n@Component({ selector: 'x', templateUrl: './x.html', imports: [ReactiveFormsModule] })\nexport class Profile {\n  readonly builder = FormBuilder;\n  readonly rules = Validators;\n}\n`,
+      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';\nimport { FormsModule } from '@angular/forms';\n@Component({ selector: 'x', templateUrl: './x.html', imports: [FormsModule] })\nexport class Tasks {}\n`,
     });
     try {
       await seedAngular(project.root);
@@ -369,6 +369,35 @@ describe('check-frontend', () => {
       const { diagnostics } = await analyzeFrontend({ root: project.root });
       const initializers = diagnostics.filter((entry) => entry.rule === 'FRONT007').map((entry) => `${path.basename(entry.path)}:${entry.line}`);
       assert.deepEqual(initializers, ['app.config.ts:1', 'main.ts:1']);
+    } finally {
+      await project.cleanup();
+    }
+  });
+
+  it('accepts templateUrl and styleUrl and rejects inline template or styles', async () => {
+    const project = await makeProject({
+      'frontend/src/app/app.ts': `import { Component } from '@angular/core';
+@Component({ selector: 'app-root', templateUrl: './app.html', styleUrl: './app.css' })
+export class App {}
+`,
+      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';
+@Component({
+  selector: 'x',
+  template: '<p></p>',
+  styles: 'p {}',
+})
+export class Tasks {}
+`,
+      'frontend/src/app/features/users/profile/profile.ts': `import { Component } from '@angular/core';
+@Component({ selector: 'x', templateUrl: './profile.html', styles: ['p {}'] })
+export class Profile {}
+`,
+    });
+    try {
+      await seedAngular(project.root);
+      const { diagnostics } = await analyzeFrontend({ root: project.root });
+      const inline = diagnostics.filter((entry) => entry.rule === 'FRONT008').map((entry) => `${path.basename(entry.path)}:${entry.line}`);
+      assert.deepEqual(inline, ['tasks.ts:4', 'tasks.ts:5', 'profile.ts:2']);
     } finally {
       await project.cleanup();
     }
