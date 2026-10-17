@@ -269,7 +269,8 @@ Además: `ng build`, `node dune/check-frontend.mjs` y `node --test dune/check-fr
 
 ## 11. Decisiones de Tobi
 
-- ⏸ **BFF (sesión solo por cookie, sin JWT en el navegador).** Es el nivel más seguro del RFC 10017. Cambia el contrato de `/auth`, la autenticación del backend, el interceptor y la renovación. No hace falta Duende: alcanza con la autenticación por cookie de ASP.NET Core, porque la app y la API comparten origen.
+- **BFF: descartado por Tobi el 2026-10-17** (ver `docs/decisions.tsv`). Texto original:
+  ⏸ **BFF (sesión solo por cookie, sin JWT en el navegador).** Es el nivel más seguro del RFC 10017. Cambia el contrato de `/auth`, la autenticación del backend, el interceptor y la renovación. No hace falta Duende: alcanza con la autenticación por cookie de ASP.NET Core, porque la app y la API comparten origen.
 - ⏸ **Prefijo de la cookie de refresh** (`__Secure-`; `__Host-` obliga a `Path=/`). Backend.
 - ⏸ **Timeout por inactividad en el servidor.** Hoy solo hay timeout absoluto. Backend.
 - ⏸ **Margen de rotación del refresh token** (como el *Rotation Overlap Period* de Auth0). Backend. No hace falta si se aplica el paso C.
