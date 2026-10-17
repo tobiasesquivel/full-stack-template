@@ -1,7 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormField, FormRoot, form, maxLength, required } from '@angular/forms/signals';
 import { HttpErrorResponse } from '@angular/common/http';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { Session } from '../session/session';
 import { describeHttpError } from '../../../core/http-error';
 
@@ -12,6 +12,7 @@ import { describeHttpError } from '../../../core/http-error';
 })
 export class Login {
   private readonly session = inject(Session);
+  private readonly router = inject(Router);
 
   private readonly credentials = signal({ userName: '', password: '' });
   protected readonly loginForm = form(
@@ -29,7 +30,8 @@ export class Login {
     this.error.set(null);
     try {
       const { userName, password } = this.credentials();
-      await this.session.login(userName, password);
+      await this.session.open({ userName, password });
+      await this.router.navigate(['/tasks']);
     } catch (err) {
       this.error.set(
         err instanceof HttpErrorResponse && err.status === 401

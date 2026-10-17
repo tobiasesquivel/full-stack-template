@@ -42,7 +42,7 @@ async function seedAngular(root) {
   await mkdir(path.join(types, 'core'), { recursive: true });
   await mkdir(path.join(types, 'common'), { recursive: true });
   await writeFile(path.join(types, 'core', 'package.json'), JSON.stringify({ name: 'core', version: '0.0.0', types: './index.d.ts' }));
-  await writeFile(path.join(types, 'core', 'index.d.ts'), `export declare function Component(o: unknown): unknown;\nexport declare function Injectable(o?: unknown): unknown;\nexport declare function Service(o?: unknown): unknown;\nexport declare function inject(t: unknown): unknown;\nexport declare function signal<T>(v: T): T;\n`);
+  await writeFile(path.join(types, 'core', 'index.d.ts'), `export declare function Component(o: unknown): unknown;\nexport declare function Injectable(o?: unknown): unknown;\nexport declare function Service(o?: unknown): unknown;\nexport declare function inject(t: unknown): unknown;\nexport interface Signal<T> {\n  (): T;\n}\nexport interface WritableSignal<T> extends Signal<T> {\n  set(v: T): void;\n  asReadonly(): Signal<T>;\n}\nexport declare function signal<T>(v: T): WritableSignal<T>;\nexport declare function computed<T>(f: () => T): Signal<T>;\nexport declare function linkedSignal<T>(f: () => T): WritableSignal<T>;\n`);
   await writeFile(path.join(types, 'common', 'package.json'), JSON.stringify({ name: 'http', version: '0.0.0', types: './http.d.ts' }));
   await writeFile(path.join(types, 'common', 'http.d.ts'), `export declare class HttpClient {}\nexport declare class HttpRequest {}\n`);
   void ANGULAR_STUB;
@@ -477,6 +477,22 @@ export class Login {}
       const { diagnostics } = await analyzeFrontend({ root: project.root });
       const loose = diagnostics.filter((entry) => entry.rule === 'FRONT011').map((entry) => path.basename(entry.path));
       assert.deepEqual(loose, ['auth-guard.ts', 'session.ts']);
+    } finally {
+      await project.cleanup();
+    }
+  });
+
+  it('accepts read-only state in a service and rejects a service that exposes a writable signal', async () => {
+    const project = await makeProject({
+      'frontend/src/app/features/auth/session/session.ts': `import { Service, computed, signal } from '@angular/core';\ntype State = { status: 'open' } | { status: 'closed' };\n@Service()\nexport class Session {\n  private readonly state = signal<State>({ status: 'closed' });\n  protected readonly draft = signal('');\n  readonly status = computed(() => this.state().status);\n  readonly user = this.state.asReadonly();\n}\n`,
+      'frontend/src/app/features/tasks/api/tasks-api.ts': `import { Service, signal, linkedSignal, type WritableSignal } from '@angular/core';\ntype Writable = WritableSignal<number>;\n@Service()\nexport class TasksApi {\n  readonly page = signal(1);\n  public readonly size = linkedSignal(() => 10);\n  readonly total: Writable | null = null;\n  private readonly hidden = signal(0);\n}\n`,
+      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component, signal } from '@angular/core';\n@Component({ selector: 'x', templateUrl: './x.html' })\nexport class Tasks {\n  readonly items = signal<string[]>([]);\n}\n`,
+    });
+    try {
+      await seedAngular(project.root);
+      const { diagnostics } = await analyzeFrontend({ root: project.root });
+      const writable = diagnostics.filter((entry) => entry.rule === 'FRONT012').map((entry) => `${path.basename(entry.path)}:${entry.line}`);
+      assert.deepEqual(writable, ['tasks-api.ts:5', 'tasks-api.ts:6', 'tasks-api.ts:7']);
     } finally {
       await project.cleanup();
     }

@@ -50,7 +50,7 @@ Regla de oro: **un paso no termina con tests verdes.** Termina cuando el caso qu
 
 ## 4. El plan
 
-### Fase 0 — Bases (pasos 0.0-0.13)
+### Fase 0 — Bases (pasos 0.0-0.16)
 
 Llevan el repo a la forma de [ADR-0004](../adr/0004-vertical-slices-deep-modules.md). Ningún paso cambia un contrato HTTP: el smoke de la API prueba que nada se rompió.
 
@@ -131,6 +131,23 @@ El paso 0.13 se agregó el 2026-10-17, a pedido de Tobi: "hay muchos archivos su
 **Concepto**: agrupar por propósito, no por tipo técnico; la raíz de la feature muestra solo su puerta y sus rutas.
 **Cambia**: `auth/session/` (Session, guards, interceptor y sus modelos), `tasks/api/` y `users/api/` (cliente HTTP y modelos); los imports se ajustan y las puertas `index.ts` exportan lo mismo; una regla nueva en `check-frontend.mjs` (FRONT011) con su fixture válida y su violación deliberada.
 **Verifica**: build de Angular, `check-frontend` y navegador con el recorrido del paso 0.12.
+
+Los pasos 0.14 a 0.16 se agregaron el 2026-10-17, a pedido de Tobi: "investigá la manera más profesional de manejo de sesión en Angular y aplicalo". La investigación está en [informe-sesion-angular.md](informe-sesion-angular.md). Ninguno cambia el contrato HTTP: lo que lo cambiaría (BFF, prefijo de cookie, inactividad, margen de rotación) espera la decisión de Tobi.
+
+**0.14. Forma de la sesión.**
+**Concepto**: un solo estado con signals: el dato en un `signal` privado, lo público con `computed`; una unión discriminada (`restoring`, `open`, `closed`) impide combinaciones imposibles.
+**Cambia**: `auth/api/` (`AuthApi` y los modelos de Auth, con `OpenSessionRequest` nuevo); `Session` con `status`, `currentUser`, `isOpen` y las acciones `restore`, `open`, `close`, `refresh`, `end` y `replaceUser`; los guards esperan a `status`; login y registro navegan ellos; una regla nueva en `check-frontend.mjs` (FRONT012) con su fixture válida y su violación deliberada.
+**Verifica**: build de Angular, `check-frontend` y navegador con el recorrido del paso 0.13, sin cambios de comportamiento.
+
+**0.15. Interceptor y vuelta a la página pedida.**
+**Concepto**: un interceptor funcional que renueva una vez y reintenta una vez; `HttpContextToken` para marcar peticiones; `returnUrl` sin redirección abierta.
+**Cambia**: `SKIP_SESSION` en `auth/api/`; el interceptor agrega el token solo a `/api/` y nunca a `/auth`; el error del reintento sale tal cual; `Session.end()` lleva a `/login?returnUrl=…`; el `authGuard` agrega `returnUrl` y el login vuelve ahí solo si es una ruta interna.
+**Verifica**: build de Angular, `check-frontend` y navegador: rojo en el código del 0.14 y verde después para el header `Authorization` en `/auth`, un 404 en el reintento y el `returnUrl`; varias 401 dan una sola renovación; la renovación fallida lleva al login.
+
+**0.16. Varias pestañas.**
+**Concepto**: coordinar pestañas del mismo origen: Web Locks para que dos renovaciones no se pisen y `BroadcastChannel` para avisar que la sesión se abrió o se cerró.
+**Cambia**: `Session.refresh()` corre dentro de `navigator.locks.request`; `Session` publica `opened` y `closed` en un `BroadcastChannel` y reacciona a los de otras pestañas.
+**Verifica**: build de Angular, `check-frontend` y navegador con dos páginas del mismo contexto: rojo en el código del 0.15 y verde después para dos recargas a la vez, el logout en otra pestaña y el login de otro usuario en otra pestaña.
 
 ### Fase 1 — Base verificable (pasos 1-3)
 

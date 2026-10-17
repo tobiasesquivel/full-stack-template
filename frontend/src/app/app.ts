@@ -1,5 +1,5 @@
 import { Component, inject, signal } from '@angular/core';
-import { RouterLink, RouterOutlet } from '@angular/router';
+import { Router, RouterLink, RouterOutlet } from '@angular/router';
 import { Session } from './features/auth';
 import { describeHttpError } from './core/http-error';
 
@@ -10,6 +10,7 @@ import { describeHttpError } from './core/http-error';
 })
 export class App {
   protected readonly session = inject(Session);
+  private readonly router = inject(Router);
   protected readonly logoutError = signal<string | null>(null);
   protected readonly loggingOut = signal(false);
 
@@ -17,7 +18,8 @@ export class App {
     this.loggingOut.set(true);
     this.logoutError.set(null);
     try {
-      await this.session.logout();
+      await this.session.close();
+      await this.router.navigate(['/login']);
     } catch (err) {
       this.logoutError.set(`${describeHttpError(err)} Pulsa Salir de nuevo para reintentar.`);
     } finally {

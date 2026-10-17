@@ -74,7 +74,8 @@ frontend/src/app/
     ├── auth/
     │   ├── index.ts               la puerta: lo único que ve el resto de la app
     │   ├── auth.routes.ts         rutas de la feature, sin guards
-    │   ├── session/               Session, guards, interceptor y sus modelos HTTP
+    │   ├── api/                   AuthApi y sus modelos: AuthResponse, OpenSessionRequest…
+    │   ├── session/               Session, guards e interceptor
     │   └── login/, register/      un componente por carpeta
     └── tasks/
         ├── index.ts, tasks.routes.ts
@@ -85,6 +86,7 @@ frontend/src/app/
 - En la raíz de una feature solo viven `index.ts` y `<feature>.routes.ts`. El resto va en una carpeta con nombre de propósito: `session/`, `api/` o la carpeta del componente. FRONT011 lo hace cumplir.
 
 - Cada feature tiene su cliente HTTP, sus modelos y sus rutas. Su `index.ts` es el equivalente de `Contracts/` en el backend.
+- `Session` guarda un solo estado en un `signal` privado: `restoring` al arrancar, `open` con el usuario o `closed`. Expone `status`, `currentUser` e `isOpen` como `computed`, y las acciones `restore`, `register`, `open`, `refresh`, `close`, `end` y `replaceUser`. `AuthApi` hace el HTTP; `Session` decide el estado. `provideAppInitializer()` llama a `restore()` sin bloquear el arranque, y los guards esperan a que `status` deje de ser `restoring`.
 - La raíz de la app compone las rutas y decide qué grupo protege cada guard (`canActivateChild`). Las features no declaran guards: así `auth` y `users` no se importan entre sí al cargar la app.
 - Las dependencias siguen la dirección del backend: Auth usa `UsersApi` y `UserResponse` desde `features/users`; el perfil usa `Session` desde `features/auth`. Los componentes se cargan lazy.
 

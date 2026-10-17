@@ -1,6 +1,6 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormField, FormRoot, email, form, maxLength, minLength, required } from '@angular/forms/signals';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { Session } from '../session/session';
 import { describeHttpError } from '../../../core/http-error';
 
@@ -11,6 +11,7 @@ import { describeHttpError } from '../../../core/http-error';
 })
 export class Register {
   private readonly session = inject(Session);
+  private readonly router = inject(Router);
 
   private readonly account = signal({ userName: '', email: '', displayName: '', password: '' });
   protected readonly registerForm = form(
@@ -39,6 +40,7 @@ export class Register {
         password,
         displayName: displayName.trim() ? displayName : userName,
       });
+      await this.router.navigate(['/tasks']);
     } catch (err) {
       this.error.set(describeHttpError(err));
     }

@@ -7,7 +7,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const require = createRequire(path.join(here, '..', 'frontend', 'package.json'));
 const ts = require('typescript');
 
-export const RULES = ['FRONT001', 'FRONT002', 'FRONT003', 'FRONT004', 'FRONT005', 'FRONT006', 'FRONT007', 'FRONT008', 'FRONT009', 'FRONT010', 'FRONT011'];
+export const RULES = ['FRONT001', 'FRONT002', 'FRONT003', 'FRONT004', 'FRONT005', 'FRONT006', 'FRONT007', 'FRONT008', 'FRONT009', 'FRONT010', 'FRONT011', 'FRONT012'];
 
 const INITIALIZER_TOKENS = new Map([
   ['APP_INITIALIZER', 'provideAppInitializer'],
@@ -187,6 +187,41 @@ function providesInRoot(expression) {
     && property.name.text === 'providedIn'
     && ts.isStringLiteral(property.initializer)
     && property.initializer.text === 'root');
+}
+
+const SERVICE_DECORATORS = new Set(['Service', 'Injectable']);
+
+function isAngularWritableSignal(type) {
+  if (type.isUnion()) return type.types.some((member) => isAngularWritableSignal(member));
+  return [type.aliasSymbol, type.getSymbol()].some((symbol) => {
+    if (!symbol || symbol.name !== 'WritableSignal') return false;
+    const file = declarationFile(symbol);
+    return Boolean(file) && toPosix(file).includes('/@angular/core/');
+  });
+}
+
+function isPublicMember(member) {
+  if (member.name && ts.isPrivateIdentifier(member.name)) return false;
+  const modifiers = ts.getModifiers?.(member) ?? member.modifiers ?? [];
+  return !modifiers.some((modifier) => modifier.kind === ts.SyntaxKind.PrivateKeyword || modifier.kind === ts.SyntaxKind.ProtectedKeyword);
+}
+
+function collectWritableState(sourceFile, checker) {
+  const writableState = [];
+  function visit(node) {
+    if (ts.isClassDeclaration(node) && node.name && classDecoratorNames(node).some((name) => SERVICE_DECORATORS.has(name))) {
+      for (const member of node.members) {
+        if (!ts.isPropertyDeclaration(member) && !ts.isGetAccessorDeclaration(member)) continue;
+        if (!isPublicMember(member)) continue;
+        if (isAngularWritableSignal(checker.getTypeAtLocation(member))) {
+          writableState.push({ line: lineOf(sourceFile, member.name.getStart()), service: node.name.text, name: member.name.getText(sourceFile) });
+        }
+      }
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(sourceFile);
+  return { writableState };
 }
 
 function classDecoratorNames(node) {
@@ -388,7 +423,7 @@ export async function analyzeFrontend({ root, project } = {}) {
       throw new Error(`cannot resolve imports in ${rel}: ${error.message}`);
     }
     const refs = collectRefs(sourceFile, checker);
-    graph.set(rel, { path: rel, kind: classifyFile(rel, sourceFile), ...edges, ...refs, ...collectNaming(sourceFile), exportedTypes: exportedTypes(sourceFile) });
+    graph.set(rel, { path: rel, kind: classifyFile(rel, sourceFile), ...edges, ...refs, ...collectNaming(sourceFile), ...collectWritableState(sourceFile, checker), exportedTypes: exportedTypes(sourceFile) });
   }
   for (const [rel, node] of graph) {
     for (const edge of [...node.imports, ...node.reexports]) {
@@ -426,6 +461,9 @@ export async function analyzeFrontend({ root, project } = {}) {
     }
     for (const entry of node.styleFiles) {
       report('FRONT009', rel, entry.line, `component must not declare ${entry.property}; style the template with Tailwind classes`);
+    }
+    for (const entry of node.writableState) {
+      report('FRONT012', rel, entry.line, `${entry.service}.${entry.name} must not expose a WritableSignal; keep the signal private and expose computed() or asReadonly()`);
     }
     for (const entry of node.rootInjectables) {
       report('FRONT005', rel, entry.line, `${entry.name} must use @Service() instead of @Injectable({ providedIn: 'root' })`);

@@ -1,118 +1,92 @@
-import { Service, inject, signal } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { Router } from '@angular/router';
-import { firstValueFrom } from 'rxjs';
+import { Service, computed, inject, signal } from '@angular/core';
 import { UsersApi, type UserResponse } from '../../users';
-import type { AuthResponse } from './auth-response';
-import type { RegisterRequest } from './register-request';
-import type { TokenResponse } from './token-response';
+import { AuthApi } from '../api/auth-api';
+import type { AuthResponse } from '../api/auth-response';
+import type { OpenSessionRequest } from '../api/open-session-request';
+import type { RegisterRequest } from '../api/register-request';
+
+type SessionState =
+  | { status: 'restoring' }
+  | { status: 'open'; user: UserResponse }
+  | { status: 'closed' };
 
 @Service()
 export class Session {
-  private readonly http = inject(HttpClient);
-  private readonly router = inject(Router);
+  private readonly authApi = inject(AuthApi);
   private readonly usersApi = inject(UsersApi);
 
-  private readonly currentUserSignal = signal<UserResponse | null>(null);
-  private readonly initializedSignal = signal(false);
-  readonly currentUser = this.currentUserSignal.asReadonly();
-  readonly initialized = this.initializedSignal.asReadonly();
+  private readonly state = signal<SessionState>({ status: 'restoring' });
+  private token: string | null = null;
+  private refreshing: Promise<void> | null = null;
 
-  private accessToken: string | null = null;
-  private refreshPromise: Promise<TokenResponse> | null = null;
-  private readyResolve: () => void = () => undefined;
-  private readonly readyPromise = new Promise<void>((resolve) => {
-    this.readyResolve = resolve;
+  readonly status = computed(() => this.state().status);
+  readonly currentUser = computed(() => {
+    const state = this.state();
+    return state.status === 'open' ? state.user : null;
   });
+  readonly isOpen = computed(() => this.state().status === 'open');
 
-  ready(): Promise<void> {
-    return this.readyPromise;
+  accessToken(): string | null {
+    return this.token;
   }
 
-  token(): string | null {
-    return this.accessToken;
-  }
-
-  isAuthenticated(): boolean {
-    return this.currentUser() !== null;
-  }
-
-  setUser(user: UserResponse): void {
-    this.currentUserSignal.set(user);
-  }
-
-  bootstrap(): void {
-    this.ensureCsrf()
-      .then(() => this.refreshNow())
-      .then(() => this.loadMe())
-      .catch(() => this.clearSession())
-      .finally(() => {
-        this.initializedSignal.set(true);
-        this.readyResolve();
-      });
+  async restore(): Promise<void> {
+    try {
+      await this.authApi.issueCsrf();
+      await this.refresh();
+      const user = await this.usersApi.me();
+      this.state.set({ status: 'open', user });
+    } catch {
+      this.end();
+    }
   }
 
   async register(request: RegisterRequest): Promise<void> {
-    await this.ensureCsrf();
-    const response = await firstValueFrom(this.http.post<AuthResponse>('/api/v1/auth/register', request));
-    this.applyAuth(response);
-    await this.router.navigate(['/tasks']);
+    await this.authApi.issueCsrf();
+    this.apply(await this.authApi.register(request));
   }
 
-  async login(userName: string, password: string): Promise<void> {
-    await this.ensureCsrf();
-    const response = await firstValueFrom(
-      this.http.post<AuthResponse>('/api/v1/auth/login', { userName, password }),
-    );
-    this.applyAuth(response);
-    await this.router.navigate(['/tasks']);
+  async open(request: OpenSessionRequest): Promise<void> {
+    await this.authApi.issueCsrf();
+    this.apply(await this.authApi.open(request));
   }
 
-  async logout(): Promise<void> {
-    await this.ensureCsrf();
-    await firstValueFrom(this.http.post('/api/v1/auth/logout', {}, { responseType: 'text' }));
-    this.clearSession();
-    await this.router.navigate(['/login']);
+  async close(): Promise<void> {
+    await this.authApi.issueCsrf();
+    await this.authApi.close();
+    this.end();
   }
 
-  refreshNow(): Promise<TokenResponse> {
-    if (!this.refreshPromise) {
-      this.refreshPromise = this.doRefresh();
+  refresh(): Promise<void> {
+    this.refreshing ??= this.rotate().finally(() => {
+      this.refreshing = null;
+    });
+    return this.refreshing;
+  }
+
+  end(): void {
+    this.token = null;
+    this.state.set({ status: 'closed' });
+  }
+
+  replaceUser(user: UserResponse): void {
+    if (this.state().status === 'open') {
+      this.state.set({ status: 'open', user });
     }
-    return this.refreshPromise;
   }
 
-  clearSession(): void {
-    this.accessToken = null;
-    this.currentUserSignal.set(null);
-  }
-
-  private async doRefresh(): Promise<TokenResponse> {
+  private async rotate(): Promise<void> {
     try {
-      const response = await firstValueFrom(
-        this.http.post<TokenResponse>('/api/v1/auth/refresh', {}),
-      );
-      this.accessToken = response.accessToken;
-      return response;
+      const response = await this.authApi.refresh();
+      this.token = response.accessToken;
     } catch (error) {
-      this.clearSession();
+      this.end();
       throw error;
-    } finally {
-      this.refreshPromise = null;
     }
   }
 
-  private applyAuth(response: AuthResponse): void {
-    this.accessToken = response.accessToken;
-    this.currentUserSignal.set(response.user);
-  }
-
-  private async loadMe(): Promise<void> {
-    const me = await this.usersApi.me();
-    this.currentUserSignal.set(me);
-  }
-
-  async ensureCsrf(): Promise<void> {
-    await firstValueFrom(this.http.get('/api/v1/auth/csrf', { responseType: 'text' }));
+  private apply(response: AuthResponse): void {
+    this.token = response.accessToken;
+    this.state.set({ status: 'open', user: response.user });
   }
 }

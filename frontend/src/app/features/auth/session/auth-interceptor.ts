@@ -8,7 +8,7 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
   const session = inject(Session);
   const router = inject(Router);
 
-  const token = session.token();
+  const token = session.accessToken();
   const outgoing = token ? request.clone({ setHeaders: { Authorization: `Bearer ${token}` } }) : request;
 
   return next(outgoing).pipe(
@@ -18,16 +18,16 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
         error.status === 401 &&
         !request.url.startsWith('/api/v1/auth/')
       ) {
-        return from(session.refreshNow()).pipe(
+        return from(session.refresh()).pipe(
           switchMap(() => {
-            const retryToken = session.token();
+            const retryToken = session.accessToken();
             const retry = retryToken
               ? request.clone({ setHeaders: { Authorization: `Bearer ${retryToken}` } })
               : request;
             return next(retry);
           }),
           catchError(() => {
-            session.clearSession();
+            session.end();
             void router.navigateByUrl('/login');
             return throwError(() => error);
           }),

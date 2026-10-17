@@ -13,6 +13,6 @@ export const appConfig: ApplicationConfig = {
       withInterceptors([authInterceptor]),
       withXsrfConfiguration({ cookieName: 'XSRF-TOKEN', headerName: 'X-XSRF-TOKEN' }),
     ),
-    provideAppInitializer(() => inject(Session).bootstrap()),
+    provideAppInitializer(() => inject(Session).restore()),
   ],
 };

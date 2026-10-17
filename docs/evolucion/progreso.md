@@ -4,7 +4,7 @@ Registro vivo del [plan](plan.md). El agente lo actualiza al cerrar cada paso.
 
 ## Paso actual
 
-**Paso 0.14: manejo de sesión en Angular.** Estado: en investigación. Los pasos 0.10 a 0.13 cerraron. Tobi pidió el 2026-10-17 separar la vista de los componentes (0.10), un archivo por tipo (0.11), Tailwind (0.12), ordenar los archivos sueltos de cada feature (0.13) y una investigación sobre manejo de sesión en Angular (0.14). Después sigue la Fase 1, paso 2. Los pasos 0.6 a 0.12 esperan el merge de Tobi.
+**Paso 0.15: interceptor y vuelta a la página pedida.** Estado: pendiente. Los pasos 0.10 a 0.14 cerraron. Tobi pidió el 2026-10-17 separar la vista de los componentes (0.10), un archivo por tipo (0.11), Tailwind (0.12), ordenar los archivos sueltos de cada feature (0.13) e investigar y aplicar el manejo de sesión en Angular (0.14 a 0.16, [informe-sesion-angular.md](informe-sesion-angular.md)). Después sigue la Fase 1, paso 2. Los pasos 0.6 a 0.14 esperan el merge de Tobi.
 
 La Fase 0 va antes del paso 2. El paso 1 (línea base) ya cerró y sirve de referencia para la Fase 0.
 
@@ -28,6 +28,9 @@ Estados: `pendiente`, `en curso`, `cerrado`, `bloqueado (⏸ decisión de Tobi)`
 | 0.11 | Un archivo, un tipo | cerrado | `artifacts/verify-template/fase0-11-one-type-per-file/`, `artifacts/verify-template/fase0-11-runtime/` |
 | 0.12 | Estilos con Tailwind | cerrado | `artifacts/verify-template/fase0-12-tailwind/`, `artifacts/verify-template/fase0-12-runtime/` |
 | 0.13 | Carpetas por propósito en cada feature del frontend | cerrado | `artifacts/verify-template/fase0-13-feature-folders/`, `artifacts/verify-template/fase0-13-runtime/` |
+| 0.14 | Forma de la sesión | cerrado | `artifacts/verify-template/fase0-14-session-shape/`, `artifacts/verify-template/fase0-14-runtime/` |
+| 0.15 | Interceptor y vuelta a la página pedida | pendiente | |
+| 0.16 | Varias pestañas | pendiente | |
 | 1 | Línea base: qué funciona hoy, con evidencia | cerrado | [linea-base.md](linea-base.md); `artifacts/verify-template/baseline-20261016/` |
 | 2 | Un solo comando de verificación local | pendiente | |
 | 3 | CI verde de verdad | pendiente | |
@@ -80,6 +83,9 @@ Cosas vistas durante un paso que no le corresponden. Cada una espera su paso.
 - Hay una carpeta vacía y sin versionar, `backend/Features/Health/Test/`, de antes de este paso. Git la ignora. Borrarla es decisión de Tobi.
 - El diálogo de borrar tarea se abre arriba a la izquierda, no centrado. El preflight de Tailwind pone `margin: 0` a todo y le quita el `margin: auto` del navegador. Pasaba antes del paso 0.12 y el paso lo dejó igual. Centrarlo es una línea (`m-auto`): decisión de Tobi.
 - `backend/AGENTS.md` y `backend/docs/agents/` describen un issue tracker en `.scratch/`, que `.gitignore` excluye: los issues nunca se versionan.
+- `Profile` vuelve a pedir `/users/me` al abrirse, aunque `Session` ya tiene el usuario. Podría leerlo con `httpResource()`. Es de la feature `users`, fuera del paso 0.14.
+- Al restaurar, un error de red (`status 0`) deja la sesión `closed`, igual que un 401. Distinguir "sin conexión" de "sin sesión" queda pendiente.
+- Una regla que limite `HttpClient` a los archivos de `api/` haría ejecutable la división del paso 0.13 (`api/` hace el HTTP). Hoy FRONT002 solo lo prohíbe en componentes. Sin paso asignado.
 
 ## Cierres
 
@@ -91,6 +97,16 @@ Una entrada por paso cerrado, con este formato:
 - Preguntas: qué preguntó Tobi.
 - Evidencia: artifacts/verify-template/<runId>/
 ```
+
+### Paso 0.14 — 2026-10-17
+- Enseñado: un solo estado para la sesión. Antes eran tres piezas sueltas: `currentUser`, `initialized` y una `Promise` con `readyResolve` armada a mano. Ahora `Session` guarda una unión discriminada en un `signal` privado: `restoring`, `open` (con el usuario) o `closed`. TypeScript no deja escribir un usuario con la sesión cerrada. Lo público es `computed`: `status`, `currentUser` e `isOpen`. Los guards esperan con `toObservable(session.status).pipe(first(...))`, sin una segunda fuente de verdad. El HTTP de Auth pasó a `AuthApi`, como `UsersApi`; `Session` solo decide el estado. Las acciones usan los verbos del backend: `open`, `refresh`, `close`.
+- Preguntas: Tobi pidió investigar la forma más profesional de manejar la sesión en Angular y aplicarla.
+- Decisiones: tres filas nuevas en `docs/decisions.tsv`. `conventions.md`, `architecture.md`, `plan.md` (pasos 0.14 a 0.16) y `AGENTS.md` (el informe nuevo) actualizados.
+- Evidencia: artifacts/verify-template/fase0-14-session-shape/ y artifacts/verify-template/fase0-14-runtime/.
+  - Rojo antes de verde, gate: con el `check-frontend` del 0.13 falla el test nuevo (`check-frontend-red.log`: 23 pasan, 1 falla). Con el nuevo pasan 24/24 (`check-frontend-green.log`).
+  - Producto: el código del 0.13 ya cumplía FRONT012 (`check-frontend-product-before.log`: OK), porque `Session` exponía `asReadonly()`. La regla es preventiva. Para probarla con los tipos reales de Angular se cambió una línea de `Session` a `readonly currentUser = this.currentUserSignal` y se revirtió: FRONT012 la frena (`check-frontend-product-probe-red.log`).
+  - Build de Angular: PASS. `check-frontend`, `check-structure`, `check-comments` y `CommentVerifier`: PASS.
+  - verify-template: launch PASS, smoke HTTP PASS (45 requests). Después de 65 segundos, navegador PASS con el recorrido del 0.13 (15 pasos), sin cambios: el paso no cambia comportamiento. Cleanup PASS.
 
 ### Paso 0.13 — 2026-10-17
 - Enseñado: agrupar por propósito, no por tipo técnico. La raíz de cada feature muestra solo su puerta (`index.ts`) y sus rutas. Lo demás vive en una carpeta que dice para qué sirve: `auth/session/` junta todo lo que mantiene la sesión; `tasks/api/` junta el cliente HTTP con sus modelos. Es la misma idea que las slices del backend, y la guía de estilo de Angular desaconseja carpetas como `services/` o `models/`.

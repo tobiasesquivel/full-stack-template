@@ -36,7 +36,7 @@ export class Profile {
     this.error.set(null);
     try {
       const me = await this.usersApi.me();
-      this.session.setUser(me);
+      this.session.replaceUser(me);
       this.profile.set({ displayName: me.displayName, timezone: me.timezone });
     } catch (err) {
       this.error.set(describeHttpError(err));
@@ -54,7 +54,7 @@ export class Profile {
         displayName: displayName.trim(),
         timezone: timezone.trim(),
       });
-      this.session.setUser(updated);
+      this.session.replaceUser(updated);
       this.saved.set(true);
     } catch (err) {
       this.saveError.set(describeHttpError(err));

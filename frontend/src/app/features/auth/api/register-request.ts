@@ -1,5 +1,3 @@
-import type { UserResponse } from '../../users';
-
 export interface RegisterRequest {
   userName: string;
   email: string;
