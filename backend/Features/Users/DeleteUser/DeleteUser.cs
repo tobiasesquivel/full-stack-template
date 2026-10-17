@@ -1,5 +1,4 @@
 using ErrorOr;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using TemplateApp.Features.Auth.Contracts;
 using TemplateApp.Features.Users.Contracts;
@@ -10,15 +9,15 @@ namespace TemplateApp.Features.Users.DeleteUser;
 
 public sealed class DeleteUser
 {
-    private readonly UserManager<AppIdentityUser> _users;
     private readonly AppDbContext _db;
     private readonly IAccessPolicy _access;
+    private readonly IUserAccounts _accounts;
 
-    public DeleteUser(UserManager<AppIdentityUser> users, AppDbContext db, IAccessPolicy access)
+    public DeleteUser(AppDbContext db, IAccessPolicy access, IUserAccounts accounts)
     {
-        _users = users;
         _db = db;
         _access = access;
+        _accounts = accounts;
     }
 
     public async Task<ErrorOr<Success>> ExecuteAsync(string callerId, string authId, CancellationToken ct)
@@ -31,16 +30,10 @@ public sealed class DeleteUser
         if (!await _access.CanAccessAsync(callerId, profile, UserPermissions.Manage, ct))
             return Error.Forbidden(code: "User.Forbidden", description: "Access denied.");
 
-        AppIdentityUser? identity = await _users.FindByIdAsync(authId);
-        if (identity is null)
+        ErrorOr<Success> deleted = await _accounts.DeleteAsync(authId, ct);
+        if (deleted.IsError && deleted.FirstError.Type == ErrorType.NotFound)
             return UserErrors.NotFound(authId);
 
-        IdentityResult deleted = await _users.DeleteAsync(identity);
-        if (!deleted.Succeeded)
-            return deleted.Errors
-                .Select(e => Error.Failure(code: e.Code, description: e.Description))
-                .ToList();
-
-        return Result.Success;
+        return deleted;
     }
 }

@@ -40,13 +40,16 @@ El código todavía no tiene la forma de arriba. La Fase 0 del [plan](evolucion/
 
 | Diferencia | Paso que la resuelve |
 |---|---|
-| Auth y Users se usan por dentro en las dos direcciones. `AppIdentityUser`, una entidad de Identity, está en `Auth/Contracts` porque Users todavía la usa | 0.5 |
 | Los servicios de Auth y Users del frontend están en `core/` | 0.6 |
-| Un solo `AppDbContext` para todas las features: `Infrastructure` todavía nombra los `Domain` y `Contracts` de las features | Paso 22 |
+| Un solo `AppDbContext` para todas las features: `Infrastructure` todavía nombra los `Domain` y `Contracts` de las features. Por eso `AppIdentityUser`, una entidad de Identity, sigue en `Auth/Contracts`: `AppDbContext` hereda de `IdentityDbContext<AppIdentityUser>` y `Domain` no admite ASP.NET | Paso 22 |
 
 ## Perfil y propiedad
 
 Identity guarda el nombre de login, el email y las credenciales. `UserProfile` guarda `AuthId`, `DisplayName` y `Timezone`. `TaskItem.OwnerId` referencia `UserProfile.AuthId`. La cascada va de Identity al perfil y del perfil a las tareas. Las sesiones referencian Identity.
+
+Entre features, una entidad guarda solo el Id de la otra: `TaskItem.OwnerId` es un `string`, sin navegación. Las dos FKs que cruzan features (`UserProfiles → AspNetUsers` y `TaskItems → UserProfiles`) se declaran en `AppDbContext.ConfigureCrossFeatureRelationships`, no en la `Persistence` de cada feature. La base mantiene la integridad y la cascada mientras sea compartida. El paso 22 decide si esas FKs se quitan o quedan solo en SQL.
+
+Auth y Users se usan solo por contrato. Auth crea y lee el perfil con `Users.Contracts.IUserProfiles`. Users lee y borra la cuenta con `Auth.Contracts.IUserAccounts`. Ninguna de las dos conoce el interior de la otra.
 
 El registro crea identidad, perfil, rol y sesión en una transacción explícita. Las restricciones únicas protegen las carreras. Un resultado de error no confirma la transacción. Las migraciones son forward: renombran y hacen backfill, sin reset de base ni `EnsureCreated`.
 

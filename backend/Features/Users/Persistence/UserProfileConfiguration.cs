@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using TemplateApp.Features.Auth.Contracts;
 using TemplateApp.Features.Users.Domain;
 
 namespace TemplateApp.Features.Users.Persistence;
@@ -16,19 +15,13 @@ public sealed class UserProfileConfiguration : IEntityTypeConfiguration<UserProf
             .IsRequired();
 
         builder.Property(u => u.DisplayName)
-            .HasMaxLength(200)
+            .HasMaxLength(UserProfile.DisplayNameMaxLength)
             .IsRequired();
 
         builder.Property(u => u.Timezone)
             .HasMaxLength(100)
             .IsRequired()
             .HasDefaultValue("UTC");
-
-        builder.HasOne<AppIdentityUser>()
-            .WithOne()
-            .HasForeignKey<UserProfile>(u => u.AuthId)
-            .HasConstraintName("FK_UserProfiles_AspNetUsers_AuthId")
-            .OnDelete(DeleteBehavior.Cascade);
 
         builder.ToTable("UserProfiles");
     }

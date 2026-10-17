@@ -1,8 +1,7 @@
 using ErrorOr;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
 using TemplateApp.Features.Auth.Contracts;
-using TemplateApp.Features.Users.Domain;
+using TemplateApp.Features.Users.Contracts;
 using TemplateApp.Infrastructure.Persistence;
 
 namespace TemplateApp.Features.Auth.OpenSession;
@@ -12,18 +11,21 @@ public sealed class OpenSession
     private readonly UserManager<AppIdentityUser> _users;
     private readonly AppDbContext _db;
     private readonly TokenService _tokens;
-    private readonly IAccessPolicy _access;
+    private readonly UserAccounts _accounts;
+    private readonly IUserProfiles _profiles;
 
     public OpenSession(
         UserManager<AppIdentityUser> users,
         AppDbContext db,
         TokenService tokens,
-        IAccessPolicy access)
+        UserAccounts accounts,
+        IUserProfiles profiles)
     {
         _users = users;
         _db = db;
         _tokens = tokens;
-        _access = access;
+        _accounts = accounts;
+        _profiles = profiles;
     }
 
     public async Task<ErrorOr<(AuthResponse Response, string RefreshPlaintext)>> ExecuteAsync(OpenSessionRequest request, CancellationToken ct)
@@ -48,24 +50,15 @@ public sealed class OpenSession
 
         await _users.ResetAccessFailedCountAsync(identity);
 
-        UserProfile? profile = await _db.UserProfiles
-            .AsNoTracking()
-            .SingleOrDefaultAsync(p => p.AuthId == identity.Id, ct);
+        UserProfileSnapshot? profile = await _profiles.FindAsync(identity.Id, ct);
         if (profile is null)
             return AuthErrors.ProfileMissing;
 
         IssuedSession session = await _tokens.IssueNewFamilyAsync(identity, ct);
         await _db.SaveChangesAsync(ct);
 
-        IList<string> roles = await _users.GetRolesAsync(identity);
-        IReadOnlySet<string> permissions = await _access.GetPermissionsAsync(identity.Id, ct);
-
-        AuthResponse response = _tokens.ToAuthResponse(
-            identity,
-            new UserProfileSnapshot(profile.DisplayName, profile.Timezone),
-            roles,
-            permissions,
-            session);
+        UserAccount account = await _accounts.DescribeAsync(identity, ct);
+        AuthResponse response = _tokens.ToAuthResponse(account, profile, session);
 
         return (response, session.RefreshPlaintext);
     }

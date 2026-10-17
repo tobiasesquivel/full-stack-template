@@ -33,12 +33,12 @@ internal static class DuneDiagnostics
 
     public static readonly DiagnosticDescriptor CrossFeature = new(
         id: "DUNE0004",
-        title: "Referencia entre implementations de features",
-        messageFormat: "Una feature no llama a la implementation de otra; '{0}' solo se admite vía Domain/Contracts",
+        title: "Una feature usa el interior de otra",
+        messageFormat: "Una feature solo usa el Contracts de otra; '{0}' es interior de otra feature",
         category: "Dune",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
-        description: "Las referencias entre features son explícitas a modelos de perfil y contratos compartidos.");
+        description: "Entre features solo se usa Contracts (ADR-0004, punto 3). La regla mira el tipo nombrado y también el tipo de cada expresión, para que var no la esquive.");
 
     public static readonly DiagnosticDescriptor NamespacePath = new(
         id: "DUNE0005",

@@ -1,3 +1,5 @@
+using TemplateApp.Features.Auth.Contracts;
+
 namespace TemplateApp.Features.Users.Contracts;
 
 public sealed record UserResponse(
@@ -7,4 +9,15 @@ public sealed record UserResponse(
     string DisplayName,
     string Timezone,
     IReadOnlyList<string> Roles,
-    IReadOnlyList<string> Permissions);
+    IReadOnlyList<string> Permissions)
+{
+    public static UserResponse From(UserAccount account, UserProfileSnapshot profile) =>
+        new(
+            account.AuthId,
+            account.UserName,
+            account.Email,
+            profile.DisplayName,
+            profile.Timezone,
+            account.Roles,
+            account.Permissions);
+}

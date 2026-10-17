@@ -17,7 +17,8 @@ El código actual todavía no cumple todas estas reglas. La Fase 0 del [plan](ev
 - `Persistence/` contiene los mappings de EF.
 - `<Feature>Feature.cs` registra la DI y las rutas de la feature. `Program.cs` lista las features de forma explícita.
 - Lo que nombra una feature va a esa feature. `Infrastructure/` y `Shared/` no nombran ninguna feature.
-- Una feature solo usa el `Contracts/` de otra. Users depende de `Auth.Contracts`; Auth no depende de Users por dentro.
+- Una feature solo usa el `Contracts/` de otra. Users depende de `Auth.Contracts`; Auth no depende de Users por dentro. DUNE0004 lo hace cumplir: mira el tipo nombrado y también el tipo de cada expresión, así que `var` no lo esquiva.
+- Entre features, una entidad guarda solo el Id de la otra, sin propiedad de navegación. Si necesita un dato de la otra feature, lo pide a su contrato.
 
 ## Nombres y estilo
 
@@ -46,6 +47,7 @@ Excepciones (la lista es cerrada):
 
 ## Persistencia
 
+- Las FKs entre features se declaran en `AppDbContext.ConfigureCrossFeatureRelationships` hasta el paso 22. La `Persistence` de una feature configura solo sus propias tablas.
 - Commits de EF explícitos. Una operación con varias escrituras atómicas abre una transacción antes de escribir y confirma al terminar.
 - Se propaga el `CancellationToken` en toda llamada que lo acepte.
 - El tiempo sale de `TimeProvider`, en UTC. No se usa el reloj local, ni bloqueos síncronos de `Task`, ni SQL crudo sin parámetros.

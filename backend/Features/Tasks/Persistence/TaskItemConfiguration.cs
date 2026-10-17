@@ -1,7 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using TemplateApp.Features.Tasks.Domain;
-using TemplateApp.Features.Users.Domain;
 
 namespace TemplateApp.Features.Tasks.Persistence;
 
@@ -25,11 +24,6 @@ public sealed class TaskItemConfiguration : IEntityTypeConfiguration<TaskItem>
         builder.Property(t => t.UpdatedAt);
 
         builder.HasIndex(t => t.OwnerId);
-
-        builder.HasOne<UserProfile>()
-            .WithMany()
-            .HasForeignKey(t => t.OwnerId)
-            .OnDelete(DeleteBehavior.Cascade);
 
         builder.ToTable("TaskItems");
     }

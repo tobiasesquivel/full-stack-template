@@ -22,6 +22,8 @@ public static class AuthFeature
         services.AddAuthHttpPolicy();
 
         services.AddScoped<IAccessPolicy, AccessPolicy>();
+        services.AddScoped<UserAccounts>();
+        services.AddScoped<IUserAccounts>(sp => sp.GetRequiredService<UserAccounts>());
         services.AddScoped<IDatabaseSeeder, RoleSeeder>();
         services.AddScoped<TokenService>();
         services.AddScoped<SessionValidator>();

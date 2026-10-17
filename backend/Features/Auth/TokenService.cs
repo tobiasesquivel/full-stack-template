@@ -10,6 +10,7 @@ using Microsoft.IdentityModel.Tokens;
 using TemplateApp.Features.Auth.Contracts;
 using TemplateApp.Features.Auth.Domain;
 using TemplateApp.Features.Auth.Jwt;
+using TemplateApp.Features.Users.Contracts;
 using TemplateApp.Infrastructure.Persistence;
 
 namespace TemplateApp.Features.Auth;
@@ -189,18 +190,8 @@ public sealed class TokenService
             rt => rt.FamilyId == familyId && rt.UserId == userId && rt.RevokedAt == null,
             ct);
 
-    public AuthResponse ToAuthResponse(AppIdentityUser user, UserProfileSnapshot profile, IList<string> roles, IReadOnlySet<string> permissions, IssuedSession session) =>
-        new(
-            new TemplateApp.Features.Users.Contracts.UserResponse(
-                user.Id,
-                user.UserName,
-                user.Email,
-                profile.DisplayName,
-                profile.Timezone,
-                new List<string>(roles).AsReadOnly(),
-                permissions.ToList().AsReadOnly()),
-            session.AccessToken,
-            session.AccessTokenExpiresAt);
+    public AuthResponse ToAuthResponse(UserAccount account, UserProfileSnapshot profile, IssuedSession session) =>
+        new(UserResponse.From(account, profile), session.AccessToken, session.AccessTokenExpiresAt);
 
     public TokenResponse ToTokenResponse(IssuedSession session) =>
         new(session.AccessToken, session.AccessTokenExpiresAt);

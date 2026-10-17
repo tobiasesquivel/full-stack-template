@@ -4,7 +4,7 @@ Registro vivo del [plan](plan.md). El agente lo actualiza al cerrar cada paso.
 
 ## Paso actual
 
-**Fase 0, paso 0.5: límite entre Auth y Users.** Estado: sin empezar. El paso 0.4 espera el merge de Tobi.
+**Fase 0, paso 0.6: frontend por feature.** Estado: sin empezar. Los pasos 0.4 y 0.5 esperan el merge de Tobi.
 
 La Fase 0 va antes del paso 2. El paso 1 (línea base) ya cerró y sirve de referencia para la Fase 0.
 
@@ -19,7 +19,7 @@ Estados: `pendiente`, `en curso`, `cerrado`, `bloqueado (⏸ decisión de Tobi)`
 | 0.2 | Arreglos de Dune | cerrado | `artifacts/verify-template/fase0-02-dune/` |
 | 0.3 | Reparto del código | cerrado | `artifacts/verify-template/fase0-03-reparto/`, `artifacts/verify-template/fase0-03-runtime/` |
 | 0.4 | Slices | cerrado | `artifacts/verify-template/fase0-04-slices/`, `artifacts/verify-template/fase0-04-runtime/` |
-| 0.5 | Límite entre Auth y Users | pendiente | |
+| 0.5 | Límite entre Auth y Users | cerrado | `artifacts/verify-template/fase0-05-auth-users/`, `artifacts/verify-template/fase0-05-runtime/` |
 | 0.6 | Frontend por feature | pendiente | |
 | 1 | Línea base: qué funciona hoy, con evidencia | cerrado | [linea-base.md](linea-base.md); `artifacts/verify-template/baseline-20261016/` |
 | 2 | Un solo comando de verificación local | pendiente | |
@@ -64,9 +64,11 @@ Cosas vistas durante un paso que no le corresponden. Cada una espera su paso.
 
 - Catálogo de errores: `TaskErrors`, `UserErrors` y `AuthErrors` usan prefijos distintos y hay errores escritos en línea (`"Task.Forbidden"` aparece 4 veces). Paso 6.
 - El build Release muestra 218 warnings de analyzers (CA2007, CA1707, RS2008, RS1036, CS8602 y otros). Nadie decidió si cada uno se corrige o se baja a `suggestion`. Sin paso asignado: proponer uno.
-- `docs/evolucion/informe-vsa-deep-modules.md` §2.1 propone `AppIdentityUser` en `Auth/Domain`. Choca con `architecture.md` (Domain sin ASP.NET). En el paso 0.3 quedó en `Auth/Contracts`; su lugar final se decide en el 0.5.
-- La regla "DisplayName entre 1 y 200" está en `RegisterUser` (Auth) y en `UpdateProfileRequestValidator` (Users). Debería bajar a `UserProfile`, pero Auth no puede usar el `Domain` de Users. Paso 0.5.
+- `docs/evolucion/informe-vsa-deep-modules.md` §2.1 propone `AppIdentityUser` en `Auth/Domain`. Choca con `architecture.md` (Domain sin ASP.NET). Desde el paso 0.5, Users ya no lo usa; sigue en `Auth/Contracts` solo porque `AppDbContext` hereda de `IdentityDbContext<AppIdentityUser>`. Paso 22.
+- Las dos FKs entre features (`UserProfiles → AspNetUsers`, `TaskItems → UserProfiles`) están en `AppDbContext.ConfigureCrossFeatureRelationships`. Con un `DbContext` por feature hay que elegir: quitarlas y reemplazar la cascada por un evento (Grzybek, Wolverine) o dejarlas solo en SQL (Jovanović). Paso 22.
+- `RegisterUser` (Auth) y `UserProfiles` (Users) usan el mismo `AppDbContext` del request: la atomicidad del registro depende de eso. Con contextos separados hace falta compartir conexión y transacción, o un outbox. Pasos 22 y 24.
 - `"Task.Forbidden"` y `"User.Forbidden"` siguen escritos en línea en cada slice. Paso 6.
+- `AuthErrors.AccountNotFound` (`Auth.AccountNotFound`) es nuevo y `DeleteUser` lo traduce a `User.NotFound`. Entra en el catálogo del paso 6.
 - `Tests/Support/TestSession.cs` declara tres tipos en un archivo. La regla de un tipo por archivo hoy cubre solo las features. Sin paso asignado.
 - Hay una carpeta vacía y sin versionar, `backend/Features/Health/Test/`, de antes de este paso. Git la ignora. Borrarla es decisión de Tobi.
 - `backend/AGENTS.md` y `backend/docs/agents/` describen un issue tracker en `.scratch/`, que `.gitignore` excluye: los issues nunca se versionan.
@@ -81,6 +83,19 @@ Una entrada por paso cerrado, con este formato:
 - Preguntas: qué preguntó Tobi.
 - Evidencia: artifacts/verify-template/<runId>/
 ```
+
+### Paso 0.5 — 2026-10-17
+- Enseñado: dependencia en una sola dirección entre módulos y contrato público. Auth crea y lee el perfil con `Users.Contracts.IUserProfiles`; Users lee y borra la cuenta con `Auth.Contracts.IUserAccounts`. Entre features, una entidad guarda solo el Id del otro lado, sin navegación. Un gate que se esquiva con `var` no hace cumplir la regla: DUNE0004 ahora mira también el tipo de cada expresión.
+- Preguntas: cómo resuelve la industria las FKs entre módulos (Tobi pidió investigarlo); si las entidades no deberían tener FKs y navegaciones; si convenía juntar todo el dominio; cómo se ve "crear usuario" cuando la identidad y el perfil son de features distintas.
+- Decisiones: Tobi eligió la postura pragmática para las FKs (quedan en la base, declaradas en `AppDbContext`), `IUserAccounts` en Auth.Contracts y validar el DisplayName al crear el perfil. Cinco filas nuevas en `docs/decisions.tsv`. `architecture.md` y `conventions.md` actualizados.
+- Evidencia: artifacts/verify-template/fase0-05-auth-users/ y artifacts/verify-template/fase0-05-runtime/.
+  - Rojo antes de verde, Dune: con el analyzer viejo fallan `CrossFeatureRejectsForeignDomain` y `CrossFeatureRejectsForeignDomainReachedWithoutNamingIt` (`dune-red.log`). Con el nuevo pasan 63/63.
+  - Rojo antes de verde, producto: el DUNE0004 nuevo frena el código del paso 0.4 en `RegisterUser.cs`, `OpenSession.cs` y `TaskItemConfiguration.cs` (`product-red.log`), y en ningún otro archivo.
+  - EF `has-pending-model-changes`: PASS (sin cambios de modelo; las FKs se movieron sin migración). Sin la FK de `TaskItems` falla, como debe (`ef-pending-red.log`).
+  - Test nuevo `Register_WithBlankDisplayName_Returns400_WithoutPartialRows`: PASS. Con un commit forzado en la rama de error falla con `Assert.Null() Failure` (`register-rollback-red.log`).
+  - Build Release: PASS (0 errores, 206 warnings; el paso 0.4 compilado igual da 203). La diferencia es +2 CA1707 y +4 CA2007, del pendiente sobre warnings de analyzers. Tests `TemplateApp.slnx`: PASS (93/93: 30 de producto y 63 de Dune). `CommentVerifier`, `check-structure` (24/24) y `check-comments` (18/18): PASS.
+  - verify-template: launch PASS (build, tests, PostgreSQL, API y front), smoke HTTP PASS (45 requests, igual que en el paso 0.4), cleanup PASS.
+  - Navegador: NOT_RUN. El paso no cambia contratos HTTP ni el frontend.
 
 ### Paso 0.4 — 2026-10-17
 - Enseñado: la profundidad se mide en el borde de la feature, no en la slice. Cada slice declara solo sus dependencias: `ListTasks` recibe solo `AppDbContext`, mientras `TasksModule` cargaba `IAccessPolicy` y `TimeProvider` para todas. Lo que se repetía entre slices (regla del título, traducción de validación) baja al `Domain` o a `Shared`. Una interfaz con una sola implementación y un solo uso es un seam hipotético (`IDatabaseReadinessProbe`).

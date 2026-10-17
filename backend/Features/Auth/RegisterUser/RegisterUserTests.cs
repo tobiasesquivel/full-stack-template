@@ -40,4 +40,32 @@ public sealed class RegisterUserTests : IClassFixture<ApiFixture>
         AppIdentityUser? identity = await users.FindByNameAsync(name);
         Assert.NotNull(identity);
     }
+
+    [Fact]
+    public async Task Register_WithBlankDisplayName_Returns400_WithoutPartialRows()
+    {
+        TestSession bob = new(_fixture.CreateClient());
+        await bob.CsrfAsync();
+        string name = TestAccounts.UniqueName("bob");
+
+        SessionResponse rejected = await bob.SendAsync(
+            HttpMethod.Post,
+            "api/v1/auth/register",
+            new { userName = name, email = $"{name}@example.test", password = $"Smoke!{Guid.NewGuid():N}Aa9", displayName = "   " },
+            authenticated: false);
+
+        Assert.Equal(HttpStatusCode.BadRequest, rejected.Status);
+        Assert.NotNull(rejected.Payload);
+        using (rejected.Payload)
+            Assert.True(rejected.Payload.RootElement.GetProperty("errors").TryGetProperty("DisplayName", out _));
+
+        using (IServiceScope scope = _fixture.Services.CreateScope())
+        {
+            UserManager<AppIdentityUser> users = scope.ServiceProvider.GetRequiredService<UserManager<AppIdentityUser>>();
+            Assert.Null(await users.FindByNameAsync(name));
+        }
+
+        TestSession retry = new(_fixture.CreateClient());
+        await retry.RegisterAsync(name);
+    }
 }

@@ -1,4 +1,5 @@
 using FluentValidation;
+using TemplateApp.Features.Users.Domain;
 
 namespace TemplateApp.Features.Users.UpdateProfile;
 
@@ -10,8 +11,8 @@ public sealed class UpdateProfileRequestValidator : AbstractValidator<UpdateProf
             .Cascade(CascadeMode.Stop)
             .NotNull()
             .WithMessage("DisplayName must not be null.")
-            .Must(name => name.Trim().Length is >= 1 and <= 200)
-            .WithMessage("DisplayName must be between 1 and 200 characters.");
+            .Must(UserProfile.IsValidDisplayName)
+            .WithMessage($"DisplayName must be between 1 and {UserProfile.DisplayNameMaxLength} characters.");
 
         RuleFor(x => x.Timezone)
             .Cascade(CascadeMode.Stop)

@@ -1,10 +1,12 @@
+using TemplateApp.Features.Users.Contracts;
+
 namespace TemplateApp.Features.Users;
 
 public static class UsersFeature
 {
     public static IServiceCollection AddUsersFeature(this IServiceCollection services)
     {
-        services.AddScoped<UserResponseBuilder>();
+        services.AddScoped<IUserProfiles, UserProfiles>();
         services.AddScoped<GetUser.GetUser>();
         services.AddScoped<UpdateProfile.UpdateProfile>();
         services.AddScoped<DeleteUser.DeleteUser>();

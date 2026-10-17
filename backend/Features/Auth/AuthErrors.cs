@@ -20,6 +20,10 @@ public static class AuthErrors
         code: "Auth.ProfileMissing",
         description: "User profile is missing.");
 
+    public static readonly Error AccountNotFound = Error.NotFound(
+        code: "Auth.AccountNotFound",
+        description: "Account not found.");
+
     public static readonly Error InvalidSession = Error.Unauthorized(
         code: "Auth.InvalidSession",
         description: "Invalid session.");
