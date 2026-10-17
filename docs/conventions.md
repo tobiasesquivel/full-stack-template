@@ -90,6 +90,7 @@ Excepciones (la lista es cerrada):
 - Las pruebas de `Infrastructure/` y del arranque del host viven en `backend/Tests/<Área>/`, por ejemplo `backend/Tests/Startup/`.
 - Se prueba por comportamiento: autorización, transacciones, replay, cascadas, health y exportación de señales.
 - Las reglas de Dune se prueban con una fixture válida y una violación deliberada, observando diagnósticos o códigos de salida.
+- En el frontend, cada `*.spec.ts` vive junto a su archivo y corre con Vitest y jsdom. Se prueban funciones puras y componentes de presentación: entradas con `fixture.componentRef.setInput()`, salidas con `subscribe()` y el DOM después de `await fixture.whenStable()` ("Act, Wait, Assert"). No se usa `fixture.detectChanges()`. Un componente de ruta se prueba en el navegador, contra la API real.
 
 ## Cambios
 

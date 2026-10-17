@@ -5,9 +5,9 @@ Angular 22.2.1. La app consume la API del mismo origen bajo `/api/v1`
 
 ## Desarrollo
 
-`npm test` ya tiene runner: el builder `@angular/build:unit-test` de `angular.json` usa Vitest con jsdom, y los dos están en `devDependencies`. Lo que falta son las pruebas: no existe ningún `*.spec.ts`, así que `npm test` falla con "No tests found". Adoptar una suite es una decisión pendiente de Tobi. Hoy la prueba real es el navegador contra la API: registro, login, recarga sin perder la sesión, perfil, tareas y logout.
+`npm test -- --watch=false` corre la suite de Vitest con jsdom: el builder `@angular/build:unit-test` de `angular.json`, sin zone.js. Cada spec vive junto a su archivo (`return-url.spec.ts`, `http-error.spec.ts`, `task-pager.spec.ts`). La prueba completa sigue siendo el navegador contra la API: registro, login, recarga sin perder la sesión, perfil, tareas y logout.
 
-`ng generate component` no crea `.css` ni `styleUrl`: `angular.json` fija `"style": "none"`, porque los estilos son clases de Tailwind. FRONT014 lo hace cumplir. Sigue creando el `.spec.ts`: quitarlo o usarlo depende de la decisión sobre la suite.
+`ng generate component` no crea `.css` ni `styleUrl`: `angular.json` fija `"style": "none"`, porque los estilos son clases de Tailwind. FRONT014 lo hace cumplir. También crea el `.spec.ts`, que la suite usa.
 
 ```bash
 npm ci

@@ -67,7 +67,7 @@ Si Tobi dice "enseñame", "quiero entender" o "explicámelo", usá la skill `/ap
 
 ## Verificación
 
-La lista única de comandos está en [README.md](README.md#ejecutar-gates). Las pruebas backend necesitan Docker (PostgreSQL real). No hay suite de tests frontend: la prueba real es el navegador y la skill `verify-template`.
+La lista única de comandos está en [README.md](README.md#ejecutar-gates). Las pruebas backend necesitan Docker (PostgreSQL real). El frontend tiene una suite de Vitest con jsdom (`npm test -- --watch=false` en `frontend/`) para funciones puras y componentes de presentación. El recorrido completo se prueba en el navegador con la skill `verify-template`.
 
 La evidencia de cada corrida va en `artifacts/verify-template/<runId>/`. Esa carpeta no se versiona: el resumen de cada paso va en `progreso.md`.
 
