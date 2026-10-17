@@ -50,7 +50,7 @@ Regla de oro: **un paso no termina con tests verdes.** Termina cuando el caso qu
 
 ## 4. El plan
 
-### Fase 0 — Bases (pasos 0.0-0.20)
+### Fase 0 — Bases (pasos 0.0-0.25)
 
 Llevan el repo a la forma de [ADR-0004](../adr/0004-vertical-slices-deep-modules.md). Ningún paso cambia un contrato HTTP: el smoke de la API prueba que nada se rompió.
 
@@ -170,6 +170,33 @@ Los pasos 0.17 a 0.20 se agregaron el 2026-10-17, a pedido de Tobi: "aplicá lo 
 **Concepto**: un hijo maneja su propio DOM con `viewChild` y `afterRenderEffect`; el padre decide el foco.
 **Cambia**: `features/tasks/task-delete-dialog/` nuevo; `Tasks` pierde `confirmDialog` y el `showModal()`.
 **Verifica**: build de Angular, gates y navegador: `Escape` cierra y el foco vuelve al `Eliminar` de esa fila; `Confirmar` da `DELETE` 204 y el foco va a "Mis tareas"; borrar la única tarea de la página 2 vuelve a la página 1.
+
+Los pasos 0.21 a 0.25 se agregaron el 2026-10-17, a pedido de Tobi, con sus decisiones sobre los dos informes. Eligió la suite de Vitest, `prettier --check` como gate, el MCP del CLI de Angular en solo lectura y e2e con Playwright Test (`@playwright/test`; tester-army/e2e quedó descartado: es pre-1.0, pide un modelo de IA y manda telemetría por defecto). Para lo visual: centrar el diálogo y llevar el error de la edición en línea bajo su campo. Storybook queda descartado. El Stop hook espera hasta después del paso 2 de la Fase 1.
+
+**0.21. Diálogo centrado y error bajo su campo.** (cambia comportamiento)
+**Concepto**: un error de campo vive junto al campo y se enlaza con `aria-describedby`; un error de la acción vive en la página. El preflight de Tailwind quita el `margin: auto` del `<dialog>`.
+**Cambia**: `TaskDeleteDialog` suma `m-auto`; `TaskRow` muestra "El título es obligatorio (máximo 200 caracteres)." justo después del input y lo enlaza con `aria-describedby`; se van `renameRejected` y el mensaje bajo la lista para ese caso. Los errores de la API siguen bajo la lista.
+**Verifica**: navegador en rojo con el código del 0.20 y en verde después: el centro del diálogo coincide con el del viewport; el mensaje es el elemento que sigue al input y `aria-describedby` apunta a él; mismo texto y sin `PUT`.
+
+**0.22. Primera suite de Vitest.**
+**Concepto**: pruebas unitarias y de componente con Vitest y jsdom, sin zone.js: "Act, Wait, Assert" con `await fixture.whenStable()`.
+**Cambia**: `return-url.spec.ts`, `http-error.spec.ts` y `task-pager.spec.ts`; `ng test --watch=false` en el README, en CI y en `AGENTS.md`.
+**Verifica**: cada spec falla contra una implementación rota a propósito y pasa con la real; build, gates y CI local.
+
+**0.23. Formato verificado con Prettier.**
+**Concepto**: un formato que decide una herramienta, no una persona; el gate falla ante un archivo sin formatear.
+**Cambia**: un commit que solo formatea con la configuración de `frontend/.prettierrc`, y otro con `npm run format:check` en el README y en CI.
+**Verifica**: un archivo mal formateado a propósito hace fallar el gate; después pasa. El build y el navegador no cambian.
+
+**0.24. E2E con Playwright Test.**
+**Concepto**: el recorrido del navegador como specs que corren igual cada vez, con selectores por rol y label.
+**Cambia**: `@playwright/test` en `frontend/`; `frontend/e2e/` con `playwright.config.ts` y specs por feature; la URL sale de una variable de entorno, así corre contra una instancia de `verify-template`; el README y la skill dicen cómo correrlo.
+**Verifica**: una prueba falla contra un label roto a propósito y todo pasa contra una instancia real. CI queda para el paso 3 si el job de compose no lo aloja sin cambios.
+
+**0.25. MCP del CLI de Angular, solo lectura.**
+**Concepto**: el agente consulta la documentación y la guía de la versión instalada desde el propio CLI.
+**Cambia**: `.mcp.json` con `ng mcp --read-only`; `AGENTS.md` lo nombra.
+**Verifica**: el servidor arranca, lista sus herramientas y `list_projects` devuelve `frontend`.
 
 ### Fase 1 — Base verificable (pasos 1-3)
 

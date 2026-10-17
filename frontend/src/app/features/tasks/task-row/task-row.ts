@@ -1,4 +1,4 @@
-import { Component, input, linkedSignal, output } from '@angular/core';
+import { Component, computed, input, linkedSignal, output } from '@angular/core';
 import { FormField, form, maxLength, required, requiredError, submit, validate } from '@angular/forms/signals';
 import type { TaskResponse } from '../api/task-response';
 
@@ -18,7 +18,6 @@ export class TaskRow {
   readonly completedChange = output<boolean>();
   readonly editStarted = output();
   readonly renamed = output<string>();
-  readonly renameRejected = output();
   readonly editCancelled = output();
   readonly removeRequested = output<HTMLButtonElement>();
 
@@ -32,13 +31,14 @@ export class TaskRow {
     validate(path.title, ({ value }) => (value().trim() === '' ? requiredError() : undefined));
   });
 
+  protected readonly showTitleError = computed(() => this.editForm.title().touched() && this.editForm.title().invalid());
+
   protected async save(): Promise<void> {
     await submit(this.editForm, {
       action: async () => {
         this.renamed.emit(this.draft().title.trim());
         return undefined;
       },
-      onInvalid: () => this.renameRejected.emit(),
     });
   }
 }

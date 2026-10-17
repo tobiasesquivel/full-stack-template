@@ -25,11 +25,11 @@ Preconditions:
 
 Rellena `#new-task-title` con `Prueba de runtime`. Pulsa el botón `Crear` del formulario `Crear tarea`. Exige `POST /api/v1/tasks` 201 y una fila visible con ese título. Captura el estado antes y después.
 
-En la fila que contiene el título, pulsa `Editar`. Rellena `input[aria-label="Editar título"]` con `Prueba persistida`. Pulsa `Guardar` dentro de esa fila. Exige `PUT /api/v1/tasks/{id}` 200. Marca el checkbox con nombre accesible `Marcar hecha: Prueba persistida`. Exige otra respuesta PUT 200 con `isCompleted=true`.
+En la fila que contiene el título, pulsa `Editar`. Rellena `input[aria-label="Editar título"]` con `Prueba persistida`. Pulsa `Guardar` dentro de esa fila. Exige `PUT /api/v1/tasks/{id}` 200. Con el campo vacío, `Guardar` no manda `PUT` y muestra "El título es obligatorio (máximo 200 caracteres)." justo debajo del input, que lo nombra con `aria-describedby`. Marca el checkbox con nombre accesible `Marcar hecha: Prueba persistida`. Exige otra respuesta PUT 200 con `isCompleted=true`.
 
 Recarga la página. Espera el refresh de sesión y la lista. Exige el título `Prueba persistida` y el checkbox marcado. La recarga es la segunda lectura que prueba el dato persistido, no una modificación directa del estado Angular.
 
-Pulsa `Eliminar` dentro de la misma fila. Acepta la confirmación `¿Eliminar «Prueba persistida»?`. Exige DELETE 204. Recarga y exige que esa fila no aparezca.
+Pulsa `Eliminar` dentro de la misma fila. Acepta la confirmación `¿Eliminar «Prueba persistida»?`; el diálogo aparece centrado. Exige DELETE 204. Recarga y exige que esa fila no aparezca.
 
 Ejecuta `node .agents/skills/verify-template/scripts/verify.mjs api --run-id repro-template`. El smoke crea dos usuarios reales, comprueba páginas sin IDs repetidos, lectura propia, PUT idempotente, 403 de un usuario ajeno y 404 para una tarea inexistente. No inyecta permisos ficticios por headers.
 

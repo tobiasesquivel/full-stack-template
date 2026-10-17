@@ -96,10 +96,6 @@ export class Tasks {
     this.editingId.set(null);
   }
 
-  protected rejectTitle(): void {
-    this.actionError.set('El título es obligatorio (máximo 200 caracteres).');
-  }
-
   protected async saveTitle(task: TaskResponse, title: string): Promise<void> {
     await this.runRowAction(task.id, () =>
       this.tasksApi.update(task.id, { title, isCompleted: task.isCompleted }),

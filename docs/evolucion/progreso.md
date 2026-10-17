@@ -4,7 +4,7 @@ Registro vivo del [plan](plan.md). El agente lo actualiza al cerrar cada paso.
 
 ## Paso actual
 
-**Fase 1, paso 2: un solo comando de verificación local.** Estado: pendiente. Los pasos 0.10 a 0.20 cerraron. Tobi pidió el 2026-10-17 separar la vista de los componentes (0.10), un archivo por tipo (0.11), Tailwind (0.12), ordenar los archivos sueltos de cada feature (0.13), investigar y aplicar el manejo de sesión en Angular (0.14 a 0.16, [informe-sesion-angular.md](informe-sesion-angular.md)) y aplicar lo que no necesita decisión de herramienta de [informe-componentes-angular.md](informe-componentes-angular.md) y [informe-frontend-para-agentes.md](informe-frontend-para-agentes.md) (0.17 a 0.20). Los pasos 0.6 a 0.20 esperan el merge de Tobi.
+**Paso 0.22: primera suite de Vitest.** Estado: pendiente. Los pasos 0.10 a 0.21 cerraron. Tobi pidió el 2026-10-17 separar la vista de los componentes (0.10), un archivo por tipo (0.11), Tailwind (0.12), ordenar los archivos sueltos de cada feature (0.13), investigar y aplicar el manejo de sesión en Angular (0.14 a 0.16, [informe-sesion-angular.md](informe-sesion-angular.md)) y aplicar lo que no necesita decisión de herramienta de [informe-componentes-angular.md](informe-componentes-angular.md) y [informe-frontend-para-agentes.md](informe-frontend-para-agentes.md) (0.17 a 0.20). Después eligió Vitest, Prettier, Playwright Test, el MCP del CLI y los ajustes visuales (0.21 a 0.25). Después de 0.25 sigue la Fase 1, paso 2. Los pasos 0.6 a 0.21 esperan el merge de Tobi.
 
 La Fase 0 va antes del paso 2. El paso 1 (línea base) ya cerró y sirve de referencia para la Fase 0.
 
@@ -35,6 +35,11 @@ Estados: `pendiente`, `en curso`, `cerrado`, `bloqueado (⏸ decisión de Tobi)`
 | 0.18 | Componente de ruta y componente de presentación: `TaskPager` | cerrado | `artifacts/verify-template/fase0-18-task-pager/`, `artifacts/verify-template/fase0-18-runtime/` |
 | 0.19 | Estado local en el hijo: `TaskRow` | cerrado | `artifacts/verify-template/fase0-19-task-row/`, `artifacts/verify-template/fase0-19-runtime-baseline/` (línea base), `artifacts/verify-template/fase0-19-runtime/` |
 | 0.20 | Diálogo de presentación: `TaskDeleteDialog` | cerrado | `artifacts/verify-template/fase0-20-task-delete-dialog/`, `artifacts/verify-template/fase0-19-runtime-baseline/` (línea base), `artifacts/verify-template/fase0-20-runtime/` |
+| 0.21 | Diálogo centrado y error bajo su campo | cerrado | `artifacts/verify-template/fase0-21-dialog-and-edit-error/`, `artifacts/verify-template/fase0-21-runtime-red/` (rojo), `artifacts/verify-template/fase0-21-runtime/` (fallo del test), `artifacts/verify-template/fase0-21-runtime-2/` |
+| 0.22 | Primera suite de Vitest | pendiente | |
+| 0.23 | Formato verificado con Prettier | pendiente | |
+| 0.24 | E2E con Playwright Test | pendiente | |
+| 0.25 | MCP del CLI de Angular, solo lectura | pendiente | |
 | 1 | Línea base: qué funciona hoy, con evidencia | cerrado | [linea-base.md](linea-base.md); `artifacts/verify-template/baseline-20261016/` |
 | 2 | Un solo comando de verificación local | pendiente | |
 | 3 | CI verde de verdad | pendiente | |
@@ -85,7 +90,6 @@ Cosas vistas durante un paso que no le corresponden. Cada una espera su paso.
 - El rate limiter `auth` es una sola ventana de 20 requests por minuto para toda la API, sin partición por cliente. Un recorrido de navegador seguido del smoke HTTP da 503 (`fase0-06-runtime`). Paso 12.
 - `AuthErrors.AccountNotFound` (`Auth.AccountNotFound`) es nuevo y `DeleteUser` lo traduce a `User.NotFound`. Entra en el catálogo del paso 6.
 - Hay una carpeta vacía y sin versionar, `backend/Features/Health/Test/`, de antes de este paso. Git la ignora. Borrarla es decisión de Tobi.
-- El diálogo de borrar tarea se abre arriba a la izquierda, no centrado. El preflight de Tailwind pone `margin: 0` a todo y le quita el `margin: auto` del navegador. Pasaba antes del paso 0.12 y el paso lo dejó igual. Centrarlo es una línea (`m-auto`): decisión de Tobi.
 - `backend/AGENTS.md` y `backend/docs/agents/` describen un issue tracker en `.scratch/`, que `.gitignore` excluye: los issues nunca se versionan.
 - `Profile` vuelve a pedir `/users/me` al abrirse, aunque `Session` ya tiene el usuario. Podría leerlo con `httpResource()`. Es de la feature `users`, fuera del paso 0.14.
 - Al restaurar, un error de red (`status 0`) deja la sesión `closed`, igual que un 401. Distinguir "sin conexión" de "sin sesión" queda pendiente.
@@ -104,6 +108,18 @@ Una entrada por paso cerrado, con este formato:
 - Preguntas: qué preguntó Tobi.
 - Evidencia: artifacts/verify-template/<runId>/
 ```
+
+### Paso 0.21 — 2026-10-17
+- Enseñado: dos clases de error, dos lugares. Un error de campo vive junto al campo: `TaskRow` muestra "El título es obligatorio (máximo 200 caracteres)." justo después del input, en rojo como en login, registro y perfil, y el input lo nombra con `aria-describedby`. Un lector de pantalla lo lee al volver al campo. Un error de la acción (la API respondió mal) sigue en el `role="alert"` bajo la lista. El mensaje aparece cuando el campo está tocado e inválido: `submit()` marca el campo como tocado. Se van `renameRejected` y `Tasks.rejectTitle()`. El diálogo: el preflight de Tailwind pone `margin: 0` y le quitaba el `margin: auto` con que el navegador centra un `<dialog>` modal; `m-auto` lo devuelve.
+- Preguntas: Tobi decidió centrar el diálogo y llevar el error bajo su campo ("hacé lo que creas mejor"), y mantener los errores rojos de campo y el tachado.
+- Decisiones: tres filas nuevas en `docs/decisions.tsv` (incluye la de los pasos 0.21 a 0.25). `plan.md` (pasos 0.21 a 0.25), `conventions.md`, `architecture.md` y la receta `features/tasks.md` de `verify-template` actualizados. Se quita el pendiente del diálogo arriba a la izquierda.
+- Evidencia: artifacts/verify-template/fase0-21-dialog-and-edit-error/, artifacts/verify-template/fase0-21-runtime-red/, artifacts/verify-template/fase0-21-runtime/ y artifacts/verify-template/fase0-21-runtime-2/.
+  - Sin regla nueva de Dune: el paso cambia comportamiento visible y lo prueba el navegador. `check-frontend` sigue con 28/28 tests.
+  - Rojo antes de verde, navegador (`fase0-21-runtime-red`, código del 0.20): fallan las 2 comprobaciones nuevas. El mensaje no aparece dentro de la fila (estaba bajo la lista). El centro del diálogo queda a dx=448 y dy=271 px del centro del viewport: la caja empieza en (0, 0).
+  - Primera corrida verde (`fase0-21-runtime`): 32 de 33 PASS. Falló "abrir Editar en otra fila", por una carrera del test: miraba si había un input de edición antes de que Angular quitara el que acababa de cerrar `Cancelar`. La captura muestra la lista bien. El test ahora espera a que el input desaparezca.
+  - Verde (`fase0-21-runtime-2`): 33 pasos PASS. El mensaje es el elemento que sigue al input, `aria-describedby` apunta a su id, no hay alerta bajo la lista y no sale `PUT` (`10-inline-edit-invalid.png`). El centro del diálogo coincide con el del viewport, con 2 px de tolerancia (`12a-delete-dialog-centered.png`). Las 31 comprobaciones restantes no cambian.
+  - Build de Angular: PASS. `check-frontend`, `check-structure`, `check-comments` y `CommentVerifier`: PASS.
+  - verify-template: launch PASS, smoke HTTP PASS (45 requests). Cleanup PASS.
 
 ### Paso 0.20 — 2026-10-17
 - Enseñado: un hijo maneja su propio DOM y el padre decide el foco. `TaskDeleteDialog` recibe `task: input<TaskResponse | null>()`. Un `afterRenderEffect` abre su `<dialog>` con `showModal()` cuando llega una tarea y lo cierra con `null`. Lo hace sobre su propio `viewChild`, después de que Angular dibujó la vista. Al cancelar (botón o `Escape`) y al confirmar, cierra el diálogo y recién después avisa `cancelled` o `confirmed`. Así `Tasks` encuentra el diálogo cerrado, igual que antes del paso, y mueve el foco: al `Eliminar` de la fila al cancelar, al encabezado "Mis tareas" después de borrar. `Tasks` pierde `confirmDialog` y el `showModal()`. Para saber si el foco quedó en el diálogo usa `active.closest('dialog')`.
