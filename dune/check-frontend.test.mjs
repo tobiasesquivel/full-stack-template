@@ -52,9 +52,15 @@ async function seedAngular(root) {
   await mkdir(path.join(types, 'core'), { recursive: true });
   await mkdir(path.join(types, 'common'), { recursive: true });
   await writeFile(path.join(types, 'core', 'package.json'), JSON.stringify({ name: 'core', version: '0.0.0', types: './index.d.ts' }));
-  await writeFile(path.join(types, 'core', 'index.d.ts'), `export declare function Component(o: unknown): unknown;\nexport declare function Injectable(o?: unknown): unknown;\nexport declare function Service(o?: unknown): unknown;\nexport declare function inject(t: unknown): unknown;\nexport interface Signal<T> {\n  (): T;\n}\nexport interface WritableSignal<T> extends Signal<T> {\n  set(v: T): void;\n  asReadonly(): Signal<T>;\n}\nexport declare function signal<T>(v: T): WritableSignal<T>;\nexport declare function computed<T>(f: () => T): Signal<T>;\nexport declare function linkedSignal<T>(f: () => T): WritableSignal<T>;\n`);
+  await writeFile(path.join(types, 'core', 'index.d.ts'), `export declare function Component(o: unknown): unknown;\nexport declare function Injectable(o?: unknown): unknown;\nexport declare function Service(o?: unknown): unknown;\nexport declare function inject<T>(token: abstract new (...args: never[]) => T): T;\nexport declare class ElementRef<T = unknown> {\n  nativeElement: T;\n}\nexport declare function input<T>(v: T): Signal<T>;\nexport interface Signal<T> {\n  (): T;\n}\nexport interface WritableSignal<T> extends Signal<T> {\n  set(v: T): void;\n  asReadonly(): Signal<T>;\n}\nexport declare function signal<T>(v: T): WritableSignal<T>;\nexport declare function computed<T>(f: () => T): Signal<T>;\nexport declare function linkedSignal<T>(f: () => T): WritableSignal<T>;\n`);
   await writeFile(path.join(types, 'common', 'package.json'), JSON.stringify({ name: 'http', version: '0.0.0', types: './http.d.ts' }));
   await writeFile(path.join(types, 'common', 'http.d.ts'), `export declare class HttpClient {}\nexport declare class HttpRequest {}\n`);
+  await mkdir(path.join(types, 'router'), { recursive: true });
+  await writeFile(path.join(types, 'router', 'package.json'), JSON.stringify({ name: 'router', version: '0.0.0', types: './index.d.ts' }));
+  await writeFile(path.join(types, 'router', 'index.d.ts'), `export declare class Router {\n  navigate(commands: unknown[]): Promise<boolean>;\n}\nexport declare class ActivatedRoute {\n  snapshot: unknown;\n}\n`);
+  await mkdir(path.join(types, 'platform-browser'), { recursive: true });
+  await writeFile(path.join(types, 'platform-browser', 'package.json'), JSON.stringify({ name: 'platform-browser', version: '0.0.0', types: './index.d.ts' }));
+  await writeFile(path.join(types, 'platform-browser', 'index.d.ts'), `export declare function bootstrapApplication(root: unknown, options?: unknown): Promise<unknown>;\n`);
   void ANGULAR_STUB;
 }
 
@@ -503,6 +509,53 @@ export class Login {}
       const { diagnostics } = await analyzeFrontend({ root: project.root });
       const writable = diagnostics.filter((entry) => entry.rule === 'FRONT012').map((entry) => `${path.basename(entry.path)}:${entry.line}`);
       assert.deepEqual(writable, ['tasks-api.ts:5', 'tasks-api.ts:6', 'tasks-api.ts:7']);
+    } finally {
+      await project.cleanup();
+    }
+  });
+
+  it('accepts routed components and the app root that inject app services, and presentation components that inject only Angular tokens', async () => {
+    const project = await makeProject({
+      'frontend/src/main.ts': `import { bootstrapApplication } from '@angular/platform-browser';\nimport { App } from './app/app';\nbootstrapApplication(App);\n`,
+      'frontend/src/app/app.ts': `import { Component, inject } from '@angular/core';\nimport { Router } from '@angular/router';\nimport { Session } from './features/auth';\n@Component({ selector: 'app-root', templateUrl: './app.html' })\nexport class App {\n  private readonly session = inject(Session);\n  private readonly router = inject(Router);\n}\n`,
+      'frontend/src/app/features/auth/index.ts': `export { Session } from './session/session';\n`,
+      'frontend/src/app/features/auth/session/session.ts': `import { Service } from '@angular/core';\n@Service()\nexport class Session {}\n`,
+      'frontend/src/app/features/tasks/tasks.routes.ts': `import { Profile } from './profile/profile';\nexport const tasksRoutes = [\n  { path: 'tasks', loadComponent: () => import('./tasks/tasks').then((m) => m.Tasks) },\n  { path: 'profile', component: Profile },\n  { path: 'stats', loadComponent: () => import('./stats/stats') },\n];\n`,
+      'frontend/src/app/features/tasks/stats/stats.ts': `import { Component, inject } from '@angular/core';\nimport { TasksApi } from '../api/tasks-api';\n@Component({ selector: 'app-stats', templateUrl: './stats.html' })\nexport default class Stats {\n  private readonly tasksApi = inject(TasksApi);\n}\n`,
+      'frontend/src/app/features/tasks/api/tasks-api.ts': `import { Service } from '@angular/core';\n@Service()\nexport class TasksApi {}\n`,
+      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component, inject } from '@angular/core';\nimport { ActivatedRoute } from '@angular/router';\nimport { TasksApi } from '../api/tasks-api';\n@Component({ selector: 'app-tasks', templateUrl: './tasks.html' })\nexport class Tasks {\n  private readonly tasksApi = inject(TasksApi);\n  private readonly route = inject(ActivatedRoute);\n}\n`,
+      'frontend/src/app/features/tasks/profile/profile.ts': `import { Component } from '@angular/core';\nimport { TasksApi } from '../api/tasks-api';\n@Component({ selector: 'app-profile', templateUrl: './profile.html' })\nexport class Profile {\n  constructor(private readonly tasksApi: TasksApi) {}\n}\n`,
+      'frontend/src/app/features/tasks/task-pager/task-pager.ts': `import { Component, ElementRef, inject, input } from '@angular/core';\n@Component({ selector: 'app-task-pager', templateUrl: './task-pager.html' })\nexport class TaskPager {\n  readonly page = input(1);\n  private readonly host = inject(ElementRef);\n}\n`,
+    });
+    try {
+      await seedAngular(project.root);
+      const { diagnostics } = await analyzeFrontend({ root: project.root });
+      assert.deepEqual(diagnostics, []);
+    } finally {
+      await project.cleanup();
+    }
+  });
+
+  it('rejects a presentation component that injects an app service, an alias of one, the Router or a service in its constructor', async () => {
+    const project = await makeProject({
+      'frontend/src/app/features/tasks/tasks.routes.ts': `export const tasksRoutes = [\n  { path: 'tasks', loadComponent: () => import('./tasks/tasks').then((m) => m.Tasks) },\n];\n`,
+      'frontend/src/app/features/tasks/api/tasks-api.ts': `import { Service } from '@angular/core';\n@Service()\nexport class TasksApi {}\n`,
+      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component, inject } from '@angular/core';\nimport { TasksApi } from '../api/tasks-api';\n@Component({ selector: 'app-tasks', templateUrl: './tasks.html' })\nexport class Tasks {\n  private readonly tasksApi = inject(TasksApi);\n}\n`,
+      'frontend/src/app/features/tasks/task-row/task-row.ts': `import { Component, inject } from '@angular/core';\nimport { Router } from '@angular/router';\nimport { TasksApi } from '../api/tasks-api';\nconst api = TasksApi;\n@Component({ selector: 'app-task-row', templateUrl: './task-row.html' })\nexport class TaskRow {\n  private readonly direct = inject(TasksApi);\n  private readonly aliased = inject(api);\n  private readonly router = inject(Router);\n  constructor(private readonly viaConstructor: TasksApi) {}\n}\n`,
+    });
+    try {
+      await seedAngular(project.root);
+      const { diagnostics } = await analyzeFrontend({ root: project.root });
+      assert.deepEqual(diagnostics.map((entry) => [entry.rule, path.basename(entry.path), entry.line]), [
+        ['FRONT013', 'task-row.ts', 7],
+        ['FRONT013', 'task-row.ts', 8],
+        ['FRONT013', 'task-row.ts', 9],
+        ['FRONT013', 'task-row.ts', 10],
+      ]);
+      assert.equal(diagnostics[0].message, 'TaskRow is not a routed component and must not inject TasksApi; receive data with input() and report with output(), or load it from a component in tasks.routes.ts');
+      assert.match(diagnostics[1].message, /must not inject TasksApi/);
+      assert.match(diagnostics[2].message, /must not inject Router/);
+      assert.match(diagnostics[3].message, /must not inject TasksApi/);
     } finally {
       await project.cleanup();
     }

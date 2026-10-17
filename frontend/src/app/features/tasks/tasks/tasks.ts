@@ -3,12 +3,13 @@ import { FormField, FormRoot, form, maxLength, required } from '@angular/forms/s
 import { TasksApi } from '../api/tasks-api';
 import { describeHttpError } from '../../../core/http-error';
 import type { TaskResponse } from '../api/task-response';
+import { TaskPager } from '../task-pager/task-pager';
 
 const PAGE_SIZE = 10;
 
 @Component({
   selector: 'app-tasks',
-  imports: [FormField, FormRoot],
+  imports: [FormField, FormRoot, TaskPager],
   templateUrl: './tasks.html',
   host: { class: 'block' },
 })

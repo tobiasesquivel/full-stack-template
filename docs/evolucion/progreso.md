@@ -4,7 +4,7 @@ Registro vivo del [plan](plan.md). El agente lo actualiza al cerrar cada paso.
 
 ## Paso actual
 
-**Paso 0.18: componente de ruta y componente de presentación (`TaskPager`).** Estado: pendiente. Los pasos 0.10 a 0.17 cerraron. Tobi pidió el 2026-10-17 separar la vista de los componentes (0.10), un archivo por tipo (0.11), Tailwind (0.12), ordenar los archivos sueltos de cada feature (0.13), investigar y aplicar el manejo de sesión en Angular (0.14 a 0.16, [informe-sesion-angular.md](informe-sesion-angular.md)) y aplicar lo que no necesita decisión de herramienta de [informe-componentes-angular.md](informe-componentes-angular.md) y [informe-frontend-para-agentes.md](informe-frontend-para-agentes.md) (0.17 a 0.20). Después de 0.20 sigue la Fase 1, paso 2. Los pasos 0.6 a 0.17 esperan el merge de Tobi.
+**Paso 0.19: estado local en el hijo (`TaskRow`).** Estado: pendiente. Los pasos 0.10 a 0.18 cerraron. Tobi pidió el 2026-10-17 separar la vista de los componentes (0.10), un archivo por tipo (0.11), Tailwind (0.12), ordenar los archivos sueltos de cada feature (0.13), investigar y aplicar el manejo de sesión en Angular (0.14 a 0.16, [informe-sesion-angular.md](informe-sesion-angular.md)) y aplicar lo que no necesita decisión de herramienta de [informe-componentes-angular.md](informe-componentes-angular.md) y [informe-frontend-para-agentes.md](informe-frontend-para-agentes.md) (0.17 a 0.20). Después de 0.20 sigue la Fase 1, paso 2. Los pasos 0.6 a 0.18 esperan el merge de Tobi.
 
 La Fase 0 va antes del paso 2. El paso 1 (línea base) ya cerró y sirve de referencia para la Fase 0.
 
@@ -32,7 +32,7 @@ Estados: `pendiente`, `en curso`, `cerrado`, `bloqueado (⏸ decisión de Tobi)`
 | 0.15 | Interceptor y vuelta a la página pedida | cerrado | `artifacts/verify-template/fase0-15-session-interceptor/`, `artifacts/verify-template/fase0-15-runtime-red/` (rojo), `artifacts/verify-template/fase0-15-runtime/` |
 | 0.16 | Varias pestañas | cerrado | `artifacts/verify-template/fase0-16-session-tabs/`, `artifacts/verify-template/fase0-16-runtime-red/` (rojo), `artifacts/verify-template/fase0-16-runtime/` |
 | 0.17 | El CLI genera código que pasa el gate | cerrado | `artifacts/verify-template/fase0-17-cli-defaults/`, `artifacts/verify-template/fase0-17-runtime/` |
-| 0.18 | Componente de ruta y componente de presentación: `TaskPager` | pendiente | |
+| 0.18 | Componente de ruta y componente de presentación: `TaskPager` | cerrado | `artifacts/verify-template/fase0-18-task-pager/`, `artifacts/verify-template/fase0-18-runtime/` |
 | 0.19 | Estado local en el hijo: `TaskRow` | pendiente | |
 | 0.20 | Diálogo de presentación: `TaskDeleteDialog` | pendiente | |
 | 1 | Línea base: qué funciona hoy, con evidencia | cerrado | [linea-base.md](linea-base.md); `artifacts/verify-template/baseline-20261016/` |
@@ -101,6 +101,16 @@ Una entrada por paso cerrado, con este formato:
 - Preguntas: qué preguntó Tobi.
 - Evidencia: artifacts/verify-template/<runId>/
 ```
+
+### Paso 0.18 — 2026-10-17
+- Enseñado: componente de ruta frente a componente de presentación. `Tasks` es el destino de `/tasks`: guarda la lista y es el único que llama a `TasksApi`. `TaskPager` no inyecta nada de la app: recibe `page`, `totalPages` y `totalCount` con `input.required()`, más `disabled`, y pide otra página con `pageChange: output<number>()`. Así su contrato se lee en su firma: lo que entra y lo que sale. Con OnPush por defecto, Angular revisa el paginador solo cuando cambia una entrada. FRONT013 hace cumplir el límite. Calcula qué componentes son de ruta: los que nombran `loadComponent` o `component` en un `*.routes.ts` (también un `import()` con export default) y el que recibe `bootstrapApplication`. En los demás, pide al type checker el tipo de cada `inject(...)` y de cada parámetro del constructor. Falla si ese tipo se declara bajo `frontend/src/app/` o si es `Router` o `ActivatedRoute`. Como mira el tipo y no el texto, `const api = TasksApi; inject(api)` no lo esquiva.
+- Preguntas: ninguna nueva; aplica [informe-componentes-angular.md](informe-componentes-angular.md), paso A.
+- Decisiones: dos filas nuevas en `docs/decisions.tsv`. `conventions.md` (de ruta y de presentación, una carpeta por componente, sin `components/`) y `architecture.md` (árbol de tasks) actualizados.
+- Evidencia: artifacts/verify-template/fase0-18-task-pager/ y artifacts/verify-template/fase0-18-runtime/.
+  - Rojo antes de verde, gate: con el `check-frontend` del 0.17 falla el test de violaciones (`check-frontend-test-red.log`: 27 pasan, 1 falla). La fixture válida pasa también con el gate viejo, como debe. Con el nuevo pasan 28/28 (`check-frontend-test-green.log`). Los stubs ganan `inject<T>()`, `ElementRef`, `input()`, `@angular/router` y `@angular/platform-browser`. La violación tiene 4 casos: `inject(TasksApi)`, el alias, `inject(Router)` y un constructor. La válida tiene un componente de ruta por `loadComponent`, otro por `component`, otro por export default, la raíz `App` con `Session` y `Router`, y `TaskPager` con `ElementRef`.
+  - Producto: el código del 0.17 ya cumplía FRONT013 (`check-frontend-product-before.log`: OK), porque todos sus componentes eran de ruta. Para probarla con los tipos reales de Angular se agregó a `TaskPager` `inject(api)` con `const api = TasksApi` e `inject(Router)`, y se revirtió: FRONT013 frena las dos líneas (`check-frontend-product-probe-red.log`).
+  - Build de Angular: PASS. `check-frontend`, `check-structure`, `check-comments` y `CommentVerifier`: PASS.
+  - verify-template: launch PASS, smoke HTTP PASS (45 requests). Navegador PASS: los 24 pasos del 0.16 y la comprobación nueva. Con 11 tareas creadas desde la UI: "Página 1 de 2 (11)", 10 filas, `Anterior` deshabilitado y `Siguiente` habilitado; `Siguiente` pide `page=2` y muestra "Página 2 de 2 (11)" con 1 fila y `Siguiente` deshabilitado; `Anterior` pide `page=1` y vuelve a 10 filas. Capturas `08-pager-page-1.png` y `09-pager-page-2.png`. Cleanup PASS.
 
 ### Paso 0.17 — 2026-10-17
 - Enseñado: la herramienta oficial y el gate tienen que decir lo mismo. `ng generate component` creaba un `.css` y un `styleUrl`, y FRONT009 los rechaza: cada componente nuevo costaba una corrección a mano. `angular.json` fija ahora `"style": "none"` para `@schematics/angular:component`, y FRONT014 exige esa línea. La regla lee `angular.json` con el parser JSON de TypeScript y marca la línea exacta que falta o que está mal.
