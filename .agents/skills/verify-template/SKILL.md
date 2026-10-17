@@ -45,6 +45,14 @@ El smoke usa cookies y antiforgery reales. Prueba health, registro y login, rota
 
 Después abre la URL `frontUrl` de `run.json` en un navegador real. Usa browser/CDP o Playwright disponible en el harness. Conduce [autenticación](features/auth.md), [Tasks](features/tasks.md) y [perfil](features/users.md) con sus labels e IDs de HTML. Como prueba mínima de UI, registra un usuario desde `/register`, crea una tarea desde `/tasks`, recarga y recupera el mismo dato. Observa las requests a `/api/v1` con respuestas reales.
 
+El recorrido completo también existe como specs de Playwright Test en `frontend/e2e/` (`auth`, `session`, `tasks`, `profile` y `tabs`). Después de `api`, esperá 65 segundos para dejar libre la ventana del limiter de `/auth` y corré desde `frontend`:
+
+```sh
+E2E_BASE_URL=<frontUrl> E2E_CHANNEL=msedge E2E_OUTPUT_DIR=../artifacts/verify-template/repro-template/e2e npm run e2e
+```
+
+El reporte JSON, las capturas y los traces de las fallas quedan en `E2E_OUTPUT_DIR`. Una spec que falla es un `FAIL` del recorrido; no la saltees ni le subas el timeout para que pase.
+
 Una UI servida con HTML 200 todavía no verifica negocio. Un build correcto tampoco verifica runtime. Exige la acción, su respuesta y una segunda lectura del dato persistido.
 
 ## Evidence

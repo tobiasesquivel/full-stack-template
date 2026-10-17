@@ -106,6 +106,14 @@ node .agents/skills/verify-template/scripts/smoke-api.mjs
 node .agents/skills/verify-template/scripts/smoke-api.mjs --compose
 ```
 
+El recorrido del navegador vive como specs de Playwright Test en `frontend/e2e/`, por feature: `auth`, `session`, `tasks`, `profile` y `tabs`. Corre contra una instancia de `verify-template`: tomá `frontUrl` de `run.json` y esperá 65 segundos después del smoke HTTP, porque el limiter de `/auth` admite 20 requests por minuto para toda la API. Desde `frontend`:
+
+```sh
+E2E_BASE_URL=<frontUrl> E2E_CHANNEL=msedge npm run e2e
+```
+
+`E2E_CHANNEL=msedge` usa el Edge instalado; sin la variable, Playwright usa su Chromium (`npx playwright install chromium`). Las pruebas corren en serie, con un solo worker, y antes de cada una esperan hasta tener lugar en la ventana del limiter. `E2E_OUTPUT_DIR` elige dónde quedan el reporte JSON, las capturas y los traces de las fallas. CI todavía no corre e2e.
+
 El escenario HTTP no reemplaza la prueba Angular contra la API real. Comprueba registro, login, restauración, perfil, tareas y logout en el navegador. Las pruebas backend deben observar aislamiento 403, ausencia 404, permisos vigentes en el siguiente request, replay por familia, registro duplicado sin filas parciales y cascadas. No sustituyas esos checks por búsquedas de texto del source.
 
 Comprueba `GET /api/v1/health/live` y `/ready` antes y después de interrumpir PostgreSQL en un conjunto de prueba. Captura logs, métricas y spans recibidos por el collector y su correlación. Registrar exporters en DI no prueba exportación. No publiques secrets en la evidencia.

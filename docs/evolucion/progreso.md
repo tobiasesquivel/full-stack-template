@@ -4,7 +4,7 @@ Registro vivo del [plan](plan.md). El agente lo actualiza al cerrar cada paso.
 
 ## Paso actual
 
-**Paso 0.24: e2e con Playwright Test.** Estado: pendiente. Los pasos 0.10 a 0.23 cerraron. Tobi pidió el 2026-10-17 separar la vista de los componentes (0.10), un archivo por tipo (0.11), Tailwind (0.12), ordenar los archivos sueltos de cada feature (0.13), investigar y aplicar el manejo de sesión en Angular (0.14 a 0.16, [informe-sesion-angular.md](informe-sesion-angular.md)) y aplicar lo que no necesita decisión de herramienta de [informe-componentes-angular.md](informe-componentes-angular.md) y [informe-frontend-para-agentes.md](informe-frontend-para-agentes.md) (0.17 a 0.20). Después eligió Vitest, Prettier, Playwright Test, el MCP del CLI y los ajustes visuales (0.21 a 0.25). Después de 0.25 sigue la Fase 1, paso 2. Los pasos 0.6 a 0.23 esperan el merge de Tobi.
+**Paso 0.25: MCP del CLI de Angular, solo lectura.** Estado: pendiente. Los pasos 0.10 a 0.24 cerraron. Tobi pidió el 2026-10-17 separar la vista de los componentes (0.10), un archivo por tipo (0.11), Tailwind (0.12), ordenar los archivos sueltos de cada feature (0.13), investigar y aplicar el manejo de sesión en Angular (0.14 a 0.16, [informe-sesion-angular.md](informe-sesion-angular.md)) y aplicar lo que no necesita decisión de herramienta de [informe-componentes-angular.md](informe-componentes-angular.md) y [informe-frontend-para-agentes.md](informe-frontend-para-agentes.md) (0.17 a 0.20). Después eligió Vitest, Prettier, Playwright Test, el MCP del CLI y los ajustes visuales (0.21 a 0.25). Después de 0.25 sigue la Fase 1, paso 2. Los pasos 0.6 a 0.24 esperan el merge de Tobi.
 
 La Fase 0 va antes del paso 2. El paso 1 (línea base) ya cerró y sirve de referencia para la Fase 0.
 
@@ -38,7 +38,7 @@ Estados: `pendiente`, `en curso`, `cerrado`, `bloqueado (⏸ decisión de Tobi)`
 | 0.21 | Diálogo centrado y error bajo su campo | cerrado | `artifacts/verify-template/fase0-21-dialog-and-edit-error/`, `artifacts/verify-template/fase0-21-runtime-red/` (rojo), `artifacts/verify-template/fase0-21-runtime/` (fallo del test), `artifacts/verify-template/fase0-21-runtime-2/` |
 | 0.22 | Primera suite de Vitest | cerrado | `artifacts/verify-template/fase0-22-vitest/` |
 | 0.23 | Formato verificado con Prettier | cerrado | `artifacts/verify-template/fase0-23-prettier-check/`, `artifacts/verify-template/fase0-23-runtime/` |
-| 0.24 | E2E con Playwright Test | pendiente | |
+| 0.24 | E2E con Playwright Test | cerrado | `artifacts/verify-template/fase0-24-playwright-e2e/`, `artifacts/verify-template/fase0-24-e2e-try1/` (fallo de red local), `artifacts/verify-template/fase0-24-e2e-red/` (rojo), `artifacts/verify-template/fase0-24-e2e/` |
 | 0.25 | MCP del CLI de Angular, solo lectura | pendiente | |
 | 1 | Línea base: qué funciona hoy, con evidencia | cerrado | [linea-base.md](linea-base.md); `artifacts/verify-template/baseline-20261016/` |
 | 2 | Un solo comando de verificación local | pendiente | |
@@ -96,6 +96,7 @@ Cosas vistas durante un paso que no le corresponden. Cada una espera su paso.
 - Una regla que limite `HttpClient` a los archivos de `api/` haría ejecutable la división del paso 0.13 (`api/` hace el HTTP). Hoy FRONT002 solo lo prohíbe en componentes. Sin paso asignado.
 
 - FRONT006 solo mira el import de `@angular/forms`. Un input con `[value]`, `(input)` y `$any($event.target)`, como el que tenía la edición en línea antes del paso 0.19, sigue pasando el gate. Sin paso asignado.
+- CI no corre las e2e. El job `compose` necesitaría `npm ci` del frontend, un navegador (`npx playwright install chromium --with-deps`) y 65 segundos de espera después del smoke por el limiter de `/auth`. Paso 3 de la Fase 1.
 
 ## Cierres
 
@@ -107,6 +108,16 @@ Una entrada por paso cerrado, con este formato:
 - Preguntas: qué preguntó Tobi.
 - Evidencia: artifacts/verify-template/<runId>/
 ```
+
+### Paso 0.24 — 2026-10-17
+- Enseñado: el recorrido del navegador como código que corre igual cada vez. Los 32 pasos del flujo de `playwright-cli` pasaron a specs de Playwright Test en `frontend/e2e/`, por feature: `auth` (9), `session` (5), `tasks` (12), `profile` (3) y `tabs` (3). Buscan por rol y por label (`getByRole('navigation', { name: 'Paginación' })`, `getByLabel('Nueva tarea')`). Las aserciones esperan solas (`toHaveText`, `expect.poll`), sin pausas fijas salvo para probar que no salió una request. Cada archivo usa una página y un usuario propios, en modo serie. El limiter de `/auth` (20 por minuto para toda la API) se respeta con `waitForAuthRoom()`: cuenta las requests a `/api/v1/auth/` de los últimos 61 segundos y, antes de cada test, espera hasta que queden 6 o menos. Un solo worker. `E2E_BASE_URL` apunta a una instancia de `verify-template` y `E2E_CHANNEL=msedge` usa el Edge instalado.
+- Preguntas: Tobi pidió comparar Playwright con tester-army/e2e. El coordinador eligió Playwright Test: tester-army/e2e es pre-1.0, pide un modelo de IA y manda telemetría por defecto.
+- Decisiones: una fila nueva en `docs/decisions.tsv`. `@playwright/test` queda fijo en 1.64.1, la misma versión menor que el `playwright-core` 1.64 de `playwright-cli`. `README.md`, la skill `verify-template` y `conventions.md` dicen cómo correrlo. CI queda pendiente para el paso 3 (ver Pendientes).
+- Evidencia: artifacts/verify-template/fase0-24-playwright-e2e/, artifacts/verify-template/fase0-24-e2e-try1/, artifacts/verify-template/fase0-24-e2e-red/ y artifacts/verify-template/fase0-24-e2e/.
+  - Primera corrida (`fase0-24-e2e-try1`): 31 de 32. En "abrir sesión en una pestaña", el registro dio 201 pero el chunk lazy de `/tasks` no cargó: `net::ERR_NO_BUFFER_SPACE`, un error de sockets de Windows, no de la app. La página mostró "Error inesperado". El trace quedó en la carpeta.
+  - Rojo: con el label "Nueva tarea" cambiado a "Tarea nueva" en `tasks.html`, `tasks.spec.ts` falla en el primer test: `getByLabel('Nueva tarea')` no encuentra el elemento, y los 11 tests siguientes del archivo no corren (`fase0-24-e2e-red/e2e/playwright.log`). Después se restauró el label.
+  - Verde (`fase0-24-e2e`): 32 passed en 8,2 minutos contra una instancia real, después del smoke HTTP y 65 segundos de espera (`e2e/playwright.log`, `e2e/results/report.json`). Ningún test chocó con el limiter: cada login y registro esperaba su 200 o 201.
+  - `tsc --strict` sobre `e2e/`: PASS. Build de Angular, Vitest 13/13, `format:check`, `check-frontend` (28/28 tests), `check-structure`, `check-comments` y `CommentVerifier`: PASS.
 
 ### Paso 0.23 — 2026-10-17
 - Enseñado: un formato que decide una herramienta. `frontend/.prettierrc` ya existía (100 columnas, comillas simples, parser `angular` para los `.html`), pero nadie lo corría: 31 archivos no lo cumplían. `npm run format:check` (`prettier --check .`) es ahora un gate del README y del job `frontend` de CI, y `npm run format` arregla. Prettier 3 respeta `.gitignore`: no mira `dist/`, `.angular/cache` ni `node_modules`. En los templates, el parser `angular` cuida los espacios: corta líneas dentro de las etiquetas (`>Página … </span

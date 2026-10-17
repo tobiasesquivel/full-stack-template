@@ -1,0 +1,29 @@
+import { defineConfig } from '@playwright/test';
+declare const process: { env: Record<string, string | undefined> };
+
+const baseURL = process.env['E2E_BASE_URL'];
+if (!baseURL) {
+  throw new Error(
+    'Set E2E_BASE_URL to the frontUrl of a verify-template instance, for example http://127.0.0.1:4200',
+  );
+}
+
+export default defineConfig({
+  testDir: '.',
+  fullyParallel: false,
+  workers: 1,
+  retries: 0,
+  timeout: 180_000,
+  expect: { timeout: 10_000 },
+  outputDir: process.env['E2E_OUTPUT_DIR'] ?? 'test-results',
+  reporter: [
+    ['list'],
+    ['json', { outputFile: `${process.env['E2E_OUTPUT_DIR'] ?? 'test-results'}/report.json` }],
+  ],
+  use: {
+    baseURL,
+    channel: process.env['E2E_CHANNEL'] || undefined,
+    trace: 'retain-on-failure',
+    screenshot: 'only-on-failure',
+  },
+});

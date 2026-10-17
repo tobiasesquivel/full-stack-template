@@ -92,6 +92,7 @@ Excepciones (la lista es cerrada):
 - Se prueba por comportamiento: autorización, transacciones, replay, cascadas, health y exportación de señales.
 - Las reglas de Dune se prueban con una fixture válida y una violación deliberada, observando diagnósticos o códigos de salida.
 - En el frontend, cada `*.spec.ts` vive junto a su archivo y corre con Vitest y jsdom. Se prueban funciones puras y componentes de presentación: entradas con `fixture.componentRef.setInput()`, salidas con `subscribe()` y el DOM después de `await fixture.whenStable()` ("Act, Wait, Assert"). No se usa `fixture.detectChanges()`. Un componente de ruta se prueba en el navegador, contra la API real.
+- Las pruebas e2e viven en `frontend/e2e/`, una spec por feature, con Playwright Test. Buscan por rol y por label (`getByRole`, `getByLabel`), no por clases ni ids, salvo para medir algo que no tiene rol (el foco o el centro del diálogo). Corren en serie contra una instancia de `verify-template` (`E2E_BASE_URL`) y respetan el limiter de `/auth` con `waitForAuthRoom()`. Los helpers compartidos van en `e2e/support/`.
 
 ## Cambios
 
