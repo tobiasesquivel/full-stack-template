@@ -358,6 +358,22 @@ describe('check-frontend', () => {
     }
   });
 
+  it('accepts functional initializers and rejects the initializer tokens', async () => {
+    const project = await makeProject({
+      'frontend/src/app/app.config.ts': `import { APP_INITIALIZER as Init, inject, provideAppInitializer } from '@angular/core';\nexport const appConfig = { providers: [provideAppInitializer(() => inject(Init)), { provide: Init, multi: true, useValue: () => undefined }] };\n`,
+      'frontend/src/main.ts': `import { ENVIRONMENT_INITIALIZER } from '@angular/core';\nexport const token = ENVIRONMENT_INITIALIZER;\n`,
+      'frontend/src/app/features/auth/session.ts': `import { provideAppInitializer } from '@angular/core';\nexport const start = provideAppInitializer;\n`,
+    });
+    try {
+      await seedAngular(project.root);
+      const { diagnostics } = await analyzeFrontend({ root: project.root });
+      const initializers = diagnostics.filter((entry) => entry.rule === 'FRONT007').map((entry) => `${path.basename(entry.path)}:${entry.line}`);
+      assert.deepEqual(initializers, ['app.config.ts:1', 'main.ts:1']);
+    } finally {
+      await project.cleanup();
+    }
+  });
+
   it('fails configuration errors instead of reporting green', async () => {
     await assert.rejects(() => analyzeFrontend({ root: '/nonexistent-root-xyz', project: '/nonexistent.json' }), /cannot read project/);
   });

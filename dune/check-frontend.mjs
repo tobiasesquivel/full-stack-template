@@ -7,7 +7,13 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const require = createRequire(path.join(here, '..', 'frontend', 'package.json'));
 const ts = require('typescript');
 
-export const RULES = ['FRONT001', 'FRONT002', 'FRONT003', 'FRONT004', 'FRONT005', 'FRONT006'];
+export const RULES = ['FRONT001', 'FRONT002', 'FRONT003', 'FRONT004', 'FRONT005', 'FRONT006', 'FRONT007'];
+
+const INITIALIZER_TOKENS = new Map([
+  ['APP_INITIALIZER', 'provideAppInitializer'],
+  ['ENVIRONMENT_INITIALIZER', 'provideEnvironmentInitializer'],
+  ['PLATFORM_INITIALIZER', 'providePlatformInitializer'],
+]);
 
 const LEGACY_FORMS_MODULE = 'external:@angular/forms';
 
@@ -101,7 +107,20 @@ function decoratorName(expression) {
 function collectNaming(sourceFile) {
   const suffixedClasses = [];
   const rootInjectables = [];
+  const initializerTokens = [];
   function visit(node) {
+    if (ts.isImportDeclaration(node)
+      && ts.isStringLiteral(node.moduleSpecifier)
+      && node.moduleSpecifier.text === '@angular/core'
+      && node.importClause?.namedBindings
+      && ts.isNamedImports(node.importClause.namedBindings)) {
+      for (const element of node.importClause.namedBindings.elements) {
+        const imported = (element.propertyName ?? element.name).text;
+        if (INITIALIZER_TOKENS.has(imported)) {
+          initializerTokens.push({ line: lineOf(sourceFile, element.getStart()), token: imported });
+        }
+      }
+    }
     if (ts.isClassDeclaration(node) && node.name) {
       const decorators = ts.getDecorators?.(node) ?? node.decorators ?? [];
       for (const decorator of decorators) {
@@ -118,7 +137,7 @@ function collectNaming(sourceFile) {
     ts.forEachChild(node, visit);
   }
   visit(sourceFile);
-  return { suffixedClasses, rootInjectables };
+  return { suffixedClasses, rootInjectables, initializerTokens };
 }
 
 function providesInRoot(expression) {
@@ -348,6 +367,9 @@ export async function analyzeFrontend({ root, project } = {}) {
     }
     for (const entry of node.suffixedClasses) {
       report('FRONT004', rel, entry.line, `class ${entry.name} must be named for its purpose without a type suffix`);
+    }
+    for (const entry of node.initializerTokens) {
+      report('FRONT007', rel, entry.line, `use ${INITIALIZER_TOKENS.get(entry.token)}() instead of the ${entry.token} token`);
     }
     for (const entry of node.rootInjectables) {
       report('FRONT005', rel, entry.line, `${entry.name} must use @Service() instead of @Injectable({ providedIn: 'root' })`);

@@ -4,7 +4,7 @@ Registro vivo del [plan](plan.md). El agente lo actualiza al cerrar cada paso.
 
 ## Paso actual
 
-**Fase 0, paso 0.9: arranque con `provideAppInitializer()`.** Estado: sin empezar. Los pasos 0.7 a 0.9 se agregaron el 2026-10-17 a pedido de Tobi ([informe](informe-angular-moderno.md)). Los pasos 0.6 a 0.8 esperan el merge de Tobi.
+**Fase 1, paso 2: un solo comando de verificación local.** Estado: sin empezar. La Fase 0 cerró con el paso 0.9. Los pasos 0.7 a 0.9 se agregaron el 2026-10-17 a pedido de Tobi ([informe](informe-angular-moderno.md)). Los pasos 0.6 a 0.9 esperan el merge de Tobi.
 
 La Fase 0 va antes del paso 2. El paso 1 (línea base) ya cerró y sirve de referencia para la Fase 0.
 
@@ -23,7 +23,7 @@ Estados: `pendiente`, `en curso`, `cerrado`, `bloqueado (⏸ decisión de Tobi)`
 | 0.6 | Frontend por feature | cerrado | `artifacts/verify-template/fase0-06-frontend/`, `artifacts/verify-template/fase0-06-runtime/` (fallo), `artifacts/verify-template/fase0-06-runtime-2/` |
 | 0.7 | Servicios y nombres de Angular v22 | cerrado | `artifacts/verify-template/fase0-07-services/`, `artifacts/verify-template/fase0-07-runtime/` |
 | 0.8 | Signal Forms | cerrado | `artifacts/verify-template/fase0-08-signal-forms/`, `artifacts/verify-template/fase0-08-runtime/` |
-| 0.9 | Arranque con `provideAppInitializer()` | pendiente | |
+| 0.9 | Arranque con `provideAppInitializer()` | cerrado | `artifacts/verify-template/fase0-09-app-initializer/`, `artifacts/verify-template/fase0-09-runtime/` |
 | 1 | Línea base: qué funciona hoy, con evidencia | cerrado | [linea-base.md](linea-base.md); `artifacts/verify-template/baseline-20261016/` |
 | 2 | Un solo comando de verificación local | pendiente | |
 | 3 | CI verde de verdad | pendiente | |
@@ -87,6 +87,16 @@ Una entrada por paso cerrado, con este formato:
 - Preguntas: qué preguntó Tobi.
 - Evidencia: artifacts/verify-template/<runId>/
 ```
+
+### Paso 0.9 — 2026-10-17
+- Enseñado: providers funcionales. `provideAppInitializer(() => inject(Session).bootstrap())` reemplaza un token multi con `useFactory` y `deps` escritos a mano: la función corre en un contexto de inyección y pide lo que necesita con `inject()`. `bootstrap()` devuelve `void`, así que Angular no lo espera, igual que antes; los guards siguen esperando `session.ready()`.
+- Preguntas: ninguna nueva.
+- Decisiones: dos filas nuevas en `docs/decisions.tsv`. `conventions.md` actualizado.
+- Evidencia: artifacts/verify-template/fase0-09-app-initializer/ y artifacts/verify-template/fase0-09-runtime/.
+  - Rojo antes de verde, gate: con el `check-frontend` del 0.8 falla el test nuevo (`check-frontend-red.log`). Con el nuevo pasan 19/19.
+  - Rojo antes de verde, producto: FRONT007 frena `app.config.ts` (`check-frontend-product-red.log`).
+  - Build de Angular: PASS. `check-frontend`, `check-structure`, `check-comments` y `CommentVerifier`: PASS.
+  - verify-template: launch PASS, smoke HTTP PASS (45 requests). Después de 65 segundos, navegador PASS con el recorrido del 0.8 (14 pasos), que incluye la restauración de sesión al recargar y el guard sin sesión. Cleanup PASS.
 
 ### Paso 0.8 — 2026-10-17
 - Enseñado: el formulario como signals. El modelo es un `signal` (`credentials`, `account`, `newTask`, `profile`), `form()` le agrega reglas y estado (`touched`, `invalid`, `submitting`), y `[formRoot]` llama a `submit()`: marca todo como tocado y corre la acción solo si el formulario es válido. Eso reemplaza el `markAllAsTouched()` y los signals `loading`, `creating` y `saving` escritos a mano. Las reglas escriben `required` y `maxlength` en el HTML: ponerlos a mano es un error de compilación (NG8022).
