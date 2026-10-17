@@ -62,6 +62,7 @@ Estados: `pendiente`, `en curso`, `cerrado`, `bloqueado (⏸ decisión de Tobi)`
 Cosas vistas durante un paso que no le corresponden. Cada una espera su paso.
 
 - Catálogo de errores: `TaskErrors`, `UserErrors` y `AuthErrors` usan prefijos distintos y hay errores escritos en línea (`"Task.Forbidden"` aparece 4 veces). Paso 6.
+- CI falla en el job de backend desde el primer run en GitHub: 9 tests de `TasksTests` caen con `Failed to seed permission ... Optimistic concurrency failure`. Los roles se siembran dos veces en paralelo: `ApiFixture.cs:87` y `DatabaseInitializer.cs:17`, que corre al arrancar la API. En local pasó (28/28); en CI la carrera aparece. Paso 3.
 - `backend/AGENTS.md` y `backend/docs/agents/` describen un issue tracker en `.scratch/`, que `.gitignore` excluye: los issues nunca se versionan.
 
 ## Cierres
