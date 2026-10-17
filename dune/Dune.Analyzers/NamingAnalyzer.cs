@@ -67,33 +67,40 @@ public sealed class NamingAnalyzer : DiagnosticAnalyzer
         string path)
     {
         var name = named.Name;
-        if (name.EndsWith("Module", System.StringComparison.Ordinal)
-            || name.EndsWith("Endpoints", System.StringComparison.Ordinal))
+        if (DunePaths.TryGetFeature(path, out var feature))
         {
-            if (!IsFeatureRoot(path))
+            if (name.EndsWith("Module", System.StringComparison.Ordinal)
+                || name.EndsWith("Endpoints", System.StringComparison.Ordinal))
             {
-                context.ReportDiagnostic(Diagnostic.Create(
-                    DuneDiagnostics.SuffixPlacement,
-                    declaration.Identifier.GetLocation(),
-                    name,
-                    "la raíz de la feature (TemplateApp.Features.<Feature>)"));
+                Report(context, declaration, name, "una clase por slice en su carpeta, sin clase compartida por todas las slices");
+                return;
             }
 
-            return;
+            if (name.EndsWith("Endpoint", System.StringComparison.Ordinal))
+            {
+                if (!DunePaths.TryGetSlice(path, out var slice) || !name.Equals(slice + "Endpoint", System.StringComparison.Ordinal))
+                {
+                    Report(context, declaration, name, "<Slice>Endpoint dentro de la carpeta de su slice (Features/<Feature>/<Slice>/)");
+                }
+
+                return;
+            }
+
+            if (name.EndsWith("Feature", System.StringComparison.Ordinal))
+            {
+                if (DunePaths.FeatureSegments(path, feature).Length != 1 || !name.Equals(feature + "Feature", System.StringComparison.Ordinal))
+                {
+                    Report(context, declaration, name, feature + "Feature en la raíz de la feature");
+                }
+
+                return;
+            }
         }
 
         if (name.EndsWith("Tests", System.StringComparison.Ordinal)
             || (name.EndsWith("Test", System.StringComparison.Ordinal) && !name.Equals("Test", System.StringComparison.Ordinal)))
         {
-            if (!DunePaths.IsTestsFile(path) && !DunePaths.ContainsOrdinal(path, "/Tests"))
-            {
-                context.ReportDiagnostic(Diagnostic.Create(
-                    DuneDiagnostics.SuffixPlacement,
-                    declaration.Identifier.GetLocation(),
-                    name,
-                    "un directorio Tests/ de la feature"));
-            }
-
+            Report(context, declaration, name, "<Slice>Tests.cs junto a su slice, o backend/Tests/");
             return;
         }
 
@@ -103,30 +110,19 @@ public sealed class NamingAnalyzer : DiagnosticAnalyzer
         {
             if (DunePaths.IsDomainFile(path))
             {
-                context.ReportDiagnostic(Diagnostic.Create(
-                    DuneDiagnostics.SuffixPlacement,
-                    declaration.Identifier.GetLocation(),
-                    name,
-                    "fuera de Domain (contratos o validación junto a la feature)"));
+                Report(context, declaration, name, "fuera de Domain (en la slice o en Contracts)");
             }
         }
     }
 
-    private static bool IsFeatureRoot(string path)
-    {
-        if (!DunePaths.TryGetFeature(path, out var feature))
-        {
-            return false;
-        }
-
-        var marker = "backend/Features/" + feature + "/";
-        var index = path.IndexOf(marker, System.StringComparison.Ordinal);
-        if (index < 0)
-        {
-            return false;
-        }
-
-        var rest = path.Substring(index + marker.Length);
-        return rest.IndexOf('/') < 0;
-    }
+    private static void Report(
+        SyntaxNodeAnalysisContext context,
+        BaseTypeDeclarationSyntax declaration,
+        string name,
+        string expected) =>
+        context.ReportDiagnostic(Diagnostic.Create(
+            DuneDiagnostics.SuffixPlacement,
+            declaration.Identifier.GetLocation(),
+            name,
+            expected));
 }

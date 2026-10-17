@@ -26,7 +26,10 @@ public static class AuthFeature
         services.AddScoped<TokenService>();
         services.AddScoped<SessionValidator>();
         services.AddScoped<SessionHttpPolicy>();
-        services.AddScoped<AuthModule>();
+        services.AddScoped<RegisterUser.RegisterUser>();
+        services.AddScoped<OpenSession.OpenSession>();
+        services.AddScoped<RefreshSession.RefreshSession>();
+        services.AddScoped<CloseSession.CloseSession>();
 
         return services;
     }
@@ -126,15 +129,14 @@ public static class AuthFeature
 
     public static IEndpointRouteBuilder MapAuthEndpoints(this IEndpointRouteBuilder app)
     {
-        RouteGroupBuilder group = app.MapGroup("/api/v1/auth");
-        group.AddEndpointFilter<SessionHttpPolicy>();
+        RouteGroupBuilder auth = app.MapGroup("/api/v1/auth");
+        auth.AddEndpointFilter<SessionHttpPolicy>();
 
-        group.MapGet("/csrf", AuthEndpoints.IssueCsrf).AllowAnonymous();
-
-        group.MapPost("/register", AuthEndpoints.RegisterAsync).AllowAnonymous().RequireRateLimiting("auth");
-        group.MapPost("/login", AuthEndpoints.LoginAsync).AllowAnonymous().RequireRateLimiting("auth");
-        group.MapPost("/refresh", AuthEndpoints.RefreshAsync).AllowAnonymous().RequireRateLimiting("auth");
-        group.MapPost("/logout", AuthEndpoints.LogoutAsync).AllowAnonymous().RequireRateLimiting("auth");
+        IssueCsrfToken.IssueCsrfTokenEndpoint.Map(auth);
+        RegisterUser.RegisterUserEndpoint.Map(auth);
+        OpenSession.OpenSessionEndpoint.Map(auth);
+        RefreshSession.RefreshSessionEndpoint.Map(auth);
+        CloseSession.CloseSessionEndpoint.Map(auth);
 
         return app;
     }

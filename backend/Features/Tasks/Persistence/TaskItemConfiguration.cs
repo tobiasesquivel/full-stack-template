@@ -17,7 +17,7 @@ public sealed class TaskItemConfiguration : IEntityTypeConfiguration<TaskItem>
 
         builder.Property(t => t.Title)
             .IsRequired()
-            .HasMaxLength(200);
+            .HasMaxLength(TaskItem.TitleMaxLength);
 
         builder.Property(t => t.CreatedAt)
             .IsRequired();

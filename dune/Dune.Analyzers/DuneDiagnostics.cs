@@ -16,7 +16,7 @@ internal static class DuneDiagnostics
     public static readonly DiagnosticDescriptor EndpointPersistence = new(
         id: "DUNE0002",
         title: "Endpoint accede a persistencia",
-        messageFormat: "Los endpoints solo adaptan HTTP y llaman a su módulo; '{0}' no está permitido en endpoints",
+        messageFormat: "Los endpoints solo adaptan HTTP y llaman a su slice; '{0}' no está permitido en endpoints",
         category: "Dune",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
@@ -74,7 +74,7 @@ internal static class DuneDiagnostics
         category: "Dune",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
-        description: "Module/Endpoints viven en la raíz de la feature; Tests bajo Tests/; Request/Response/Validator fuera de Domain.");
+        description: "Sin Module ni Endpoints compartidos; <Slice>Endpoint en la carpeta de su slice; <Feature>Feature en la raíz; Tests junto a su slice o en backend/Tests; Request/Response/Validator fuera de Domain.");
 
     public static readonly DiagnosticDescriptor NoComments = new(
         id: "DUNE0009",

@@ -7,10 +7,12 @@ El código actual todavía no cumple todas estas reglas. La Fase 0 del [plan](ev
 ## Dónde va cada cosa
 
 - Cada capacidad vive en `backend/Features/<Feature>/`. La carpeta de la feature va en plural: `Tasks`, `Users`.
-- Cada caso de uso es una slice: una carpeta con el nombre del caso de uso, en verbo + sustantivo (`CreateTask/`, `ListTasks/`). Adentro, `CreateTask.cs` y `CreateTaskTests.cs`.
-- La slice es una clase propia con sus dependencias. No hay una clase compartida por todas las slices ni una interface por slice.
-- `Contracts/` contiene lo que ven otras features y lo que comparten varias slices. Un archivo por tipo.
-- Un tipo que usa una sola slice vive en el archivo de la slice.
+- Cada caso de uso es una slice: una carpeta con el nombre del caso de uso, en verbo + sustantivo (`CreateTask/`, `ListTasks/`). Adentro, un archivo por pieza: `CreateTaskRequest.cs`, `CreateTaskRequestValidator.cs`, `CreateTask.cs`, `CreateTaskEndpoint.cs` y `CreateTaskTests.cs`. Las piezas que el caso de uso no necesita no existen.
+- La operación (`CreateTask`) es una clase propia con sus dependencias. El endpoint (`CreateTaskEndpoint`) es estático: expone `Map` y un handler privado que llama a la operación. No hay una clase compartida por todas las slices ni una interface por slice.
+- Un archivo por tipo en las features.
+- Un tipo que usa una sola slice vive en la carpeta de la slice.
+- `Contracts/` contiene lo que ven otras features y las responses HTTP que comparten varias slices.
+- Lo interno que comparten varias slices (errores, servicios, mapeos) vive en la raíz de la feature o en una carpeta técnica propia (`Access/`, `Jwt/`). No va a `Contracts/`.
 - `Domain/` contiene modelos puros y las reglas que comparten las slices. Una regla no se copia entre slices: baja al `Domain`.
 - `Persistence/` contiene los mappings de EF.
 - `<Feature>Feature.cs` registra la DI y las rutas de la feature. `Program.cs` lista las features de forma explícita.
@@ -20,7 +22,7 @@ El código actual todavía no cumple todas estas reglas. La Fase 0 del [plan](ev
 ## Nombres y estilo
 
 - El namespace coincide con la ruta, bajo `TemplateApp`. Namespaces file-scoped, nullable e implicit usings.
-- Sufijos con significado único: `*Request`, `*Response`, `*Validator`, `*Tests`, `*Feature`.
+- Sufijos con significado único: `*Request`, `*Response`, `*Validator`, `*Endpoint`, `*Tests`, `*Feature`. No se usan `*Module` ni `*Endpoints` en features. DUNE0008 lo hace cumplir.
 - Requests y responses son records. La validación de entrada usa FluentValidation. Los mappings de EF usan Fluent API, fuera de `Domain`.
 - En el frontend, los modelos usan los mismos nombres que el backend: `*Request` y `*Response`.
 

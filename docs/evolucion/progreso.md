@@ -4,7 +4,7 @@ Registro vivo del [plan](plan.md). El agente lo actualiza al cerrar cada paso.
 
 ## Paso actual
 
-**Fase 0, paso 0.4: slices.** Estado: sin empezar.
+**Fase 0, paso 0.5: límite entre Auth y Users.** Estado: sin empezar. El paso 0.4 espera el merge de Tobi.
 
 La Fase 0 va antes del paso 2. El paso 1 (línea base) ya cerró y sirve de referencia para la Fase 0.
 
@@ -18,7 +18,7 @@ Estados: `pendiente`, `en curso`, `cerrado`, `bloqueado (⏸ decisión de Tobi)`
 | 0.1 | Docs y reglas de trabajo | cerrado | `artifacts/verify-template/fase0-01-docs/` |
 | 0.2 | Arreglos de Dune | cerrado | `artifacts/verify-template/fase0-02-dune/` |
 | 0.3 | Reparto del código | cerrado | `artifacts/verify-template/fase0-03-reparto/`, `artifacts/verify-template/fase0-03-runtime/` |
-| 0.4 | Slices | pendiente | |
+| 0.4 | Slices | cerrado | `artifacts/verify-template/fase0-04-slices/`, `artifacts/verify-template/fase0-04-runtime/` |
 | 0.5 | Límite entre Auth y Users | pendiente | |
 | 0.6 | Frontend por feature | pendiente | |
 | 1 | Línea base: qué funciona hoy, con evidencia | cerrado | [linea-base.md](linea-base.md); `artifacts/verify-template/baseline-20261016/` |
@@ -65,8 +65,10 @@ Cosas vistas durante un paso que no le corresponden. Cada una espera su paso.
 - Catálogo de errores: `TaskErrors`, `UserErrors` y `AuthErrors` usan prefijos distintos y hay errores escritos en línea (`"Task.Forbidden"` aparece 4 veces). Paso 6.
 - El build Release muestra 218 warnings de analyzers (CA2007, CA1707, RS2008, RS1036, CS8602 y otros). Nadie decidió si cada uno se corrige o se baja a `suggestion`. Sin paso asignado: proponer uno.
 - `docs/evolucion/informe-vsa-deep-modules.md` §2.1 propone `AppIdentityUser` en `Auth/Domain`. Choca con `architecture.md` (Domain sin ASP.NET). En el paso 0.3 quedó en `Auth/Contracts`; su lugar final se decide en el 0.5.
-- `Auth/Contracts/AuthRequests.cs` y `AuthResponses.cs` tienen varios tipos por archivo; `conventions.md` pide uno por archivo. Paso 0.4.
-- Dune no conoce el sufijo `*Feature` (DUNE0008 solo mira `Module` y `Endpoints`), aunque `conventions.md` le da significado único. Sin paso asignado.
+- La regla "DisplayName entre 1 y 200" está en `RegisterUser` (Auth) y en `UpdateProfileRequestValidator` (Users). Debería bajar a `UserProfile`, pero Auth no puede usar el `Domain` de Users. Paso 0.5.
+- `"Task.Forbidden"` y `"User.Forbidden"` siguen escritos en línea en cada slice. Paso 6.
+- `Tests/Support/TestSession.cs` declara tres tipos en un archivo. La regla de un tipo por archivo hoy cubre solo las features. Sin paso asignado.
+- Hay una carpeta vacía y sin versionar, `backend/Features/Health/Test/`, de antes de este paso. Git la ignora. Borrarla es decisión de Tobi.
 - `backend/AGENTS.md` y `backend/docs/agents/` describen un issue tracker en `.scratch/`, que `.gitignore` excluye: los issues nunca se versionan.
 
 ## Cierres
@@ -79,6 +81,18 @@ Una entrada por paso cerrado, con este formato:
 - Preguntas: qué preguntó Tobi.
 - Evidencia: artifacts/verify-template/<runId>/
 ```
+
+### Paso 0.4 — 2026-10-17
+- Enseñado: la profundidad se mide en el borde de la feature, no en la slice. Cada slice declara solo sus dependencias: `ListTasks` recibe solo `AppDbContext`, mientras `TasksModule` cargaba `IAccessPolicy` y `TimeProvider` para todas. Lo que se repetía entre slices (regla del título, traducción de validación) baja al `Domain` o a `Shared`. Una interfaz con una sola implementación y un solo uso es un seam hipotético (`IDatabaseReadinessProbe`).
+- Preguntas: por qué la slice era un archivo y no una carpeta. Tobi eligió una carpeta con un archivo por pieza. También eligió que lo interno compartido viva en la raíz de la feature y no en `Contracts/`.
+- Decisiones: ocho filas nuevas en `docs/decisions.tsv`. ADR-0004 (puntos 2 y 5), `architecture.md` y `conventions.md` actualizados.
+- Evidencia: artifacts/verify-template/fase0-04-slices/ y artifacts/verify-template/fase0-04-runtime/.
+  - Rojo antes de verde, Dune: con el `NamingAnalyzer` viejo fallan 8 de 61 tests (`dune-red.log`), entre ellos `SharedModuleAtFeatureRootIsRejected` y `SliceInItsFolderIsAccepted`. Con el nuevo pasan 61/61.
+  - Rojo antes de verde, `check-structure`: con el script viejo fallan 8 de 24 fixtures (`check-structure-red.log`). Con el nuevo pasan 24/24.
+  - Primer intento de tests: 7 de 29 FAIL con 503. Una sola app compartida agotaba el rate limiter `auth`. Se volvió a una app por clase con un solo contenedor (`AssemblyFixture`).
+  - Build Release: PASS (0 errores, 203 warnings; antes 217). Tests `TemplateApp.slnx`: PASS (90/90: 29 de producto y 61 de Dune). `CommentVerifier`, `check-structure` (24/24), `check-comments` (18/18): PASS. EF `has-pending-model-changes`: PASS (sin cambios de modelo).
+  - verify-template: launch PASS (build, tests, PostgreSQL, API y front), smoke HTTP PASS (45 requests, igual que en el paso 0.3), cleanup PASS.
+  - Navegador: NOT_RUN. El paso no cambia contratos HTTP ni el frontend.
 
 ### Paso 0.3 — 2026-10-17
 - Enseñado: lo que nombra una feature vive en esa feature; cada feature es su propio composition root. Information leakage (el hook de sesión en Infrastructure, `GetCallerId` lejos del JWT) y change amplification (permisos de todas las features en un archivo). Juntar dos interfaces en una más profunda (`IAccessPolicy`). Invertir una dependencia con `IDatabaseSeeder`.

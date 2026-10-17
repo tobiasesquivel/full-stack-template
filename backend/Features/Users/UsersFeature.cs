@@ -4,19 +4,20 @@ public static class UsersFeature
 {
     public static IServiceCollection AddUsersFeature(this IServiceCollection services)
     {
-        services.AddScoped<UsersModule>();
+        services.AddScoped<UserResponseBuilder>();
+        services.AddScoped<GetUser.GetUser>();
+        services.AddScoped<UpdateProfile.UpdateProfile>();
+        services.AddScoped<DeleteUser.DeleteUser>();
         return services;
     }
 
     public static IEndpointRouteBuilder MapUsersEndpoints(this IEndpointRouteBuilder app)
     {
-        RouteGroupBuilder group = app.MapGroup("/api/v1/users").RequireAuthorization();
+        RouteGroupBuilder users = app.MapGroup("/api/v1/users").RequireAuthorization();
 
-        group.MapGet("/me", UsersEndpoints.GetMeAsync);
-        group.MapPut("/me", UsersEndpoints.UpdateMeAsync);
-        group.MapDelete("/me", UsersEndpoints.DeleteMeAsync);
-        group.MapGet("/{authId}", UsersEndpoints.GetByIdAsync);
-        group.MapDelete("/{authId}", UsersEndpoints.DeleteByIdAsync);
+        GetUser.GetUserEndpoint.Map(users);
+        UpdateProfile.UpdateProfileEndpoint.Map(users);
+        DeleteUser.DeleteUserEndpoint.Map(users);
 
         return app;
     }

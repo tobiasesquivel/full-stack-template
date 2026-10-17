@@ -14,16 +14,20 @@ backend/
 └── Features/
     └── Tasks/
         ├── TasksFeature.cs  registra DI y rutas de la feature
-        ├── Contracts/       lo único que ven otras features
+        ├── TaskErrors.cs    piezas internas que comparten varias slices
+        ├── Contracts/       lo que ven otras features y las responses HTTP compartidas
         ├── Domain/          modelos puros y reglas del dominio
         ├── Persistence/     mappings de EF
         └── CreateTask/
-            ├── CreateTask.cs        request, validación, operación y endpoint
+            ├── CreateTaskRequest.cs
+            ├── CreateTaskRequestValidator.cs
+            ├── CreateTask.cs            operación: clase con sus dependencias
+            ├── CreateTaskEndpoint.cs    adapter HTTP: Map y handler
             └── CreateTaskTests.cs
 ```
 
 - **Feature:** un módulo profundo. Su interfaz pública es `Contracts/` más sus rutas HTTP.
-- **Slice:** un caso de uso. Es una clase propia, con sus dependencias.
+- **Slice:** un caso de uso, en su carpeta. La operación es una clase propia, con sus dependencias. El endpoint solo adapta HTTP y llama a la operación.
 - **Domain:** sin EF, ASP.NET ni infraestructura. Concentra las reglas que comparten las slices.
 - **Infrastructure:** observabilidad, middlewares, arranque de la base y composición del host.
 - **Shared:** tipos generales que usan varias features, como `ApiResults`.
@@ -36,7 +40,6 @@ El código todavía no tiene la forma de arriba. La Fase 0 del [plan](evolucion/
 
 | Diferencia | Paso que la resuelve |
 |---|---|
-| `Tasks` usa partials de `TasksModule`; `Users`, `Auth` y `Health` no tienen slices. Los handlers HTTP viven en `<Feature>Endpoints` | 0.4 |
 | Auth y Users se usan por dentro en las dos direcciones. `AppIdentityUser`, una entidad de Identity, está en `Auth/Contracts` porque Users todavía la usa | 0.5 |
 | Los servicios de Auth y Users del frontend están en `core/` | 0.6 |
 | Un solo `AppDbContext` para todas las features: `Infrastructure` todavía nombra los `Domain` y `Contracts` de las features | Paso 22 |

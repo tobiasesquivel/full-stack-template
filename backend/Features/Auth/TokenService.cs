@@ -14,8 +14,6 @@ using TemplateApp.Infrastructure.Persistence;
 
 namespace TemplateApp.Features.Auth;
 
-public sealed record IssuedSession(string AccessToken, DateTimeOffset AccessTokenExpiresAt, string RefreshPlaintext);
-
 public sealed class TokenService
 {
     private readonly JwtOptions _options;
@@ -207,5 +205,3 @@ public sealed class TokenService
     public TokenResponse ToTokenResponse(IssuedSession session) =>
         new(session.AccessToken, session.AccessTokenExpiresAt);
 }
-
-public sealed record UserProfileSnapshot(string DisplayName, string Timezone);

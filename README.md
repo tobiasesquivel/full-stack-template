@@ -68,7 +68,7 @@ Regístrate con nombre de login, email, contraseña y nombre visible. Inicia ses
 
 Si consumes HTTP directamente, primero pide `GET /api/v1/auth/csrf` y conserva cookies. Envía el valor de `XSRF-TOKEN` como `X-XSRF-TOKEN` en register, login, refresh y logout. Usa el access token como Bearer para Users y Tasks. Refresh y logout tienen body vacío y no necesitan un access token vigente. No leas la cookie HttpOnly ni envíes refresh tokens en JSON.
 
-Los errores usan ProblemDetails. Un recurso inexistente devuelve 404 y un recurso ajeno sin permiso devuelve 403. La lista Tasks siempre es personal, incluso para un administrador. Los tests de integración en `backend/Features/*/Tests` fijan payloads y estados exactos.
+Los errores usan ProblemDetails. Un recurso inexistente devuelve 404 y un recurso ajeno sin permiso devuelve 403. La lista Tasks siempre es personal, incluso para un administrador. Los tests de integración, uno por slice (`backend/Features/<Feature>/<Slice>/<Slice>Tests.cs`), fijan payloads y estados exactos.
 
 ## Ejecutar gates
 

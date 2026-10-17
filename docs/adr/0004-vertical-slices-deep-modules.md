@@ -18,14 +18,18 @@ La investigación está en [informe-vsa-deep-modules.md](../evolucion/informe-vs
 Usamos **Vertical Slice Architecture** (Jimmy Bogard) dentro de features que funcionan como **módulos profundos** (John Ousterhout).
 
 1. **Feature = módulo profundo.** Cada capacidad vive en `backend/Features/<Feature>/`. Desde afuera solo se ve `Contracts/`. Todo lo demás es interno.
-2. **Slice = un caso de uso.** Cada slice es una clase propia, con sus dependencias, en su carpeta: `Features/Tasks/CreateTask/CreateTask.cs`. Junta request, validación, operación y endpoint. Su test vive en la misma carpeta.
+2. **Slice = un caso de uso, en su carpeta.** `Features/Tasks/CreateTask/` tiene un archivo por pieza: `CreateTaskRequest.cs`, `CreateTaskRequestValidator.cs`, `CreateTask.cs` (la operación: una clase propia con sus dependencias), `CreateTaskEndpoint.cs` (el adapter HTTP) y `CreateTaskTests.cs`. La carpeta junta el caso de uso; cada archivo tiene un solo tipo.
 3. **Entre features, solo `Contracts`.** Ninguna feature usa el `Domain`, la `Persistence` ni las slices de otra.
 4. **Una sola dirección entre Auth y Users.** Users depende de `Auth.Contracts`. Auth no conoce el interior de Users.
-5. **Tipos en la slice, salvo lo compartido.** Un tipo que usa una sola slice vive en la slice. Si lo usan varias slices u otra feature, va a `Contracts/`, un archivo por tipo.
+5. **Tipos en la slice, salvo lo compartido.** Un tipo que usa una sola slice vive en la carpeta de la slice. Lo que usa otra feature va a `Contracts/`, igual que las responses HTTP que comparten varias slices. Lo interno que comparten varias slices (errores, servicios como `TokenService`, mapeos) queda en la raíz de la feature o en una carpeta técnica propia (`Access/`, `Jwt/`). Así `Contracts/` sigue siendo lo único que ve otra feature.
 6. **Lo que nombra una feature va a esa feature.** `Infrastructure/` queda para la fontanería técnica del host. `Shared/` queda como núcleo mínimo que no nombra ninguna feature. Cada feature se registra sola desde su `<Feature>Feature.cs`.
 7. **Un solo proyecto .NET.** Dune hace cumplir los límites.
 8. **El frontend sigue el mismo criterio.** Cada feature de Angular tiene su servicio, sus modelos y sus rutas. `core/` queda para lo transversal.
 9. **Sin mediator ni bus por ahora.** El paso 25 del plan elige un bus. Hasta entonces, un gate neutral rechaza cualquier librería de bus o mediator.
+
+## Cambios
+
+- 2026-10-17 (paso 0.4), decide Tobi: la slice pasa de un archivo a una carpeta con un archivo por pieza (punto 2). Lo interno que comparten varias slices queda en la raíz de la feature, no en `Contracts/` (punto 5). Antes el punto 5 mandaba a `Contracts/` todo lo compartido, y eso chocaba con "desde afuera solo se ve `Contracts/`".
 
 ## Condiciones para que una slice siga siendo profunda
 
