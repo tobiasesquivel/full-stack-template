@@ -13,3 +13,4 @@ ts	phase	decision	why	evidence	result
 2026-10-16	proceso	Regla 7 pasa a ser de alcance; regla 9 permite cambiar reglas a propósito con ADR y fixtures	Todo el repo puede cambiar, pero cada cosa en su paso	AGENTS.md	aceptada
 2026-10-16	proceso	decisions.tsv arranca de cero; los ADR 0001-0003 y el changelog se borran	Sus referencias ya no abrían y contradecían la arquitectura nueva; quedan en git	git:c99dc9d	aceptada
 2026-10-16	codigo	Se borra el código muerto: ITemplateMetrics, ValidationExceptionHandler, UserErrors.InvalidTimezone	Enseña algo falso; las métricas vuelven conectadas en el paso 14	docs/evolucion/informe-vsa-deep-modules.md	pendiente-0.3
+2026-10-16	codigo	La inicialización de la base (migrar y sembrar) toma un advisory lock de PostgreSQL y se siembra solo al arrancar la API	Varias instancias arrancando a la vez se pisaban: CI caía y lo mismo pasaría con réplicas en producción	backend/Tests/Startup/ConcurrentStartupTests.cs	aceptada
