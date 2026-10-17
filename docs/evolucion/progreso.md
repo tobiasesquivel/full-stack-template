@@ -4,7 +4,7 @@ Registro vivo del [plan](plan.md). El agente lo actualiza al cerrar cada paso.
 
 ## Paso actual
 
-**Paso 0.20: diálogo de presentación (`TaskDeleteDialog`).** Estado: pendiente. Los pasos 0.10 a 0.19 cerraron. Tobi pidió el 2026-10-17 separar la vista de los componentes (0.10), un archivo por tipo (0.11), Tailwind (0.12), ordenar los archivos sueltos de cada feature (0.13), investigar y aplicar el manejo de sesión en Angular (0.14 a 0.16, [informe-sesion-angular.md](informe-sesion-angular.md)) y aplicar lo que no necesita decisión de herramienta de [informe-componentes-angular.md](informe-componentes-angular.md) y [informe-frontend-para-agentes.md](informe-frontend-para-agentes.md) (0.17 a 0.20). Después de 0.20 sigue la Fase 1, paso 2. Los pasos 0.6 a 0.19 esperan el merge de Tobi.
+**Fase 1, paso 2: un solo comando de verificación local.** Estado: pendiente. Los pasos 0.10 a 0.20 cerraron. Tobi pidió el 2026-10-17 separar la vista de los componentes (0.10), un archivo por tipo (0.11), Tailwind (0.12), ordenar los archivos sueltos de cada feature (0.13), investigar y aplicar el manejo de sesión en Angular (0.14 a 0.16, [informe-sesion-angular.md](informe-sesion-angular.md)) y aplicar lo que no necesita decisión de herramienta de [informe-componentes-angular.md](informe-componentes-angular.md) y [informe-frontend-para-agentes.md](informe-frontend-para-agentes.md) (0.17 a 0.20). Los pasos 0.6 a 0.20 esperan el merge de Tobi.
 
 La Fase 0 va antes del paso 2. El paso 1 (línea base) ya cerró y sirve de referencia para la Fase 0.
 
@@ -34,7 +34,7 @@ Estados: `pendiente`, `en curso`, `cerrado`, `bloqueado (⏸ decisión de Tobi)`
 | 0.17 | El CLI genera código que pasa el gate | cerrado | `artifacts/verify-template/fase0-17-cli-defaults/`, `artifacts/verify-template/fase0-17-runtime/` |
 | 0.18 | Componente de ruta y componente de presentación: `TaskPager` | cerrado | `artifacts/verify-template/fase0-18-task-pager/`, `artifacts/verify-template/fase0-18-runtime/` |
 | 0.19 | Estado local en el hijo: `TaskRow` | cerrado | `artifacts/verify-template/fase0-19-task-row/`, `artifacts/verify-template/fase0-19-runtime-baseline/` (línea base), `artifacts/verify-template/fase0-19-runtime/` |
-| 0.20 | Diálogo de presentación: `TaskDeleteDialog` | pendiente | |
+| 0.20 | Diálogo de presentación: `TaskDeleteDialog` | cerrado | `artifacts/verify-template/fase0-20-task-delete-dialog/`, `artifacts/verify-template/fase0-19-runtime-baseline/` (línea base), `artifacts/verify-template/fase0-20-runtime/` |
 | 1 | Línea base: qué funciona hoy, con evidencia | cerrado | [linea-base.md](linea-base.md); `artifacts/verify-template/baseline-20261016/` |
 | 2 | Un solo comando de verificación local | pendiente | |
 | 3 | CI verde de verdad | pendiente | |
@@ -91,6 +91,9 @@ Cosas vistas durante un paso que no le corresponden. Cada una espera su paso.
 - Al restaurar, un error de red (`status 0`) deja la sesión `closed`, igual que un 401. Distinguir "sin conexión" de "sin sesión" queda pendiente.
 - Una regla que limite `HttpClient` a los archivos de `api/` haría ejecutable la división del paso 0.13 (`api/` hace el HTTP). Hoy FRONT002 solo lo prohíbe en componentes. Sin paso asignado.
 
+- FRONT006 solo mira el import de `@angular/forms`. Un input con `[value]`, `(input)` y `$any($event.target)`, como el que tenía la edición en línea antes del paso 0.19, sigue pasando el gate. Sin paso asignado.
+- `ng generate component` sigue creando un `.spec.ts` (paso 0.17). Fijar `skipTests` o usar el archivo depende de la decisión de Tobi sobre la suite de Vitest.
+
 ## Cierres
 
 Una entrada por paso cerrado, con este formato:
@@ -101,6 +104,17 @@ Una entrada por paso cerrado, con este formato:
 - Preguntas: qué preguntó Tobi.
 - Evidencia: artifacts/verify-template/<runId>/
 ```
+
+### Paso 0.20 — 2026-10-17
+- Enseñado: un hijo maneja su propio DOM y el padre decide el foco. `TaskDeleteDialog` recibe `task: input<TaskResponse | null>()`. Un `afterRenderEffect` abre su `<dialog>` con `showModal()` cuando llega una tarea y lo cierra con `null`. Lo hace sobre su propio `viewChild`, después de que Angular dibujó la vista. Al cancelar (botón o `Escape`) y al confirmar, cierra el diálogo y recién después avisa `cancelled` o `confirmed`. Así `Tasks` encuentra el diálogo cerrado, igual que antes del paso, y mueve el foco: al `Eliminar` de la fila al cancelar, al encabezado "Mis tareas" después de borrar. `Tasks` pierde `confirmDialog` y el `showModal()`. Para saber si el foco quedó en el diálogo usa `active.closest('dialog')`.
+- Preguntas: ninguna nueva; aplica [informe-componentes-angular.md](informe-componentes-angular.md), paso C.
+- Decisiones: una fila nueva en `docs/decisions.tsv`. `conventions.md` y `architecture.md` actualizados. El diálogo sigue arriba a la izquierda: centrarlo es decisión de Tobi (pendiente del 0.12).
+- Evidencia: artifacts/verify-template/fase0-20-task-delete-dialog/, artifacts/verify-template/fase0-19-runtime-baseline/ y artifacts/verify-template/fase0-20-runtime/.
+  - Sin regla nueva de Dune. FRONT013 sigue en verde con `TaskDeleteDialog`, que solo usa `viewChild`. `check-frontend` sigue con 28/28 tests.
+  - Línea base (`fase0-19-runtime-baseline`, código del 0.18): las 3 comprobaciones del diálogo ya pasaban. Es el comportamiento que el paso debe conservar.
+  - Verde (`fase0-20-runtime`): 32 pasos PASS. Borrar la única tarea de la página 2 manda `DELETE` 204, pide `page=1` y muestra "Página 1 de 1 (10)" con 10 filas. `Eliminar` abre el diálogo con «título» y el foco en `Cancelar` (`12-delete-dialog-open.png`). `Escape` lo cierra sin `DELETE` y el foco vuelve al `Eliminar` de esa misma fila. `Confirmar` manda `DELETE` 204, la fila desaparece y el foco va al encabezado `#tasks-title` "Mis tareas".
+  - Build de Angular: PASS. `check-frontend`, `check-structure`, `check-comments` y `CommentVerifier`: PASS.
+  - verify-template: launch PASS, smoke HTTP PASS (45 requests). Cleanup PASS.
 
 ### Paso 0.19 — 2026-10-17
 - Enseñado: el estado vive en quien lo usa. El borrador del título es estado de la fila: `TaskRow` lo guarda en un `linkedSignal` cuya fuente es el título y `editing`. Cuando llega una tarea nueva o se abre la edición, el borrador vuelve solo al título guardado, sin `effect` y sin `startEdit` que lo copie. Quién edita es estado de la página: `editingId` queda en `Tasks`, así abrir otra fila cierra la primera. La edición usa Signal Forms aunque no tenga `<form>`: `form(draft, …)` con `required`, `maxLength(200)` y un `validate` que rechaza el blanco, `[formField]` en el input y `submit()` en `Guardar`. Se van el `$any($event.target)` y la validación a mano de `saveTitle`. `TaskRow` es el propio `<li>` (`li[app-task-row]`), así el DOM y las clases de Tailwind quedan iguales.

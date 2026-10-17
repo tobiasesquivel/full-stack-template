@@ -5,12 +5,13 @@ import { describeHttpError } from '../../../core/http-error';
 import type { TaskResponse } from '../api/task-response';
 import { TaskPager } from '../task-pager/task-pager';
 import { TaskRow } from '../task-row/task-row';
+import { TaskDeleteDialog } from '../task-delete-dialog/task-delete-dialog';
 
 const PAGE_SIZE = 10;
 
 @Component({
   selector: 'app-tasks',
-  imports: [FormField, FormRoot, TaskPager, TaskRow],
+  imports: [FormField, FormRoot, TaskPager, TaskRow, TaskDeleteDialog],
   templateUrl: './tasks.html',
   host: { class: 'block' },
 })
@@ -32,7 +33,6 @@ export class Tasks {
   protected readonly pendingDelete = signal<TaskResponse | null>(null);
   private deleteTrigger: HTMLButtonElement | null = null;
   private readonly injector = inject(Injector);
-  private readonly confirmDialog = viewChild<ElementRef<HTMLDialogElement>>('confirmDialog');
   private readonly tasksHeading = viewChild<ElementRef<HTMLElement>>('tasksHeading');
   private readonly newTask = signal({ title: '' });
   protected readonly createForm = form(
@@ -112,18 +112,10 @@ export class Tasks {
   protected askRemove(task: TaskResponse, trigger: HTMLButtonElement): void {
     this.deleteTrigger = trigger;
     this.pendingDelete.set(task);
-    const dialog = this.confirmDialog()?.nativeElement;
-    if (dialog && !dialog.open) {
-      dialog.showModal();
-    }
   }
 
-  protected cancelRemove(event?: Event): void {
-    if (event) {
-      event.preventDefault();
-    }
+  protected cancelRemove(): void {
     this.pendingDelete.set(null);
-    this.confirmDialog()?.nativeElement.close();
     const trigger = this.deleteTrigger;
     this.deleteTrigger = null;
     trigger?.focus();
@@ -137,7 +129,6 @@ export class Tasks {
     }
     this.pendingDelete.set(null);
     this.deleteTrigger = null;
-    this.confirmDialog()?.nativeElement.close();
     await this.remove(task, trigger);
   }
 
@@ -163,8 +154,7 @@ export class Tasks {
 
   private focusAfterRemove(trigger: HTMLButtonElement | null, failed: boolean): void {
     const active = document.activeElement;
-    const dialog = this.confirmDialog()?.nativeElement;
-    const inDialog = !!dialog && !!active && dialog.contains(active);
+    const inDialog = active !== null && active.closest('dialog') !== null;
     const onBody = active === null || active === document.body;
     if (!inDialog && !onBody) {
       return;
