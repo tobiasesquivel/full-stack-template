@@ -1,5 +1,7 @@
 # Arquitectura de una aplicación .NET empresarial de gran escala — informe de referencia
 
+> **Nota 2026-10-16**: referencia general, no describe este repo. El árbol de §3 organiza cada módulo por capas (`Ventas.Api`, `Ventas.Domain`…). Este repo no lo sigue: usa vertical slices en un solo proyecto, según [ADR-0004](../adr/0004-vertical-slices-deep-modules.md).
+
 **Alcance**: informe genérico y autocontenido sobre .NET en producción grande. No usa ningún repositorio local como ejemplo. Todo lo verificado tiene fuente enlazada; lo no verificado está marcado al final.
 
 **Idea central, primero**: en 2026 la decisión cara no es "microservicios sí o no", sino **qué dependencias adoptás y qué licencia te obligan a pagar**. Tres librerías que eran el estándar de facto (MediatR, AutoMapper, MassTransit) pasaron a licencia comercial, FluentAssertions también, y Polly empezó a cobrar un mantenimiento a partir de noviembre de 2026. La arquitectura sostenible se diseña ahora **alrededor de licencias**, no solo de patrones.

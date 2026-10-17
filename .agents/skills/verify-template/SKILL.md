@@ -9,7 +9,7 @@ Esta skill pertenece al proyecto. Su producto es un flujo real verificado o el p
 
 ## Launch
 
-Trabaja desde la raíz de esta copia. El original de referencia no forma parte de la ejecución. Espera a que terminen las ediciones de backend y frontend antes del build.
+Trabaja desde la raíz del repo. Espera a que terminen las ediciones de backend y frontend antes del build.
 
 Ejecuta en un terminal persistente:
 
@@ -45,8 +45,6 @@ El smoke usa cookies y antiforgery reales. Prueba health, registro y login, rota
 
 Después abre la URL `frontUrl` de `run.json` en un navegador real. Usa browser/CDP o Playwright disponible en el harness. Conduce [autenticación](features/auth.md), [Tasks](features/tasks.md) y [perfil](features/users.md) con sus labels e IDs de HTML. Como prueba mínima de UI, registra un usuario desde `/register`, crea una tarea desde `/tasks`, recarga y recupera el mismo dato. Observa las requests a `/api/v1` con respuestas reales.
 
-En omp, abre una pestaña con `browser.open`, inspecciona `tab.observe`, actúa con `fill` y `click`, y captura `tab.screenshot`. Usa `tab.run` para guardar evidencia de red sanitizada o persistir la captura si lo requieren las capacidades del browser. Cierra la pestaña en `finally`. Consulta las instrucciones del browser del harness antes de usarlo. No llames setters internos de Angular ni alteres storage para simular login.
-
 Una UI servida con HTML 200 todavía no verifica negocio. Un build correcto tampoco verifica runtime. Exige la acción, su respuesta y una segunda lectura del dato persistido.
 
 ## Evidence
@@ -77,4 +75,4 @@ Después de cleanup, comprueba que `summary.json` y los logs sigan en la carpeta
 - `scripts/smoke-api.mjs` es la única fuente del smoke HTTP. El comando `api` lo ejecuta con la URL propia. Para un conjunto Compose creado por esta misma ejecución, el script también admite `--compose` y `OTEL_EXPORT_DIR`. Ese modo detiene y reinicia `db` y `api`; úsalo solo cuando poseas ese Compose completo.
 - [Mapa de features](features/README.md) mantiene los recorridos y selectors de la UI.
 
-Mantén este mapa con `/maintain-verification-skill` cuando cambien rutas, contratos o controles visibles.
+Actualizá este mapa en el mismo PR que cambie rutas, contratos o controles visibles.

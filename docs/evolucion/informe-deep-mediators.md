@@ -1,5 +1,7 @@
 # Informe: módulos deep/shallow y mediators/buses en .NET
 
+> **Nota 2026-10-16**: investigación conservada como referencia. [ADR-0004](../adr/0004-vertical-slices-deep-modules.md) reemplaza sus recomendaciones de diseño: ya no rige "ya está aplicado (no tocar)" ni "no partir `TasksModule`". Cada slice pasa a ser una clase propia. Las citas a OpenSpec y las líneas de código citadas pueden estar desactualizadas.
+
 **Alcance**: solo lectura. No modifiqué archivos, no compilé, no ejecuté gates. Leí el código y la documentación de este repo, las skills locales y fuentes web primarias. Al final está la lista exacta de lo verificado y lo no verificado.
 
 ---
