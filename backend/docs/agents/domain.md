@@ -9,24 +9,20 @@ This repo is **single-context**: one `CONTEXT.md` and one `docs/adr/` at the rep
 - **`CONTEXT.md`** at the repo root — the glossary and domain overview.
 - **`docs/adr/`** — read ADRs that touch the area you're about to work in.
 
-If any of these files don't exist, **proceed silently**. Don't flag their absence; don't suggest creating them upfront. The `/domain-modeling` skill (reached via `/grill-with-docs` and `/improve-codebase-architecture`) creates them lazily when terms or decisions actually get resolved.
+If any of these files don't exist, **proceed silently**. Don't flag their absence; don't suggest creating them upfront. The `/domain-modeling` skill creates them lazily when terms or decisions actually get resolved.
 
 ## File structure
 
 ```
+CONTEXT.md
+docs/
+├── adr/
+│   └── 0004-<slug>.md
+├── architecture.md
+└── conventions.md
 backend/
-├── CONTEXT.md
-├── docs/
-│   ├── adr/
-│   │   ├── 0001-<slug>.md
-│   │   └── 0002-<slug>.md
-│   └── agents/
-├── Domain/
-├── Features/
-└── Infrastructure/
+└── Features/
 ```
-
-Existing reference docs that are *not* domain docs but are worth reading for conventions: `docs/AspNetConventions.md`, `docs/project-goals.md`.
 
 ## Use the glossary's vocabulary
 
