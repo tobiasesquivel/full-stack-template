@@ -4,7 +4,7 @@ Registro vivo del [plan](plan.md). El agente lo actualiza al cerrar cada paso.
 
 ## Paso actual
 
-**Fase 1, paso 2: un solo comando de verificación local.** Estado: sin empezar. La Fase 0 cerró con el paso 0.9. Los pasos 0.7 a 0.9 se agregaron el 2026-10-17 a pedido de Tobi ([informe](informe-angular-moderno.md)). Los pasos 0.6 a 0.9 esperan el merge de Tobi.
+**Paso 0.10: componentes en archivos separados.** Estado: en curso. Tobi pidió el 2026-10-17 los pasos 0.10 y 0.11: separar la vista de los componentes y un archivo por tipo en todo el repo. Después sigue la Fase 1, paso 2. Los pasos 0.6 a 0.9 esperan el merge de Tobi.
 
 La Fase 0 va antes del paso 2. El paso 1 (línea base) ya cerró y sirve de referencia para la Fase 0.
 
@@ -24,6 +24,8 @@ Estados: `pendiente`, `en curso`, `cerrado`, `bloqueado (⏸ decisión de Tobi)`
 | 0.7 | Servicios y nombres de Angular v22 | cerrado | `artifacts/verify-template/fase0-07-services/`, `artifacts/verify-template/fase0-07-runtime/` |
 | 0.8 | Signal Forms | cerrado | `artifacts/verify-template/fase0-08-signal-forms/`, `artifacts/verify-template/fase0-08-runtime/` |
 | 0.9 | Arranque con `provideAppInitializer()` | cerrado | `artifacts/verify-template/fase0-09-app-initializer/`, `artifacts/verify-template/fase0-09-runtime/` |
+| 0.10 | Componentes en archivos separados | pendiente | |
+| 0.11 | Un archivo, un tipo | pendiente | |
 | 1 | Línea base: qué funciona hoy, con evidencia | cerrado | [linea-base.md](linea-base.md); `artifacts/verify-template/baseline-20261016/` |
 | 2 | Un solo comando de verificación local | pendiente | |
 | 3 | CI verde de verdad | pendiente | |
@@ -73,7 +75,7 @@ Cosas vistas durante un paso que no le corresponden. Cada una espera su paso.
 - `"Task.Forbidden"` y `"User.Forbidden"` siguen escritos en línea en cada slice. Paso 6.
 - El rate limiter `auth` es una sola ventana de 20 requests por minuto para toda la API, sin partición por cliente. Un recorrido de navegador seguido del smoke HTTP da 503 (`fase0-06-runtime`). Paso 12.
 - `AuthErrors.AccountNotFound` (`Auth.AccountNotFound`) es nuevo y `DeleteUser` lo traduce a `User.NotFound`. Entra en el catálogo del paso 6.
-- `Tests/Support/TestSession.cs` declara tres tipos en un archivo. La regla de un tipo por archivo hoy cubre solo las features. Sin paso asignado.
+- `Tests/Support/TestSession.cs` declara tres tipos en un archivo. La regla de un tipo por archivo hoy cubre solo las features. Paso 0.11.
 - Hay una carpeta vacía y sin versionar, `backend/Features/Health/Test/`, de antes de este paso. Git la ignora. Borrarla es decisión de Tobi.
 - `backend/AGENTS.md` y `backend/docs/agents/` describen un issue tracker en `.scratch/`, que `.gitignore` excluye: los issues nunca se versionan.
 

@@ -48,6 +48,20 @@ El dominio (tareas) es simple a propósito: importa el rigor técnico. **Todo el
 - Nivel: Tobi conoce C# y Angular. Explicá el *porqué* de cada patrón, no la sintaxis.
 - Escribí en español técnico simple: frases cortas, voz activa, primero la conclusión.
 
+### Cuando Tobi quiere aprender algo
+
+Si Tobi dice "enseñame", "quiero entender" o "explicámelo", usá la skill `/aprender` si está disponible. Si no, seguí su método:
+
+1. **Elegí 1 a 3 ideas.** La sesión enseña esas ideas, no el tema entero.
+2. **Enseñá desde la fuente:** el código con `archivo:línea` o la documentación oficial con su link.
+3. **Una idea por vez:** respuesta corta, nombre y definición, mecanismo paso a paso y un ejemplo del repo.
+4. **Elegí el medio más simple:**
+   - Texto para una definición o una decisión.
+   - Mermaid para un flujo o una estructura. Armalo de a poco: cada diagrama agrega una parte, con unos 7 elementos como máximo y un verbo en cada flecha.
+   - Página HTML para lo que cambia: un antes y después, un valor que se mueve, un sistema para explorar. En T3 Code, revisala con `html_preview` y publicala en el chat con `html_render`. Fuera de T3, guardala en `~/.aprender/lecciones/` y abrila.
+5. **Cerrá cada idea con 1 a 3 preguntas** que Tobi responda de memoria: predecir qué pasa, explicar una línea con sus palabras, decir dónde cambiaría el código. Esperá la respuesta y dale feedback concreto antes de seguir.
+6. **Ajustá la ayuda:** si acierta rápido, menos ejemplo y preguntas más difíciles; si se traba, otro ejemplo resuelto.
+
 ## Verificación
 
 La lista única de comandos está en [README.md](README.md#ejecutar-gates). Las pruebas backend necesitan Docker (PostgreSQL real). No hay suite de tests frontend: la prueba real es el navegador y la skill `verify-template`.

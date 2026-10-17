@@ -50,7 +50,7 @@ Regla de oro: **un paso no termina con tests verdes.** Termina cuando el caso qu
 
 ## 4. El plan
 
-### Fase 0 — Bases (pasos 0.0-0.9)
+### Fase 0 — Bases (pasos 0.0-0.11)
 
 Llevan el repo a la forma de [ADR-0004](../adr/0004-vertical-slices-deep-modules.md). Ningún paso cambia un contrato HTTP: el smoke de la API prueba que nada se rompió.
 
@@ -105,6 +105,18 @@ Los pasos 0.7 a 0.9 llevan el frontend a la forma de Angular v22. Se agregaron e
 **Concepto**: providers funcionales en lugar de tokens multi.
 **Cambia**: `app.config.ts` reemplaza `APP_INITIALIZER` por `provideAppInitializer()`.
 **Verifica**: build de Angular y navegador: la recarga restaura la sesión y una ruta protegida sin sesión lleva a `/login`.
+
+Los pasos 0.10 y 0.11 ordenan los archivos. Se agregaron el 2026-10-17, a pedido de Tobi.
+
+**0.10. Componentes en archivos separados.**
+**Concepto**: separar la vista de la lógica; cada archivo cambia por un solo motivo.
+**Cambia**: login, registro, tareas y perfil pasan su `template` a `<componente>.html` y sus `styles` a `<componente>.css`, como `app.ts`; una regla nueva en `check-frontend.mjs` con su fixture válida y su violación deliberada.
+**Verifica**: build de Angular, `check-frontend` y navegador con el mismo recorrido del paso 0.8.
+
+**0.11. Un archivo, un tipo.**
+**Concepto**: un archivo por tipo en todo el repo; un tipo auxiliar que usa solo otro tipo queda en su archivo, pero el compilador le impide salir de ahí.
+**Cambia**: los modelos del frontend y `Tests/Support/TestSession.cs` se separan; un analyzer nuevo de Dune y una regla nueva en `check-frontend.mjs`, cada uno con su fixture válida y su violación deliberada.
+**Verifica**: build y tests .NET, tests de Dune, build de Angular, `check-frontend`, smoke HTTP y navegador.
 
 ### Fase 1 — Base verificable (pasos 1-3)
 
