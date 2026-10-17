@@ -58,7 +58,7 @@ async function productSources() {
   if (await exists(path.join(backend, 'Program.cs'))) all.push(path.join(backend, 'Program.cs'));
   return all
     .filter((file) => file.endsWith('.cs') || file.endsWith('.csproj'))
-    .filter((file) => !toPosix(file).includes('/Tests/'));
+    .filter((file) => !toPosix(file).includes('/Tests/') && !file.endsWith('Tests.cs'));
 }
 
 async function listFeatures() {
@@ -72,24 +72,35 @@ async function listFeatures() {
   return entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort();
 }
 
-async function checkTestsColocated() {
+const FEATURE_FOLDERS = new Set(['Contracts', 'Domain', 'Persistence']);
+
+async function checkSlicesHaveTests() {
   const features = await listFeatures();
   if (features.length === 0) {
     fail('sin features: falta backend/Features con al menos un directorio');
     return;
   }
   for (const feature of features) {
-    const dir = path.join(backend, 'Features', feature, 'Tests');
-    if (!(await exists(dir))) {
-      fail(`tests de ${feature} fuera de su feature: falta backend/Features/${feature}/Tests/`);
+    const featureDir = path.join(backend, 'Features', feature);
+    if (await exists(path.join(featureDir, 'Tests'))) {
+      fail(`tests de ${feature} fuera de sus slices: backend/Features/${feature}/Tests/ ya no se usa`);
+    }
+    const entries = await readdir(featureDir, { withFileTypes: true });
+    const slices = [];
+    for (const entry of entries) {
+      if (!entry.isDirectory() || FEATURE_FOLDERS.has(entry.name)) continue;
+      if (await exists(path.join(featureDir, entry.name, `${entry.name}Endpoint.cs`))) slices.push(entry.name);
+    }
+    if (slices.length === 0) {
+      fail(`${feature} sin slices: falta backend/Features/${feature}/<Slice>/<Slice>Endpoint.cs`);
       continue;
     }
-    const collected = [];
-    await collectFiles(dir, collected);
-    if (!collected.some((file) => file.endsWith('.cs'))) {
-      fail(`tests de ${feature} fuera de su feature: backend/Features/${feature}/Tests/ sin *.cs`);
-    } else {
-      notes.push(`tests colocados: backend/Features/${feature}/Tests/`);
+    for (const slice of slices.sort()) {
+      if (await exists(path.join(featureDir, slice, `${slice}Tests.cs`))) {
+        notes.push(`slice con test: backend/Features/${feature}/${slice}/`);
+      } else {
+        fail(`slice ${feature}/${slice} sin ${slice}Tests.cs`);
+      }
     }
   }
 }
@@ -101,7 +112,7 @@ async function checkProductExcludesTests() {
     return;
   }
   const text = await readText(csproj);
-  for (const pattern of ['Features/**/Tests/**/*.cs', 'Tests/**/*.cs']) {
+  for (const pattern of ['Features/**/*Tests.cs', 'Tests/**/*.cs']) {
     if (!text.includes(pattern)) {
       fail(`TemplateApp.csproj no excluye tests del producto: falta Compile Remove "${pattern}"`);
     }
@@ -113,10 +124,9 @@ async function checkProductExcludesTests() {
   }
   const testsText = await readText(testsCsproj);
   const normalized = testsText.replaceAll('\\', '/');
-  const includesTestsGlob = /<Compile\s+Include="[^"]*Features\/\*\/Tests\/\*\*\/\*\.cs"[^>]*\/>/.test(normalized)
-    || /<Compile\s+Include="[^"]*Features\/\*\*\/\*\.cs"[^>]*\/>/.test(normalized);
+  const includesTestsGlob = /<Compile\s+Include="[^"]*Features\/\*\*\/\*Tests\.cs"[^>]*\/>/.test(normalized);
   if (!testsText.includes('TemplateApp.csproj') && !includesTestsGlob) {
-    fail('backend/Tests/TemplateApp.Tests.csproj no referencia el producto ni incluye Features Tests por glob');
+    fail('backend/Tests/TemplateApp.Tests.csproj no referencia el producto ni incluye Features/**/*Tests.cs por glob');
   }
 }
 
@@ -273,7 +283,7 @@ async function checkNoNestedGit() {
   if (offenders.length > 0) fail(`git anidado: ${offenders.join(', ')}`);
 }
 
-await checkTestsColocated();
+await checkSlicesHaveTests();
 await checkProductExcludesTests();
 await checkNoBus();
 await checkEditorconfigSeverities();

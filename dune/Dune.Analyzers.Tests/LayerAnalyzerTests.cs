@@ -273,7 +273,7 @@ public sealed class LayerAnalyzerTests
     }
 
     [Fact]
-    public async Task CrossFeatureAcceptsForeignDomain()
+    public async Task CrossFeatureRejectsForeignDomain()
     {
         var diagnostics = await AnalyzerHost.AnalyzeAsync(
             new List<(string, string)>
@@ -288,6 +288,88 @@ public sealed class LayerAnalyzerTests
                     public sealed class CreateTask
                     {
                         public UserProfile? Profile { get; set; }
+                    }
+                    """),
+            },
+            AnalyzerHost.Only<CrossFeatureAnalyzer>());
+
+        Assert.Contains(diagnostics, diagnostic => diagnostic.Id == "DUNE0004");
+    }
+
+    [Fact]
+    public async Task CrossFeatureRejectsForeignDomainReachedWithoutNamingIt()
+    {
+        var diagnostics = await AnalyzerHost.AnalyzeAsync(
+            new List<(string, string)>
+            {
+                ("backend/Features/Users/Domain/UserProfile.cs", """
+                    namespace TemplateApp.Features.Users.Domain;
+                    public sealed class UserProfile
+                    {
+                        public string DisplayName { get; set; } = "";
+                    }
+                    """),
+                ("backend/Infrastructure/Persistence/Store.cs", """
+                    using System.Collections.Generic;
+                    using TemplateApp.Features.Users.Domain;
+                    namespace TemplateApp.Infrastructure.Persistence;
+                    public sealed class Store
+                    {
+                        public List<UserProfile> Profiles { get; } = new();
+                    }
+                    """),
+                ("backend/Features/Auth/OpenSession/OpenSession.cs", """
+                    using TemplateApp.Infrastructure.Persistence;
+                    namespace TemplateApp.Features.Auth.OpenSession;
+                    public sealed class OpenSession
+                    {
+                        public string Read(Store store)
+                        {
+                            var profile = store.Profiles[0];
+                            return profile.DisplayName;
+                        }
+                    }
+                    """),
+            },
+            AnalyzerHost.Only<CrossFeatureAnalyzer>());
+
+        Assert.Contains(diagnostics, diagnostic => diagnostic.Id == "DUNE0004"
+            && diagnostic.Location.SourceTree!.FilePath.EndsWith("OpenSession.cs", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task CrossFeatureAcceptsForeignContractsAndOwnDomain()
+    {
+        var diagnostics = await AnalyzerHost.AnalyzeAsync(
+            new List<(string, string)>
+            {
+                ("backend/Features/Users/Contracts/IUserProfiles.cs", """
+                    namespace TemplateApp.Features.Users.Contracts;
+                    public interface IUserProfiles
+                    {
+                        UserProfileSnapshot? Find(string authId);
+                    }
+                    """),
+                ("backend/Features/Users/Contracts/UserProfileSnapshot.cs", """
+                    namespace TemplateApp.Features.Users.Contracts;
+                    public sealed record UserProfileSnapshot(string DisplayName, string Timezone);
+                    """),
+                ("backend/Features/Auth/Domain/RefreshToken.cs", """
+                    namespace TemplateApp.Features.Auth.Domain;
+                    public sealed class RefreshToken { }
+                    """),
+                ("backend/Features/Auth/OpenSession/OpenSession.cs", """
+                    using TemplateApp.Features.Auth.Domain;
+                    using TemplateApp.Features.Users.Contracts;
+                    namespace TemplateApp.Features.Auth.OpenSession;
+                    public sealed class OpenSession
+                    {
+                        public RefreshToken? Token { get; set; }
+                        public string Read(IUserProfiles profiles)
+                        {
+                            var profile = profiles.Find("id");
+                            return profile?.DisplayName ?? "";
+                        }
                     }
                     """),
             },

@@ -1,5 +1,3 @@
-using TemplateApp.Features.Health.Probes;
-
 namespace TemplateApp.Features.Health;
 
 public static class HealthFeature
@@ -9,16 +7,16 @@ public static class HealthFeature
         IConfiguration configuration)
     {
         _ = configuration;
-        services.AddScoped<IDatabaseReadinessProbe, DatabaseReadinessProbe>();
+        services.AddScoped<GetReadiness.GetReadiness>();
         return services;
     }
 
     public static IEndpointRouteBuilder MapHealthEndpoints(this IEndpointRouteBuilder routes)
     {
-        RouteGroupBuilder group = routes.MapGroup("/api/v1/health").AllowAnonymous();
+        RouteGroupBuilder health = routes.MapGroup("/api/v1/health").AllowAnonymous();
 
-        group.MapGet("/live", HealthEndpoints.Live);
-        group.MapGet("/ready", HealthEndpoints.ReadyAsync);
+        GetLiveness.GetLivenessEndpoint.Map(health);
+        GetReadiness.GetReadinessEndpoint.Map(health);
 
         return routes;
     }

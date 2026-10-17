@@ -26,20 +26,22 @@ async function makeRepo() {
 
 async function seedValid(repo) {
   for (const feature of ['Auth', 'Users', 'Tasks', 'Health']) {
-    await repo.write(`backend/Features/${feature}/Tests/${feature}Tests.cs`, ' ');
+    await repo.write(`backend/Features/${feature}/${feature}Feature.cs`, ' ');
+    await repo.write(`backend/Features/${feature}/Ping${feature}/Ping${feature}Endpoint.cs`, ' ');
+    await repo.write(`backend/Features/${feature}/Ping${feature}/Ping${feature}Tests.cs`, ' ');
   }
   await repo.write('backend/Program.cs', ' ');
   await repo.write(
     'backend/TemplateApp.csproj',
     '<Project><ItemGroup>'
-      + '<Compile Remove="Features/**/Tests/**/*.cs" />'
+      + '<Compile Remove="Features/**/*Tests.cs" />'
       + '<Compile Remove="Tests/**/*.cs" />'
       + '</ItemGroup></Project>',
   );
   await repo.write(
     'backend/Tests/TemplateApp.Tests.csproj',
     '<Project><ItemGroup><ProjectReference Include="../TemplateApp.csproj" />'
-      + '<Compile Include="..\\Features\\*\\Tests\\**\\*.cs" />'
+      + '<Compile Include="..\\Features\\**\\*Tests.cs" />'
       + '</ItemGroup></Project>',
   );
   await repo.git(['init']);
@@ -67,15 +69,27 @@ describe('check-structure', () => {
     }
   });
 
-  it('rechaza tests fuera de la feature', async () => {
+  it('rechaza una slice sin su test', async () => {
     const repo = await makeRepo();
     try {
       await seedValid(repo);
-      await repo.write('backend/Features/Tasks/Tests/TasksTests.cs', '');
-      await rm(path.join(repo.dir, 'backend/Features/Auth/Tests'), { recursive: true, force: true });
+      await rm(path.join(repo.dir, 'backend/Features/Auth/PingAuth/PingAuthTests.cs'));
       const result = await runGate(repo.dir);
       assert.equal(result.code, 1);
-      assert.match(result.output, /tests de Auth fuera de su feature/);
+      assert.match(result.output, /slice Auth\/PingAuth sin PingAuthTests\.cs/);
+    } finally {
+      await repo.cleanup();
+    }
+  });
+
+  it('rechaza la carpeta Tests/ dentro de una feature', async () => {
+    const repo = await makeRepo();
+    try {
+      await seedValid(repo);
+      await repo.write('backend/Features/Tasks/Tests/TasksTests.cs', ' ');
+      const result = await runGate(repo.dir);
+      assert.equal(result.code, 1);
+      assert.match(result.output, /tests de Tasks fuera de sus slices/);
     } finally {
       await repo.cleanup();
     }
@@ -101,7 +115,7 @@ describe('check-structure', () => {
       await repo.write(
         'backend/TemplateApp.csproj',
         '<Project><ItemGroup>'
-          + '<Compile Remove="Features/**/Tests/**/*.cs" />'
+          + '<Compile Remove="Features/**/*Tests.cs" />'
           + '<Compile Remove="Tests/**/*.cs" />'
           + '<PackageReference Include="FluentValidation" Version="12.0.0" />'
           + '<PackageReference Include="MediatorKit" Version="1.0.0" />'
@@ -116,10 +130,10 @@ describe('check-structure', () => {
   });
 
   for (const [name, rel, content] of [
-    ['paquete MediatR en el producto', 'backend/TemplateApp.csproj', '<Project><ItemGroup><Compile Remove="Features/**/Tests/**/*.cs" /><Compile Remove="Tests/**/*.cs" /><PackageReference Include="MediatR" Version="12.0.0" /></ItemGroup></Project>'],
+    ['paquete MediatR en el producto', 'backend/TemplateApp.csproj', '<Project><ItemGroup><Compile Remove="Features/**/*Tests.cs" /><Compile Remove="Tests/**/*.cs" /><PackageReference Include="MediatR" Version="12.0.0" /></ItemGroup></Project>'],
     ['paquete MassTransit en Directory.Build.props', 'Directory.Build.props', '<Project><ItemGroup><PackageReference Include="MassTransit.RabbitMQ" Version="8.0.0" /></ItemGroup></Project>'],
     ['paquete Wolverine en Dune.props', 'dune/Dune.props', '<Project><ItemGroup><PackageReference Include="WolverineFx" Version="3.0.0" /></ItemGroup></Project>'],
-    ['global using de NServiceBus en el csproj', 'backend/TemplateApp.csproj', '<Project><ItemGroup><Compile Remove="Features/**/Tests/**/*.cs" /><Compile Remove="Tests/**/*.cs" /><Using Include="NServiceBus" /></ItemGroup></Project>'],
+    ['global using de NServiceBus en el csproj', 'backend/TemplateApp.csproj', '<Project><ItemGroup><Compile Remove="Features/**/*Tests.cs" /><Compile Remove="Tests/**/*.cs" /><Using Include="NServiceBus" /></ItemGroup></Project>'],
     ['using de Wolverine en el código', 'backend/Infrastructure/Composition.cs', 'using Wolverine;\n'],
     ['global using de Rebus en el código', 'backend/Shared/GlobalUsings.cs', 'global using Rebus.Bus;\n'],
     ['alias de MediatR en el código', 'backend/Features/Tasks/TaskModule.cs', 'using Bus = MediatR.IMediator;\n'],
@@ -273,11 +287,14 @@ describe('check-structure', () => {
     }
   });
 
-  it('acepta una feature nueva con Tests colocados', async () => {
+  it('acepta una feature nueva con slices y sus tests', async () => {
     const repo = await makeRepo();
     try {
       await seedValid(repo);
-      await repo.write('backend/Features/Billing/Tests/BillingTests.cs', ' ');
+      await repo.write('backend/Features/Billing/BillingFeature.cs', ' ');
+      await repo.write('backend/Features/Billing/Contracts/InvoiceResponse.cs', ' ');
+      await repo.write('backend/Features/Billing/ChargeCard/ChargeCardEndpoint.cs', ' ');
+      await repo.write('backend/Features/Billing/ChargeCard/ChargeCardTests.cs', ' ');
       const result = await runGate(repo.dir);
       assert.equal(result.code, 0, result.output);
     } finally {
@@ -285,14 +302,14 @@ describe('check-structure', () => {
     }
   });
 
-  it('rechaza una feature nueva sin Tests', async () => {
+  it('rechaza una feature nueva sin slices', async () => {
     const repo = await makeRepo();
     try {
       await seedValid(repo);
       await repo.write('backend/Features/Billing/BillingModule.cs', ' ');
       const result = await runGate(repo.dir);
       assert.equal(result.code, 1);
-      assert.match(result.output, /tests de Billing fuera de su feature/);
+      assert.match(result.output, /Billing sin slices/);
     } finally {
       await repo.cleanup();
     }

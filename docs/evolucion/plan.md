@@ -14,8 +14,8 @@ Es el punto de partida, no un límite. Cualquier pieza puede cambiar si mejora e
 
 | Área | Estado real |
 |---|---|
-| Estilo | Features `Auth`, `Users`, `Tasks`, `Health`, sin mediator ni bus. Solo `Tasks` tiene un archivo por caso de uso, como parciales de `TasksModule` y `TasksEndpoints`. La Fase 0 lleva todo a la forma de [ADR-0004](../adr/0004-vertical-slices-deep-modules.md) |
-| Contratos | `Features/*/Contracts`, `Features/*/Domain`, `Features/*/Persistence`; `Features/*/Tests` colocados y excluidos de producción por `Compile Remove`. El contrato HTTP lo fijan los tests de integración |
+| Estilo | Features `Auth`, `Users`, `Tasks`, `Health`, sin mediator ni bus. Desde el paso 0.4, cada caso de uso es una slice en su carpeta (request, validador, operación, endpoint y test). La Fase 0 lleva el resto a la forma de [ADR-0004](../adr/0004-vertical-slices-deep-modules.md) |
+| Contratos | `Features/*/Contracts`, `Features/*/Domain`, `Features/*/Persistence`; `<Slice>Tests.cs` junto a cada slice, excluidos de producción por `Compile Remove`. El contrato HTTP lo fijan los tests de integración |
 | Errores | `Shared/Http/ApiResults` traduce `ErrorOr` a ProblemDetails (400/401/403/404/409/500) |
 | Autorización | `IPermissionService` + `ResourceAuthorizer`; permisos consultados por request; orden 404 antes de 403 |
 | Seguridad | JWT con validación de sesión activa, refresh rotativo en cookie HttpOnly, antiforgery, lockout de Identity, rate limiting de ventana fija **solo** en los 4 endpoints de `/auth` |

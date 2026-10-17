@@ -21,7 +21,8 @@ public static class DunePaths
         || ContainsOrdinal(normalizedPath, "ModelSnapshot");
 
     public static bool IsTestsFile(string normalizedPath) =>
-        ContainsOrdinal(normalizedPath, "/Tests/");
+        ContainsOrdinal(normalizedPath, "/Tests/")
+        || normalizedPath.EndsWith("Tests.cs", StringComparison.Ordinal);
 
     public static bool IsInfrastructureFile(string normalizedPath) =>
         ContainsOrdinal(normalizedPath, "backend/Infrastructure/");
@@ -48,6 +49,34 @@ public static class DunePaths
         feature = rest.Substring(0, slash);
         return true;
     }
+
+    public static string[] FeatureSegments(string normalizedPath, string feature)
+    {
+        var marker = "backend/Features/" + feature + "/";
+        var index = normalizedPath.IndexOf(marker, StringComparison.Ordinal);
+        return normalizedPath.Substring(index + marker.Length).Split('/');
+    }
+
+    public static bool TryGetSlice(string normalizedPath, out string slice)
+    {
+        slice = string.Empty;
+        if (!TryGetFeature(normalizedPath, out var feature))
+        {
+            return false;
+        }
+
+        var segments = FeatureSegments(normalizedPath, feature);
+        if (segments.Length != 2 || IsFeatureFolder(segments[0]))
+        {
+            return false;
+        }
+
+        slice = segments[0];
+        return true;
+    }
+
+    private static bool IsFeatureFolder(string folder) =>
+        folder is "Contracts" or "Domain" or "Persistence";
 
     public static bool IsEndpointFile(string normalizedPath, string fileName)
     {

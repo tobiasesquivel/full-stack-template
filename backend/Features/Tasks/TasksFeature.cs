@@ -4,19 +4,23 @@ public static class TasksFeature
 {
     public static IServiceCollection AddTasksFeature(this IServiceCollection services)
     {
-        services.AddScoped<TasksModule>();
+        services.AddScoped<CreateTask.CreateTask>();
+        services.AddScoped<ListTasks.ListTasks>();
+        services.AddScoped<GetTask.GetTask>();
+        services.AddScoped<UpdateTask.UpdateTask>();
+        services.AddScoped<DeleteTask.DeleteTask>();
         return services;
     }
 
     public static IEndpointRouteBuilder MapTasksEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/v1/tasks").RequireAuthorization();
+        RouteGroupBuilder tasks = app.MapGroup("/api/v1/tasks").RequireAuthorization();
 
-        group.MapPost("", TasksEndpoints.CreateAsync);
-        group.MapGet("", TasksEndpoints.ListAsync);
-        group.MapGet("/{id:guid}", TasksEndpoints.GetByIdAsync);
-        group.MapPut("/{id:guid}", TasksEndpoints.UpdateAsync);
-        group.MapDelete("/{id:guid}", TasksEndpoints.DeleteAsync);
+        CreateTask.CreateTaskEndpoint.Map(tasks);
+        ListTasks.ListTasksEndpoint.Map(tasks);
+        GetTask.GetTaskEndpoint.Map(tasks);
+        UpdateTask.UpdateTaskEndpoint.Map(tasks);
+        DeleteTask.DeleteTaskEndpoint.Map(tasks);
 
         return app;
     }

@@ -27,7 +27,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="..\Features\*\Tests\**\*.cs" />
+    <Compile Include="..\Features\**\*Tests.cs" />
   </ItemGroup>
 
 </Project>
