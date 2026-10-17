@@ -50,7 +50,7 @@ Regla de oro: **un paso no termina con tests verdes.** Termina cuando el caso qu
 
 ## 4. El plan
 
-### Fase 0 — Bases (pasos 0.0-0.11)
+### Fase 0 — Bases (pasos 0.0-0.12)
 
 Llevan el repo a la forma de [ADR-0004](../adr/0004-vertical-slices-deep-modules.md). Ningún paso cambia un contrato HTTP: el smoke de la API prueba que nada se rompió.
 
@@ -117,6 +117,13 @@ Los pasos 0.10 y 0.11 ordenan los archivos. Se agregaron el 2026-10-17, a pedido
 **Concepto**: un archivo por tipo en todo el repo; un tipo auxiliar que usa solo otro tipo queda en su archivo, pero el compilador le impide salir de ahí.
 **Cambia**: los modelos del frontend y `Tests/Support/TestSession.cs` se separan; un analyzer nuevo de Dune y una regla nueva en `check-frontend.mjs`, cada uno con su fixture válida y su violación deliberada.
 **Verifica**: build y tests .NET, tests de Dune, build de Angular, `check-frontend`, smoke HTTP y navegador.
+
+El paso 0.12 se agregó el 2026-10-17, a pedido de Tobi: "migrá de CSS a Tailwind".
+
+**0.12. Estilos con Tailwind.**
+**Concepto**: CSS utility-first: el estilo vive en clases del template y no en hojas por componente; el CSS global queda solo para lo que no es una clase.
+**Cambia**: los templates de app, login, registro, tareas y perfil usan clases de Tailwind v4 con los mismos colores (la paleta más cercana); se borran `app.css`, `tasks.css`, los `styleUrl` y los `style=""` del diálogo; `styles.css` queda con `@import 'tailwindcss'`, un breakpoint y el foco visible; una regla nueva en `check-frontend.mjs` (FRONT009) con su fixture válida y su violación deliberada.
+**Verifica**: build de Angular, `check-frontend`, capturas antes y después de cada vista, y navegador con el recorrido del paso 0.10 adaptado a las clases nuevas.
 
 ### Fase 1 — Base verificable (pasos 1-3)
 

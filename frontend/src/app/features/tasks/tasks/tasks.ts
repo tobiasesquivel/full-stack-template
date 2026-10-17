@@ -10,7 +10,7 @@ const PAGE_SIZE = 10;
   selector: 'app-tasks',
   imports: [FormField, FormRoot],
   templateUrl: './tasks.html',
-  styleUrl: './tasks.css',
+  host: { class: 'block' },
 })
 export class Tasks {
   private readonly tasksApi = inject(TasksApi);

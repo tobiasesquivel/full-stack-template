@@ -374,10 +374,10 @@ describe('check-frontend', () => {
     }
   });
 
-  it('accepts templateUrl and styleUrl and rejects inline template or styles', async () => {
+  it('accepts templateUrl and rejects inline template or styles', async () => {
     const project = await makeProject({
       'frontend/src/app/app.ts': `import { Component } from '@angular/core';
-@Component({ selector: 'app-root', templateUrl: './app.html', styleUrl: './app.css' })
+@Component({ selector: 'app-root', templateUrl: './app.html' })
 export class App {}
 `,
       'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';
@@ -398,6 +398,45 @@ export class Profile {}
       const { diagnostics } = await analyzeFrontend({ root: project.root });
       const inline = diagnostics.filter((entry) => entry.rule === 'FRONT008').map((entry) => `${path.basename(entry.path)}:${entry.line}`);
       assert.deepEqual(inline, ['tasks.ts:4', 'tasks.ts:5', 'profile.ts:2']);
+    } finally {
+      await project.cleanup();
+    }
+  });
+
+  it('accepts Tailwind classes in the template and rejects styleUrl or styleUrls', async () => {
+    const project = await makeProject({
+      'frontend/src/app/app.ts': `import { Component } from '@angular/core';
+@Component({ selector: 'app-root', templateUrl: './app.html' })
+export class App {}
+`,
+      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';
+@Component({
+  selector: 'x',
+  templateUrl: './tasks.html',
+  styleUrl: './tasks.css',
+})
+export class Tasks {}
+`,
+      'frontend/src/app/features/users/profile/profile.ts': `import { Component } from '@angular/core';
+@Component({ selector: 'x', templateUrl: './profile.html', 'styleUrls': ['./profile.css'] })
+export class Profile {}
+`,
+      'frontend/src/app/features/auth/login/login.ts': `import { Component } from '@angular/core';
+@Component({ selector: 'x', templateUrl: './login.html', styles: 'p {}' })
+export class Login {}
+`,
+    });
+    try {
+      await seedAngular(project.root);
+      const { diagnostics } = await analyzeFrontend({ root: project.root });
+      const styleFiles = diagnostics.filter((entry) => entry.rule === 'FRONT009');
+      assert.deepEqual(styleFiles.map((entry) => `${path.basename(entry.path)}:${entry.line}`), ['tasks.ts:5', 'profile.ts:2']);
+      assert.match(styleFiles[0].message, /styleUrl.*Tailwind/);
+      assert.match(styleFiles[1].message, /styleUrls.*Tailwind/);
+      const inline = diagnostics.filter((entry) => entry.rule === 'FRONT008');
+      assert.deepEqual(inline.map((entry) => `${path.basename(entry.path)}:${entry.line}`), ['login.ts:2']);
+      assert.match(inline[0].message, /Tailwind/);
+      assert.doesNotMatch(inline[0].message, /styleUrl/);
     } finally {
       await project.cleanup();
     }

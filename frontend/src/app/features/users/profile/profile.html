@@ -1,46 +1,62 @@
-<section aria-labelledby="profile-title">
-  <h1 id="profile-title">Mi perfil</h1>
+<section aria-labelledby="profile-title" class="rounded-xl border border-slate-200 bg-white p-5 shadow-xs max-xs:p-4">
+  <h1 id="profile-title" class="mb-4 text-2xl leading-tight">Mi perfil</h1>
 
   @if (loading()) {
-    <p role="status">Cargando perfil…</p>
+    <p role="status" class="text-slate-600">Cargando perfil…</p>
   } @else if (error()) {
-    <p role="alert">{{ error() }}</p>
-    <button type="button" (click)="load()">Reintentar</button>
+    <p role="alert" class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-red-800">{{ error() }}</p>
+    <button
+      type="button"
+      class="cursor-pointer rounded-lg border border-blue-700 bg-white px-4 py-2 text-blue-700 hover:enabled:border-blue-800 hover:enabled:bg-blue-50 hover:enabled:text-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
+      (click)="load()"
+    >
+      Reintentar
+    </button>
   } @else {
-    <dl>
-      <dt>Usuario</dt>
+    <dl class="mb-4 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
+      <dt class="font-semibold text-slate-600">Usuario</dt>
       <dd>{{ session.currentUser()?.userName }}</dd>
-      <dt>Correo</dt>
+      <dt class="font-semibold text-slate-600">Correo</dt>
       <dd>{{ session.currentUser()?.email }}</dd>
     </dl>
 
     <form [formRoot]="profileForm">
-      <div>
-        <label for="profile-display">Nombre visible</label>
-        <input id="profile-display" type="text" [formField]="profileForm.displayName" />
+      <div class="mb-3">
+        <label for="profile-display" class="mb-1 block text-sm/normal font-semibold">Nombre visible</label>
+        <input
+          id="profile-display"
+          type="text"
+          class="w-full max-w-sm rounded-lg border border-slate-400 bg-white px-3 py-2 focus:border-blue-600"
+          [formField]="profileForm.displayName"
+        />
         @if (profileForm.displayName().touched() && profileForm.displayName().invalid()) {
-          <p class="field-error">El nombre visible es obligatorio.</p>
+          <p class="text-red-800">El nombre visible es obligatorio.</p>
         }
       </div>
-      <div>
-        <label for="profile-timezone">Zona horaria (IANA)</label>
+      <div class="mb-3">
+        <label for="profile-timezone" class="mb-1 block text-sm/normal font-semibold">Zona horaria (IANA)</label>
         <input
           id="profile-timezone"
           type="text"
+          class="w-full max-w-sm rounded-lg border border-slate-400 bg-white px-3 py-2 focus:border-blue-600"
           [formField]="profileForm.timezone"
           placeholder="UTC"
         />
         @if (profileForm.timezone().touched() && profileForm.timezone().invalid()) {
-          <p class="field-error">La zona horaria es obligatoria, por ejemplo UTC o Europe/Madrid.</p>
+          <p class="text-red-800">La zona horaria es obligatoria, por ejemplo UTC o Europe/Madrid.</p>
         }
       </div>
       @if (saveError()) {
-        <p role="alert">{{ saveError() }}</p>
+        <p role="alert" class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-red-800">{{ saveError() }}</p>
       }
       @if (saved()) {
-        <p role="status">Perfil actualizado.</p>
+        <p role="status" class="text-slate-600">Perfil actualizado.</p>
       }
-      <button type="submit" [disabled]="profileForm().submitting()">
+      <button
+        type="submit"
+        class="cursor-pointer rounded-lg border border-blue-700 bg-blue-700 px-4 py-2 text-white hover:enabled:border-blue-800 hover:enabled:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
+        [disabled]="profileForm().submitting()"
+      >
         {{ profileForm().submitting() ? 'Guardando…' : 'Guardar' }}
       </button>
     </form>

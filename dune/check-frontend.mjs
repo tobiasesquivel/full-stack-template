@@ -7,7 +7,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const require = createRequire(path.join(here, '..', 'frontend', 'package.json'));
 const ts = require('typescript');
 
-export const RULES = ['FRONT001', 'FRONT002', 'FRONT003', 'FRONT004', 'FRONT005', 'FRONT006', 'FRONT007', 'FRONT008', 'FRONT010'];
+export const RULES = ['FRONT001', 'FRONT002', 'FRONT003', 'FRONT004', 'FRONT005', 'FRONT006', 'FRONT007', 'FRONT008', 'FRONT009', 'FRONT010'];
 
 const INITIALIZER_TOKENS = new Map([
   ['APP_INITIALIZER', 'provideAppInitializer'],
@@ -16,9 +16,11 @@ const INITIALIZER_TOKENS = new Map([
 ]);
 
 const INLINE_VIEW_PROPERTIES = new Map([
-  ['template', 'templateUrl'],
-  ['styles', 'styleUrl'],
+  ['template', 'use templateUrl with its own file instead of inline template'],
+  ['styles', 'style the template with Tailwind classes instead of inline styles'],
 ]);
+
+const STYLE_FILE_PROPERTIES = new Set(['styleUrl', 'styleUrls']);
 
 const LEGACY_FORMS_MODULE = 'external:@angular/forms';
 
@@ -114,6 +116,7 @@ function collectNaming(sourceFile) {
   const rootInjectables = [];
   const initializerTokens = [];
   const inlineViews = [];
+  const styleFiles = [];
   function visit(node) {
     if (ts.isImportDeclaration(node)
       && ts.isStringLiteral(node.moduleSpecifier)
@@ -136,7 +139,8 @@ function collectNaming(sourceFile) {
           suffixedClasses.push({ line: lineOf(sourceFile, node.name.getStart()), name: node.name.text });
         }
         if (name === 'Component') {
-          inlineViews.push(...inlineViewProperties(sourceFile, decorator.expression));
+          inlineViews.push(...componentProperties(sourceFile, decorator.expression, INLINE_VIEW_PROPERTIES));
+          styleFiles.push(...componentProperties(sourceFile, decorator.expression, STYLE_FILE_PROPERTIES));
         }
         if (name === 'Injectable' && providesInRoot(decorator.expression)) {
           rootInjectables.push({ line: lineOf(sourceFile, decorator.getStart()), name: node.name.text });
@@ -146,7 +150,7 @@ function collectNaming(sourceFile) {
     ts.forEachChild(node, visit);
   }
   visit(sourceFile);
-  return { suffixedClasses, rootInjectables, initializerTokens, inlineViews };
+  return { suffixedClasses, rootInjectables, initializerTokens, inlineViews, styleFiles };
 }
 
 function exportedTypes(sourceFile) {
@@ -161,7 +165,7 @@ function exportedTypes(sourceFile) {
     .map((statement) => ({ line: lineOf(sourceFile, statement.name.getStart()), name: statement.name.text }));
 }
 
-function inlineViewProperties(sourceFile, expression) {
+function componentProperties(sourceFile, expression, names) {
   if (!ts.isCallExpression(expression)) return [];
   const options = expression.arguments[0];
   if (!options || !ts.isObjectLiteralExpression(options)) return [];
@@ -169,7 +173,7 @@ function inlineViewProperties(sourceFile, expression) {
     .filter((property) =>
       ts.isPropertyAssignment(property)
       && (ts.isIdentifier(property.name) || ts.isStringLiteral(property.name))
-      && INLINE_VIEW_PROPERTIES.has(property.name.text))
+      && names.has(property.name.text))
     .map((property) => ({ line: lineOf(sourceFile, property.getStart()), property: property.name.text }));
 }
 
@@ -408,7 +412,10 @@ export async function analyzeFrontend({ root, project } = {}) {
       report('FRONT010', rel, entry.line, `${entry.name} must live in its own file; a type used only here stays in this file without export`);
     }
     for (const entry of node.inlineViews) {
-      report('FRONT008', rel, entry.line, `component must use ${INLINE_VIEW_PROPERTIES.get(entry.property)} with its own file instead of inline ${entry.property}`);
+      report('FRONT008', rel, entry.line, `component must ${INLINE_VIEW_PROPERTIES.get(entry.property)}`);
+    }
+    for (const entry of node.styleFiles) {
+      report('FRONT009', rel, entry.line, `component must not declare ${entry.property}; style the template with Tailwind classes`);
     }
     for (const entry of node.rootInjectables) {
       report('FRONT005', rel, entry.line, `${entry.name} must use @Service() instead of @Injectable({ providedIn: 'root' })`);

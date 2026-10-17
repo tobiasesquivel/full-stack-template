@@ -4,7 +4,7 @@ Registro vivo del [plan](plan.md). El agente lo actualiza al cerrar cada paso.
 
 ## Paso actual
 
-**Paso 0.12: estilos con Tailwind.** Estado: en curso. Los pasos 0.10 y 0.11 cerraron. Tobi pidió el 2026-10-17 los pasos 0.10 y 0.11: separar la vista de los componentes y un archivo por tipo en todo el repo. Después sigue la Fase 1, paso 2. Los pasos 0.6 a 0.9 esperan el merge de Tobi.
+**Paso 0.13: carpetas por propósito en cada feature del frontend.** Estado: en curso. Los pasos 0.10 a 0.12 cerraron. Tobi pidió el 2026-10-17 separar la vista de los componentes (0.10), un archivo por tipo (0.11), Tailwind (0.12), ordenar los archivos sueltos de cada feature (0.13) y una investigación sobre manejo de sesión en Angular (0.14). Después sigue la Fase 1, paso 2. Los pasos 0.6 a 0.12 esperan el merge de Tobi.
 
 La Fase 0 va antes del paso 2. El paso 1 (línea base) ya cerró y sirve de referencia para la Fase 0.
 
@@ -26,6 +26,7 @@ Estados: `pendiente`, `en curso`, `cerrado`, `bloqueado (⏸ decisión de Tobi)`
 | 0.9 | Arranque con `provideAppInitializer()` | cerrado | `artifacts/verify-template/fase0-09-app-initializer/`, `artifacts/verify-template/fase0-09-runtime/` |
 | 0.10 | Componentes en archivos separados | cerrado | `artifacts/verify-template/fase0-10-component-files/`, `artifacts/verify-template/fase0-10-runtime/` |
 | 0.11 | Un archivo, un tipo | cerrado | `artifacts/verify-template/fase0-11-one-type-per-file/`, `artifacts/verify-template/fase0-11-runtime/` |
+| 0.12 | Estilos con Tailwind | cerrado | `artifacts/verify-template/fase0-12-tailwind/`, `artifacts/verify-template/fase0-12-runtime/` |
 | 1 | Línea base: qué funciona hoy, con evidencia | cerrado | [linea-base.md](linea-base.md); `artifacts/verify-template/baseline-20261016/` |
 | 2 | Un solo comando de verificación local | pendiente | |
 | 3 | CI verde de verdad | pendiente | |
@@ -76,6 +77,7 @@ Cosas vistas durante un paso que no le corresponden. Cada una espera su paso.
 - El rate limiter `auth` es una sola ventana de 20 requests por minuto para toda la API, sin partición por cliente. Un recorrido de navegador seguido del smoke HTTP da 503 (`fase0-06-runtime`). Paso 12.
 - `AuthErrors.AccountNotFound` (`Auth.AccountNotFound`) es nuevo y `DeleteUser` lo traduce a `User.NotFound`. Entra en el catálogo del paso 6.
 - Hay una carpeta vacía y sin versionar, `backend/Features/Health/Test/`, de antes de este paso. Git la ignora. Borrarla es decisión de Tobi.
+- El diálogo de borrar tarea se abre arriba a la izquierda, no centrado. El preflight de Tailwind pone `margin: 0` a todo y le quita el `margin: auto` del navegador. Pasaba antes del paso 0.12 y el paso lo dejó igual. Centrarlo es una línea (`m-auto`): decisión de Tobi.
 - `backend/AGENTS.md` y `backend/docs/agents/` describen un issue tracker en `.scratch/`, que `.gitignore` excluye: los issues nunca se versionan.
 
 ## Cierres
@@ -88,6 +90,18 @@ Una entrada por paso cerrado, con este formato:
 - Preguntas: qué preguntó Tobi.
 - Evidencia: artifacts/verify-template/<runId>/
 ```
+
+### Paso 0.12 — 2026-10-17
+- Enseñado: CSS utility-first. El estilo de cada elemento está en su `class`: `rounded-lg border border-slate-200 bg-white p-5` reemplaza la regla `section { … }` de `styles.css`. Ya no hay que buscar qué selector pinta un elemento. `styles.css` pasó de 234 líneas a 14: `@import 'tailwindcss'`, un breakpoint `xs` (32rem) en `@theme` y el foco visible en `@layer base`. Se repiten las clases en lugar de usar `@apply`, como recomienda Tailwind.
+- Hallazgo: `.field-error` y `.done` vivían en `app.css`. Angular encapsula los estilos de cada componente, así que esas reglas solo valían dentro de `App` y nunca llegaron a los formularios ni a la lista. Con Tailwind la clase está en el mismo elemento: ahora los errores de campo se ven en rojo y las tareas hechas, tachadas.
+- Preguntas: Tobi pidió "migrá de CSS a Tailwind".
+- Decisiones: cuatro filas nuevas en `docs/decisions.tsv`. `conventions.md` actualizado.
+- Evidencia: artifacts/verify-template/fase0-12-tailwind/ y artifacts/verify-template/fase0-12-runtime/.
+  - Rojo antes de verde, gate: con el `check-frontend` del 0.10 falla el test nuevo (`check-frontend-red.log`). Con el nuevo pasan 21/21.
+  - Rojo antes de verde, producto: FRONT009 frena `app.ts` y `tasks.ts` (`check-frontend-product-red.log`).
+  - Build de Angular: PASS. `check-frontend`, `check-structure`, `check-comments` y `CommentVerifier`: PASS.
+  - Capturas: 13 por versión en `before/` y `after/`, con la API simulada. La comparación píxel a píxel (`pixel-diff-threshold150.json`) da 0 diferencias de forma salvo los errores en rojo y el texto tachado. Con umbral bajo (`pixel-diff-threshold24.json`) aparecen los tonos: la paleta de Tailwind v4 usa OKLCH y, por ejemplo, `blue-700` no es exactamente `#1d4ed8`.
+  - verify-template: launch PASS, smoke HTTP PASS (45 requests). Después de 65 segundos, navegador PASS (15 pasos): el recorrido del 0.10 con dos comprobaciones cambiadas. La fila tiene `border-left-width` 3px; al marcarla hecha (PUT 200) gana borde verde y texto tachado; el fondo del diálogo tiene alfa 0.4. Cleanup PASS.
 
 ### Paso 0.11 — 2026-10-17
 - Enseñado: un archivo, un tipo. Buscar `TaskListResponse` lleva a `task-list-response.ts`, sin abrir un archivo de modelos. La excepción de Tobi (un tipo que usa solo otro queda junto a él) la hace cumplir el compilador: en C#, un tipo `file` no puede usarse fuera de su archivo; en TypeScript, un tipo sin `export` tampoco. Por eso `SessionCookie` y `SessionResponse` no entran en la excepción: los usan los tests de Auth.

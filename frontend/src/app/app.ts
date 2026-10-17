@@ -7,7 +7,6 @@ import { describeHttpError } from './core/http-error';
   selector: 'app-root',
   imports: [RouterLink, RouterOutlet],
   templateUrl: './app.html',
-  styleUrl: './app.css',
 })
 export class App {
   protected readonly session = inject(Session);
