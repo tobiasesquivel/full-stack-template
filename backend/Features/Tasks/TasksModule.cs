@@ -1,26 +1,23 @@
+using TemplateApp.Features.Auth.Contracts;
 using TemplateApp.Features.Tasks.Contracts;
 using TemplateApp.Features.Tasks.Domain;
 using TemplateApp.Infrastructure.Persistence;
-using TemplateApp.Shared.Authorization;
 
 namespace TemplateApp.Features.Tasks;
 
 public sealed partial class TasksModule
 {
     private readonly AppDbContext _db;
-    private readonly IPermissionService _permissions;
-    private readonly ResourceAuthorizer _authorizer;
+    private readonly IAccessPolicy _access;
     private readonly TimeProvider _clock;
 
     public TasksModule(
         AppDbContext db,
-        IPermissionService permissions,
-        ResourceAuthorizer authorizer,
+        IAccessPolicy access,
         TimeProvider clock)
     {
         _db = db;
-        _permissions = permissions;
-        _authorizer = authorizer;
+        _access = access;
         _clock = clock;
     }
 

@@ -1,7 +1,7 @@
 using System.Net;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
-using TemplateApp.Infrastructure.Identity;
+using TemplateApp.Features.Auth.Contracts;
 using TemplateApp.Tests.Support;
 using Xunit;
 

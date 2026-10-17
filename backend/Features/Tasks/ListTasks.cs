@@ -2,6 +2,7 @@ using System.Security.Claims;
 using ErrorOr;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using TemplateApp.Features.Auth.Contracts;
 using TemplateApp.Features.Tasks.Contracts;
 using TemplateApp.Shared.Http;
 
@@ -34,7 +35,7 @@ public sealed partial class TasksModule
 
 public static partial class TasksEndpoints
 {
-    private static async Task<IResult> ListAsync(
+    internal static async Task<IResult> ListAsync(
         TasksModule module,
         ClaimsPrincipal user,
         int page = 1,

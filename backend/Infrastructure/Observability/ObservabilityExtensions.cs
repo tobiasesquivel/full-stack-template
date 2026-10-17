@@ -17,7 +17,6 @@ public static class ObservabilityExtensions
             ?? "http://localhost:4318";
 
         services.AddMetrics();
-        services.AddSingleton<ITemplateMetrics, TemplateMetrics>();
 
         services.AddOpenTelemetry()
             .ConfigureResource(resource => resource
@@ -39,7 +38,6 @@ public static class ObservabilityExtensions
                 .AddAspNetCoreInstrumentation()
                 .AddHttpClientInstrumentation()
                 .AddRuntimeInstrumentation()
-                .AddMeter("TemplateApp.Business")
                 .AddOtlpExporter(
                     (exporter, reader) =>
                     {

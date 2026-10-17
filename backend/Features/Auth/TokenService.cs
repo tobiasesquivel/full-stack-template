@@ -9,8 +9,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using TemplateApp.Features.Auth.Contracts;
 using TemplateApp.Features.Auth.Domain;
-using TemplateApp.Infrastructure.Identity;
-using TemplateApp.Infrastructure.Options;
+using TemplateApp.Features.Auth.Jwt;
 using TemplateApp.Infrastructure.Persistence;
 
 namespace TemplateApp.Features.Auth;

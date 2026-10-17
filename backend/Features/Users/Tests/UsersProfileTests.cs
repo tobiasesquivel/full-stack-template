@@ -2,7 +2,7 @@ using System.Net;
 using System.Text.Json;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
-using TemplateApp.Infrastructure.Identity;
+using TemplateApp.Features.Auth.Contracts;
 using TemplateApp.Tests.Support;
 using Xunit;
 

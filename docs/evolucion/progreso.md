@@ -4,7 +4,7 @@ Registro vivo del [plan](plan.md). El agente lo actualiza al cerrar cada paso.
 
 ## Paso actual
 
-**Fase 0, paso 0.3: reparto del código.** Estado: sin empezar.
+**Fase 0, paso 0.4: slices.** Estado: sin empezar.
 
 La Fase 0 va antes del paso 2. El paso 1 (línea base) ya cerró y sirve de referencia para la Fase 0.
 
@@ -17,7 +17,7 @@ Estados: `pendiente`, `en curso`, `cerrado`, `bloqueado (⏸ decisión de Tobi)`
 | 0.0 | Inicialización concurrente de la base | cerrado | `artifacts/verify-template/fase0-00-seed-race/`, `artifacts/verify-template/fase0-00-runtime/` |
 | 0.1 | Docs y reglas de trabajo | cerrado | `artifacts/verify-template/fase0-01-docs/` |
 | 0.2 | Arreglos de Dune | cerrado | `artifacts/verify-template/fase0-02-dune/` |
-| 0.3 | Reparto del código | pendiente | |
+| 0.3 | Reparto del código | cerrado | `artifacts/verify-template/fase0-03-reparto/`, `artifacts/verify-template/fase0-03-runtime/` |
 | 0.4 | Slices | pendiente | |
 | 0.5 | Límite entre Auth y Users | pendiente | |
 | 0.6 | Frontend por feature | pendiente | |
@@ -64,6 +64,9 @@ Cosas vistas durante un paso que no le corresponden. Cada una espera su paso.
 
 - Catálogo de errores: `TaskErrors`, `UserErrors` y `AuthErrors` usan prefijos distintos y hay errores escritos en línea (`"Task.Forbidden"` aparece 4 veces). Paso 6.
 - El build Release muestra 218 warnings de analyzers (CA2007, CA1707, RS2008, RS1036, CS8602 y otros). Nadie decidió si cada uno se corrige o se baja a `suggestion`. Sin paso asignado: proponer uno.
+- `docs/evolucion/informe-vsa-deep-modules.md` §2.1 propone `AppIdentityUser` en `Auth/Domain`. Choca con `architecture.md` (Domain sin ASP.NET). En el paso 0.3 quedó en `Auth/Contracts`; su lugar final se decide en el 0.5.
+- `Auth/Contracts/AuthRequests.cs` y `AuthResponses.cs` tienen varios tipos por archivo; `conventions.md` pide uno por archivo. Paso 0.4.
+- Dune no conoce el sufijo `*Feature` (DUNE0008 solo mira `Module` y `Endpoints`), aunque `conventions.md` le da significado único. Sin paso asignado.
 - `backend/AGENTS.md` y `backend/docs/agents/` describen un issue tracker en `.scratch/`, que `.gitignore` excluye: los issues nunca se versionan.
 
 ## Cierres
@@ -76,6 +79,17 @@ Una entrada por paso cerrado, con este formato:
 - Preguntas: qué preguntó Tobi.
 - Evidencia: artifacts/verify-template/<runId>/
 ```
+
+### Paso 0.3 — 2026-10-17
+- Enseñado: lo que nombra una feature vive en esa feature; cada feature es su propio composition root. Information leakage (el hook de sesión en Infrastructure, `GetCallerId` lejos del JWT) y change amplification (permisos de todas las features en un archivo). Juntar dos interfaces en una más profunda (`IAccessPolicy`). Invertir una dependencia con `IDatabaseSeeder`.
+- Preguntas: Tobi aclaró que Dune no es la fuente de verdad: mandan ADR-0004, `architecture.md` y los informes. Por eso las rutas pasaron a `<Feature>Feature.cs`, como dice `architecture.md`.
+- Decisiones: cinco filas nuevas en `docs/decisions.tsv`; la del código muerto pasa a `aceptada`.
+- Evidencia: artifacts/verify-template/fase0-03-reparto/ y artifacts/verify-template/fase0-03-runtime/.
+  - DUNE0001 frenó `AppIdentityUser` en `Auth/Domain`. `architecture.md` dice lo mismo: Domain sin ASP.NET. Quedó en `Auth/Contracts`.
+  - Rojo antes de verde: el código de `main` con el DUNE0003 nuevo falla en `BackendInfrastructure.cs` (`TokenService`, `AuthModule`, `UsersModule`, `TasksModule`, `SessionHttpPolicy`).
+  - EF `has-pending-model-changes`: PASS (sin cambios de modelo). Con una propiedad de prueba en `AppIdentityUser` falla, como debe.
+  - Build Release: PASS (0 errores, 217 warnings). Tests `TemplateApp.slnx`: PASS (79/79: 29 de producto y 50 de Dune). `CommentVerifier`, `check-structure` (23/23) y `check-comments` (18/18): PASS.
+  - verify-template: launch PASS, smoke HTTP PASS (45 requests, igual que en el paso 0.0), cleanup PASS. Navegador: NOT_RUN, el paso no toca el frontend ni el contrato HTTP.
 
 ### Paso 0.2 — 2026-10-16
 - Enseñado: un gate que no se aplica, o que elige por vos, es peor que no tenerlo. Una regla de configuración también necesita un gate que la vigile.

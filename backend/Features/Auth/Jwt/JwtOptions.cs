@@ -1,4 +1,4 @@
-namespace TemplateApp.Infrastructure.Options;
+namespace TemplateApp.Features.Auth.Jwt;
 
 public sealed record JwtOptions
 {

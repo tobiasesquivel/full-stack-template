@@ -1,9 +1,9 @@
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using TemplateApp.Features.Auth.Contracts;
 using TemplateApp.Features.Auth.Domain;
 using TemplateApp.Features.Tasks.Domain;
 using TemplateApp.Features.Users.Domain;
-using TemplateApp.Infrastructure.Identity;
 
 namespace TemplateApp.Infrastructure.Persistence;
 

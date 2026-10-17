@@ -2,9 +2,9 @@ using System.Security.Claims;
 using ErrorOr;
 using FluentValidation;
 using Microsoft.AspNetCore.Http;
+using TemplateApp.Features.Auth.Contracts;
 using TemplateApp.Features.Tasks.Contracts;
 using TemplateApp.Features.Tasks.Domain;
-using TemplateApp.Shared.Authorization;
 using TemplateApp.Shared.Http;
 
 namespace TemplateApp.Features.Tasks;
@@ -36,7 +36,7 @@ public sealed partial class TasksModule
                 .Select(f => Error.Validation(code: f.PropertyName, description: f.ErrorMessage))
                 .ToList();
 
-        if (!await _permissions.HasPermissionAsync(callerId, AppPermissions.Tasks.Create, ct))
+        if (!await _access.HasPermissionAsync(callerId, TaskPermissions.Create, ct))
             return Error.Forbidden(code: "Task.Forbidden", description: "Access denied.");
 
         var item = new TaskItem
@@ -57,7 +57,7 @@ public sealed partial class TasksModule
 
 public static partial class TasksEndpoints
 {
-    private static async Task<IResult> CreateAsync(
+    internal static async Task<IResult> CreateAsync(
         CreateTaskRequest request,
         TasksModule module,
         ClaimsPrincipal user,

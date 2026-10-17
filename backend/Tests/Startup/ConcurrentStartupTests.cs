@@ -4,8 +4,8 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using Testcontainers.PostgreSql;
+using TemplateApp.Features.Auth.Access;
 using TemplateApp.Infrastructure.Persistence;
-using TemplateApp.Shared.Authorization;
 using TemplateApp.Tests.Support;
 using Xunit;
 
@@ -113,12 +113,12 @@ public sealed class ConcurrentStartupTests : IAsyncLifetime
 
             IList<Claim> claims = await roles.GetClaimsAsync(role);
             string[] permissions = claims
-                .Where(claim => claim.Type == AppPermissions.ClaimType)
+                .Where(claim => claim.Type == RolePermissions.ClaimType)
                 .Select(claim => claim.Value)
                 .Order(StringComparer.Ordinal)
                 .ToArray();
 
-            Assert.Equal(AppPermissions.GetForRole(roleName).Order(StringComparer.Ordinal), permissions);
+            Assert.Equal(RolePermissions.GetForRole(roleName).Order(StringComparer.Ordinal), permissions);
         }
     }
 }

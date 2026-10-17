@@ -41,8 +41,11 @@ try
 
     builder.Host.UseSerilog();
 
-    builder.Services.AddBackendInfrastructure(builder.Configuration, builder.Environment);
+    builder.Services.AddBackendInfrastructure(builder.Configuration);
     builder.Services.AddTemplateObservability(builder.Configuration, builder.Environment);
+    builder.Services.AddAuthFeature(builder.Configuration);
+    builder.Services.AddUsersFeature();
+    builder.Services.AddTasksFeature();
     builder.Services.AddHealthFeature(builder.Configuration);
     builder.Services.AddOpenApi();
 
