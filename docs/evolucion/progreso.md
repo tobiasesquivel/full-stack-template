@@ -4,7 +4,7 @@ Registro vivo del [plan](plan.md). El agente lo actualiza al cerrar cada paso.
 
 ## Paso actual
 
-**Paso 0.15: interceptor y vuelta a la página pedida.** Estado: pendiente. Los pasos 0.10 a 0.14 cerraron. Tobi pidió el 2026-10-17 separar la vista de los componentes (0.10), un archivo por tipo (0.11), Tailwind (0.12), ordenar los archivos sueltos de cada feature (0.13) e investigar y aplicar el manejo de sesión en Angular (0.14 a 0.16, [informe-sesion-angular.md](informe-sesion-angular.md)). Después sigue la Fase 1, paso 2. Los pasos 0.6 a 0.14 esperan el merge de Tobi.
+**Paso 0.16: varias pestañas.** Estado: pendiente. Los pasos 0.10 a 0.15 cerraron. Tobi pidió el 2026-10-17 separar la vista de los componentes (0.10), un archivo por tipo (0.11), Tailwind (0.12), ordenar los archivos sueltos de cada feature (0.13) e investigar y aplicar el manejo de sesión en Angular (0.14 a 0.16, [informe-sesion-angular.md](informe-sesion-angular.md)). Después sigue la Fase 1, paso 2. Los pasos 0.6 a 0.15 esperan el merge de Tobi.
 
 La Fase 0 va antes del paso 2. El paso 1 (línea base) ya cerró y sirve de referencia para la Fase 0.
 
@@ -29,7 +29,7 @@ Estados: `pendiente`, `en curso`, `cerrado`, `bloqueado (⏸ decisión de Tobi)`
 | 0.12 | Estilos con Tailwind | cerrado | `artifacts/verify-template/fase0-12-tailwind/`, `artifacts/verify-template/fase0-12-runtime/` |
 | 0.13 | Carpetas por propósito en cada feature del frontend | cerrado | `artifacts/verify-template/fase0-13-feature-folders/`, `artifacts/verify-template/fase0-13-runtime/` |
 | 0.14 | Forma de la sesión | cerrado | `artifacts/verify-template/fase0-14-session-shape/`, `artifacts/verify-template/fase0-14-runtime/` |
-| 0.15 | Interceptor y vuelta a la página pedida | pendiente | |
+| 0.15 | Interceptor y vuelta a la página pedida | cerrado | `artifacts/verify-template/fase0-15-session-interceptor/`, `artifacts/verify-template/fase0-15-runtime-red/` (rojo), `artifacts/verify-template/fase0-15-runtime/` |
 | 0.16 | Varias pestañas | pendiente | |
 | 1 | Línea base: qué funciona hoy, con evidencia | cerrado | [linea-base.md](linea-base.md); `artifacts/verify-template/baseline-20261016/` |
 | 2 | Un solo comando de verificación local | pendiente | |
@@ -97,6 +97,18 @@ Una entrada por paso cerrado, con este formato:
 - Preguntas: qué preguntó Tobi.
 - Evidencia: artifacts/verify-template/<runId>/
 ```
+
+### Paso 0.15 — 2026-10-17
+- Enseñado: un interceptor funcional con renovación. El token va solo a `/api/`. Las peticiones de `/auth` llevan un `HttpContextToken` (`SKIP_SESSION`): es un dato de la petición que lee el interceptor y que el backend nunca ve, más firme que comparar el texto de la URL. Ante un 401, varias peticiones esperan la misma renovación y cada una reintenta una vez. El `catchError` va antes del `switchMap`: atrapa solo la renovación fallida, no el error del reintento. `returnUrl` vuelve a la página pedida y solo acepta rutas internas, para que nadie arme un link de login que lleve a otro sitio.
+- Hallazgo: el informe marcaba un riesgo sin probar, y el rojo lo confirmó. Con el código del 0.14, `/auth/refresh` viajaba con el JWT todavía válido. El token antiforgery se había emitido como anónimo antes del login, así que el backend respondía 400 y la sesión se cerraba. Pasaba en cada 401 con el token vigente (por ejemplo, una familia revocada en otra pestaña). Sin el JWT en `/auth`, todas esas peticiones son anónimas y el token coincide.
+- Preguntas: ninguna nueva; aplica la investigación del 0.14.
+- Decisiones: dos filas nuevas en `docs/decisions.tsv`. `conventions.md` y `architecture.md` actualizados.
+- Evidencia: artifacts/verify-template/fase0-15-session-interceptor/, artifacts/verify-template/fase0-15-runtime-red/ y artifacts/verify-template/fase0-15-runtime/.
+  - Sin regla nueva de Dune: el paso cambia comportamiento y lo prueba el navegador. `check-frontend` sigue con 24/24 tests.
+  - Rojo antes de verde, navegador (`fase0-15-runtime-red`, código del 0.14): 5 de 6 comprobaciones nuevas fallan. Sin `returnUrl` en `/login` (dos casos). Un 401 seguido de un 404 termina en `/login`. Dos 401 a la vez terminan en `/login` porque la renovación da 400. 9 de 39 peticiones de `/auth` llevan `Authorization`. La única que pasa es la del `returnUrl` externo: antes también iba a `/tasks`.
+  - Verde (`fase0-15-runtime`): los 15 pasos del 0.14 y las 6 comprobaciones pasan. Un 401 y un 404 en el reintento dejan la sesión abierta y muestran "El recurso solicitado no existe o ya fue eliminado." Dos 401 retenidos y soltados juntos dan un solo `POST /auth/refresh` y dos reintentos. Una renovación fallida lleva a `/login?returnUrl=%2Ftasks`. La contraseña mala no dispara renovación.
+  - Build de Angular: PASS. `check-frontend`, `check-structure`, `check-comments` y `CommentVerifier`: PASS.
+  - verify-template: launch PASS, smoke HTTP PASS (45 requests). Las comprobaciones nuevas corren después de 61 segundos más, para quedar bajo 20 requests de `/auth` por minuto. Cleanup PASS.
 
 ### Paso 0.14 — 2026-10-17
 - Enseñado: un solo estado para la sesión. Antes eran tres piezas sueltas: `currentUser`, `initialized` y una `Promise` con `readyResolve` armada a mano. Ahora `Session` guarda una unión discriminada en un `signal` privado: `restoring`, `open` (con el usuario) o `closed`. TypeScript no deja escribir un usuario con la sesión cerrada. Lo público es `computed`: `status`, `currentUser` e `isOpen`. Los guards esperan con `toObservable(session.status).pipe(first(...))`, sin una segunda fuente de verdad. El HTTP de Auth pasó a `AuthApi`, como `UsersApi`; `Session` solo decide el estado. Las acciones usan los verbos del backend: `open`, `refresh`, `close`.

@@ -1,39 +1,31 @@
-import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
+import { HttpErrorResponse, HttpInterceptorFn, HttpRequest } from '@angular/common/http';
 import { inject } from '@angular/core';
-import { Router } from '@angular/router';
 import { catchError, from, switchMap, throwError } from 'rxjs';
+import { SKIP_SESSION } from '../api/skip-session';
 import { Session } from './session';
 
+function withToken(request: HttpRequest<unknown>, token: string | null): HttpRequest<unknown> {
+  return token ? request.clone({ setHeaders: { Authorization: `Bearer ${token}` } }) : request;
+}
+
 export const authInterceptor: HttpInterceptorFn = (request, next) => {
+  if (!request.url.startsWith('/api/') || request.context.get(SKIP_SESSION)) {
+    return next(request);
+  }
   const session = inject(Session);
-  const router = inject(Router);
 
-  const token = session.accessToken();
-  const outgoing = token ? request.clone({ setHeaders: { Authorization: `Bearer ${token}` } }) : request;
-
-  return next(outgoing).pipe(
+  return next(withToken(request, session.accessToken())).pipe(
     catchError((error: unknown) => {
-      if (
-        error instanceof HttpErrorResponse &&
-        error.status === 401 &&
-        !request.url.startsWith('/api/v1/auth/')
-      ) {
-        return from(session.refresh()).pipe(
-          switchMap(() => {
-            const retryToken = session.accessToken();
-            const retry = retryToken
-              ? request.clone({ setHeaders: { Authorization: `Bearer ${retryToken}` } })
-              : request;
-            return next(retry);
-          }),
-          catchError(() => {
-            session.end();
-            void router.navigateByUrl('/login');
-            return throwError(() => error);
-          }),
-        );
+      if (!(error instanceof HttpErrorResponse) || error.status !== 401) {
+        return throwError(() => error);
       }
-      return throwError(() => error);
+      return from(session.refresh()).pipe(
+        catchError(() => {
+          session.end();
+          return throwError(() => error);
+        }),
+        switchMap(() => next(withToken(request, session.accessToken()))),
+      );
     }),
   );
 };

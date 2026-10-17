@@ -1,9 +1,11 @@
 import { Service, computed, inject, signal } from '@angular/core';
+import { Router } from '@angular/router';
 import { UsersApi, type UserResponse } from '../../users';
 import { AuthApi } from '../api/auth-api';
 import type { AuthResponse } from '../api/auth-response';
 import type { OpenSessionRequest } from '../api/open-session-request';
 import type { RegisterRequest } from '../api/register-request';
+import { loginUrl } from './return-url';
 
 type SessionState =
   | { status: 'restoring' }
@@ -14,6 +16,7 @@ type SessionState =
 export class Session {
   private readonly authApi = inject(AuthApi);
   private readonly usersApi = inject(UsersApi);
+  private readonly router = inject(Router);
 
   private readonly state = signal<SessionState>({ status: 'restoring' });
   private token: string | null = null;
@@ -37,7 +40,7 @@ export class Session {
       const user = await this.usersApi.me();
       this.state.set({ status: 'open', user });
     } catch {
-      this.end();
+      this.clear();
     }
   }
 
@@ -54,7 +57,7 @@ export class Session {
   async close(): Promise<void> {
     await this.authApi.issueCsrf();
     await this.authApi.close();
-    this.end();
+    this.clear();
   }
 
   refresh(): Promise<void> {
@@ -65,8 +68,8 @@ export class Session {
   }
 
   end(): void {
-    this.token = null;
-    this.state.set({ status: 'closed' });
+    this.clear();
+    void this.router.navigateByUrl(loginUrl(this.router, this.router.url));
   }
 
   replaceUser(user: UserResponse): void {
@@ -80,9 +83,14 @@ export class Session {
       const response = await this.authApi.refresh();
       this.token = response.accessToken;
     } catch (error) {
-      this.end();
+      this.clear();
       throw error;
     }
+  }
+
+  private clear(): void {
+    this.token = null;
+    this.state.set({ status: 'closed' });
   }
 
   private apply(response: AuthResponse): void {

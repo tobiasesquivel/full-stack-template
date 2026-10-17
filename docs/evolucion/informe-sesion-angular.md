@@ -286,7 +286,7 @@ Además: `ng build`, `node dune/check-frontend.mjs` y `node --test dune/check-fr
 **No verificado**:
 - Las páginas se leyeron con una herramienta que resume. Las citas son textuales según esa herramienta, no copiadas a mano de la página.
 - La sección 8.4 del RFC (memoria) se leyó resumida; no leí entera la sección de cookies del BFF.
-- Que ASP.NET rechace un token XSRF emitido para otro usuario sale de cómo funciona antiforgery (ata el token a la identidad). No lo probé en este repo: se confirma en el paso B.
+- Que ASP.NET rechace un token XSRF emitido para otro usuario sale de cómo funciona antiforgery (ata el token a la identidad). El rojo del paso 0.15 lo confirmó: con el JWT vigente, `/auth/refresh` respondía 400 (`artifacts/verify-template/fase0-15-runtime-red/`).
 - El caso "login con otro usuario en otra pestaña" sale de leer el código, no de una corrida.
 - La OWASP JWT Cheat Sheet devolvió 404 en la URL que probé. No la usé.
 - No encontré una guía de angular.dev dedicada a sesión o autenticación: la doc oficial cubre las piezas (guards, interceptores, XSRF, signals), no el diseño completo.
