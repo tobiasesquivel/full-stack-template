@@ -3,7 +3,7 @@ import { provideHttpClient, withInterceptors, withXsrfConfiguration } from '@ang
 import { provideRouter } from '@angular/router';
 
 import { routes } from './app.routes';
-import { AuthService, authInterceptor } from './features/auth';
+import { Session, authInterceptor } from './features/auth';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -16,8 +16,8 @@ export const appConfig: ApplicationConfig = {
     {
       provide: APP_INITIALIZER,
       multi: true,
-      useFactory: (auth: AuthService) => () => auth.bootstrap(),
-      deps: [AuthService],
+      useFactory: (session: Session) => () => session.bootstrap(),
+      deps: [Session],
     },
   ],
 };

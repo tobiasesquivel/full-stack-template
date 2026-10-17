@@ -1,6 +1,6 @@
 import { Component, inject, signal } from '@angular/core';
 import { RouterLink, RouterOutlet } from '@angular/router';
-import { AuthService } from './features/auth';
+import { Session } from './features/auth';
 import { describeHttpError } from './core/http-error';
 
 @Component({
@@ -10,7 +10,7 @@ import { describeHttpError } from './core/http-error';
   styleUrl: './app.css',
 })
 export class App {
-  protected readonly auth = inject(AuthService);
+  protected readonly session = inject(Session);
   protected readonly logoutError = signal<string | null>(null);
   protected readonly loggingOut = signal(false);
 
@@ -18,7 +18,7 @@ export class App {
     this.loggingOut.set(true);
     this.logoutError.set(null);
     try {
-      await this.auth.logout();
+      await this.session.logout();
     } catch (err) {
       this.logoutError.set(`${describeHttpError(err)} Pulsa Salir de nuevo para reintentar.`);
     } finally {

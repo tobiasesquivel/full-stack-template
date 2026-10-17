@@ -73,7 +73,7 @@ frontend/src/app/
 └── features/
     └── auth/
         ├── index.ts               la puerta: lo único que ve el resto de la app
-        ├── auth.service.ts, auth.guard.ts, auth.interceptor.ts
+        ├── session.ts, auth-guard.ts, auth-interceptor.ts
         ├── auth-models.ts         AuthResponse, RegisterRequest…
         ├── auth.routes.ts         rutas de la feature, sin guards
         └── login/, register/      componentes
@@ -81,7 +81,7 @@ frontend/src/app/
 
 - Cada feature tiene su cliente HTTP, sus modelos y sus rutas. Su `index.ts` es el equivalente de `Contracts/` en el backend.
 - La raíz de la app compone las rutas y decide qué grupo protege cada guard (`canActivateChild`). Las features no declaran guards: así `auth` y `users` no se importan entre sí al cargar la app.
-- Las dependencias siguen la dirección del backend: Auth usa `UsersService` y `UserResponse` desde `features/users`; el perfil usa `AuthService` desde `features/auth`. Los componentes se cargan lazy.
+- Las dependencias siguen la dirección del backend: Auth usa `UsersApi` y `UserResponse` desde `features/users`; el perfil usa `Session` desde `features/auth`. Los componentes se cargan lazy.
 
 ## Operación
 

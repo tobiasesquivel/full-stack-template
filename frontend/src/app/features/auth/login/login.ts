@@ -2,7 +2,7 @@ import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { RouterLink } from '@angular/router';
-import { AuthService } from '../auth.service';
+import { Session } from '../session';
 import { describeHttpError } from '../../../core/http-error';
 
 @Component({
@@ -44,7 +44,7 @@ import { describeHttpError } from '../../../core/http-error';
   `,
 })
 export class Login {
-  private readonly auth = inject(AuthService);
+  private readonly session = inject(Session);
   private readonly fb = inject(FormBuilder);
 
   protected readonly form = this.fb.group({
@@ -63,7 +63,7 @@ export class Login {
     this.error.set(null);
     try {
       const { userName, password } = this.form.getRawValue();
-      await this.auth.login(userName ?? '', password ?? '');
+      await this.session.login(userName ?? '', password ?? '');
     } catch (err) {
       this.error.set(
         err instanceof HttpErrorResponse && err.status === 401

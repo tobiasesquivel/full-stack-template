@@ -2,13 +2,13 @@ import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { catchError, from, switchMap, throwError } from 'rxjs';
-import { AuthService } from './auth.service';
+import { Session } from './session';
 
 export const authInterceptor: HttpInterceptorFn = (request, next) => {
-  const auth = inject(AuthService);
+  const session = inject(Session);
   const router = inject(Router);
 
-  const token = auth.token();
+  const token = session.token();
   const outgoing = token ? request.clone({ setHeaders: { Authorization: `Bearer ${token}` } }) : request;
 
   return next(outgoing).pipe(
@@ -18,16 +18,16 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
         error.status === 401 &&
         !request.url.startsWith('/api/v1/auth/')
       ) {
-        return from(auth.refreshNow()).pipe(
+        return from(session.refreshNow()).pipe(
           switchMap(() => {
-            const retryToken = auth.token();
+            const retryToken = session.token();
             const retry = retryToken
               ? request.clone({ setHeaders: { Authorization: `Bearer ${retryToken}` } })
               : request;
             return next(retry);
           }),
           catchError(() => {
-            auth.clearSession();
+            session.clearSession();
             void router.navigateByUrl('/login');
             return throwError(() => error);
           }),

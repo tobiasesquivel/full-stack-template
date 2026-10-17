@@ -1,6 +1,6 @@
 import { Component, ElementRef, Injector, afterNextRender, computed, inject, signal, viewChild } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { TasksService } from '../tasks.service';
+import { TasksApi } from '../tasks-api';
 import { describeHttpError } from '../../../core/http-error';
 import type { TaskResponse } from '../tasks-models';
 
@@ -150,7 +150,7 @@ const PAGE_SIZE = 10;
   `,
 })
 export class Tasks {
-  private readonly tasksApi = inject(TasksService);
+  private readonly tasksApi = inject(TasksApi);
   private readonly fb = inject(FormBuilder);
 
   protected readonly items = signal<TaskResponse[]>([]);

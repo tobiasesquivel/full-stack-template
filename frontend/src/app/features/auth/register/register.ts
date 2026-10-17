@@ -1,7 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { AuthService } from '../auth.service';
+import { Session } from '../session';
 import { describeHttpError } from '../../../core/http-error';
 
 @Component({
@@ -54,7 +54,7 @@ import { describeHttpError } from '../../../core/http-error';
   `,
 })
 export class Register {
-  private readonly auth = inject(AuthService);
+  private readonly session = inject(Session);
   private readonly fb = inject(FormBuilder);
 
   protected readonly form = this.fb.group({
@@ -75,7 +75,7 @@ export class Register {
     this.error.set(null);
     try {
       const { userName, email, displayName, password } = this.form.getRawValue();
-      await this.auth.register({
+      await this.session.register({
         userName: userName ?? '',
         email: email ?? '',
         password: password ?? '',

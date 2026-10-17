@@ -42,7 +42,7 @@ async function seedAngular(root) {
   await mkdir(path.join(types, 'core'), { recursive: true });
   await mkdir(path.join(types, 'common'), { recursive: true });
   await writeFile(path.join(types, 'core', 'package.json'), JSON.stringify({ name: 'core', version: '0.0.0', types: './index.d.ts' }));
-  await writeFile(path.join(types, 'core', 'index.d.ts'), `export declare function Component(o: unknown): unknown;\nexport declare function Injectable(o?: unknown): unknown;\nexport declare function inject(t: unknown): unknown;\nexport declare function signal<T>(v: T): T;\n`);
+  await writeFile(path.join(types, 'core', 'index.d.ts'), `export declare function Component(o: unknown): unknown;\nexport declare function Injectable(o?: unknown): unknown;\nexport declare function Service(o?: unknown): unknown;\nexport declare function inject(t: unknown): unknown;\nexport declare function signal<T>(v: T): T;\n`);
   await writeFile(path.join(types, 'common', 'package.json'), JSON.stringify({ name: 'http', version: '0.0.0', types: './http.d.ts' }));
   await writeFile(path.join(types, 'common', 'http.d.ts'), `export declare class HttpClient {}\nexport declare class HttpRequest {}\n`);
   void ANGULAR_STUB;
@@ -86,7 +86,7 @@ describe('check-frontend', () => {
 
   it('accepts the feature HTTP adapter while rejecting component HTTP', async () => {
     const project = await makeProject({
-      'frontend/src/app/features/tasks/tasks.service.ts': `import { Injectable, inject } from '@angular/core';\nimport { HttpClient } from '@angular/common/http';\n@Injectable({ providedIn: 'root' })\nexport class TasksService {\n  private readonly http = inject(HttpClient);\n}\n`,
+      'frontend/src/app/features/tasks/tasks-api.ts': `import { Service, inject } from '@angular/core';\nimport { HttpClient } from '@angular/common/http';\n@Service()\nexport class TasksApi {\n  private readonly http = inject(HttpClient);\n}\n`,
       'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component, inject } from '@angular/core';\nimport { HttpClient } from '@angular/common/http';\n@Component({ selector: 'x', template: '' })\nexport class Tasks {\n  private readonly http = inject(HttpClient);\n}\n`,
     });
     try {
@@ -291,6 +291,52 @@ describe('check-frontend', () => {
       await seedAngular(project.root);
       const { diagnostics } = await analyzeFrontend({ root: project.root });
       assert.ok(diagnostics.some((entry) => entry.rule === 'FRONT001'));
+    } finally {
+      await project.cleanup();
+    }
+  });
+
+  it('accepts intent names without type suffixes and @Service singletons', async () => {
+    const project = await makeProject({
+      'frontend/src/app/features/tasks/tasks-api.ts': `import { Service } from '@angular/core';\n@Service()\nexport class TasksApi {}\n`,
+      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';\n@Component({ selector: 'x', template: '' })\nexport class Tasks {}\n`,
+      'frontend/src/app/features/tasks/tasks.routes.ts': `export const tasksRoutes = [];\n`,
+      'frontend/src/app/features/auth/auth-guard.ts': `export const authGuard = () => true;\n`,
+      'frontend/src/app/features/auth/scoped-cache.ts': `import { Injectable } from '@angular/core';\n@Injectable()\nexport class ScopedCache {}\n`,
+    });
+    try {
+      await seedAngular(project.root);
+      const { diagnostics } = await analyzeFrontend({ root: project.root });
+      assert.deepEqual(diagnostics, []);
+    } finally {
+      await project.cleanup();
+    }
+  });
+
+  it('rejects type suffixes in file names and decorated class names', async () => {
+    const project = await makeProject({
+      'frontend/src/app/features/tasks/tasks.service.ts': `import { Service } from '@angular/core';\n@Service()\nexport class TasksService {}\n`,
+      'frontend/src/app/features/auth/auth.guard.ts': `export const authGuard = () => true;\n`,
+      'frontend/src/app/features/tasks/tasks/tasks-view.ts': `import { Component } from '@angular/core';\n@Component({ selector: 'x', template: '' })\nexport class TasksComponent {}\n`,
+    });
+    try {
+      await seedAngular(project.root);
+      const { diagnostics } = await analyzeFrontend({ root: project.root });
+      const naming = diagnostics.filter((entry) => entry.rule === 'FRONT004').map((entry) => `${path.basename(entry.path)}:${entry.line}`);
+      assert.deepEqual(naming, ['auth.guard.ts:1', 'tasks.service.ts:1', 'tasks.service.ts:3', 'tasks-view.ts:3']);
+    } finally {
+      await project.cleanup();
+    }
+  });
+
+  it('rejects @Injectable with providedIn root in favor of @Service', async () => {
+    const project = await makeProject({
+      'frontend/src/app/features/tasks/tasks-api.ts': `import { Injectable } from '@angular/core';\n@Injectable({ providedIn: 'root' })\nexport class TasksApi {}\n`,
+    });
+    try {
+      await seedAngular(project.root);
+      const { diagnostics } = await analyzeFrontend({ root: project.root });
+      assert.deepEqual(diagnostics.map((entry) => [entry.rule, entry.line]), [['FRONT005', 2]]);
     } finally {
       await project.cleanup();
     }

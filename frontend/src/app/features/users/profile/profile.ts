@@ -1,7 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { AuthService } from '../../auth';
-import { UsersService } from '../users.service';
+import { Session } from '../../auth';
+import { UsersApi } from '../users-api';
 import { describeHttpError } from '../../../core/http-error';
 
 @Component({
@@ -19,9 +19,9 @@ import { describeHttpError } from '../../../core/http-error';
       } @else {
         <dl>
           <dt>Usuario</dt>
-          <dd>{{ auth.currentUser()?.userName }}</dd>
+          <dd>{{ session.currentUser()?.userName }}</dd>
           <dt>Correo</dt>
-          <dd>{{ auth.currentUser()?.email }}</dd>
+          <dd>{{ session.currentUser()?.email }}</dd>
         </dl>
 
         <form [formGroup]="form" (ngSubmit)="save()" novalidate>
@@ -60,8 +60,8 @@ import { describeHttpError } from '../../../core/http-error';
   `,
 })
 export class Profile {
-  protected readonly auth = inject(AuthService);
-  private readonly users = inject(UsersService);
+  protected readonly session = inject(Session);
+  private readonly usersApi = inject(UsersApi);
   private readonly fb = inject(FormBuilder);
 
   protected readonly form = this.fb.group({
@@ -82,8 +82,8 @@ export class Profile {
     this.loading.set(true);
     this.error.set(null);
     try {
-      const me = await this.users.me();
-      this.auth.setUser(me);
+      const me = await this.usersApi.me();
+      this.session.setUser(me);
       this.form.setValue({ displayName: me.displayName, timezone: me.timezone });
     } catch (err) {
       this.error.set(describeHttpError(err));
@@ -102,11 +102,11 @@ export class Profile {
     this.saved.set(false);
     try {
       const { displayName, timezone } = this.form.getRawValue();
-      const updated = await this.users.updateMe({
+      const updated = await this.usersApi.updateMe({
         displayName: (displayName ?? '').trim(),
         timezone: (timezone ?? '').trim(),
       });
-      this.auth.setUser(updated);
+      this.session.setUser(updated);
       this.saved.set(true);
     } catch (err) {
       this.saveError.set(describeHttpError(err));

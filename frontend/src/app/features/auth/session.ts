@@ -1,15 +1,15 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { Service, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import { UsersService, type UserResponse } from '../users';
+import { UsersApi, type UserResponse } from '../users';
 import type { AuthResponse, RegisterRequest, TokenResponse } from './auth-models';
 
-@Injectable({ providedIn: 'root' })
-export class AuthService {
+@Service()
+export class Session {
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
-  private readonly users = inject(UsersService);
+  private readonly usersApi = inject(UsersApi);
 
   private readonly currentUserSignal = signal<UserResponse | null>(null);
   private readonly initializedSignal = signal(false);
@@ -106,7 +106,7 @@ export class AuthService {
   }
 
   private async loadMe(): Promise<void> {
-    const me = await this.users.me();
+    const me = await this.usersApi.me();
     this.currentUserSignal.set(me);
   }
 

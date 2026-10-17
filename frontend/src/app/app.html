@@ -2,11 +2,11 @@
 <header>
   <nav aria-label="Principal">
     <a routerLink="/tasks" class="brand">Tareas</a>
-    @if (auth.initialized()) {
-      @if (auth.isAuthenticated()) {
+    @if (session.initialized()) {
+      @if (session.isAuthenticated()) {
         <a routerLink="/tasks">Mis tareas</a>
         <a routerLink="/profile">Mi perfil</a>
-        <span role="status">{{ auth.currentUser()?.displayName }}</span>
+        <span role="status">{{ session.currentUser()?.displayName }}</span>
         <button type="button" [disabled]="loggingOut()" (click)="logout()">
           {{ loggingOut() ? 'Saliendo…' : 'Salir' }}
         </button>
@@ -21,7 +21,7 @@
   }
 </header>
 <main id="contenido">
-  @if (!auth.initialized()) {
+  @if (!session.initialized()) {
     <p role="status">Cargando…</p>
   } @else {
     <router-outlet />

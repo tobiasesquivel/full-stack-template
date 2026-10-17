@@ -7,7 +7,11 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const require = createRequire(path.join(here, '..', 'frontend', 'package.json'));
 const ts = require('typescript');
 
-export const RULES = ['FRONT001', 'FRONT002', 'FRONT003'];
+export const RULES = ['FRONT001', 'FRONT002', 'FRONT003', 'FRONT004', 'FRONT005'];
+
+const TYPE_SUFFIX_FILE = /\.(service|component|directive|pipe|guard|interceptor|resolver|module)\.ts$/;
+const TYPE_SUFFIX_CLASS = /(Service|Component|Directive|Pipe|Module)$/;
+const ANGULAR_CLASS_DECORATORS = new Set(['Component', 'Directive', 'Pipe', 'Service', 'Injectable', 'NgModule']);
 
 const COMPOSITION_FILES = new Set([
   'frontend/src/app/app.routes.ts',
@@ -90,6 +94,41 @@ function decoratorName(expression) {
   if (ts.isCallExpression(expression) && ts.isIdentifier(expression.expression)) return expression.expression.text;
   if (ts.isIdentifier(expression)) return expression.text;
   return null;
+}
+
+function collectNaming(sourceFile) {
+  const suffixedClasses = [];
+  const rootInjectables = [];
+  function visit(node) {
+    if (ts.isClassDeclaration(node) && node.name) {
+      const decorators = ts.getDecorators?.(node) ?? node.decorators ?? [];
+      for (const decorator of decorators) {
+        const name = decoratorName(decorator.expression);
+        if (!name || !ANGULAR_CLASS_DECORATORS.has(name)) continue;
+        if (TYPE_SUFFIX_CLASS.test(node.name.text)) {
+          suffixedClasses.push({ line: lineOf(sourceFile, node.name.getStart()), name: node.name.text });
+        }
+        if (name === 'Injectable' && providesInRoot(decorator.expression)) {
+          rootInjectables.push({ line: lineOf(sourceFile, decorator.getStart()), name: node.name.text });
+        }
+      }
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(sourceFile);
+  return { suffixedClasses, rootInjectables };
+}
+
+function providesInRoot(expression) {
+  if (!ts.isCallExpression(expression)) return false;
+  const options = expression.arguments[0];
+  if (!options || !ts.isObjectLiteralExpression(options)) return false;
+  return options.properties.some((property) =>
+    ts.isPropertyAssignment(property)
+    && (ts.isIdentifier(property.name) || ts.isStringLiteral(property.name))
+    && property.name.text === 'providedIn'
+    && ts.isStringLiteral(property.initializer)
+    && property.initializer.text === 'root');
 }
 
 function classDecoratorNames(node) {
@@ -284,7 +323,7 @@ export async function analyzeFrontend({ root, project } = {}) {
       throw new Error(`cannot resolve imports in ${rel}: ${error.message}`);
     }
     const refs = collectRefs(sourceFile, checker);
-    graph.set(rel, { path: rel, kind: classifyFile(rel, sourceFile), ...edges, ...refs });
+    graph.set(rel, { path: rel, kind: classifyFile(rel, sourceFile), ...edges, ...refs, ...collectNaming(sourceFile) });
   }
   for (const [rel, node] of graph) {
     for (const edge of [...node.imports, ...node.reexports]) {
@@ -298,6 +337,15 @@ export async function analyzeFrontend({ root, project } = {}) {
         const from = fromFeature ? `feature ${fromFeature}` : rel;
         report('FRONT001', rel, edge.line, `${from} must import feature ${toFeature} through features/${toFeature}/index.ts, not ${target}`);
       }
+    }
+    if (TYPE_SUFFIX_FILE.test(rel)) {
+      report('FRONT004', rel, 1, `file name must describe its purpose without a type suffix: ${path.posix.basename(rel)}`);
+    }
+    for (const entry of node.suffixedClasses) {
+      report('FRONT004', rel, entry.line, `class ${entry.name} must be named for its purpose without a type suffix`);
+    }
+    for (const entry of node.rootInjectables) {
+      report('FRONT005', rel, entry.line, `${entry.name} must use @Service() instead of @Injectable({ providedIn: 'root' })`);
     }
     if (node.kind === 'component') {
       const httpLines = new Set();

@@ -4,7 +4,7 @@ Registro vivo del [plan](plan.md). El agente lo actualiza al cerrar cada paso.
 
 ## Paso actual
 
-**Fase 0, paso 0.7: servicios y nombres de Angular v22.** Estado: en curso. Los pasos 0.7 a 0.9 se agregaron el 2026-10-17 a pedido de Tobi ([informe](informe-angular-moderno.md)). El paso 0.6 espera el merge de Tobi.
+**Fase 0, paso 0.8: Signal Forms.** Estado: sin empezar. Los pasos 0.7 a 0.9 se agregaron el 2026-10-17 a pedido de Tobi ([informe](informe-angular-moderno.md)). Los pasos 0.6 y 0.7 esperan el merge de Tobi.
 
 La Fase 0 va antes del paso 2. El paso 1 (línea base) ya cerró y sirve de referencia para la Fase 0.
 
@@ -21,7 +21,7 @@ Estados: `pendiente`, `en curso`, `cerrado`, `bloqueado (⏸ decisión de Tobi)`
 | 0.4 | Slices | cerrado | `artifacts/verify-template/fase0-04-slices/`, `artifacts/verify-template/fase0-04-runtime/` |
 | 0.5 | Límite entre Auth y Users | cerrado | `artifacts/verify-template/fase0-05-auth-users/`, `artifacts/verify-template/fase0-05-runtime/` |
 | 0.6 | Frontend por feature | cerrado | `artifacts/verify-template/fase0-06-frontend/`, `artifacts/verify-template/fase0-06-runtime/` (fallo), `artifacts/verify-template/fase0-06-runtime-2/` |
-| 0.7 | Servicios y nombres de Angular v22 | en curso | |
+| 0.7 | Servicios y nombres de Angular v22 | cerrado | `artifacts/verify-template/fase0-07-services/`, `artifacts/verify-template/fase0-07-runtime/` |
 | 0.8 | Signal Forms | pendiente | |
 | 0.9 | Arranque con `provideAppInitializer()` | pendiente | |
 | 1 | Línea base: qué funciona hoy, con evidencia | cerrado | [linea-base.md](linea-base.md); `artifacts/verify-template/baseline-20261016/` |
@@ -87,6 +87,16 @@ Una entrada por paso cerrado, con este formato:
 - Preguntas: qué preguntó Tobi.
 - Evidencia: artifacts/verify-template/<runId>/
 ```
+
+### Paso 0.7 — 2026-10-17
+- Enseñado: *Intent over Role*. El nombre dice para qué sirve la clase y la carpeta dice de qué feature es: `session.ts` / `Session` maneja la sesión, `tasks-api.ts` / `TasksApi` es el cliente HTTP de Tasks. `@Service()` reemplaza a `@Injectable({ providedIn: 'root' })` en v22. Los otros nombres solo cambian en la puerta (`index.ts`) de cada feature.
+- Preguntas: si Angular moderno sigue usando `.service` (no: desde v20 el CLI no genera sufijos). Tobi pidió la investigación, instalar `angular/skills` y modernizar el frontend.
+- Decisiones: tres filas nuevas en `docs/decisions.tsv`. `conventions.md` y `architecture.md` actualizados.
+- Evidencia: artifacts/verify-template/fase0-07-services/ y artifacts/verify-template/fase0-07-runtime/.
+  - Rojo antes de verde, gate: con el `check-frontend` del 0.6 fallan los 2 tests de rechazo nuevos (`check-frontend-red.log`). Con el nuevo pasan 17/17. La fixture válida del adapter HTTP pasó a `tasks-api.ts` / `TasksApi` con `@Service()`.
+  - Rojo antes de verde, producto: FRONT004 y FRONT005 frenan 11 casos en los tres servicios, el guard y el interceptor (`check-frontend-product-red.log`).
+  - Build de Angular: PASS, con los cinco componentes en chunks lazy. `check-frontend`, `check-structure`, `check-comments` y `CommentVerifier`: PASS.
+  - verify-template: launch PASS (build y tests .NET incluidos), smoke HTTP PASS (45 requests). Después de 65 segundos, navegador PASS con el recorrido del 0.6 (11 pasos). Cleanup PASS.
 
 ### Paso 0.6 — 2026-10-17
 - Enseñado: el mismo límite de módulo, en el cliente. Cada feature de Angular publica su puerta en `index.ts`, como `Contracts/` en el backend. La raíz de la app compone las features: aplica los guards con `canActivateChild` sobre las rutas que cada feature exporta. Así se evita un ciclo de imports entre `auth` y `users` al cargar la app.

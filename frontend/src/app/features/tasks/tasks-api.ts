@@ -1,10 +1,10 @@
-import { Injectable, inject } from '@angular/core';
+import { Service, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import type { TaskListResponse, TaskResponse, UpdateTaskRequest } from './tasks-models';
 
-@Injectable({ providedIn: 'root' })
-export class TasksService {
+@Service()
+export class TasksApi {
   private readonly http = inject(HttpClient);
 
   list(page: number, pageSize: number): Promise<TaskListResponse> {
