@@ -4,7 +4,7 @@ Registro vivo del [plan](plan.md). El agente lo actualiza al cerrar cada paso.
 
 ## Paso actual
 
-**Paso 0.25: MCP del CLI de Angular, solo lectura.** Estado: pendiente. Los pasos 0.10 a 0.24 cerraron. Tobi pidió el 2026-10-17 separar la vista de los componentes (0.10), un archivo por tipo (0.11), Tailwind (0.12), ordenar los archivos sueltos de cada feature (0.13), investigar y aplicar el manejo de sesión en Angular (0.14 a 0.16, [informe-sesion-angular.md](informe-sesion-angular.md)) y aplicar lo que no necesita decisión de herramienta de [informe-componentes-angular.md](informe-componentes-angular.md) y [informe-frontend-para-agentes.md](informe-frontend-para-agentes.md) (0.17 a 0.20). Después eligió Vitest, Prettier, Playwright Test, el MCP del CLI y los ajustes visuales (0.21 a 0.25). Después de 0.25 sigue la Fase 1, paso 2. Los pasos 0.6 a 0.24 esperan el merge de Tobi.
+**Fase 1, paso 2: un solo comando de verificación local.** Estado: pendiente. Los pasos 0.10 a 0.25 cerraron. Tobi pidió el 2026-10-17 separar la vista de los componentes (0.10), un archivo por tipo (0.11), Tailwind (0.12), ordenar los archivos sueltos de cada feature (0.13), investigar y aplicar el manejo de sesión en Angular (0.14 a 0.16, [informe-sesion-angular.md](informe-sesion-angular.md)) y aplicar lo que no necesita decisión de herramienta de [informe-componentes-angular.md](informe-componentes-angular.md) y [informe-frontend-para-agentes.md](informe-frontend-para-agentes.md) (0.17 a 0.20). Después eligió Vitest, Prettier, Playwright Test, el MCP del CLI y los ajustes visuales (0.21 a 0.25). Los pasos 0.6 a 0.25 esperan el merge de Tobi. El Stop hook espera hasta después del paso 2.
 
 La Fase 0 va antes del paso 2. El paso 1 (línea base) ya cerró y sirve de referencia para la Fase 0.
 
@@ -39,7 +39,7 @@ Estados: `pendiente`, `en curso`, `cerrado`, `bloqueado (⏸ decisión de Tobi)`
 | 0.22 | Primera suite de Vitest | cerrado | `artifacts/verify-template/fase0-22-vitest/` |
 | 0.23 | Formato verificado con Prettier | cerrado | `artifacts/verify-template/fase0-23-prettier-check/`, `artifacts/verify-template/fase0-23-runtime/` |
 | 0.24 | E2E con Playwright Test | cerrado | `artifacts/verify-template/fase0-24-playwright-e2e/`, `artifacts/verify-template/fase0-24-e2e-try1/` (fallo de red local), `artifacts/verify-template/fase0-24-e2e-red/` (rojo), `artifacts/verify-template/fase0-24-e2e/` |
-| 0.25 | MCP del CLI de Angular, solo lectura | pendiente | |
+| 0.25 | MCP del CLI de Angular, solo lectura | cerrado | `artifacts/verify-template/fase0-25-angular-mcp/` |
 | 1 | Línea base: qué funciona hoy, con evidencia | cerrado | [linea-base.md](linea-base.md); `artifacts/verify-template/baseline-20261016/` |
 | 2 | Un solo comando de verificación local | pendiente | |
 | 3 | CI verde de verdad | pendiente | |
@@ -108,6 +108,17 @@ Una entrada por paso cerrado, con este formato:
 - Preguntas: qué preguntó Tobi.
 - Evidencia: artifacts/verify-template/<runId>/
 ```
+
+### Paso 0.25 — 2026-10-17
+- Enseñado: un servidor MCP es un proceso que el agente arranca y al que le pide herramientas por JSON-RPC sobre stdin y stdout. `.mcp.json`, en la raíz, es la configuración de proyecto de Claude Code. Declara `angular-cli` con `node frontend/node_modules/@angular/cli/bin/ng.js mcp --read-only --root frontend`. Usa el CLI 22.2.1 del proyecto, no el último de npm. `node` evita el envoltorio `cmd /c` que pide `npx` en Windows. `--root frontend` limita la búsqueda de workspaces y el acceso a archivos. `--read-only` quita las tres herramientas que ejecutan algo: `run_target`, `devserver_start` y `devserver_stop`.
+- Preguntas: Tobi decidió sumar el MCP en solo lectura.
+- Decisiones: una fila nueva en `docs/decisions.tsv`. `frontend/.vscode/mcp.json` (VS Code, del scaffold) pasa a `@angular/cli@22.2.1` con `--read-only`. Codex y Cursor quedan sin configurar: su formato de proyecto no es trivial de probar acá. `AGENTS.md` (Verificación) lo nombra.
+- Evidencia: artifacts/verify-template/fase0-25-angular-mcp/.
+  - `mcp-probe.mjs` lee `.mcp.json`, arranca el servidor como lo haría el agente y habla MCP. Respuestas: `initialize` devuelve `angular-cli-server` 22.2.1; `tools/list` da 6 herramientas (`ai_tutor`, `get_best_practices`, `search_documentation`, `list_projects`, `onpush_zoneless_migration`, `devserver_wait_for_build`); `list_projects` encuentra `frontend/angular.json` con el proyecto `frontend` (application, `build`, `serve` y `test`) (`mcp-probe.log`).
+  - Comparación: sin `--read-only`, el mismo servidor da 9 herramientas, con `run_target`, `devserver_start` y `devserver_stop` (`mcp-probe-without-read-only.log`). Es la prueba de que la opción hace lo que dice.
+  - `claude mcp list` ve el servidor del proyecto como "Pending approval" (`claude-mcp-list.log`). Aprobarlo es de Tobi, la primera vez que abra Claude Code en el repo.
+  - Build de Angular, `format:check`, `check-frontend` (28/28 tests), `check-structure`, `check-comments` y `CommentVerifier`: PASS.
+  - Navegador: NOT_RUN. El paso no cambia código de la app.
 
 ### Paso 0.24 — 2026-10-17
 - Enseñado: el recorrido del navegador como código que corre igual cada vez. Los 32 pasos del flujo de `playwright-cli` pasaron a specs de Playwright Test en `frontend/e2e/`, por feature: `auth` (9), `session` (5), `tasks` (12), `profile` (3) y `tabs` (3). Buscan por rol y por label (`getByRole('navigation', { name: 'Paginación' })`, `getByLabel('Nueva tarea')`). Las aserciones esperan solas (`toHaveText`, `expect.poll`), sin pausas fijas salvo para probar que no salió una request. Cada archivo usa una página y un usuario propios, en modo serie. El limiter de `/auth` (20 por minuto para toda la API) se respeta con `waitForAuthRoom()`: cuenta las requests a `/api/v1/auth/` de los últimos 61 segundos y, antes de cada test, espera hasta que queden 6 o menos. Un solo worker. `E2E_BASE_URL` apunta a una instancia de `verify-template` y `E2E_CHANNEL=msedge` usa el Edge instalado.
