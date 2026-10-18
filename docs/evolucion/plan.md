@@ -50,7 +50,7 @@ Regla de oro: **un paso no termina con tests verdes.** Termina cuando el caso qu
 
 ## 4. El plan
 
-### Fase 0 — Bases (pasos 0.0-0.6)
+### Fase 0 — Bases (pasos 0.0-0.9)
 
 Llevan el repo a la forma de [ADR-0004](../adr/0004-vertical-slices-deep-modules.md). Ningún paso cambia un contrato HTTP: el smoke de la API prueba que nada se rompió.
 
@@ -88,6 +88,23 @@ Llevan el repo a la forma de [ADR-0004](../adr/0004-vertical-slices-deep-modules
 **Concepto**: el mismo límite de módulo, en el cliente.
 **Cambia**: servicios, modelos y rutas de Auth y Users a su feature; `core/` solo transversal; `*Payload` pasa a `*Request`; `check-frontend.mjs` si hace falta.
 **Verifica**: build de Angular, `check-frontend` y navegador: registro, login, recarga, perfil, tareas y logout.
+
+Los pasos 0.7 a 0.9 llevan el frontend a la forma de Angular v22. Se agregaron el 2026-10-17, a pedido de Tobi. La investigación está en [informe-angular-moderno.md](informe-angular-moderno.md).
+
+**0.7. Servicios y nombres de Angular v22.**
+**Concepto**: *Intent over Role*: el nombre dice el propósito, no el tipo técnico; `@Service()` para los servicios de una sola instancia.
+**Cambia**: los servicios, guards e interceptores del frontend pierden el sufijo de tipo y pasan a `@Service()`; una regla nueva en `check-frontend.mjs` con su fixture válida y su violación deliberada.
+**Verifica**: build de Angular, `check-frontend` y navegador con el mismo recorrido del paso 0.6.
+
+**0.8. Signal Forms.**
+**Concepto**: el estado del formulario como signals (`@angular/forms/signals`), estable desde v22.
+**Cambia**: los formularios de login, registro, tareas y perfil pasan de Reactive Forms a Signal Forms, con los mismos ids, mensajes y validaciones.
+**Verifica**: build de Angular, `check-frontend` y navegador: cada formulario acepta lo válido y muestra el mismo error con lo inválido.
+
+**0.9. Arranque con `provideAppInitializer()`.**
+**Concepto**: providers funcionales en lugar de tokens multi.
+**Cambia**: `app.config.ts` reemplaza `APP_INITIALIZER` por `provideAppInitializer()`.
+**Verifica**: build de Angular y navegador: la recarga restaura la sesión y una ruta protegida sin sesión lleva a `/login`.
 
 ### Fase 1 — Base verificable (pasos 1-3)
 
