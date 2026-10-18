@@ -79,6 +79,7 @@ Después de cleanup, comprueba que `summary.json` y los logs sigan en la carpeta
 
 ## Helpers
 
+- `scripts/check-all.mjs` corre los gates del README y después `launch`, `doctor`, `api`, las e2e y `cleanup`, con un `summary.json` por etapa. No repite lógica: llama a cada comando existente. `--gates-only` y `--no-e2e` acortan la corrida.
 - `scripts/verify.mjs` ejecuta `launch`, `doctor`, `api` y `cleanup`. Ejecuta `node .agents/skills/verify-template/scripts/verify.mjs --help` para sus opciones y timeouts.
 - `scripts/smoke-api.mjs` es la única fuente del smoke HTTP. El comando `api` lo ejecuta con la URL propia. Para un conjunto Compose creado por esta misma ejecución, el script también admite `--compose` y `OTEL_EXPORT_DIR`. Ese modo detiene y reinicia `db`, recrea el contenedor de `api` y comprueba que la misma cookie de sesión siga valiendo; úsalo solo cuando poseas ese Compose completo.
 - [Mapa de features](features/README.md) mantiene los recorridos y selectors de la UI.

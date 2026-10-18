@@ -4,7 +4,7 @@ Registro vivo del [plan](plan.md). El agente lo actualiza al cerrar cada paso.
 
 ## Paso actual
 
-**Fase 1, paso 2: un solo comando de verificación local.** Estado: pendiente. La Fase 0 cerró con el paso 0.28 (reglas de la sesión en Dune). Tobi eligió el BFF del paso 0.26 y el volumen del 0.27 el 2026-10-17. Los pasos 0.10 a 0.28 cerraron. Tobi pidió el 2026-10-17 separar la vista de los componentes (0.10), un archivo por tipo (0.11), Tailwind (0.12), ordenar los archivos sueltos de cada feature (0.13), investigar y aplicar el manejo de sesión en Angular (0.14 a 0.16, [informe-sesion-angular.md](informe-sesion-angular.md)) y aplicar lo que no necesita decisión de herramienta de [informe-componentes-angular.md](informe-componentes-angular.md) y [informe-frontend-para-agentes.md](informe-frontend-para-agentes.md) (0.17 a 0.20). Después eligió Vitest, Prettier, Playwright Test, el MCP del CLI y los ajustes visuales (0.21 a 0.25). Los pasos 0.6 a 0.28 esperan el merge de Tobi. El Stop hook espera hasta después del paso 2.
+**Fase 1, paso 3: CI verde de verdad.** Estado: pendiente. El paso 2 cerró el 2026-10-17 con `check-all.mjs` y espera el merge de Tobi. La Fase 0 cerró con el paso 0.28 (reglas de la sesión en Dune). Tobi eligió el BFF del paso 0.26 y el volumen del 0.27 el 2026-10-17. Los pasos 0.10 a 0.28 cerraron. Tobi pidió el 2026-10-17 separar la vista de los componentes (0.10), un archivo por tipo (0.11), Tailwind (0.12), ordenar los archivos sueltos de cada feature (0.13), investigar y aplicar el manejo de sesión en Angular (0.14 a 0.16, [informe-sesion-angular.md](informe-sesion-angular.md)) y aplicar lo que no necesita decisión de herramienta de [informe-componentes-angular.md](informe-componentes-angular.md) y [informe-frontend-para-agentes.md](informe-frontend-para-agentes.md) (0.17 a 0.20). Después eligió Vitest, Prettier, Playwright Test, el MCP del CLI y los ajustes visuales (0.21 a 0.25). Los pasos 0.6 a 0.28 esperan el merge de Tobi. El Stop hook esperaba hasta después del paso 2: ya se puede retomar.
 
 La Fase 0 va antes del paso 2. El paso 1 (línea base) ya cerró y sirve de referencia para la Fase 0.
 
@@ -44,7 +44,7 @@ Estados: `pendiente`, `en curso`, `cerrado`, `bloqueado (⏸ decisión de Tobi)`
 | 0.27 | Claves de Data Protection en un volumen | cerrado | `artifacts/verify-template/fase0-27-backend-red/` (rojo), `artifacts/verify-template/fase0-27-compose-red/` (rojo), `artifacts/verify-template/fase0-27-compose/`, `artifacts/verify-template/fase0-27-runtime/`, `artifacts/verify-template/fase0-27-gates/` |
 | 0.28 | Reglas de la sesión en Dune | cerrado | `artifacts/verify-template/fase0-28-rules-red/` (rojo), `artifacts/verify-template/fase0-28-gates/` |
 | 1 | Línea base: qué funciona hoy, con evidencia | cerrado | [linea-base.md](linea-base.md); `artifacts/verify-template/baseline-20261016/` |
-| 2 | Un solo comando de verificación local | pendiente | |
+| 2 | Un solo comando de verificación local | cerrado | `artifacts/verify-template/fase1-02-check-all/`, `artifacts/verify-template/fase1-02-check-all-red/` (rojo), `artifacts/verify-template/fase1-02-loose/`, `artifacts/verify-template/fase1-02-loose-runtime/`, `artifacts/verify-template/fase1-02-compose/` (NOT_RUN por puertos) |
 | 3 | CI verde de verdad | pendiente | |
 | 4 | Versionado de API declarado | pendiente | |
 | 5 | Validación de configuración al arranque | pendiente | |
@@ -102,12 +102,14 @@ Cosas vistas durante un paso que no le corresponden. Cada una espera su paso.
 - Las claves de Data Protection se guardan sin cifrar en el volumen (`No XML encryptor configured`); el archivo es del usuario `app` con permisos 600. Cifrarlas en reposo (`ProtectKeysWithCertificate` o similar) pide decidir dónde vive ese certificado. Con varias instancias, el volumen local no alcanza: las claves tendrían que vivir en PostgreSQL (`Microsoft.AspNetCore.DataProtection.EntityFrameworkCore`, un paquete nuevo) o en un volumen compartido. Tobi decidió el 2026-10-18 no cifrarlas por ahora (ver `docs/decisions.tsv`). Se revisa si hay varias instancias o un disco compartido: encaja con el paso 13 o el 35.
 - DUNE0011 reconoce un `*Endpoint.Map` por el nombre del tipo y su único parámetro: una slice que mapea desde un método con otro nombre queda fuera de la regla. Además, una slice que crea un subgrupo sobre el `IEndpointRouteBuilder` que recibe (`tasks.MapGroup("/{id}/comments")`) da un falso positivo, porque para el analyzer ese parámetro puede ser el host. Hoy ninguna slice lo hace. Sin paso asignado.
 - Ninguna regla de Dune verifica que `Program.cs` registre `UseAuthAntiforgery`. Si se borra, fallan `IssueCsrfTokenTests` y `smoke-api.mjs`. Nadie probó qué pasa si queda antes de `UseAuthentication`. Sin paso asignado.
-- `smoke-api.mjs` no espera la readiness antes de su primera request. Contra un `docker compose up --wait` recién creado, la API todavía no escucha y la primera request falla con `ECONNRESET` (`fase0-27-compose/smoke-compose-try1.log`). CI espera con `curl` antes del smoke. Paso 2 de la Fase 1.
+- Desde el paso 2 de la Fase 1, `smoke-api.mjs` espera la readiness antes de su primera request. Falta verlo contra un `docker compose up --wait` recién creado: en esta máquina no corrió, porque otro stack ocupa los puertos (ver abajo). CI espera con `curl` antes del smoke; el paso 3 puede quitar esa espera y probarlo ahí.
 - La cookie interna de antiforgery (`.AspNetCore.Antiforgery.*`, HttpOnly) sale sin `Secure` por HTTP: usa el valor por defecto `SameAsRequest`. `__Host-session` y `XSRF-TOKEN` sí son `Secure`. Fijarla en `Always` es un cambio de una línea en `AddAntiforgery`. Paso 13.
 - Las filas de `Sessions` vencidas o abandonadas se borran solo cuando su cookie vuelve. Falta una limpieza periódica. Sin paso asignado.
 - Abrir sesión con una sesión ya abierta en el mismo navegador deja la fila anterior hasta que vence por inactividad. `OpenSession` podría cerrarla. Sin paso asignado.
-- `E2E_OUTPUT_DIR=../artifacts/...`, como dice el README, se resuelve desde `frontend/e2e/` y deja la evidencia en `frontend/artifacts/`. `check-comments.mjs` revisa esa carpeta y falla con los `.css` de los traces. En el paso 0.26 la evidencia se movió a mano a `artifacts/verify-template/fase0-26-e2e/`. Paso 2 de la Fase 1.
 - CI no corre las e2e. El job `compose` necesitaría `npm ci` del frontend, un navegador (`npx playwright install chromium --with-deps`) y 65 segundos de espera después del smoke por el limiter de `/auth`. Paso 3 de la Fase 1.
+- El plan dice que `check-structure.mjs` prueba "sin herramientas duplicadas". Ninguna regla lo hace: nada impide un segundo script de smoke. Hoy lo cumple el diseño, porque `check-all.mjs` llama a `verify.mjs api`. Sin paso asignado.
+- `compose.yaml` fija los puertos 4317 y 4318 del collector. Otro stack con el mismo compose (`hermes-bot-omp`) los ocupa y este no arranca. `POSTGRES_PORT`, `API_PORT` y `WEB_PORT` sí se pueden cambiar. Sin paso asignado.
+- `smoke-api.mjs` no comprueba a qué API le habla. Si `API_BASE_URL` apunta a otro servicio, registra usuarios ahí. Pasó en el paso 2 de la Fase 1: dos registros `bob<sufijo>` quedaron en la API de `hermes-bot-omp` (`localhost:18080`). Borrarlos es decisión de Tobi. Sin paso asignado.
 
 ## Cierres
 
@@ -119,6 +121,18 @@ Una entrada por paso cerrado, con este formato:
 - Preguntas: qué preguntó Tobi.
 - Evidencia: artifacts/verify-template/<runId>/
 ```
+
+### Paso 2 — 2026-10-17
+- Enseñado: un pipeline local reproducible. Una sola entrada, `check-all.mjs`, corre en orden los 13 comandos del README y después `launch`, `doctor`, `api`, las e2e y `cleanup` de `verify.mjs`. No copia lógica: cada etapa llama al comando que ya existe, así el smoke sigue teniendo una sola fuente. El primer `FAIL` corta la corrida y deja el resto `NOT_RUN`, como pide la skill. `cleanup` corre siempre después de `launch`. `launch` queda en primer plano: el wrapper lo arranca como proceso hijo, espera `VERIFY_TEMPLATE_READY` y lo deja terminar con `cleanup`. Además, `smoke-api.mjs` espera la readiness antes de empezar, y una ruta relativa en `E2E_OUTPUT_DIR` se resuelve desde la carpeta donde se corre el comando.
+- Preguntas: ninguna todavía.
+- Decisiones: una fila en `docs/decisions.tsv` (el wrapper corta en el primer fallo y guarda el runtime en una subcarpeta).
+- Evidencia:
+  - Comando nuevo (`fase1-02-check-all/`): 19 de 19 etapas en PASS. `dotnet test` 110/110, `check-structure` 24/24, `check-comments` 18/18, `check-frontend` 32/32, Vitest 13/13, smoke HTTP PASS, e2e 33/33 con Edge, `cleanup` PASS y sin contenedores ni volúmenes propios después.
+  - Comandos sueltos (`fase1-02-loose/`, `fase1-02-loose-runtime/`): los mismos 13 gates con exit 0 y los mismos conteos; `launch`, `doctor`, `api`, e2e (33/33) y `cleanup`: PASS. Las advertencias del build cambian (412 líneas frente a 24) porque el segundo build es incremental, como ya dice [linea-base.md](linea-base.md).
+  - Rojo (`fase1-02-check-all-red/`): un espacio de más en `playwright.config.ts` da `FAIL` en `format-check`, exit 1, y deja `NOT_RUN` las 8 etapas siguientes. Se revirtió.
+  - `E2E_OUTPUT_DIR=../artifacts/...` desde `frontend` dejó `report.json` en `artifacts/verify-template/fase1-02-loose-runtime/e2e/`; `frontend/artifacts/` no existe.
+  - `check-structure`: PASS dentro del comando nuevo y suelto.
+  - Compose (`fase1-02-compose/`): NOT_RUN. `docker compose up` falla porque `hermes-bot-omp`, otro stack, ocupa 55437, 4317, 18080 y 18081. Con `POSTGRES_PORT` cambiado sigue chocando en 4317, que `compose.yaml` fija. No se paró el stack ajeno.
 
 ### Paso 0.28 — 2026-10-17
 - Enseñado: un test prueba los endpoints que existen hoy; una regla estática frena el cambio que todavía no tiene test. `UseAuthAntiforgery` cubre solo las escrituras bajo `/api`: un `app.MapPost("/webhooks/x")` quedaría sin antiforgery y ningún test lo notaría. DUNE0011 (`ApiRouteAnalyzer`) mira cada llamada de ruteo de ASP.NET Core: un `MapGroup` sobre el host necesita un prefijo literal `/api` o `/api/...`; `MapPost`, `MapPut`, `MapPatch`, `MapDelete`, `MapMethods` y `Map` sobre el host solo valen en un `*Endpoint.cs`; y `XEndpoint.Map(arg)` necesita que `arg` sea un `RouteGroupBuilder`, así una slice no recibe el host. `BannedSymbols.txt` prohíbe las tres salidas del framework: `DisableAntiforgery()`, `[RequireAntiforgeryToken(false)]` y `UseAntiforgery()`, que solo valida endpoints con formularios. En el frontend, FRONT015 extiende a todos los archivos la prohibición de `localStorage` y `sessionStorage` que FRONT003 tenía solo en componentes, y FRONT016 rechaza un `Authorization` escrito como nombre de propiedad (`setHeaders: { Authorization }`) o como texto exacto (`headers.set('authorization', …)`).

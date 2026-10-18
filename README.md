@@ -66,7 +66,15 @@ Los errores usan ProblemDetails. Un recurso inexistente devuelve 404 y un recurs
 
 ## Ejecutar gates
 
-Esta es la lista única de comandos de verificación. Ejecutalos sin desactivar analyzers ni omitir tests. Las pruebas de integración necesitan Docker para PostgreSQL real. `check-comments` necesita las dependencias de `frontend/node_modules`, por eso va después de `npm ci`.
+Esta es la lista única de comandos de verificación. Ejecutalos sin desactivar analyzers ni omitir tests.
+
+Un solo comando los corre todos en este orden, y después el runtime de la skill `verify-template`: `launch`, `doctor`, `api`, las e2e y `cleanup`. Desde la raíz:
+
+```sh
+E2E_CHANNEL=msedge node .agents/skills/verify-template/scripts/check-all.mjs --run-id <id>
+```
+
+Deja `summary.json` en `artifacts/verify-template/<id>/`, con `PASS`, `FAIL` o `NOT_RUN` por etapa y un log por comando. El primer `FAIL` corta la corrida: las etapas siguientes quedan `NOT_RUN`. `cleanup` corre siempre después de `launch`. `--gates-only` corre solo los comandos de esta sección; `--no-e2e` omite las e2e. Los comandos sueltos siguen valiendo para repetir una etapa. Las pruebas de integración necesitan Docker para PostgreSQL real. `check-comments` necesita las dependencias de `frontend/node_modules`, por eso va después de `npm ci`.
 
 Desde la raíz:
 
@@ -106,7 +114,7 @@ El recorrido del navegador vive como specs de Playwright Test en `frontend/e2e/`
 E2E_BASE_URL=<frontUrl> E2E_CHANNEL=msedge npm run e2e
 ```
 
-`E2E_CHANNEL=msedge` usa el Edge instalado; sin la variable, Playwright usa su Chromium (`npx playwright install chromium`). Las pruebas corren en serie, con un solo worker, y antes de cada una esperan hasta tener lugar en la ventana del limiter. `E2E_OUTPUT_DIR` elige dónde quedan el reporte JSON, las capturas y los traces de las fallas. CI todavía no corre e2e.
+`E2E_CHANNEL=msedge` usa el Edge instalado; sin la variable, Playwright usa su Chromium (`npx playwright install chromium`). Las pruebas corren en serie, con un solo worker, y antes de cada una esperan hasta tener lugar en la ventana del limiter. `E2E_OUTPUT_DIR` elige dónde quedan el reporte JSON, las capturas y los traces de las fallas. Una ruta relativa se resuelve desde la carpeta donde corrés el comando: desde `frontend`, `../artifacts/...` queda en `artifacts/` de la raíz. CI todavía no corre e2e.
 
 El escenario HTTP no reemplaza la prueba Angular contra la API real. Comprueba registro, login, restauración, perfil, tareas y logout en el navegador. Las pruebas backend deben observar aislamiento 403, ausencia 404, permisos vigentes en el siguiente request, sesión cerrada o borrada que da 401, antiforgery en toda escritura, registro duplicado sin filas parciales y cascadas. No sustituyas esos checks por búsquedas de texto del source.
 

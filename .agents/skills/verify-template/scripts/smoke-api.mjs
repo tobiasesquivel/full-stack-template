@@ -126,7 +126,7 @@ async function waitReady() {
     } catch {}
     await new Promise(resolve => setTimeout(resolve, 500));
   }
-  throw new Error('Readiness no respondió 200 después del reinicio');
+  throw new Error('Readiness no respondió 200 en 60 segundos');
 }
 
 function compose(...args) {
@@ -138,6 +138,7 @@ const suffix = crypto.randomUUID().replaceAll('-', '').slice(0, 16);
 const alice = new ApiClient();
 const bob = new ApiClient();
 const anonymous = new ApiClient();
+await waitReady();
 await anonymous.request('GET', 'health/live');
 await anonymous.request('GET', 'health/ready');
 await anonymous.request('GET', 'tasks', undefined, { expected: 401 });
