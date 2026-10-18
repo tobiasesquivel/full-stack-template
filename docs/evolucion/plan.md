@@ -18,10 +18,10 @@ Es el punto de partida, no un límite. Cualquier pieza puede cambiar si mejora e
 | Contratos | `Features/*/Contracts`, `Features/*/Domain`, `Features/*/Persistence`; `<Slice>Tests.cs` junto a cada slice, excluidos de producción por `Compile Remove`. El contrato HTTP lo fijan los tests de integración |
 | Errores | `Shared/Http/ApiResults` traduce `ErrorOr` a ProblemDetails (400/401/403/404/409/500) |
 | Autorización | `IPermissionService` + `ResourceAuthorizer`; permisos consultados por request; orden 404 antes de 403 |
-| Seguridad | JWT con validación de sesión activa, refresh rotativo en cookie HttpOnly, antiforgery, lockout de Identity, rate limiting de ventana fija **solo** en los 4 endpoints de `/auth` |
+| Seguridad | Desde el paso 0.26, sesión en el servidor (BFF): una fila en `Sessions` y la cookie `__Host-session` (HttpOnly, Secure, SameSite=Strict) de la autenticación por cookie de ASP.NET Core, con vencimiento absoluto y por inactividad; sin JWT ni refresh token. Antiforgery en toda escritura de la API, lockout de Identity, rate limiting de ventana fija **solo** en los 3 endpoints de escritura de `/auth` |
 | Observabilidad | OpenTelemetry (trazas + métricas) con exporter OTLP y meters declarados: `Npgsql`, `TemplateApp.Api`, `TemplateApp.Business`; Serilog a consola y OTLP; collector en `deploy/otel-collector-config.yaml`; señales en `otel-export/*.json` |
 | Salud | `/api/v1/health/live` y `/ready` (base + migraciones) |
-| Datos | `AppDbContext` único, una migración `InitialCreate`, `DatabaseInitializer`, EF Core + Npgsql |
+| Datos | `AppDbContext` único, las migraciones `InitialCreate` y `ServerSideSessions` (paso 0.26), `DatabaseInitializer`, EF Core + Npgsql |
 | Reglas ejecutables | Dune: analizadores DUNE0001-0009 con severidad error, `BannedSymbols.txt`, `Dune.CommentVerifier`, y los gates Node `check-structure.mjs`, `check-comments.mjs`, `check-frontend.mjs`. Cada regla tiene fixture válida y violación deliberada. El paso 0.2 corrigió `.editorconfig` y cambió el gate de Wolverine por un gate neutral de bus |
 | Pruebas backend | MTP + xunit.v3 + Testcontainers PostgreSQL real; `ApiFixture` y `TestSession` en `backend/Tests/Support` |
 | CI | `.github/workflows/ci.yml` con 4 jobs (backend, frontend, comentarios, compose + smoke con evidencia OTLP) |
@@ -232,7 +232,7 @@ El paso 0.26 se agregó el 2026-10-17. Tobi eligió BFF porque es lo que usaría
 
 **5. Validación de configuración al arranque.**
 **Concepto**: fail-fast; la configuración es un contrato, no un supuesto.
-**Cambia**: options de cada feature (por ejemplo `JwtOptions` en Auth) y del host, `appsettings.example.json`, tests de arranque.
+**Cambia**: options de cada feature (por ejemplo `SessionOptions` en Auth) y del host, `appsettings.example.json`, tests de arranque.
 **Verifica**: nuevo test que arranca el host con configuración inválida y espera fallo con mensaje claro; `dotnet test` completo.
 
 **6. Catálogo de errores estable.**

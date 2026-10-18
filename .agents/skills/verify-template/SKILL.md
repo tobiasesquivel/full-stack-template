@@ -41,7 +41,7 @@ Primero prueba la interfaz HTTP real:
 node .agents/skills/verify-template/scripts/verify.mjs api --run-id repro-template
 ```
 
-El smoke usa cookies y antiforgery reales. Prueba health, registro y login, rotación y replay, revocación de sesión, perfil, Tasks, paginación y aislamiento de dos usuarios. No acepta un mock como sustituto de la API.
+El smoke usa cookies y antiforgery reales. Prueba health, registro y login, la cookie de sesión, antiforgery en las escrituras, restauración y cierre de sesión, perfil, Tasks, paginación y aislamiento de dos usuarios. No acepta un mock como sustituto de la API.
 
 Después abre la URL `frontUrl` de `run.json` en un navegador real. Usa browser/CDP o Playwright disponible en el harness. Conduce [autenticación](features/auth.md), [Tasks](features/tasks.md) y [perfil](features/users.md) con sus labels e IDs de HTML. Como prueba mínima de UI, registra un usuario desde `/register`, crea una tarea desde `/tasks`, recarga y recupera el mismo dato. Observa las requests a `/api/v1` con respuestas reales.
 

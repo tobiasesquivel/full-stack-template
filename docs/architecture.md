@@ -57,14 +57,18 @@ El registro crea identidad, perfil, rol y sesión en una transacción explícita
 - Una operación carga el recurso por Id. Si no existe, devuelve 404. Después decide propietario o permiso, y si falla devuelve 403.
 - Solo la lista personal filtra por propietario. Un permiso administrativo no amplía la lista personal.
 - `User` recibe `Tasks.Create`. La propiedad habilita leer y modificar lo propio. `Admin` y `SuperAdmin` reciben permisos globales de Tasks. `SuperAdmin` recibe `Users.Manage`.
-- Los permisos se consultan en cada request. El JWT lleva identidad y vigencia, nunca roles ni permisos.
-- El refresh token es opaco. Se guarda como hash, con familia y vencimiento. La rotación es atómica. Reusar un token rotado revoca esa familia, no todas las sesiones del usuario.
-- Register, login, refresh y logout validan antiforgery. El refresh vive en una cookie HttpOnly. Angular guarda el access token solo en memoria.
-- `SessionHttpPolicy` es el adapter HTTP de la sesión: emite, lee, adjunta y borra cookies. `TokenService` no conoce HTTP; maneja el JWT y la rotación por familia.
+- Los permisos se consultan en cada request. La sesión lleva solo identidad (el id del usuario y el de la sesión), nunca roles ni permisos.
+- La sesión vive en el servidor (BFF): una fila de la tabla `Sessions` (`Auth/Domain/Session`) con usuario, creación, vencimiento absoluto y última actividad. El navegador solo guarda la cookie `__Host-session`: `HttpOnly`, `Secure`, `SameSite=Strict` y `Path=/`. Su valor es el ticket de la autenticación por cookie de ASP.NET Core, cifrado con Data Protection; adentro van los dos ids.
+- La autenticación por cookie es el único esquema. En cada request, `OnValidatePrincipal` busca la fila: si no está, venció (vencimiento absoluto) o pasó el tiempo de inactividad, rechaza la sesión, borra la cookie y la request sigue como anónima (401 si la ruta pide sesión). La última actividad se escribe como mucho una vez por minuto por sesión.
+- Abrir sesión (`OpenSession`, `RegisterUser`) crea la fila, emite la cookie y devuelve el usuario. Ninguna respuesta lleva un token. Cerrar sesión (`CloseSession`) borra la fila y la cookie. Revocar una sesión es borrar su fila: corta el acceso en la request siguiente. Las otras sesiones del mismo usuario siguen.
+- "Quién soy" es `GET /api/v1/users/me`: con la cookie sola devuelve el usuario. Angular lo usa para restaurar la sesión al recargar.
+- La cookie viaja sola, así que toda escritura de la API (`POST`, `PUT`, `PATCH`, `DELETE` bajo `/api`) valida antiforgery, también para anónimos. Sin token válido responde 400 con el código `Auth.AntiforgeryFailed`. Abrir o cerrar sesión cambia la identidad y emite un `XSRF-TOKEN` nuevo en la misma respuesta.
+- `SessionHttpPolicy` es el adapter HTTP de la sesión: configura la cookie, firma la entrada y la salida, emite `XSRF-TOKEN`, valida la sesión en cada request y exige antiforgery en las escrituras. `Sessions` no conoce HTTP: abre, valida y cierra filas.
+- Un cliente sin cookies (una app móvil) entraría por otro esquema de autenticación (Bearer) sobre los mismos endpoints. No existe todavía. Ese esquema no necesitaría antiforgery, porque el navegador no manda su credencial solo.
 
 ## Frontend
 
-Angular consume `/api/v1` del mismo origen, mediante un proxy. No guarda tokens en el storage del navegador.
+Angular consume `/api/v1` del mismo origen, mediante un proxy. No maneja tokens: la sesión es la cookie HttpOnly, que el navegador manda solo.
 
 ```text
 frontend/src/app/
@@ -74,7 +78,7 @@ frontend/src/app/
     ├── auth/
     │   ├── index.ts               la puerta: lo único que ve el resto de la app
     │   ├── auth.routes.ts         rutas de la feature, sin guards
-    │   ├── api/                   AuthApi y sus modelos: AuthResponse, OpenSessionRequest…
+    │   ├── api/                   AuthApi y sus modelos: OpenSessionRequest, RegisterRequest…
     │   ├── session/               Session, guards e interceptor
     │   └── login/, register/      un componente por carpeta
     └── tasks/
@@ -91,9 +95,9 @@ frontend/src/app/
 - En la raíz de una feature solo viven `index.ts` y `<feature>.routes.ts`. El resto va en una carpeta con nombre de propósito: `session/`, `api/` o la carpeta del componente. FRONT011 lo hace cumplir.
 
 - Cada feature tiene su cliente HTTP, sus modelos y sus rutas. Su `index.ts` es el equivalente de `Contracts/` en el backend.
-- `Session` guarda un solo estado en un `signal` privado: `restoring` al arrancar, `open` con el usuario o `closed`. Expone `status`, `currentUser` e `isOpen` como `computed`, y las acciones `restore`, `register`, `open`, `refresh`, `close`, `end` y `replaceUser`. `AuthApi` hace el HTTP; `Session` decide el estado. `provideAppInitializer()` llama a `restore()` sin bloquear el arranque, y los guards esperan a que `status` deje de ser `restoring`.
-- `authInterceptor` agrega el token a `/api/` y deja pasar sin token lo marcado con `SKIP_SESSION` (todo `AuthApi`). Un 401 dispara una sola renovación compartida (`Session.refresh()`) y un reintento. Solo una renovación fallida termina la sesión: `Session.end()` lleva a `/login?returnUrl=<página actual>`, y el `authGuard` hace lo mismo con la página pedida. El login vuelve ahí si es una ruta interna.
-- Varias pestañas: el backend revoca la familia si recibe un refresh token ya rotado (`RefreshSessionTests`). Por eso `Session.refresh()` toma un Web Lock: la segunda pestaña renueva después, con la cookie nueva que dejó la primera. Abrir o cerrar la sesión en una pestaña se avisa a las demás por `BroadcastChannel`; ninguna pestaña comparte el access token, cada una lo pide con su renovación.
+- `Session` guarda un solo estado en un `signal` privado: `restoring` al arrancar, `open` con el usuario o `closed`. Expone `status`, `currentUser` e `isOpen` como `computed`, y las acciones `restore`, `register`, `open`, `close`, `end` y `replaceUser`. `AuthApi` hace el HTTP; `Session` decide el estado. `restore()` pide `XSRF-TOKEN` y después "quién soy" (`UsersApi.me()`); `open` y `register` toman el usuario de la respuesta. `provideAppInitializer()` llama a `restore()` sin bloquear el arranque, y los guards esperan a que `status` deje de ser `restoring`.
+- `authInterceptor` no agrega nada a las requests. Ante un 401 de `/api/`, si la sesión estaba abierta, llama a `Session.end()`: cierra la sesión local y lleva a `/login?returnUrl=<página actual>`. Deja pasar sin mirar lo marcado con `SKIP_SESSION` (todo `AuthApi`): un 401 del login es "credenciales incorrectas", no una sesión vencida. El `authGuard` hace lo mismo con la página pedida. El login vuelve ahí si es una ruta interna.
+- Varias pestañas comparten la cookie, y con ella la sesión: no hay nada que renovar ni coordinar. Abrir o cerrar la sesión en una pestaña se avisa a las demás por `BroadcastChannel('session')`: con `closed` las otras cierran la sesión local y van a `/login`; con `opened` la restauran, así muestran al usuario nuevo.
 - La raíz de la app compone las rutas y decide qué grupo protege cada guard (`canActivateChild`). Las features no declaran guards: así `auth` y `users` no se importan entre sí al cargar la app.
 - Las dependencias siguen la dirección del backend: Auth usa `UsersApi` y `UserResponse` desde `features/users`; el perfil usa `Session` desde `features/auth`. Los componentes se cargan lazy.
 

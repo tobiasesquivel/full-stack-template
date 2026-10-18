@@ -27,7 +27,7 @@ Rellena `#new-task-title` con `Prueba de runtime`. Pulsa el botón `Crear` del f
 
 En la fila que contiene el título, pulsa `Editar`. Rellena `input[aria-label="Editar título"]` con `Prueba persistida`. Pulsa `Guardar` dentro de esa fila. Exige `PUT /api/v1/tasks/{id}` 200. Con el campo vacío, `Guardar` no manda `PUT` y muestra "El título es obligatorio (máximo 200 caracteres)." justo debajo del input, que lo nombra con `aria-describedby`. Marca el checkbox con nombre accesible `Marcar hecha: Prueba persistida`. Exige otra respuesta PUT 200 con `isCompleted=true`.
 
-Recarga la página. Espera el refresh de sesión y la lista. Exige el título `Prueba persistida` y el checkbox marcado. La recarga es la segunda lectura que prueba el dato persistido, no una modificación directa del estado Angular.
+Recarga la página. Espera la restauración de la sesión (`GET /api/v1/users/me`) y la lista. Exige el título `Prueba persistida` y el checkbox marcado. La recarga es la segunda lectura que prueba el dato persistido, no una modificación directa del estado Angular.
 
 Pulsa `Eliminar` dentro de la misma fila. Acepta la confirmación `¿Eliminar «Prueba persistida»?`; el diálogo aparece centrado. Exige DELETE 204. Recarga y exige que esa fila no aparezca.
 
