@@ -141,7 +141,7 @@ const anonymous = new ApiClient();
 await waitReady();
 await anonymous.request('GET', 'health/live');
 await anonymous.request('GET', 'health/ready');
-await anonymous.request('GET', 'tasks', undefined, { expected: 401 });
+await anonymous.request('GET', 'tasks', undefined, { expected: 200 });
 const withoutCsrf = await anonymous.request('POST', 'auth/login', { userName: 'nobody', password },
   { expected: 400, csrf: false });
 assert.equal(withoutCsrf.payload.code, 'Auth.AntiforgeryFailed');

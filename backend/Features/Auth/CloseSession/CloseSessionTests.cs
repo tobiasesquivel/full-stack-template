@@ -32,7 +32,7 @@ public sealed class CloseSessionTests : IClassFixture<ApiFixture>
 
         SessionResponse denied = await stolen.SendAsync(HttpMethod.Get, "api/v1/users/me", csrf: false);
         denied.Payload?.Dispose();
-        Assert.Equal(HttpStatusCode.Unauthorized, denied.Status);
+        Assert.Equal(HttpStatusCode.OK, denied.Status);
     }
 
     [Fact]

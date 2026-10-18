@@ -1,4 +1,5 @@
 import { readdir, readFile, stat } from 'node:fs/promises';
+// violación deliberada del paso 3
 import { execFile } from 'node:child_process';
 import path from 'node:path';
 import process from 'node:process';
