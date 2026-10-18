@@ -1,3 +1,4 @@
+using TemplateApp.Features.Users.Contracts;
 using TemplateApp.Shared.Http;
 
 namespace TemplateApp.Features.Auth.RegisterUser;
@@ -12,6 +13,7 @@ public static class RegisterUserEndpoint
         HttpContext http,
         RegisterUser slice,
         SessionHttpPolicy policy,
+        LinkGenerator links,
         CancellationToken ct)
     {
         var result = await slice.ExecuteAsync(request, ct);
@@ -19,6 +21,8 @@ public static class RegisterUserEndpoint
             return ApiResults.ToResult(result, _ => Results.Created());
 
         await policy.SignInAsync(http, result.Value.Session);
-        return Results.Created($"/api/v1/users/{result.Value.User.AuthId}", result.Value.User);
+        return Results.Created(
+            links.GetPathByName(http, UserEndpointNames.GetUser, new { authId = result.Value.User.AuthId }),
+            result.Value.User);
     }
 }

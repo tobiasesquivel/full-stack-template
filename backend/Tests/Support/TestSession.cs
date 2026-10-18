@@ -87,6 +87,10 @@ internal sealed class TestSession
             Payload = string.IsNullOrWhiteSpace(text) ? null : JsonDocument.Parse(text),
             Text = text,
             SetCookies = setCookies,
+            Location = httpResponse.Headers.Location?.OriginalString,
+            Headers = httpResponse.Headers
+                .Concat(httpResponse.Content.Headers)
+                .ToDictionary(h => h.Key, h => string.Join(", ", h.Value), StringComparer.OrdinalIgnoreCase),
         };
     }
 

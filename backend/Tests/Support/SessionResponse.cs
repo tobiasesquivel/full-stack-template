@@ -9,4 +9,6 @@ internal sealed class SessionResponse
     public JsonDocument? Payload { get; init; }
     public string Text { get; init; } = string.Empty;
     public IReadOnlyList<string> SetCookies { get; init; } = [];
+    public string? Location { get; init; }
+    public IReadOnlyDictionary<string, string> Headers { get; init; } = new Dictionary<string, string>();
 }

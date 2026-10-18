@@ -12,9 +12,9 @@ public static class TasksFeature
         return services;
     }
 
-    public static IEndpointRouteBuilder MapTasksEndpoints(this IEndpointRouteBuilder app)
+    public static RouteGroupBuilder MapTasksEndpoints(this RouteGroupBuilder api)
     {
-        RouteGroupBuilder tasks = app.MapGroup("/api/v1/tasks").RequireAuthorization();
+        RouteGroupBuilder tasks = api.MapGroup("/tasks").RequireAuthorization();
 
         CreateTask.CreateTaskEndpoint.Map(tasks);
         ListTasks.ListTasksEndpoint.Map(tasks);
@@ -22,6 +22,6 @@ public static class TasksFeature
         UpdateTask.UpdateTaskEndpoint.Map(tasks);
         DeleteTask.DeleteTaskEndpoint.Map(tasks);
 
-        return app;
+        return api;
     }
 }

@@ -139,7 +139,9 @@ const alice = new ApiClient();
 const bob = new ApiClient();
 const anonymous = new ApiClient();
 await waitReady();
-await anonymous.request('GET', 'health/live');
+const live = await anonymous.request('GET', 'health/live');
+assert.equal(live.headers.get('api-supported-versions'), '1.0', 'La API declara sus versiones soportadas');
+await anonymous.request('GET', '../v9/health/live', undefined, { expected: 404 });
 await anonymous.request('GET', 'health/ready');
 await anonymous.request('GET', 'tasks', undefined, { expected: 401 });
 const withoutCsrf = await anonymous.request('POST', 'auth/login', { userName: 'nobody', password },

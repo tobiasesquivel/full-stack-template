@@ -11,13 +11,13 @@ public static class HealthFeature
         return services;
     }
 
-    public static IEndpointRouteBuilder MapHealthEndpoints(this IEndpointRouteBuilder routes)
+    public static RouteGroupBuilder MapHealthEndpoints(this RouteGroupBuilder api)
     {
-        RouteGroupBuilder health = routes.MapGroup("/api/v1/health").AllowAnonymous();
+        RouteGroupBuilder health = api.MapGroup("/health").AllowAnonymous();
 
         GetLiveness.GetLivenessEndpoint.Map(health);
         GetReadiness.GetReadinessEndpoint.Map(health);
 
-        return routes;
+        return api;
     }
 }

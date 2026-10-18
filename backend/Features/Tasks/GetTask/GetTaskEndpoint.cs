@@ -6,7 +6,7 @@ namespace TemplateApp.Features.Tasks.GetTask;
 
 public static class GetTaskEndpoint
 {
-    public static void Map(IEndpointRouteBuilder tasks) => tasks.MapGet("/{id:guid}", HandleAsync);
+    public static void Map(IEndpointRouteBuilder tasks) => tasks.MapGet("/{id:guid}", HandleAsync).WithName(TaskEndpointNames.GetTask);
 
     private static async Task<IResult> HandleAsync(
         Guid id,

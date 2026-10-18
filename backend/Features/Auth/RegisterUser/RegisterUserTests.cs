@@ -21,7 +21,8 @@ public sealed class RegisterUserTests : IClassFixture<ApiFixture>
     {
         TestSession alice = new(_fixture.CreateClient());
         string name = TestAccounts.UniqueName("alice");
-        await alice.RegisterAsync(name);
+        SessionResponse registered = await alice.RegisterAsync(name);
+        Assert.Equal($"/api/v1/users/{alice.AuthId}", registered.Location);
 
         TestSession rival = new(_fixture.CreateClient());
         await rival.CsrfAsync();

@@ -11,7 +11,7 @@ public static class GetUserEndpoint
     public static void Map(IEndpointRouteBuilder users)
     {
         users.MapGet("/me", HandleMeAsync);
-        users.MapGet("/{authId}", HandleByIdAsync);
+        users.MapGet("/{authId}", HandleByIdAsync).WithName(UserEndpointNames.GetUser);
     }
 
     private static Task<IResult> HandleMeAsync(ClaimsPrincipal user, GetUser slice, CancellationToken ct) =>
