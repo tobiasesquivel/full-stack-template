@@ -111,4 +111,13 @@ internal static class DuneDiagnostics
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
         description: "Un solo grupo versionado, /api/v{version:apiVersion}, declara la versión de la API en Infrastructure. Cada feature recibe ese RouteGroupBuilder y no crea su propio version set. Un grupo con la versión en la ruta pero sin version set responde con cualquier versión.");
+
+    public static readonly DiagnosticDescriptor ConfigurationAccess = new(
+        id: "DUNE0013",
+        title: "Lectura suelta de configuración",
+        messageFormat: "'{0}' lee configuración suelta; declarala en un tipo de options con BindConfiguration y validador",
+        category: "Dune",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "La configuración entra solo por options validadas al arranque (AddOptionsWithValidateOnStart + BindConfiguration). El backend no nombra IConfiguration ni sus implementaciones y no lee variables de entorno; los tests quedan fuera.");
 }

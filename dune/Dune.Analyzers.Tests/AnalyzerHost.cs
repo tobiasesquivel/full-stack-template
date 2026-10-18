@@ -52,7 +52,9 @@ internal static class AnalyzerHost
             new OwnerPredicateAnalyzer(),
             new NoCommentsAnalyzer(),
             new OneTypePerFileAnalyzer(),
-            new ApiRouteAnalyzer());
+            new ApiRouteAnalyzer(),
+            new VersionedApiAnalyzer(),
+            new ConfigurationAccessAnalyzer());
 
     public static Func<ImmutableArray<DiagnosticAnalyzer>> Only<T>()
         where T : DiagnosticAnalyzer, new() =>
