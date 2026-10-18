@@ -254,6 +254,11 @@ El paso 0.28 se agregó el 2026-10-17, a pedido de Tobi, con otro pendiente del 
 **Cambia**: `DatabaseInitializer` pasa a un `IHostedService` en `Infrastructure/Persistence`; `Program.cs` pierde la validación a mano; los registros de options usan `AddOptionsWithValidateOnStart`.
 **Verifica**: `ConfigurationValidationTests` sin cambios; rojo con la migración otra vez antes de `RunAsync`; `dotnet test` completo.
 
+**5.2. Las herramientas de diseño no registran un arranque fallido.**
+**Concepto**: `HostAbortedException`; `dotnet ef` construye la app y la corta después de `Build()`, y un `catch` amplio lo toma por un fallo.
+**Cambia**: el `catch` de `Program.cs`.
+**Verifica**: `dotnet ef migrations list` antes (log Fatal falso) y después (sin Fatal); `dotnet test` completo.
+
 **6. Catálogo de errores estable.**
 **Concepto**: el contrato de error también es API; hoy los códigos se arman en cada caso de uso.
 **Cambia**: `Shared/Http`, catálogos por feature, tests de estados y payloads.
