@@ -25,6 +25,7 @@ El dominio (tareas) es simple a propósito: importa el rigor técnico. **Todo el
 | [docs/evolucion/informe-sesion-angular.md](docs/evolucion/informe-sesion-angular.md) | Sesión en Angular: estado con signals, guards, interceptor con renovación, varias pestañas y BFF frente a token en memoria. |
 | [docs/evolucion/informe-componentes-angular.md](docs/evolucion/informe-componentes-angular.md) | Componentes ruteados y presentacionales en Angular v22: cuándo separar, cómo fluye el estado con signals y qué conviene en `Tasks`. |
 | [docs/evolucion/informe-frontend-para-agentes.md](docs/evolucion/informe-frontend-para-agentes.md) | Qué hace que un frontend sea fácil para agentes de código, comparado con lo que ya tiene el repo, y los huecos por prioridad. |
+| [docs/evolucion/investigacion/](docs/evolucion/investigacion/) | Cómo se implementa cada paso de forma profesional, con fuentes (regla 12). |
 | [CONTEXT.md](CONTEXT.md) | Vocabulario del dominio. Usá esos términos. |
 | [docs/architecture.md](docs/architecture.md), [docs/conventions.md](docs/conventions.md) | Arquitectura vigente y reglas para escribir código. |
 | [docs/decisions.tsv](docs/decisions.tsv), [docs/adr/](docs/adr/) | Decisiones tomadas y su porqué. |
@@ -41,19 +42,21 @@ El dominio (tareas) es simple a propósito: importa el rigor técnico. **Todo el
 8. **No adelantes pasos.** Si el plan parece equivocado, discutilo antes de ejecutar.
 9. **No cambies un gate, analyzer o test para tapar una falla.** Sí podés cambiarlo si ese cambio es el objetivo declarado del paso: con un ADR o una línea en `docs/decisions.tsv`, y con su fixture válida y su violación deliberada.
 10. **Los docs deciden el diseño; Dune los sigue.** La fuente de verdad es ADR-0004, `architecture.md`, `conventions.md` y los informes de `docs/evolucion/`. Justificá cada decisión de diseño con ellos. Si una regla de Dune choca con los docs, corregí la regla en el mismo paso, con lo que pide la regla 9. Si dos docs se contradicen, frená y preguntale a Tobi.
+11. **Un paso cierra cuando Tobi entendió su concepto, no cuando los gates dan verde.** Cada paso para dos veces y espera la respuesta de Tobi: después de la explicación, antes del código, y después de la evidencia, con el concepto explicado sobre el código que cambió. Hasta que Tobi responde, el paso queda `en curso`.
+12. **Antes de explicar un paso que cambia código, investigá cómo se implementa de forma profesional.** El plan dice qué pieza entra; la investigación dice cómo queda bien en este código. Delegala a un subagente con la skill `research`: fuentes primarias (documentación oficial, repos y guías de los mantenedores), con un link por afirmación, y dentro de la arquitectura del repo (ADR-0004, `architecture.md`, `conventions.md`). El resultado va en `docs/evolucion/investigacion/paso-<N>-<tema>.md`. Contrastá cada afirmación con el código antes de usarla, y apoyá la explicación previa en ese archivo. Si la investigación choca con los docs del repo, frená y preguntale a Tobi.
 
 ## Cómo enseñar
 
 - Un concepto por paso.
-- **Antes** de tocar código: qué problema resuelve, cómo está hoy, cómo queda y qué conceptos previos asume.
-- **Después**: el resultado con la evidencia. Qué se corrió, qué devolvió y qué significa cada estado.
+- **Antes** de tocar código: qué problema resuelve, cómo está hoy, cómo queda y qué conceptos previos asume. Terminá ese mensaje sin código y esperá que Tobi responda: puede preguntar, corregir o elegir.
+- **Después**: el resultado con la evidencia. Qué se corrió, qué devolvió y qué significa cada estado. Explicá el concepto del paso sobre el código que cambió y esperá que Tobi responda.
 - Explicá sobre el código real: 5 a 10 renglones con clases y archivos del repo. No uses ejemplos genéricos ni pegues el diff completo.
 - Nivel: Tobi conoce C# y Angular. Explicá el *porqué* de cada patrón, no la sintaxis.
 - Escribí en español técnico simple: frases cortas, voz activa, primero la conclusión.
 
 ### Cuando Tobi quiere aprender algo
 
-Si Tobi dice "enseñame", "quiero entender" o "explicámelo", usá la skill `/aprender` si está disponible. Si no, seguí su método:
+Si Tobi dice "enseñame", "quiero entender" o "explicámelo", seguí este método. Enseñá sin preguntarle para comprobar: Tobi pregunta lo que necesite.
 
 1. **Elegí 1 a 3 ideas.** La sesión enseña esas ideas, no el tema entero.
 2. **Enseñá desde la fuente:** el código con `archivo:línea` o la documentación oficial con su link.
@@ -62,12 +65,12 @@ Si Tobi dice "enseñame", "quiero entender" o "explicámelo", usá la skill `/ap
    - Texto para una definición o una decisión.
    - Mermaid para un flujo o una estructura. Armalo de a poco: cada diagrama agrega una parte, con unos 7 elementos como máximo y un verbo en cada flecha.
    - Página HTML para lo que cambia: un antes y después, un valor que se mueve, un sistema para explorar. En T3 Code, revisala con `html_preview` y publicala en el chat con `html_render`. Fuera de T3, guardala en `~/.aprender/lecciones/` y abrila.
-5. **Cerrá cada idea con 1 a 3 preguntas** que Tobi responda de memoria: predecir qué pasa, explicar una línea con sus palabras, decir dónde cambiaría el código. Esperá la respuesta y dale feedback concreto antes de seguir.
-6. **Ajustá la ayuda:** si acierta rápido, menos ejemplo y preguntas más difíciles; si se traba, otro ejemplo resuelto.
 
 ## Verificación
 
 La lista única de comandos está en [README.md](README.md#ejecutar-gates). Las pruebas backend necesitan Docker (PostgreSQL real). El frontend tiene una suite de Vitest con jsdom (`npm test -- --watch=false` en `frontend/`) para funciones puras y componentes de presentación. El recorrido completo se prueba en el navegador con la skill `verify-template`.
+
+Mientras desarrollás un paso, corré `node .agents/skills/verify-template/scripts/check-all.mjs --run-id <id> --no-e2e`. Las e2e de Playwright tardan unos 7 minutos: corren una sola vez, al cerrar un paso que cambia el frontend o un contrato HTTP. En los demás pasos quedan `NOT_RUN`, y el cierre lo dice.
 
 `.mcp.json` declara el MCP del CLI de Angular en solo lectura (`ng mcp --read-only --root frontend`, con el CLI instalado en `frontend/node_modules`). Da `search_documentation` y `get_best_practices` de la versión instalada y `list_projects`; no ejecuta builds ni el dev server. Claude Code lo pide aprobar la primera vez. Necesita `npm ci` en `frontend/`.
 
@@ -75,6 +78,6 @@ La evidencia de cada corrida va en `artifacts/verify-template/<runId>/`. Esa car
 
 ## Al cerrar un paso
 
-1. Actualizá [docs/evolucion/progreso.md](docs/evolucion/progreso.md): estado, evidencia y una entrada en "Cierres".
+1. Actualizá [docs/evolucion/progreso.md](docs/evolucion/progreso.md): estado, evidencia y una entrada en "Cierres". La entrada se escribe después de la respuesta de Tobi: `Enseñado` nombra lo que explicaste y `Preguntas` registra lo que Tobi preguntó. El PR puede abrirse antes, con la evidencia.
 2. Si tomaste una decisión de diseño, agregala a `docs/decisions.tsv`.
 3. Cambiá este archivo solo si cambia una regla.
