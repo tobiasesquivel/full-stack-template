@@ -14,6 +14,7 @@ public static class BackendInfrastructure
     {
         services.AddProblemDetails();
         services.AddExceptionHandler<GlobalExceptionHandler>();
+        services.Configure<ExceptionHandlerOptions>(options => options.SuppressDiagnosticsCallback = _ => false);
 
         services.AddOptionsWithValidateOnStart<DatabaseOptions, DatabaseOptionsValidator>()
             .BindConfiguration(DatabaseOptions.Section);

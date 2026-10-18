@@ -17,9 +17,9 @@ public sealed class ListTasks
     public async Task<ErrorOr<TaskListResponse>> ExecuteAsync(string callerId, int page, int pageSize, CancellationToken ct)
     {
         if (page < 1)
-            return Error.Validation(code: "Page", description: "Page must be greater than or equal to 1.");
+            return TaskErrors.InvalidPage;
         if (pageSize is < 1 or > 100)
-            return Error.Validation(code: "PageSize", description: "PageSize must be between 1 and 100.");
+            return TaskErrors.InvalidPageSize;
 
         var filtered = _db.TaskItems.Where(t => t.OwnerId == callerId);
 

@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace TemplateApp.Tests.Support;
@@ -25,9 +27,18 @@ public sealed class ApiFixture : IAsyncLifetime
     public HttpClient CreateIsolatedClient(out IServiceProvider services) =>
         CreateIsolatedClient(new Dictionary<string, string>(), out services);
 
-    public HttpClient CreateIsolatedClient(IReadOnlyDictionary<string, string> settings, out IServiceProvider services)
+    public HttpClient CreateIsolatedClient(IReadOnlyDictionary<string, string> settings, out IServiceProvider services) =>
+        CreateIsolatedClient(settings, _ => { }, out services);
+
+    public HttpClient CreateIsolatedClient(Action<IServiceCollection> configureServices, out IServiceProvider services) =>
+        CreateIsolatedClient(new Dictionary<string, string>(), configureServices, out services);
+
+    private HttpClient CreateIsolatedClient(
+        IReadOnlyDictionary<string, string> settings,
+        Action<IServiceCollection> configureServices,
+        out IServiceProvider services)
     {
-        WebApplicationFactory<Program> isolated = new TestApiFactory(_connectionString, settings);
+        WebApplicationFactory<Program> isolated = new TestApiFactory(_connectionString, settings, configureServices);
 
         _isolatedFactories.Add(isolated);
         services = isolated.Services;
@@ -45,11 +56,12 @@ public sealed class ApiFixture : IAsyncLifetime
     }
 
     public static WebApplicationFactory<Program> CreateFactory(string connectionString) =>
-        new TestApiFactory(connectionString, new Dictionary<string, string>());
+        new TestApiFactory(connectionString, new Dictionary<string, string>(), _ => { });
 
     private sealed class TestApiFactory(
         string connectionString,
-        IReadOnlyDictionary<string, string> settings) : WebApplicationFactory<Program>
+        IReadOnlyDictionary<string, string> settings,
+        Action<IServiceCollection> configureServices) : WebApplicationFactory<Program>
     {
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
@@ -60,6 +72,7 @@ public sealed class ApiFixture : IAsyncLifetime
             builder.UseSetting("Session:IdleTimeoutMinutes", "30");
             foreach ((string key, string value) in settings)
                 builder.UseSetting(key, value);
+            builder.ConfigureTestServices(configureServices);
         }
     }
 

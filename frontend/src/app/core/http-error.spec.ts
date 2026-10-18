@@ -54,4 +54,25 @@ describe('describeHttpError', () => {
       'Error inesperado del servidor. Inténtalo más tarde.',
     );
   });
+
+  it('shows a fixed text for the coded 401 of the session and the coded 500', () => {
+    const sessionRequired = {
+      status: 401,
+      title: 'An active session is required.',
+      code: 'Auth.SessionRequired',
+      traceId: '00-trace-span-00',
+    };
+    const unexpected = {
+      status: 500,
+      title: 'An unexpected error occurred.',
+      code: 'Http.Unexpected',
+      traceId: '00-trace-span-00',
+    };
+    expect(describeHttpError(httpError(401, sessionRequired))).toBe(
+      'La sesión ha caducado. Vuelve a entrar.',
+    );
+    expect(describeHttpError(httpError(500, unexpected))).toBe(
+      'Error inesperado del servidor. Inténtalo más tarde.',
+    );
+  });
 });

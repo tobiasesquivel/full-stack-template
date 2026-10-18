@@ -24,7 +24,7 @@ public sealed class DeleteTask
             return TaskErrors.NotFound(id);
 
         if (!await _access.CanAccessAsync(callerId, item, TaskPermissions.Delete, ct))
-            return Error.Forbidden(code: "Task.Forbidden", description: "Access denied.");
+            return TaskErrors.Forbidden;
 
         _db.TaskItems.Remove(item);
         await _db.SaveChangesAsync(ct);

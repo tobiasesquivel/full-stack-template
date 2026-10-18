@@ -43,7 +43,7 @@ public sealed class UserAccounts : IUserAccounts
         IdentityResult deleted = await _users.DeleteAsync(identity);
         if (!deleted.Succeeded)
             return deleted.Errors
-                .Select(e => Error.Failure(code: e.Code, description: e.Description))
+                .Select(AuthErrors.AccountDeleteFailed)
                 .ToList();
 
         return Result.Success;

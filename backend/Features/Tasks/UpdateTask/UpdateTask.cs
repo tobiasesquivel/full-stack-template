@@ -34,7 +34,7 @@ public sealed class UpdateTask
             return TaskErrors.NotFound(id);
 
         if (!await _access.CanAccessAsync(callerId, item, TaskPermissions.Update, ct))
-            return Error.Forbidden(code: "Task.Forbidden", description: "Access denied.");
+            return TaskErrors.Forbidden;
 
         item.Title = TaskItem.NormalizeTitle(request.Title);
         item.IsCompleted = request.IsCompleted;
