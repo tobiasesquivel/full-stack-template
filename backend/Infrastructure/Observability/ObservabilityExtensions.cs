@@ -4,6 +4,10 @@ using OpenTelemetry.Exporter;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
+using Serilog;
+using Serilog.Events;
+using Serilog.Sinks.OpenTelemetry;
+
 namespace TemplateApp.Infrastructure.Observability;
 
 public static class ObservabilityExtensions
@@ -17,14 +21,19 @@ public static class ObservabilityExtensions
     {
         services.AddOptionsWithValidateOnStart<TelemetryOptions, TelemetryOptionsValidator>()
             .BindConfiguration(TelemetryOptions.Section)
-            .Configure<IConfiguration>((options, config) =>
-                options.Endpoint = config[TelemetryOptions.EndpointVariable] ?? options.Endpoint);
+            .BindConfiguration(string.Empty);
         services.AddOptions<OtlpExporterOptions>(TracesExporter)
             .Configure<IOptions<TelemetryOptions>>((exporter, telemetry) =>
                 ConfigureExporter(exporter, telemetry.Value.SignalEndpoint("traces")));
         services.AddOptions<OtlpExporterOptions>(MetricsExporter)
             .Configure<IOptions<TelemetryOptions>>((exporter, telemetry) =>
                 ConfigureExporter(exporter, telemetry.Value.SignalEndpoint("metrics")));
+
+        services.AddSerilog((provider, logger) => ConfigureLogger(
+            logger,
+            provider.GetRequiredService<IOptions<TelemetryOptions>>().Value,
+            environment.EnvironmentName),
+            preserveStaticLogger: true);
 
         services.AddMetrics();
 
@@ -50,6 +59,38 @@ public static class ObservabilityExtensions
 
         return services;
     }
+
+    public static LoggerConfiguration ConfigureBootstrapLogger(LoggerConfiguration logger) =>
+        ConfigureLevels(logger).WriteTo.Console();
+
+    private static void ConfigureLogger(LoggerConfiguration logger, TelemetryOptions telemetry, string environmentName) =>
+        ConfigureLevels(logger)
+            .Enrich.With<ActivityTraceEnricher>()
+            .WriteTo.Console()
+            .WriteTo.OpenTelemetry(
+                options =>
+                {
+                    options.Endpoint = telemetry.EffectiveEndpoint;
+                    options.Protocol = OtlpProtocol.HttpProtobuf;
+                    options.ResourceAttributes = new Dictionary<string, object>
+                    {
+                        ["service.name"] = "templateapp-api",
+                        ["service.version"] = "1.0.0",
+                        ["deployment.environment.name"] = environmentName,
+                    };
+                    options.IncludedData = IncludedData.MessageTemplateTextAttribute
+                        | IncludedData.TraceIdField
+                        | IncludedData.SpanIdField
+                        | IncludedData.SpecRequiredResourceAttributes;
+                },
+                ignoreEnvironment: true);
+
+    private static LoggerConfiguration ConfigureLevels(LoggerConfiguration logger) =>
+        logger
+            .MinimumLevel.Information()
+            .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
+            .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Warning)
+            .Enrich.FromLogContext();
 
     private static void ConfigureExporter(OtlpExporterOptions exporter, Uri endpoint)
     {

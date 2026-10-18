@@ -50,6 +50,8 @@ Estados: `pendiente`, `en curso`, `cerrado`, `bloqueado (⏸ decisión de Tobi)`
 | 5 | Validación de configuración al arranque | cerrado | `artifacts/verify-template/fase2-05-config/` (rojo y manual), `fase2-05-check-all/` (sin e2e) |
 | 5.1 | Inicialización de la base como hosted service | cerrado | `artifacts/verify-template/fase2-05-1-red/` (rojo), `fase2-05-1-check-all/` (sin e2e) |
 | 5.2 | Las herramientas de diseño no registran un arranque fallido | cerrado | `artifacts/verify-template/fase2-05-2/`, `fase2-05-2-check-all/` (sin e2e) |
+| 5.3 | La configuración se lee solo con options validadas | cerrado | `artifacts/verify-template/fase2-05-3/` (collector), `fase2-05-3-check-all/` (sin e2e) |
+| 5.4 | Regla de Dune para la lectura de configuración | pendiente | |
 | 6 | Catálogo de errores estable | pendiente | |
 | 7 | Paginación por keyset | pendiente | |
 | 8 | Concurrencia optimista en `TaskItem` | pendiente | |
@@ -109,8 +111,6 @@ Cosas vistas durante un paso que no le corresponden. Cada una espera su paso.
 - Las filas de `Sessions` vencidas o abandonadas se borran solo cuando su cookie vuelve. Falta una limpieza periódica. Sin paso asignado.
 - Abrir sesión con una sesión ya abierta en el mismo navegador deja la fila anterior hasta que vence por inactividad. `OpenSession` podría cerrarla. Sin paso asignado.
 - CI no corre las e2e. El job `compose` necesitaría `npm ci` del frontend, un navegador (`npx playwright install chromium --with-deps`) y 65 segundos de espera después del smoke por el limiter de `/auth`; suma unos 7 minutos. Tobi decidió el 2026-10-18 que no entra en el paso 3: es un gate nuevo y pide su propio paso. Sin paso asignado.
-- El bootstrap de Serilog en `Program.cs` lee `OTEL_EXPORTER_OTLP_ENDPOINT` y `ASPNETCORE_ENVIRONMENT` con `Environment.GetEnvironmentVariable`, antes de que exista el host: no pasa por `TelemetryOptions` ni por su validación, y no ve `Otel:Endpoint`. Unificarlo pide un logger de dos etapas (`CreateBootstrapLogger` + `ReadFrom.Services`). Sin paso asignado.
-- `DataProtection:KeysDirectory` sigue leyéndose como string suelto en `BackendInfrastructure`. No tiene regla que validar todavía; una ruta relativa depende del directorio de trabajo y podría prohibirse. Sin paso asignado.
 - El generador de `[OptionsValidator]` (SDK 10.0.401) ignora `ErrorMessage` en `[Range]`: su copia del atributo devuelve siempre "The field {0} must be between {1} and {2}.". Por eso los mensajes de `SessionOptions` nombran el tipo y la propiedad, no la clave `Session:...`. Es el bug [dotnet/runtime#123137](https://github.com/dotnet/runtime/issues/123137); el arreglo está en el PR [#135927](https://github.com/dotnet/runtime/pull/135927).
 - Ninguna regla de Dune exige que la configuración se lea solo a través de options validadas (`decisions.tsv`, paso 5). Una regla posible: prohibir el indexador de `IConfiguration`, `GetValue`, `GetConnectionString` y `Environment.GetEnvironmentVariable` fuera de los registros de options, con excepción del bootstrap de Serilog. Sin paso asignado.
 - CI no frena un merge. `main` no tiene protección de rama: en un repo privado del plan gratis, GitHub responde 403 a la API de protección y de rulesets. Tobi decidió el 2026-10-18 dejarlo así: revisa los checks antes de mergear. Se revisa si el repo pasa a público o a GitHub Pro.
@@ -132,6 +132,15 @@ Una entrada por paso cerrado, con este formato:
 - Preguntas: qué preguntó Tobi.
 - Evidencia: artifacts/verify-template/<runId>/
 ```
+
+### Paso 5.3 — 2026-10-18
+- Enseñado: la configuración entra por una sola puerta, las options validadas. `DataProtectionKeysOptions` exige ruta absoluta (`Path.IsPathFullyQualified`; `/keys` en Windows es "rooted" pero relativa) y configura `KeyManagementOptions.XmlRepository` de forma diferida, que es lo que hace `PersistKeysToFileSystem` por dentro. `TelemetryOptions` liga `OTEL_EXPORTER_OTLP_ENDPOINT` con `[ConfigurationKeyName]` y un segundo `BindConfiguration(string.Empty)`: la variable sigue ganándole a `Otel:Endpoint`, sin indexador. Serilog arranca en dos etapas: el logger estático escribe solo a consola, y el final (consola + OTLP con `ignoreEnvironment: true`) sale de los servicios con `AddSerilog(..., preserveStaticLogger: true)`.
+- Dos trampas encontradas al probar: `CreateBootstrapLogger()` se congela una vez por proceso, y los tests levantan varios hosts en paralelo ("The logger is already frozen"); y sin `preserveStaticLogger`, el host cierra el logger estático al descartarse, entonces el `Log.Fatal` del `catch` no escribía nada. Por eso el log de requests recibe el logger de DI (`options.Logger`), porque por defecto usa el estático.
+- Preguntas: Tobi pidió resolver los pendientes y dejó las decisiones de diseño en manos del agente. Se tomaron las recomendaciones de [investigacion/paso-05-3-lectura-configuracion.md](investigacion/paso-05-3-lectura-configuracion.md): dos claves con prioridad, bootstrap solo de consola, y la regla en un paso aparte (5.4).
+- Evidencia:
+  - `ConfigurationValidationTests`: 9/9, con dos casos nuevos (`DataProtection__KeysDirectory=relative/keys` y `OTEL_EXPORTER_OTLP_ENDPOINT=collector:4318`).
+  - Collector falso (`fase2-05-3/`): con `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4319`, llegaron `/v1/logs` 3, `/v1/traces` 2 y `/v1/metrics` 3; la consola muestra `HTTP GET /api/v1/health/live responded 200`.
+  - `check-all --no-e2e` (`fase2-05-3-check-all/`): 13 gates, `launch`, `doctor`, smoke y `cleanup` en PASS; `dotnet test` 128/128. E2E: NOT_RUN, sin cambios de frontend ni de contrato HTTP.
 
 ### Paso 5.2 — 2026-10-18
 - Enseñado: `dotnet ef` no tiene otra forma de obtener el `DbContext` que ejecutar `Program.cs`. Cuando la app llega a `Build()`, la herramienta la corta con `HostAbortedException`. El `catch (Exception ex)` de `Program.cs` lo tomaba por un fallo y escribía "Application terminated unexpectedly during startup". Ahora el `catch` deja pasar esa excepción (`when (ex is not HostAbortedException)`), que es la forma que documenta Microsoft.

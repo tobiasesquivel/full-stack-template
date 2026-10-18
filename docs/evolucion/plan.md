@@ -259,6 +259,16 @@ El paso 0.28 se agregó el 2026-10-17, a pedido de Tobi, con otro pendiente del 
 **Cambia**: el `catch` de `Program.cs`.
 **Verifica**: `dotnet ef migrations list` antes (log Fatal falso) y después (sin Fatal); `dotnet test` completo.
 
+**5.3. La configuración se lee solo con options validadas.**
+**Concepto**: una sola puerta para la configuración; el bootstrap de Serilog en dos etapas.
+**Cambia**: `DataProtectionKeysOptions` (ruta absoluta), `TelemetryOptions` con `[ConfigurationKeyName]` para `OTEL_EXPORTER_OTLP_ENDPOINT`, logger final de Serilog desde los servicios, `Program.cs` y las features sin `IConfiguration`.
+**Verifica**: casos nuevos en `ConfigurationValidationTests`; logs, trazas y métricas llegan a un collector; `dotnet test` completo.
+
+**5.4. Regla de Dune para la lectura de configuración (DUNE0013).**
+**Concepto**: regla ejecutable; ningún archivo del backend lee `IConfiguration` ni variables de entorno.
+**Cambia**: `dune/Dune.Analyzers`, sus tests, `Dune.props`, `conventions.md`.
+**Verifica**: fixture válida y violación deliberada; rojo sobre el código de antes del paso 5.3; build en verde.
+
 **6. Catálogo de errores estable.**
 **Concepto**: el contrato de error también es API; hoy los códigos se arman en cada caso de uso.
 **Cambia**: `Shared/Http`, catálogos por feature, tests de estados y payloads.
