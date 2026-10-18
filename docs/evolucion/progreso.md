@@ -4,7 +4,7 @@ Registro vivo del [plan](plan.md). El agente lo actualiza al cerrar cada paso.
 
 ## Paso actual
 
-**Fase 2, paso 5: validación de configuración al arranque.** Estado: en curso: código y evidencia listos, falta la explicación a Tobi. El paso 4 cerró el 2026-10-18 y espera el merge de Tobi (PR #45, apilado sobre #43). La Fase 1 cerró con el paso 3 (CI verde de verdad) el 2026-10-18; espera el merge de Tobi. El paso 2 cerró el 2026-10-17 y Tobi lo mergeó. La Fase 0 cerró con el paso 0.28 (reglas de la sesión en Dune). Tobi eligió el BFF del paso 0.26 y el volumen del 0.27 el 2026-10-17. Los pasos 0.10 a 0.28 cerraron. Tobi pidió el 2026-10-17 separar la vista de los componentes (0.10), un archivo por tipo (0.11), Tailwind (0.12), ordenar los archivos sueltos de cada feature (0.13), investigar y aplicar el manejo de sesión en Angular (0.14 a 0.16, [informe-sesion-angular.md](informe-sesion-angular.md)) y aplicar lo que no necesita decisión de herramienta de [informe-componentes-angular.md](informe-componentes-angular.md) y [informe-frontend-para-agentes.md](informe-frontend-para-agentes.md) (0.17 a 0.20). Después eligió Vitest, Prettier, Playwright Test, el MCP del CLI y los ajustes visuales (0.21 a 0.25). Los pasos 0.6 a 0.28 esperan el merge de Tobi. El Stop hook esperaba hasta después del paso 2: ya se puede retomar.
+**Fase 2, paso 6: catálogo de errores estable.** Estado: pendiente. El paso 5 cerró el 2026-10-18 y espera el merge de Tobi (apilado sobre el PR #45). El paso 4 cerró el 2026-10-18 y espera el merge de Tobi (PR #45, apilado sobre #43). La Fase 1 cerró con el paso 3 (CI verde de verdad) el 2026-10-18; espera el merge de Tobi. El paso 2 cerró el 2026-10-17 y Tobi lo mergeó. La Fase 0 cerró con el paso 0.28 (reglas de la sesión en Dune). Tobi eligió el BFF del paso 0.26 y el volumen del 0.27 el 2026-10-17. Los pasos 0.10 a 0.28 cerraron. Tobi pidió el 2026-10-17 separar la vista de los componentes (0.10), un archivo por tipo (0.11), Tailwind (0.12), ordenar los archivos sueltos de cada feature (0.13), investigar y aplicar el manejo de sesión en Angular (0.14 a 0.16, [informe-sesion-angular.md](informe-sesion-angular.md)) y aplicar lo que no necesita decisión de herramienta de [informe-componentes-angular.md](informe-componentes-angular.md) y [informe-frontend-para-agentes.md](informe-frontend-para-agentes.md) (0.17 a 0.20). Después eligió Vitest, Prettier, Playwright Test, el MCP del CLI y los ajustes visuales (0.21 a 0.25). Los pasos 0.6 a 0.28 esperan el merge de Tobi. El Stop hook esperaba hasta después del paso 2: ya se puede retomar.
 
 La Fase 0 va antes del paso 2. El paso 1 (línea base) ya cerró y sirve de referencia para la Fase 0.
 
@@ -47,7 +47,7 @@ Estados: `pendiente`, `en curso`, `cerrado`, `bloqueado (⏸ decisión de Tobi)`
 | 2 | Un solo comando de verificación local | cerrado | `artifacts/verify-template/fase1-02-check-all/`, `artifacts/verify-template/fase1-02-check-all-red/` (rojo), `artifacts/verify-template/fase1-02-loose/`, `artifacts/verify-template/fase1-02-loose-runtime/`, `artifacts/verify-template/fase1-02-compose/` (NOT_RUN por puertos) |
 | 3 | CI verde de verdad | cerrado | `artifacts/verify-template/fase1-03-ci/` (runs `39091828498` verde y `39092222604` rojo, artifact `otel-export` descargado) |
 | 4 | Versionado de API declarado | cerrado | `artifacts/verify-template/fase2-04-characterization/`, `fase2-04-red/` (rojo), `fase2-04-backend/`, `fase2-04-metadata-red/` (rojo), `fase2-04-rule-red/` (rojo), `fase2-04-check-all/` |
-| 5 | Validación de configuración al arranque | en curso | `artifacts/verify-template/fase2-05-config/` (rojo y manual), `fase2-05-check-all/` (sin e2e) |
+| 5 | Validación de configuración al arranque | cerrado | `artifacts/verify-template/fase2-05-config/` (rojo y manual), `fase2-05-check-all/` (sin e2e) |
 | 6 | Catálogo de errores estable | pendiente | |
 | 7 | Paginación por keyset | pendiente | |
 | 8 | Concurrencia optimista en `TaskItem` | pendiente | |
@@ -130,6 +130,17 @@ Una entrada por paso cerrado, con este formato:
 - Preguntas: qué preguntó Tobi.
 - Evidencia: artifacts/verify-template/<runId>/
 ```
+
+### Paso 5 — 2026-10-18
+- Enseñado: fail-fast; la configuración es un contrato. `SessionOptions`, `DatabaseOptions` y `TelemetryOptions` llevan sus reglas (`[Range]`, `[Required]`, `IValidatableObject`) y las aplica un validador generado con `[OptionsValidator]`. `ValidateOnStart` solo corre en `RunAsync`, después de migrar la base: `Program.cs` llama a `IStartupValidator.Validate()` apenas construye la app. La cookie lee `IOptions<SessionOptions>` en vez de una segunda lectura sin validar. El test corre la API como proceso porque el `catch` de `Program.cs` devuelve 1 sin relanzar y `WebApplicationFactory` no ve el error.
+- Preguntas: qué es un host. Tobi respondió que quedó claro y que no hacía falta más explicación.
+- Decisiones: dos filas en `docs/decisions.tsv`. Tobi dejó en manos del agente cómo apagar las e2e: `check-all` corre con `--no-e2e` hasta que se necesiten, sin cambiar el script.
+- Evidencia:
+  - Tests nuevos (`ConfigurationValidationTests`): 7/7. Seis valores inválidos salen con código 1 y el mensaje de la clave, sin `NpgsqlException`; la configuración válida pasa la validación y llega a la base.
+  - Rojo (`fase2-05-config/violation-no-early-validate.txt`): sin `IStartupValidator.Validate()` fallan los 3 casos de `Session` y `Otel` (la API intenta la base primero). Se revirtió.
+  - Manual (`fase2-05-config/manual-invalid-session.txt`): `Session__IdleTimeoutMinutes=0` sale con código 1 y `OptionsValidationException`.
+  - `check-all --no-e2e` (`fase2-05-check-all/`): 13 gates, `launch`, `doctor`, smoke y `cleanup` en PASS; `dotnet test` 126/126.
+  - E2E: NOT_RUN por pedido de Tobi. Una corrida previa con e2e quedó cortada (`fase2-05-config/summary-interrumpida.json`); su contenedor se cerró con `verify.mjs cleanup`.
 
 ### Paso 4 — 2026-10-18
 - Enseñado: la versión de la API pasa de texto repetido a versión declarada. Un solo grupo, `/api/v{version:apiVersion}` con `HasApiVersion(1.0)`, vive en `Infrastructure/Http/VersionedApi.cs`, y cada feature cuelga de él (`api.MapTasksEndpoints()` en `Program.cs`). La librería informa `api-supported-versions`, rechaza `/api/v9/...` con 404 y completa la versión en los links. Los `Location` salen del nombre del endpoint con `LinkGenerator.GetPathByName`, no de la ruta escrita. La trampa: un grupo con `{version}` sin versiones declaradas acepta cualquiera (`/api/v9/raw` dio 200); la frenan DUNE0012 al compilar y `EveryApiEndpoint_HasVersionMetadata` al ejecutar.
