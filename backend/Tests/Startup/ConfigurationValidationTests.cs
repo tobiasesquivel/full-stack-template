@@ -16,6 +16,8 @@ public sealed class ConfigurationValidationTests : IDisposable
     [InlineData("ConnectionStrings__DefaultConnection", null, "ConnectionStrings:DefaultConnection is required.")]
     [InlineData("ConnectionStrings__DefaultConnection", "postgres://localhost/app", "ConnectionStrings:DefaultConnection is not a valid PostgreSQL connection string.")]
     [InlineData("ConnectionStrings__DefaultConnection", "Database=app;Username=postgres", "ConnectionStrings:DefaultConnection must set Host.")]
+    [InlineData("DataProtection__KeysDirectory", "relative/keys", "DataProtection:KeysDirectory must be an absolute path.")]
+    [InlineData("OTEL_EXPORTER_OTLP_ENDPOINT", "collector:4318", "Otel:Endpoint (or OTEL_EXPORTER_OTLP_ENDPOINT) must be an absolute http or https URL.")]
     [InlineData("Otel__Endpoint", "localhost:4318", "Otel:Endpoint (or OTEL_EXPORTER_OTLP_ENDPOINT) must be an absolute http or https URL.")]
     public async Task Api_WithAnInvalidSetting_ExitsBeforeTouchingTheDatabase_NamingTheSetting(string variable, string? value, string expected)
     {

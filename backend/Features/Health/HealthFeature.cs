@@ -2,11 +2,8 @@ namespace TemplateApp.Features.Health;
 
 public static class HealthFeature
 {
-    public static IServiceCollection AddHealthFeature(
-        this IServiceCollection services,
-        IConfiguration configuration)
+    public static IServiceCollection AddHealthFeature(this IServiceCollection services)
     {
-        _ = configuration;
         services.AddScoped<GetReadiness.GetReadiness>();
         return services;
     }

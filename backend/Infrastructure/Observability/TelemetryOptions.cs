@@ -9,11 +9,16 @@ public sealed class TelemetryOptions : IValidatableObject
 
     public string Endpoint { get; set; } = "http://localhost:4318";
 
-    public Uri SignalEndpoint(string signal) => new($"{Endpoint.TrimEnd('/')}/v1/{signal}");
+    [ConfigurationKeyName(EndpointVariable)]
+    public string? StandardEndpoint { get; set; }
+
+    public string EffectiveEndpoint => StandardEndpoint ?? Endpoint;
+
+    public Uri SignalEndpoint(string signal) => new($"{EffectiveEndpoint.TrimEnd('/')}/v1/{signal}");
 
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
-        bool valid = Uri.TryCreate(Endpoint, UriKind.Absolute, out Uri? uri)
+        bool valid = Uri.TryCreate(EffectiveEndpoint, UriKind.Absolute, out Uri? uri)
             && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
 
         return valid

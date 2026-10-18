@@ -1,5 +1,4 @@
 using Serilog;
-using Serilog.Sinks.OpenTelemetry;
 using TemplateApp.Features.Auth;
 using TemplateApp.Features.Health;
 using TemplateApp.Features.Tasks;
@@ -8,45 +7,18 @@ using TemplateApp.Infrastructure.DependencyInjection;
 using TemplateApp.Infrastructure.Http;
 using TemplateApp.Infrastructure.Observability;
 
-string otlpEndpoint = Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT") ?? "http://localhost:4318";
-string environmentName = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? Environments.Production;
-
-Log.Logger = new LoggerConfiguration()
-    .MinimumLevel.Information()
-    .MinimumLevel.Override("Microsoft.AspNetCore", Serilog.Events.LogEventLevel.Warning)
-    .MinimumLevel.Override("Microsoft.EntityFrameworkCore", Serilog.Events.LogEventLevel.Warning)
-    .Enrich.FromLogContext()
-    .Enrich.With<ActivityTraceEnricher>()
-    .WriteTo.Console()
-    .WriteTo.OpenTelemetry(options =>
-    {
-        options.Endpoint = otlpEndpoint;
-        options.Protocol = OtlpProtocol.HttpProtobuf;
-        options.ResourceAttributes = new Dictionary<string, object>
-        {
-            ["service.name"] = "templateapp-api",
-            ["service.version"] = "1.0.0",
-            ["deployment.environment.name"] = environmentName,
-        };
-        options.IncludedData = IncludedData.MessageTemplateTextAttribute
-            | IncludedData.TraceIdField
-            | IncludedData.SpanIdField
-            | IncludedData.SpecRequiredResourceAttributes;
-    })
-    .CreateLogger();
+Log.Logger = ObservabilityExtensions.ConfigureBootstrapLogger(new LoggerConfiguration()).CreateLogger();
 
 try
 {
     WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
-    builder.Host.UseSerilog();
-
-    builder.Services.AddBackendInfrastructure(builder.Configuration);
+    builder.Services.AddBackendInfrastructure();
     builder.Services.AddTemplateObservability(builder.Environment);
     builder.Services.AddAuthFeature();
     builder.Services.AddUsersFeature();
     builder.Services.AddTasksFeature();
-    builder.Services.AddHealthFeature(builder.Configuration);
+    builder.Services.AddHealthFeature();
     builder.Services.AddVersionedApi();
 
     WebApplication app = builder.Build();
@@ -56,7 +28,7 @@ try
         app.MapOpenApi().WithDocumentPerVersion();
     }
 
-    app.UseSerilogRequestLogging();
+    app.UseSerilogRequestLogging(options => options.Logger = app.Services.GetRequiredService<Serilog.ILogger>());
     app.UseExceptionHandler();
     app.UseRateLimiter();
     app.UseAuthentication();
