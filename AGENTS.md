@@ -41,12 +41,13 @@ El dominio (tareas) es simple a propósito: importa el rigor técnico. **Todo el
 8. **No adelantes pasos.** Si el plan parece equivocado, discutilo antes de ejecutar.
 9. **No cambies un gate, analyzer o test para tapar una falla.** Sí podés cambiarlo si ese cambio es el objetivo declarado del paso: con un ADR o una línea en `docs/decisions.tsv`, y con su fixture válida y su violación deliberada.
 10. **Los docs deciden el diseño; Dune los sigue.** La fuente de verdad es ADR-0004, `architecture.md`, `conventions.md` y los informes de `docs/evolucion/`. Justificá cada decisión de diseño con ellos. Si una regla de Dune choca con los docs, corregí la regla en el mismo paso, con lo que pide la regla 9. Si dos docs se contradicen, frená y preguntale a Tobi.
+11. **Un paso cierra cuando Tobi aprendió su concepto, no cuando los gates dan verde.** Cada paso tiene dos paradas, y en cada una esperás la respuesta de Tobi: la explicación antes del código y las preguntas después de la evidencia. Hasta que Tobi responde las preguntas, el paso queda `en curso`.
 
 ## Cómo enseñar
 
 - Un concepto por paso.
-- **Antes** de tocar código: qué problema resuelve, cómo está hoy, cómo queda y qué conceptos previos asume.
-- **Después**: el resultado con la evidencia. Qué se corrió, qué devolvió y qué significa cada estado.
+- **Antes** de tocar código: qué problema resuelve, cómo está hoy, cómo queda y qué conceptos previos asume. Terminá ese mensaje sin código y esperá que Tobi responda: puede preguntar, corregir o elegir.
+- **Después**: el resultado con la evidencia. Qué se corrió, qué devolvió y qué significa cada estado. Cerrá con 1 a 3 preguntas sobre el concepto que Tobi responda de memoria, y dale feedback concreto a cada respuesta.
 - Explicá sobre el código real: 5 a 10 renglones con clases y archivos del repo. No uses ejemplos genéricos ni pegues el diff completo.
 - Nivel: Tobi conoce C# y Angular. Explicá el *porqué* de cada patrón, no la sintaxis.
 - Escribí en español técnico simple: frases cortas, voz activa, primero la conclusión.
@@ -75,6 +76,6 @@ La evidencia de cada corrida va en `artifacts/verify-template/<runId>/`. Esa car
 
 ## Al cerrar un paso
 
-1. Actualizá [docs/evolucion/progreso.md](docs/evolucion/progreso.md): estado, evidencia y una entrada en "Cierres".
+1. Actualizá [docs/evolucion/progreso.md](docs/evolucion/progreso.md): estado, evidencia y una entrada en "Cierres". La entrada se escribe después de las respuestas de Tobi: `Enseñado` nombra lo que explicaste y Tobi respondió, y `Preguntas` registra sus preguntas y sus respuestas. El PR puede abrirse antes, con la evidencia.
 2. Si tomaste una decisión de diseño, agregala a `docs/decisions.tsv`.
 3. Cambiá este archivo solo si cambia una regla.
