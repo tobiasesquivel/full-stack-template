@@ -51,7 +51,7 @@ Estados: `pendiente`, `en curso`, `cerrado`, `bloqueado (⏸ decisión de Tobi)`
 | 5.1 | Inicialización de la base como hosted service | cerrado | `artifacts/verify-template/fase2-05-1-red/` (rojo), `fase2-05-1-check-all/` (sin e2e) |
 | 5.2 | Las herramientas de diseño no registran un arranque fallido | cerrado | `artifacts/verify-template/fase2-05-2/`, `fase2-05-2-check-all/` (sin e2e) |
 | 5.3 | La configuración se lee solo con options validadas | cerrado | `artifacts/verify-template/fase2-05-3/` (collector), `fase2-05-3-check-all/` (sin e2e) |
-| 5.4 | Regla de Dune para la lectura de configuración | pendiente | |
+| 5.4 | Regla de Dune para la lectura de configuración | cerrado | `artifacts/verify-template/fase2-05-4-rule-red/` (rojo), `fase2-05-4-check-all/` (sin e2e) |
 | 6 | Catálogo de errores estable | pendiente | |
 | 7 | Paginación por keyset | pendiente | |
 | 8 | Concurrencia optimista en `TaskItem` | pendiente | |
@@ -112,7 +112,6 @@ Cosas vistas durante un paso que no le corresponden. Cada una espera su paso.
 - Abrir sesión con una sesión ya abierta en el mismo navegador deja la fila anterior hasta que vence por inactividad. `OpenSession` podría cerrarla. Sin paso asignado.
 - CI no corre las e2e. El job `compose` necesitaría `npm ci` del frontend, un navegador (`npx playwright install chromium --with-deps`) y 65 segundos de espera después del smoke por el limiter de `/auth`; suma unos 7 minutos. Tobi decidió el 2026-10-18 que no entra en el paso 3: es un gate nuevo y pide su propio paso. Sin paso asignado.
 - El generador de `[OptionsValidator]` (SDK 10.0.401) ignora `ErrorMessage` en `[Range]`: su copia del atributo devuelve siempre "The field {0} must be between {1} and {2}.". Por eso los mensajes de `SessionOptions` nombran el tipo y la propiedad, no la clave `Session:...`. Es el bug [dotnet/runtime#123137](https://github.com/dotnet/runtime/issues/123137); el arreglo está en el PR [#135927](https://github.com/dotnet/runtime/pull/135927).
-- Ninguna regla de Dune exige que la configuración se lea solo a través de options validadas (`decisions.tsv`, paso 5). Una regla posible: prohibir el indexador de `IConfiguration`, `GetValue`, `GetConnectionString` y `Environment.GetEnvironmentVariable` fuera de los registros de options, con excepción del bootstrap de Serilog. Sin paso asignado.
 - CI no frena un merge. `main` no tiene protección de rama: en un repo privado del plan gratis, GitHub responde 403 a la API de protección y de rulesets. Tobi decidió el 2026-10-18 dejarlo así: revisa los checks antes de mergear. Se revisa si el repo pasa a público o a GitHub Pro.
 - Una versión inexistente (`/api/v9/...`) da 404 sin cuerpo, como cualquier ruta inexistente. `UseStatusCodePages` la volvería ProblemDetails, pero cambia todos los 404 sin cuerpo. Paso 6.
 - `informe-dotnet-empresarial.md:110` recomienda `Asp.Versioning.Mvc` / `.ApiExplorer`, que son para controllers. El paso 4 usa `Asp.Versioning.Http` (Minimal APIs). El informe no se corrigió. Sin paso asignado.
@@ -132,6 +131,15 @@ Una entrada por paso cerrado, con este formato:
 - Preguntas: qué preguntó Tobi.
 - Evidencia: artifacts/verify-template/<runId>/
 ```
+
+### Paso 5.4 — 2026-10-18
+- Enseñado: una decisión escrita se vuelve regla ejecutable (regla 4 de AGENTS.md). DUNE0013 (`ConfigurationAccessAnalyzer`) mira cada identificador del backend, salvo tests y migraciones. Marca si el símbolo o el tipo de la expresión es `IConfiguration` o algo que la implementa, y si es `Environment.GetEnvironmentVariable(s)` o `ExpandEnvironmentVariables`. Compara por interfaz implementada, no por nombre, porque `builder.Configuration` es `ConfigurationManager`: la investigación mostró que `BannedSymbols.txt` (RS0030) no lo ve. No hace falta excepción para `Program.cs` porque el paso 5.3 sacó todas las lecturas.
+- Preguntas: ninguna; Tobi pidió resolver los pendientes.
+- Decisiones: `Dune.props` y `.editorconfig` suman DUNE0010 a DUNE0013 (la lista terminaba en DUNE0011 y DUNE0009), y `AnalyzerHost.All()` suma `VersionedApiAnalyzer`, que faltaba. `conventions.md` gana la sección "Configuración". `informe-vsa-deep-modules.md` deja de proponer `Add<X>Feature(services, configuration)`.
+- Evidencia:
+  - Tests de Dune: 77/77, con los dos nuevos de `ConfigurationAccessAnalyzerTests` (fixture válida vacía; violación en las líneas 7, 9-15: parámetro, indexador, `GetValue`, `GetConnectionString`, `GetSection`, `new ConfigurationManager()[...]`, `Configure<IConfiguration>` y `Environment.GetEnvironmentVariable`).
+  - Rojo real (`fase2-05-4-rule-red/build.txt`): el backend de antes del paso 5.3 (`1c5473d`) con la regla nueva da 13 errores DUNE0013 en `Program.cs:11,12,44,49`, `BackendInfrastructure.cs:13,26,31,35`, `ObservabilityExtensions.cs:20,21` y `HealthFeature.cs:7,9`.
+  - `check-all --no-e2e` (`fase2-05-4-check-all/`): 13 gates, `launch`, `doctor`, smoke y `cleanup` en PASS; `dotnet test` 130/130 (53 de producto y 77 de Dune). E2E: NOT_RUN, sin cambios de frontend ni de contrato HTTP.
 
 ### Paso 5.3 — 2026-10-18
 - Enseñado: la configuración entra por una sola puerta, las options validadas. `DataProtectionKeysOptions` exige ruta absoluta (`Path.IsPathFullyQualified`; `/keys` en Windows es "rooted" pero relativa) y configura `KeyManagementOptions.XmlRepository` de forma diferida, que es lo que hace `PersistKeysToFileSystem` por dentro. `TelemetryOptions` liga `OTEL_EXPORTER_OTLP_ENDPOINT` con `[ConfigurationKeyName]` y un segundo `BindConfiguration(string.Empty)`: la variable sigue ganándole a `Otel:Endpoint`, sin indexador. Serilog arranca en dos etapas: el logger estático escribe solo a consola, y el final (consola + OTLP con `ignoreEnvironment: true`) sale de los servicios con `AddSerilog(..., preserveStaticLogger: true)`.

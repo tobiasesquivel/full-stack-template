@@ -59,6 +59,10 @@ Excepciones (la lista es cerrada):
 - `// @ts-expect-error` sola, sin texto. Con texto, en bloque `/* */` o como `@ts-ignore`, cuenta como comentario.
 - Las directivas del parser de Docker (`# syntax=`, `# escape=`, `# check=`), solo al principio del Dockerfile. Después de una línea vacía, un comentario o una instrucción, cuentan como comentario, igual que en Docker.
 
+## Configuración
+
+- La configuración entra solo por options validadas: un tipo con `[OptionsValidator]`, registrado con `AddOptionsWithValidateOnStart<T, V>().BindConfiguration(T.Section)`. Nada del backend nombra `IConfiguration` (ni sus implementaciones, como `ConfigurationManager`) ni lee variables de entorno; una variable estándar se liga con `[ConfigurationKeyName]`. Los tests quedan fuera. DUNE0013 lo hace cumplir.
+
 ## HTTP
 
 - Los endpoints adaptan HTTP y devuelven resultados con `ApiResults`. No acceden a EF ni a `UserManager`.
