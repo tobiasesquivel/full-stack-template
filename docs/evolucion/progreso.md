@@ -4,7 +4,7 @@ Registro vivo del [plan](plan.md). El agente lo actualiza al cerrar cada paso.
 
 ## Paso actual
 
-**Fase 2, paso 6: catálogo de errores estable.** Estado: pendiente; la investigación está en [investigacion/paso-06-catalogo-errores.md](investigacion/paso-06-catalogo-errores.md). El paso 5.1 cerró el 2026-10-18. Los pasos 3, 4 y 5 y las reglas 11 y 12 entraron a `main` con el PR #47 el 2026-10-18; Tobi pidió integrar todo y borrar las demás ramas. El paso 2 cerró el 2026-10-17 y Tobi lo mergeó. La Fase 0 cerró con el paso 0.28 (reglas de la sesión en Dune). Tobi eligió el BFF del paso 0.26 y el volumen del 0.27 el 2026-10-17. Los pasos 0.10 a 0.28 cerraron. Tobi pidió el 2026-10-17 separar la vista de los componentes (0.10), un archivo por tipo (0.11), Tailwind (0.12), ordenar los archivos sueltos de cada feature (0.13), investigar y aplicar el manejo de sesión en Angular (0.14 a 0.16, [informe-sesion-angular.md](informe-sesion-angular.md)) y aplicar lo que no necesita decisión de herramienta de [informe-componentes-angular.md](informe-componentes-angular.md) y [informe-frontend-para-agentes.md](informe-frontend-para-agentes.md) (0.17 a 0.20). Después eligió Vitest, Prettier, Playwright Test, el MCP del CLI y los ajustes visuales (0.21 a 0.25). Los pasos 0.6 a 0.28 esperan el merge de Tobi. El Stop hook esperaba hasta después del paso 2: ya se puede retomar.
+**Fase 2, paso 6: catálogo de errores estable.** Estado: en curso; la investigación está en [investigacion/paso-06-catalogo-errores.md](investigacion/paso-06-catalogo-errores.md). Tobi eligió el 2026-10-18 partirlo en 6, 6.1 (`UseStatusCodePages`) y 6.2 (DUNE0014), dejar la descripción en `title`, no usar `type` propio y los nombres de códigos propuestos. El paso 5.1 cerró el 2026-10-18. Los pasos 3, 4 y 5 y las reglas 11 y 12 entraron a `main` con el PR #47 el 2026-10-18; Tobi pidió integrar todo y borrar las demás ramas. El paso 2 cerró el 2026-10-17 y Tobi lo mergeó. La Fase 0 cerró con el paso 0.28 (reglas de la sesión en Dune). Tobi eligió el BFF del paso 0.26 y el volumen del 0.27 el 2026-10-17. Los pasos 0.10 a 0.28 cerraron. Tobi pidió el 2026-10-17 separar la vista de los componentes (0.10), un archivo por tipo (0.11), Tailwind (0.12), ordenar los archivos sueltos de cada feature (0.13), investigar y aplicar el manejo de sesión en Angular (0.14 a 0.16, [informe-sesion-angular.md](informe-sesion-angular.md)) y aplicar lo que no necesita decisión de herramienta de [informe-componentes-angular.md](informe-componentes-angular.md) y [informe-frontend-para-agentes.md](informe-frontend-para-agentes.md) (0.17 a 0.20). Después eligió Vitest, Prettier, Playwright Test, el MCP del CLI y los ajustes visuales (0.21 a 0.25). Los pasos 0.6 a 0.28 esperan el merge de Tobi. El Stop hook esperaba hasta después del paso 2: ya se puede retomar.
 
 La Fase 0 va antes del paso 2. El paso 1 (línea base) ya cerró y sirve de referencia para la Fase 0.
 
@@ -52,7 +52,9 @@ Estados: `pendiente`, `en curso`, `cerrado`, `bloqueado (⏸ decisión de Tobi)`
 | 5.2 | Las herramientas de diseño no registran un arranque fallido | cerrado | `artifacts/verify-template/fase2-05-2/`, `fase2-05-2-check-all/` (sin e2e) |
 | 5.3 | La configuración se lee solo con options validadas | cerrado | `artifacts/verify-template/fase2-05-3/` (collector), `fase2-05-3-check-all/` (sin e2e) |
 | 5.4 | Regla de Dune para la lectura de configuración | cerrado | `artifacts/verify-template/fase2-05-4-rule-red/` (rojo), `fase2-05-4-check-all/` (sin e2e) |
-| 6 | Catálogo de errores estable | pendiente | |
+| 6 | Catálogo de errores estable | en curso | `artifacts/verify-template/fase2-06-red/` (rojo), `fase2-06-log-red/` (rojo del log), `fase2-06-green/`, `fase2-06-check-all/` (sin e2e) |
+| 6.1 | Todo error sin cuerpo sale como ProblemDetails | pendiente | |
+| 6.2 | Regla de Dune para el catálogo de errores (DUNE0014) | pendiente | |
 | 7 | Paginación por keyset | pendiente | |
 | 8 | Concurrencia optimista en `TaskItem` | pendiente | |
 | 9 | Idempotencia de escritura | pendiente | |
@@ -88,14 +90,11 @@ Estados: `pendiente`, `en curso`, `cerrado`, `bloqueado (⏸ decisión de Tobi)`
 
 Cosas vistas durante un paso que no le corresponden. Cada una espera su paso.
 
-- Catálogo de errores: `TaskErrors`, `UserErrors` y `AuthErrors` usan prefijos distintos y hay errores escritos en línea (`"Task.Forbidden"` aparece 4 veces). Paso 6.
 - El build Release muestra 218 warnings de analyzers (CA2007, CA1707, RS2008, RS1036, CS8602 y otros). Nadie decidió si cada uno se corrige o se baja a `suggestion`. Sin paso asignado: proponer uno.
 - `docs/evolucion/informe-vsa-deep-modules.md` §2.1 propone `AppIdentityUser` en `Auth/Domain`. Choca con `architecture.md` (Domain sin ASP.NET). Desde el paso 0.5, Users ya no lo usa; sigue en `Auth/Contracts` solo porque `AppDbContext` hereda de `IdentityDbContext<AppIdentityUser>`. Paso 22.
 - Las dos FKs entre features (`UserProfiles → AspNetUsers`, `TaskItems → UserProfiles`) están en `AppDbContext.ConfigureCrossFeatureRelationships`. Con un `DbContext` por feature hay que elegir: quitarlas y reemplazar la cascada por un evento (Grzybek, Wolverine) o dejarlas solo en SQL (Jovanović). Paso 22.
 - `RegisterUser` (Auth) y `UserProfiles` (Users) usan el mismo `AppDbContext` del request: la atomicidad del registro depende de eso. Con contextos separados hace falta compartir conexión y transacción, o un outbox. Pasos 22 y 24.
-- `"Task.Forbidden"` y `"User.Forbidden"` siguen escritos en línea en cada slice. Paso 6.
 - El rate limiter `auth` es una sola ventana de 20 requests por minuto para toda la API, sin partición por cliente. Un recorrido de navegador seguido del smoke HTTP da 503 (`fase0-06-runtime`). Paso 12.
-- `AuthErrors.AccountNotFound` (`Auth.AccountNotFound`) es nuevo y `DeleteUser` lo traduce a `User.NotFound`. Entra en el catálogo del paso 6.
 - Hay una carpeta vacía y sin versionar, `backend/Features/Health/Test/`, de antes de este paso. Git la ignora. Borrarla es decisión de Tobi.
 - `backend/AGENTS.md` y `backend/docs/agents/` describen un issue tracker en `.scratch/`, que `.gitignore` excluye: los issues nunca se versionan.
 - `Profile` vuelve a pedir `/users/me` al abrirse, aunque `Session` ya tiene el usuario. Podría leerlo con `httpResource()`. Es de la feature `users`, fuera del paso 0.14.
@@ -113,12 +112,16 @@ Cosas vistas durante un paso que no le corresponden. Cada una espera su paso.
 - CI no corre las e2e. El job `compose` necesitaría `npm ci` del frontend, un navegador (`npx playwright install chromium --with-deps`) y 65 segundos de espera después del smoke por el limiter de `/auth`; suma unos 7 minutos. Tobi decidió el 2026-10-18 que no entra en el paso 3: es un gate nuevo y pide su propio paso. Sin paso asignado.
 - El generador de `[OptionsValidator]` (SDK 10.0.401) ignora `ErrorMessage` en `[Range]`: su copia del atributo devuelve siempre "The field {0} must be between {1} and {2}.". Por eso los mensajes de `SessionOptions` nombran el tipo y la propiedad, no la clave `Session:...`. Es el bug [dotnet/runtime#123137](https://github.com/dotnet/runtime/issues/123137); el arreglo está en el PR [#135927](https://github.com/dotnet/runtime/pull/135927).
 - CI no frena un merge. `main` no tiene protección de rama: en un repo privado del plan gratis, GitHub responde 403 a la API de protección y de rulesets. Tobi decidió el 2026-10-18 dejarlo así: revisa los checks antes de mergear. Se revisa si el repo pasa a público o a GitHub Pro.
-- Una versión inexistente (`/api/v9/...`) da 404 sin cuerpo, como cualquier ruta inexistente. `UseStatusCodePages` la volvería ProblemDetails, pero cambia todos los 404 sin cuerpo. Paso 6.
+- Una versión inexistente (`/api/v9/...`) da 404 sin cuerpo, como cualquier ruta inexistente. `UseStatusCodePages` la volvería ProblemDetails, pero cambia todos los 404 sin cuerpo. Paso 6.1.
 - `informe-dotnet-empresarial.md:110` recomienda `Asp.Versioning.Mvc` / `.ApiExplorer`, que son para controllers. El paso 4 usa `Asp.Versioning.Http` (Minimal APIs). El informe no se corrigió. Sin paso asignado.
 - La librería acepta `/api/v1.0/...` como alias de `/api/v1/...`. Es una URL nueva que nadie usa. Sin paso asignado.
 - `check-comments.mjs` revisa `artifacts/`, aunque está en `.gitignore`. Una corrida de e2e cortada deja `.playwright-artifacts-0/` con `.css` de los traces y el gate falla con NOCOMMENT (paso 4). Sin paso asignado.
 - El plan dice que `check-structure.mjs` prueba "sin herramientas duplicadas". Ninguna regla lo hace: nada impide un segundo script de smoke. Hoy lo cumple el diseño, porque `check-all.mjs` llama a `verify.mjs api`. Sin paso asignado.
 - `compose.yaml` fija los puertos 4317 y 4318 del collector. Otro stack con el mismo compose (`hermes-bot-omp`) los ocupa y este no arranca. `POSTGRES_PORT`, `API_PORT` y `WEB_PORT` sí se pueden cambiar. Sin paso asignado.
+- El `title` de un error lleva la descripción de cada caso ("Task with ID '…' not found."). El RFC 9457 §3.1.3 pide un `title` fijo por tipo y el texto variable en `detail`. Tobi decidió el 2026-10-18 dejarlo así: moverlo cambia los textos que ve el usuario. Va junto con que el frontend traduzca por `code` en vez de por status. Sin paso asignado.
+- Las claves del diccionario `errors` salen en PascalCase (`"Title"`, `"DisplayName"`), aunque el JSON es camelCase. Cambiarlas rompe el contrato. Sin paso asignado.
+- `AuthErrors.IdentityRejected` usa el código de Identity (por ejemplo `PasswordTooShort`) como clave de `errors`, no el nombre del campo. Hoy no se ve: el largo se valida antes y `AuthFeature` relaja las demás reglas de contraseña. Sin paso asignado.
+- OpenAPI no describe las respuestas de error: los endpoints usan `Results.*`, que no aporta metadata. `ProducesProblem` por grupo lo resolvería; los valores posibles de `code` pedirían un transformer. Sin paso asignado.
 - `smoke-api.mjs` no comprueba a qué API le habla. Si `API_BASE_URL` apunta a otro servicio, registra usuarios ahí. Pasó en el paso 2 de la Fase 1: dos registros `bob<sufijo>` quedaron en la API de `hermes-bot-omp` (`localhost:18080`). Borrarlos es decisión de Tobi. Sin paso asignado.
 
 ## Cierres

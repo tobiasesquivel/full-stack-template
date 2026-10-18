@@ -24,7 +24,7 @@ public sealed class GetTask
             return TaskErrors.NotFound(id);
 
         if (!await _access.CanAccessAsync(callerId, item, TaskPermissions.Read, ct))
-            return Error.Forbidden(code: "Task.Forbidden", description: "Access denied.");
+            return TaskErrors.Forbidden;
 
         return TaskResponses.From(item);
     }

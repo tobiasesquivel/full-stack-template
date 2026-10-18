@@ -1,37 +1,16 @@
 using Microsoft.AspNetCore.Diagnostics;
-using Microsoft.AspNetCore.Mvc;
+using TemplateApp.Shared.Http;
 
 namespace TemplateApp.Infrastructure.Middlewares;
 
 public class GlobalExceptionHandler : IExceptionHandler
 {
-    private readonly IProblemDetailsService _problemDetailsService;
-
-    public GlobalExceptionHandler(IProblemDetailsService problemDetailsService)
-    {
-        _problemDetailsService = problemDetailsService;
-    }
-
     public async ValueTask<bool> TryHandleAsync(
         HttpContext httpContext,
         Exception exception,
         CancellationToken cancellationToken)
     {
-
-        ProblemDetailsContext problemDetailsContext = new()
-        {
-            HttpContext = httpContext,
-            Exception = exception,
-            ProblemDetails = new ProblemDetails()
-            {
-                Type = exception.GetType().Name,
-                Title = "An error ocurred",
-                Detail = exception.Message
-            }
-        };
-
-        bool problemDetailsResult = await _problemDetailsService.TryWriteAsync(problemDetailsContext);
-
-        return problemDetailsResult;
+        await ApiResults.Problem(HttpErrors.Unexpected).ExecuteAsync(httpContext);
+        return true;
     }
 }

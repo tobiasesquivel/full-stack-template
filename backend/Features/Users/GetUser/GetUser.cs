@@ -29,7 +29,7 @@ public sealed class GetUser
             return UserErrors.NotFound(authId);
 
         if (!await _access.CanAccessAsync(callerId, profile, UserPermissions.Read, ct))
-            return Error.Forbidden(code: "User.Forbidden", description: "Access denied.");
+            return UserErrors.Forbidden;
 
         UserAccount? account = await _accounts.FindAsync(authId, ct);
         if (account is null)

@@ -271,8 +271,18 @@ El paso 0.28 se agregó el 2026-10-17, a pedido de Tobi, con otro pendiente del 
 
 **6. Catálogo de errores estable.**
 **Concepto**: el contrato de error también es API; hoy los códigos se arman en cada caso de uso.
-**Cambia**: `Shared/Http`, catálogos por feature, tests de estados y payloads.
-**Verifica**: test de cada tipo de error (400/401/403/404/409) con `code` estable; `smoke-api.mjs`.
+**Cambia**: `Shared/Http` (`ApiResults` con un solo mapeo, `HttpErrors`), catálogos por feature, el 500 de `GlobalExceptionHandler`, el 401/403 de la cookie en `SessionHttpPolicy`, tests de estados y payloads.
+**Verifica**: test de cada tipo de error (400/401/403/404/409/500) con `code` estable; `smoke-api.mjs`.
+
+**6.1. Todo error sin cuerpo sale como ProblemDetails.**
+**Concepto**: ningún error queda mudo; `UseStatusCodePages` le da cuerpo a las respuestas de error vacías y un `CustomizeProblemDetails` completa el `code`.
+**Cambia**: `Program.cs`, `BackendInfrastructure`, `HttpErrors` (`Http.NotFound`, `Http.MethodNotAllowed`…), `ApiVersioningTests` a propósito.
+**Verifica**: `/api/v9/...` y una ruta inexistente responden 404 con `code`; `dotnet test`; `smoke-api.mjs`.
+
+**6.2. Regla de Dune para el catálogo de errores (DUNE0014).**
+**Concepto**: regla ejecutable; un `Error.<Factory>(...)` de ErrorOr solo se escribe en un `*Errors.cs`, y en una feature el prefijo del código es el de la clase (`TaskErrors` → `Task.`), salvo los de validación, cuyo código es el campo.
+**Cambia**: `dune/Dune.Analyzers`, sus tests, `Dune.props`, `conventions.md`.
+**Verifica**: fixture válida y violación deliberada; rojo sobre el código de antes del paso 6; build en verde.
 
 **7. Paginación por keyset.**
 **Concepto**: lectura estable a escala; el offset se degrada con volumen y duplica filas al insertar.

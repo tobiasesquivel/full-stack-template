@@ -67,7 +67,10 @@ Excepciones (la lista es cerrada):
 
 - Los endpoints adaptan HTTP y devuelven resultados con `ApiResults`. No acceden a EF ni a `UserManager`.
 - Una operación carga el recurso por Id antes de decidir propietario o permiso. Primero 404, después 403. La lista propia filtra por `OwnerId`.
-- `ErrorOr` Validation produce 400 ValidationProblem; Unauthorized, 401; Forbidden, 403; NotFound, 404; Conflict, 409; Unexpected, 500. Un 500 no publica detalles internos.
+- `ErrorOr` Validation produce 400 ValidationProblem; Unauthorized, 401; Forbidden, 403; NotFound, 404; Conflict, 409; Failure y Unexpected, 500. `ApiResults` es el único mapeo de `Error` a HTTP: los handlers, la cookie y el antiforgery pasan por él.
+- Todo error lleva la extensión `code`, el identificador estable del contrato. El cliente decide por `code`, nunca por `title` ni `detail`. Un código publicado no cambia.
+- El código tiene la forma `<Prefijo>.<Motivo>` y sale de un catálogo: `<Feature>Errors.cs` en la raíz de la feature (`TaskErrors` → `Task.`) o `Shared/Http/HttpErrors.cs` para lo que no es de ninguna feature. Un error de validación usa como código el nombre del campo, porque es la clave de `errors`; el 400 suma `code: "Validation.Failed"`.
+- Un 500 no publica detalles internos: sale con `code: "Http.Unexpected"`, sin `detail`, y la excepción va al log. El `traceId` une la respuesta con el log.
 - JSON en camelCase. Toda ruta de la API cuelga del grupo versionado `/api/v{version:apiVersion}` de `Infrastructure/Http/VersionedApi.cs`; hoy la única versión es la 1. Cada `Map<Feature>Endpoints` recibe ese `RouteGroupBuilder` y no crea su propio version set (DUNE0012). Un `Location` se arma con `LinkGenerator.GetPathByName` y el nombre del endpoint de destino, nunca con la ruta escrita a mano.
 
 ## Persistencia

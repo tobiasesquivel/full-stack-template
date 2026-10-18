@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using TemplateApp.Features.Auth.Domain;
+using TemplateApp.Shared.Http;
 
 namespace TemplateApp.Features.Auth;
 
@@ -29,8 +30,8 @@ public sealed class SessionHttpPolicy
         options.ExpireTimeSpan = session.Lifetime;
         options.SlidingExpiration = false;
         options.Events.OnValidatePrincipal = ValidatePrincipalAsync;
-        options.Events.OnRedirectToLogin = context => Respond(context.Response, StatusCodes.Status401Unauthorized);
-        options.Events.OnRedirectToAccessDenied = context => Respond(context.Response, StatusCodes.Status403Forbidden);
+        options.Events.OnRedirectToLogin = context => ApiResults.Problem(AuthErrors.SessionRequired).ExecuteAsync(context.HttpContext);
+        options.Events.OnRedirectToAccessDenied = context => ApiResults.Problem(AuthErrors.AccessDenied).ExecuteAsync(context.HttpContext);
     }
 
     public static async Task RequireAntiforgeryAsync(HttpContext http, RequestDelegate next)
@@ -48,11 +49,7 @@ public sealed class SessionHttpPolicy
             return;
         }
 
-        await Results.Problem(
-                statusCode: StatusCodes.Status400BadRequest,
-                title: "Invalid antiforgery token.",
-                extensions: new Dictionary<string, object?> { ["code"] = "Auth.AntiforgeryFailed" })
-            .ExecuteAsync(http);
+        await ApiResults.Problem(AuthErrors.AntiforgeryFailed).ExecuteAsync(http);
     }
 
     public async Task SignInAsync(HttpContext http, Session session)
@@ -106,10 +103,4 @@ public sealed class SessionHttpPolicy
             || HttpMethods.IsHead(request.Method)
             || HttpMethods.IsOptions(request.Method)
             || HttpMethods.IsTrace(request.Method));
-
-    private static Task Respond(HttpResponse response, int status)
-    {
-        response.StatusCode = status;
-        return Task.CompletedTask;
-    }
 }

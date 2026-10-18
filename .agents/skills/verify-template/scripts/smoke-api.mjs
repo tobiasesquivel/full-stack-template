@@ -143,16 +143,18 @@ const live = await anonymous.request('GET', 'health/live');
 assert.equal(live.headers.get('api-supported-versions'), '1.0', 'La API declara sus versiones soportadas');
 await anonymous.request('GET', '../v9/health/live', undefined, { expected: 404 });
 await anonymous.request('GET', 'health/ready');
-await anonymous.request('GET', 'tasks', undefined, { expected: 401 });
+const withoutSession = await anonymous.request('GET', 'tasks', undefined, { expected: 401 });
+assert.equal(withoutSession.payload.code, 'Auth.SessionRequired');
 const withoutCsrf = await anonymous.request('POST', 'auth/login', { userName: 'nobody', password },
   { expected: 400, csrf: false });
 assert.equal(withoutCsrf.payload.code, 'Auth.AntiforgeryFailed');
 const aliceName = `alice${suffix}`;
 const aliceUser = await alice.register(aliceName);
 await bob.register(`bob${suffix}`);
-await alice.request('POST', 'auth/register', {
+const duplicate = await alice.request('POST', 'auth/register', {
   userName: aliceName, email: `${aliceName}@example.test`, password, displayName: aliceName,
 }, { expected: 409 });
+assert.equal(duplicate.payload.code, 'Auth.UserNameAlreadyExists');
 const writeWithoutCsrf = await alice.request('POST', 'tasks', { title: 'Sin token antiforgery' },
   { expected: 400, csrf: false });
 assert.equal(writeWithoutCsrf.payload.code, 'Auth.AntiforgeryFailed', 'Toda escritura de la API exige antiforgery');
@@ -166,10 +168,14 @@ const changedProfile = (await alice.request('PUT', 'users/me', {
 })).payload;
 assert.equal(changedProfile.displayName, 'Perfil de smoke');
 assert.equal(changedProfile.timezone, 'America/Argentina/Buenos_Aires');
-await alice.request('PUT', 'users/me', { displayName: 'Perfil', timezone: 'No/Existe' }, { expected: 400 });
-await bob.request('GET', `users/${aliceUser.authId}`, undefined, { expected: 403 });
+const badProfile = await alice.request('PUT', 'users/me', { displayName: 'Perfil', timezone: 'No/Existe' }, { expected: 400 });
+assert.equal(badProfile.payload.code, 'Validation.Failed');
+const foreignUser = await bob.request('GET', `users/${aliceUser.authId}`, undefined, { expected: 403 });
+assert.equal(foreignUser.payload.code, 'User.Forbidden');
 
-await alice.request('POST', 'tasks', { title: '   ' }, { expected: 400 });
+const blankTitle = await alice.request('POST', 'tasks', { title: '   ' }, { expected: 400 });
+assert.equal(blankTitle.payload.code, 'Validation.Failed');
+assert.ok(blankTitle.payload.errors.Title, 'El 400 de validación conserva los errores por campo');
 const created = (await alice.request('POST', 'tasks', { title: '  Primera tarea  ' }, { expected: 201 })).payload;
 assert.equal(created.title, 'Primera tarea');
 assert.equal(created.isCompleted, false);
@@ -187,12 +193,15 @@ assert.equal(new Set([...firstPage.items, ...secondPage.items].map(item => item.
 const bobPage = (await bob.request('GET', 'tasks')).payload;
 assert.deepEqual(bobPage.items, []);
 assert.equal(bobPage.totalCount, 0);
-await alice.request('GET', 'tasks?pageSize=101', undefined, { expected: 400 });
+const bigPage = await alice.request('GET', 'tasks?pageSize=101', undefined, { expected: 400 });
+assert.equal(bigPage.payload.code, 'Validation.Failed');
 for (const method of ['GET', 'PUT', 'DELETE']) {
-  await bob.request(method, `tasks/${created.id}`, method === 'PUT' ? { title: 'Ajena', isCompleted: true } : undefined,
-    { expected: 403 });
+  const foreignTask = await bob.request(method, `tasks/${created.id}`,
+    method === 'PUT' ? { title: 'Ajena', isCompleted: true } : undefined, { expected: 403 });
+  assert.equal(foreignTask.payload.code, 'Task.Forbidden');
 }
-await alice.request('GET', `tasks/${crypto.randomUUID()}`, undefined, { expected: 404 });
+const missingTask = await alice.request('GET', `tasks/${crypto.randomUUID()}`, undefined, { expected: 404 });
+assert.equal(missingTask.payload.code, 'Task.NotFound');
 const updated = (await alice.request('PUT', `tasks/${created.id}`, { title: 'Estado final', isCompleted: true })).payload;
 assert.equal(updated.title, 'Estado final');
 assert.equal(updated.isCompleted, true);
@@ -207,7 +216,8 @@ await laptop.open(aliceName);
 const closedCookie = laptop.onlySession();
 await laptop.request('POST', 'auth/logout', undefined, { expected: 204 });
 assert.equal(laptop.cookies.has(SESSION_COOKIE), false, 'Cerrar la sesión borra la cookie');
-await closedCookie.request('GET', 'users/me', undefined, { expected: 401 });
+const closed = await closedCookie.request('GET', 'users/me', undefined, { expected: 401 });
+assert.equal(closed.payload.code, 'Auth.SessionRequired', 'Una sesión cerrada responde igual que una ausente');
 assert.equal((await alice.request('GET', `tasks/${created.id}`)).payload.title, 'Estado final',
   'Cerrar otra sesión del mismo usuario no corta esta');
 
@@ -230,7 +240,8 @@ await alice.request('DELETE', `tasks/${created.id}`, undefined, { expected: 204 
 await alice.request('GET', `tasks/${created.id}`, undefined, { expected: 404 });
 const revoked = alice.onlySession();
 await alice.request('POST', 'auth/logout', undefined, { expected: 204 });
-await revoked.request('GET', 'users/me', undefined, { expected: 401 });
+const revokedSession = await revoked.request('GET', 'users/me', undefined, { expected: 401 });
+assert.equal(revokedSession.payload.code, 'Auth.SessionRequired');
 await alice.request('GET', 'users/me', undefined, { expected: 401 });
 await alice.open(aliceName);
 await alice.request('DELETE', 'users/me', undefined, { expected: 204 });

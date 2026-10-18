@@ -1,4 +1,5 @@
 using ErrorOr;
+using Microsoft.AspNetCore.Identity;
 
 namespace TemplateApp.Features.Auth;
 
@@ -24,11 +25,35 @@ public static class AuthErrors
         code: "Auth.AccountNotFound",
         description: "Account not found.");
 
-    public static readonly Error InvalidSession = Error.Unauthorized(
-        code: "Auth.InvalidSession",
-        description: "Invalid session.");
+    public static readonly Error SessionRequired = Error.Unauthorized(
+        code: "Auth.SessionRequired",
+        description: "An active session is required.");
 
-    public static readonly Error SessionRevoked = Error.Unauthorized(
-        code: "Auth.SessionRevoked",
-        description: "Session has been revoked.");
+    public static readonly Error AccessDenied = Error.Forbidden(
+        code: "Auth.AccessDenied",
+        description: "Access denied.");
+
+    public static readonly Error AntiforgeryFailed = Error.Validation(
+        code: "Auth.AntiforgeryFailed",
+        description: "Invalid antiforgery token.");
+
+    public static readonly Error InvalidUserName = Error.Validation(
+        code: "UserName",
+        description: "UserName must be between 1 and 100 characters.");
+
+    public static readonly Error InvalidEmail = Error.Validation(
+        code: "Email",
+        description: "Email must be a valid email address.");
+
+    public static readonly Error InvalidPassword = Error.Validation(
+        code: "Password",
+        description: "Password must be between 6 and 128 characters.");
+
+    public static Error IdentityRejected(IdentityError error) => Error.Validation(
+        code: error.Code,
+        description: error.Description);
+
+    public static Error AccountDeleteFailed(IdentityError error) => Error.Failure(
+        code: "Auth.AccountDeleteFailed",
+        description: error.Description);
 }

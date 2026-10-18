@@ -29,7 +29,7 @@ public sealed class CreateTask
             return ValidationErrors.From(validation);
 
         if (!await _access.HasPermissionAsync(callerId, TaskPermissions.Create, ct))
-            return Error.Forbidden(code: "Task.Forbidden", description: "Access denied.");
+            return TaskErrors.Forbidden;
 
         var item = new TaskItem
         {

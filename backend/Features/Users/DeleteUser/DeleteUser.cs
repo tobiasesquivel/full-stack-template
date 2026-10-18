@@ -28,7 +28,7 @@ public sealed class DeleteUser
             return UserErrors.NotFound(authId);
 
         if (!await _access.CanAccessAsync(callerId, profile, UserPermissions.Manage, ct))
-            return Error.Forbidden(code: "User.Forbidden", description: "Access denied.");
+            return UserErrors.Forbidden;
 
         ErrorOr<Success> deleted = await _accounts.DeleteAsync(authId, ct);
         if (deleted.IsError && deleted.FirstError.Type == ErrorType.NotFound)

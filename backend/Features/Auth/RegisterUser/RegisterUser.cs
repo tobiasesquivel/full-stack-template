@@ -36,11 +36,11 @@ public sealed class RegisterUser
         string email = request.Email.Trim();
 
         if (userName.Length is < 1 or > 100)
-            return Error.Validation(code: "UserName", description: "UserName must be between 1 and 100 characters.");
+            return AuthErrors.InvalidUserName;
         if (email.Length is < 3 or > 256 || !email.Contains('@'))
-            return Error.Validation(code: "Email", description: "Email must be a valid email address.");
+            return AuthErrors.InvalidEmail;
         if (request.Password.Length is < 6 or > 128)
-            return Error.Validation(code: "Password", description: "Password must be between 6 and 128 characters.");
+            return AuthErrors.InvalidPassword;
 
         await using var tx = await _db.Database.BeginTransactionAsync(ct);
 
@@ -79,7 +79,7 @@ public sealed class RegisterUser
             }
             else
             {
-                errors.Add(Error.Validation(code: e.Code, description: e.Description));
+                errors.Add(AuthErrors.IdentityRejected(e));
             }
         }
 

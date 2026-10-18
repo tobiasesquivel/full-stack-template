@@ -20,6 +20,12 @@
 - **Regla de Dune:** DUNE0013 nueva: "`Error.<Factory>(...)` de ErrorOr solo en un `*Errors.cs`". Es factible con la misma técnica de DUNE0011/0012 (operaciones de invocación y símbolo del método). Obliga a mover 13 llamadas en línea a los catálogos. Opcional en la misma regla: el prefijo del código coincide con la clase (`TaskErrors` → `Task.`).
 - **Pruebas:** un test por status con `code` exacto (400, 401, 403, 404, 409 y 500) y el smoke con aserciones de `code`. Hoy solo un test afirma un `code` (`IssueCsrfTokenTests.cs:128`).
 
+## Correcciones al implementar (2026-10-18)
+
+- **El log del 500.** La sección 3 supone que `ExceptionHandlerMiddleware` registra la excepción antes de llamar al handler. Es incorrecto para .NET 10: si `IExceptionHandler.TryHandleAsync` devuelve `true`, el middleware ya no registra nada ([breaking change de ASP.NET Core 10](https://learn.microsoft.com/en-us/aspnet/core/breaking-changes/10/exception-handler-diagnostics-suppressed?view=aspnetcore-10.0)). El repo ya estaba así: un 500 no dejaba la excepción en el log. El paso 6 configura `ExceptionHandlerOptions.SuppressDiagnosticsCallback = _ => false`, la acción que recomienda esa página, y `ErrorContractTests` lo prueba.
+- **El número de la regla.** La sección 6 propone DUNE0013, pero el paso 5.4 ya lo usó para la lectura de configuración. La regla del catálogo es DUNE0014 (paso 6.2).
+- **`Auth.AccountDeleteFailed`.** La tabla de la sección 2 deja abierto el nombre para la falla de Identity al borrar una cuenta. Quedó `AuthErrors.AccountDeleteFailed`, con código fijo `Auth.AccountDeleteFailed`, porque un `code` de primer nivel tiene que salir del catálogo.
+
 ## 1. Qué hace estable a un contrato de error
 
 **Respuesta:** un identificador legible por máquina que nunca cambia para la misma condición. El texto para humanos puede cambiar. En este repo ese identificador es la extensión `code`.
