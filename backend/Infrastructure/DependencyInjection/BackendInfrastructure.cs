@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using TemplateApp.Infrastructure.Middlewares;
 using TemplateApp.Infrastructure.Persistence;
+using TemplateApp.Shared.Http;
 
 namespace TemplateApp.Infrastructure.DependencyInjection;
 
@@ -12,7 +13,10 @@ public static class BackendInfrastructure
 {
     public static IServiceCollection AddBackendInfrastructure(this IServiceCollection services)
     {
-        services.AddProblemDetails();
+        services.AddProblemDetails(options => options.CustomizeProblemDetails = context =>
+            context.ProblemDetails.Extensions.TryAdd(
+                "code",
+                HttpErrors.CodeFor(context.ProblemDetails.Status ?? context.HttpContext.Response.StatusCode)));
         services.AddExceptionHandler<GlobalExceptionHandler>();
         services.Configure<ExceptionHandlerOptions>(options => options.SuppressDiagnosticsCallback = _ => false);
 

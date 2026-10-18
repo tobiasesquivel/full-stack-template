@@ -25,7 +25,7 @@ public sealed class ErrorContractTests : IClassFixture<ApiFixture>
 
         SessionResponse response = await alice.SendAsync(HttpMethod.Post, "api/v1/tasks", new { title = "   " });
 
-        JsonElement problem = AssertProblem(response, HttpStatusCode.BadRequest, "Validation.Failed");
+        JsonElement problem = ProblemAssert.Problem(response, HttpStatusCode.BadRequest, "Validation.Failed");
         Assert.True(problem.GetProperty("errors").TryGetProperty("Title", out _));
     }
 
@@ -37,7 +37,7 @@ public sealed class ErrorContractTests : IClassFixture<ApiFixture>
 
         SessionResponse response = await alice.SendAsync(HttpMethod.Get, "api/v1/tasks?pageSize=101", csrf: false);
 
-        JsonElement problem = AssertProblem(response, HttpStatusCode.BadRequest, "Validation.Failed");
+        JsonElement problem = ProblemAssert.Problem(response, HttpStatusCode.BadRequest, "Validation.Failed");
         Assert.True(problem.GetProperty("errors").TryGetProperty("PageSize", out _));
     }
 
@@ -52,7 +52,7 @@ public sealed class ErrorContractTests : IClassFixture<ApiFixture>
             new { userName = "nobody", password = "wrong-password" },
             csrf: false);
 
-        JsonElement problem = AssertProblem(response, HttpStatusCode.BadRequest, "Auth.AntiforgeryFailed");
+        JsonElement problem = ProblemAssert.Problem(response, HttpStatusCode.BadRequest, "Auth.AntiforgeryFailed");
         Assert.False(problem.TryGetProperty("errors", out _));
     }
 
@@ -67,7 +67,7 @@ public sealed class ErrorContractTests : IClassFixture<ApiFixture>
             "api/v1/auth/login",
             new { userName = TestAccounts.UniqueName("ghost"), password = "wrong-password" });
 
-        AssertProblem(response, HttpStatusCode.Unauthorized, "Auth.InvalidCredentials");
+        ProblemAssert.Problem(response, HttpStatusCode.Unauthorized, "Auth.InvalidCredentials");
     }
 
     [Fact]
@@ -77,7 +77,7 @@ public sealed class ErrorContractTests : IClassFixture<ApiFixture>
 
         SessionResponse response = await anonymous.SendAsync(HttpMethod.Get, "api/v1/tasks", csrf: false);
 
-        AssertProblem(response, HttpStatusCode.Unauthorized, "Auth.SessionRequired");
+        ProblemAssert.Problem(response, HttpStatusCode.Unauthorized, "Auth.SessionRequired");
     }
 
     [Fact]
@@ -91,7 +91,7 @@ public sealed class ErrorContractTests : IClassFixture<ApiFixture>
 
         SessionResponse response = await bob.SendAsync(HttpMethod.Get, $"api/v1/tasks/{id}", csrf: false);
 
-        AssertProblem(response, HttpStatusCode.Forbidden, "Task.Forbidden");
+        ProblemAssert.Problem(response, HttpStatusCode.Forbidden, "Task.Forbidden");
     }
 
     [Fact]
@@ -104,7 +104,7 @@ public sealed class ErrorContractTests : IClassFixture<ApiFixture>
 
         SessionResponse response = await bob.SendAsync(HttpMethod.Get, $"api/v1/users/{alice.AuthId}", csrf: false);
 
-        AssertProblem(response, HttpStatusCode.Forbidden, "User.Forbidden");
+        ProblemAssert.Problem(response, HttpStatusCode.Forbidden, "User.Forbidden");
     }
 
     [Fact]
@@ -115,7 +115,7 @@ public sealed class ErrorContractTests : IClassFixture<ApiFixture>
 
         SessionResponse response = await alice.SendAsync(HttpMethod.Get, ErrorProbe.ForbidPath.TrimStart('/'), csrf: false);
 
-        AssertProblem(response, HttpStatusCode.Forbidden, "Auth.AccessDenied");
+        ProblemAssert.Problem(response, HttpStatusCode.Forbidden, "Auth.AccessDenied");
     }
 
     [Fact]
@@ -126,7 +126,7 @@ public sealed class ErrorContractTests : IClassFixture<ApiFixture>
 
         SessionResponse response = await alice.SendAsync(HttpMethod.Get, $"api/v1/tasks/{Guid.NewGuid():D}", csrf: false);
 
-        AssertProblem(response, HttpStatusCode.NotFound, "Task.NotFound");
+        ProblemAssert.Problem(response, HttpStatusCode.NotFound, "Task.NotFound");
     }
 
     [Fact]
@@ -144,7 +144,76 @@ public sealed class ErrorContractTests : IClassFixture<ApiFixture>
             "api/v1/auth/register",
             new { userName = other, email = $"{name}@example.test", password = $"Smoke!{Guid.NewGuid():N}Aa9", displayName = other });
 
-        AssertProblem(response, HttpStatusCode.Conflict, "Auth.EmailAlreadyExists");
+        ProblemAssert.Problem(response, HttpStatusCode.Conflict, "Auth.EmailAlreadyExists");
+    }
+
+    [Fact]
+    public async Task UnknownRoute_Returns404_HttpNotFound()
+    {
+        TestSession anonymous = new(_fixture.CreateClient());
+
+        SessionResponse response = await anonymous.SendAsync(HttpMethod.Get, "nope", csrf: false);
+
+        ProblemAssert.Problem(response, HttpStatusCode.NotFound, "Http.NotFound");
+    }
+
+    [Fact]
+    public async Task IdThatIsNotAGuid_Returns404_HttpNotFound()
+    {
+        TestSession alice = new(_fixture.CreateClient());
+        await alice.RegisterAsync(TestAccounts.UniqueName("alice"));
+
+        SessionResponse response = await alice.SendAsync(HttpMethod.Get, "api/v1/tasks/no-guid", csrf: false);
+
+        ProblemAssert.Problem(response, HttpStatusCode.NotFound, "Http.NotFound");
+    }
+
+    [Fact]
+    public async Task WrongMethod_Returns405_HttpMethodNotAllowed()
+    {
+        TestSession alice = new(_fixture.CreateClient());
+        await alice.RegisterAsync(TestAccounts.UniqueName("alice"));
+
+        SessionResponse response = await alice.SendAsync(HttpMethod.Patch, "api/v1/tasks");
+
+        ProblemAssert.Problem(response, HttpStatusCode.MethodNotAllowed, "Http.MethodNotAllowed");
+    }
+
+    [Fact]
+    public async Task PlainTextBody_Returns415_HttpUnsupportedMediaType()
+    {
+        TestSession alice = new(_fixture.CreateClient());
+        await alice.RegisterAsync(TestAccounts.UniqueName("alice"));
+
+        SessionResponse response = await alice.SendRawAsync(HttpMethod.Post, "api/v1/tasks", "hola", "text/plain");
+
+        ProblemAssert.Problem(response, HttpStatusCode.UnsupportedMediaType, "Http.UnsupportedMediaType");
+    }
+
+    [Fact]
+    public async Task BrokenJson_Returns400_HttpBadRequest()
+    {
+        TestSession alice = new(_fixture.CreateClient());
+        await alice.RegisterAsync(TestAccounts.UniqueName("alice"));
+
+        SessionResponse response = await alice.SendRawAsync(HttpMethod.Post, "api/v1/tasks", "{\"title\":", "application/json");
+
+        ProblemAssert.Problem(response, HttpStatusCode.BadRequest, "Http.BadRequest");
+    }
+
+    [Fact]
+    public async Task AuthLimiterRejection_Returns503_HttpServiceUnavailable()
+    {
+        TestSession anonymous = new(_fixture.CreateIsolatedClient(_ => { }, out _));
+        await anonymous.CsrfAsync();
+        SessionResponse response = await anonymous.SendAsync(HttpMethod.Post, "api/v1/auth/logout");
+        for (int attempt = 0; attempt < 20 && response.Status != HttpStatusCode.ServiceUnavailable; attempt++)
+        {
+            response.Payload?.Dispose();
+            response = await anonymous.SendAsync(HttpMethod.Post, "api/v1/auth/logout");
+        }
+
+        ProblemAssert.Problem(response, HttpStatusCode.ServiceUnavailable, "Http.ServiceUnavailable");
     }
 
     [Fact]
@@ -161,7 +230,7 @@ public sealed class ErrorContractTests : IClassFixture<ApiFixture>
 
         SessionResponse response = await anonymous.SendAsync(HttpMethod.Get, ErrorProbe.ThrowPath.TrimStart('/'), csrf: false);
 
-        JsonElement problem = AssertProblem(response, HttpStatusCode.InternalServerError, "Http.Unexpected");
+        JsonElement problem = ProblemAssert.Problem(response, HttpStatusCode.InternalServerError, "Http.Unexpected");
         Assert.False(problem.TryGetProperty("detail", out _));
         Assert.DoesNotContain(ErrorProbe.SecretMessage, response.Text, StringComparison.Ordinal);
         Assert.DoesNotContain(nameof(InvalidOperationException), response.Text, StringComparison.Ordinal);
@@ -171,17 +240,4 @@ public sealed class ErrorContractTests : IClassFixture<ApiFixture>
 
     private static void AddErrorProbe(IServiceCollection services) =>
         services.AddSingleton<IStartupFilter, ErrorProbe>();
-
-    private static JsonElement AssertProblem(SessionResponse response, HttpStatusCode status, string code)
-    {
-        Assert.Equal(status, response.Status);
-        Assert.StartsWith("application/problem+json", Assert.Contains("Content-Type", response.Headers), StringComparison.Ordinal);
-        Assert.NotNull(response.Payload);
-        JsonElement problem = response.Payload.RootElement.Clone();
-        response.Payload.Dispose();
-        Assert.Equal((int)status, problem.GetProperty("status").GetInt32());
-        Assert.Equal(code, problem.GetProperty("code").GetString());
-        Assert.False(string.IsNullOrWhiteSpace(problem.GetProperty("traceId").GetString()));
-        return problem;
-    }
 }
