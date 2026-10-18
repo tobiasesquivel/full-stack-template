@@ -123,7 +123,8 @@ Una entrada por paso cerrado, con este formato:
 - Evidencia: artifacts/verify-template/<runId>/
 ```
 
-$1- Enseñado (explicado el 2026-10-18, después del cierre): un gate vale si prueba algo real (conteos de tests distintos de cero), si se pone rojo con una violación deliberada en el step correcto (PR #42, una falla por job) y si bloquea. El tercer punto no se cumple: sin protección de rama, CI avisa pero no frena un merge.
+### Paso 3 — 2026-10-18
+- Enseñado (explicado el 2026-10-18, después del cierre): un gate vale si prueba algo real (conteos de tests distintos de cero), si se pone rojo con una violación deliberada en el step correcto (PR #42, una falla por job) y si bloquea. El tercer punto no se cumple: sin protección de rama, CI avisa pero no frena un merge.
 - Preguntas: Tobi preguntó qué entendía el agente que estaban haciendo. Con eso marcó que los pasos 2 y 3 se habían cerrado sin enseñar; de ahí salió la regla 11 de `AGENTS.md`. No preguntó sobre el concepto.
 - Decisiones: Tobi decidió dejar `main` sin protección (el repo privado del plan gratis no la permite) y dejar las e2e de CI para otro paso. Dos filas en `docs/decisions.tsv`.
 - Evidencia:
@@ -134,7 +135,8 @@ $1- Enseñado (explicado el 2026-10-18, después del cierre): un gate vale si pr
   - E2E en CI: NOT_RUN, por decisión de Tobi.
   - `ci.yml`: sin cambios. El plan lo cambia solo si un job falla, y ninguno falla.
 
-$1- Enseñado (explicado el 2026-10-18, después del cierre): un pipeline local reproducible. `check-all.mjs` corre en orden los 13 gates del README y el runtime; el primer `FAIL` corta con `break` (`check-all.mjs:201-203`) y lo siguiente queda `NOT_RUN`; `cleanup` corre siempre después de `launch` (`:251`). El smoke HTTP sigue con una sola fuente: el wrapper llama a `verify.mjs api`.
+### Paso 2 — 2026-10-17
+- Enseñado (explicado el 2026-10-18, después del cierre): un pipeline local reproducible. `check-all.mjs` corre en orden los 13 gates del README y el runtime; el primer `FAIL` corta con `break` (`check-all.mjs:201-203`) y lo siguiente queda `NOT_RUN`; `cleanup` corre siempre después de `launch` (`:251`). El smoke HTTP sigue con una sola fuente: el wrapper llama a `verify.mjs api`.
 - Preguntas: ninguna sobre el concepto.
 - Decisiones: una fila en `docs/decisions.tsv` (el wrapper corta en el primer fallo y guarda el runtime en una subcarpeta).
 - Evidencia:
