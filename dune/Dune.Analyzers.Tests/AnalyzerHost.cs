@@ -51,7 +51,8 @@ internal static class AnalyzerHost
             new DbSetShadowAnalyzer(),
             new OwnerPredicateAnalyzer(),
             new NoCommentsAnalyzer(),
-            new OneTypePerFileAnalyzer());
+            new OneTypePerFileAnalyzer(),
+            new ApiRouteAnalyzer());
 
     public static Func<ImmutableArray<DiagnosticAnalyzer>> Only<T>()
         where T : DiagnosticAnalyzer, new() =>
