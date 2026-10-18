@@ -80,7 +80,7 @@ Después de cleanup, comprueba que `summary.json` y los logs sigan en la carpeta
 ## Helpers
 
 - `scripts/verify.mjs` ejecuta `launch`, `doctor`, `api` y `cleanup`. Ejecuta `node .agents/skills/verify-template/scripts/verify.mjs --help` para sus opciones y timeouts.
-- `scripts/smoke-api.mjs` es la única fuente del smoke HTTP. El comando `api` lo ejecuta con la URL propia. Para un conjunto Compose creado por esta misma ejecución, el script también admite `--compose` y `OTEL_EXPORT_DIR`. Ese modo detiene y reinicia `db` y `api`; úsalo solo cuando poseas ese Compose completo.
+- `scripts/smoke-api.mjs` es la única fuente del smoke HTTP. El comando `api` lo ejecuta con la URL propia. Para un conjunto Compose creado por esta misma ejecución, el script también admite `--compose` y `OTEL_EXPORT_DIR`. Ese modo detiene y reinicia `db`, recrea el contenedor de `api` y comprueba que la misma cookie de sesión siga valiendo; úsalo solo cuando poseas ese Compose completo.
 - [Mapa de features](features/README.md) mantiene los recorridos y selectors de la UI.
 
 Actualizá este mapa en el mismo PR que cambie rutas, contratos o controles visibles.
