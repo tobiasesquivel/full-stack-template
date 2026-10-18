@@ -249,6 +249,11 @@ El paso 0.28 se agregó el 2026-10-17, a pedido de Tobi, con otro pendiente del 
 **Cambia**: options de cada feature (por ejemplo `SessionOptions` en Auth) y del host, `appsettings.example.json`, tests de arranque.
 **Verifica**: nuevo test que arranca el host con configuración inválida y espera fallo con mensaje claro; `dotnet test` completo.
 
+**5.1. Inicialización de la base como hosted service.**
+**Concepto**: ciclo de vida del host; el host ordena el arranque (validar → hosted services → Kestrel) y el código entre `Build()` y `RunAsync()` queda fuera de ese orden.
+**Cambia**: `DatabaseInitializer` pasa a un `IHostedService` en `Infrastructure/Persistence`; `Program.cs` pierde la validación a mano; los registros de options usan `AddOptionsWithValidateOnStart`.
+**Verifica**: `ConfigurationValidationTests` sin cambios; rojo con la migración otra vez antes de `RunAsync`; `dotnet test` completo.
+
 **6. Catálogo de errores estable.**
 **Concepto**: el contrato de error también es API; hoy los códigos se arman en cada caso de uso.
 **Cambia**: `Shared/Http`, catálogos por feature, tests de estados y payloads.

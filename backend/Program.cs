@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Options;
 using Serilog;
 using Serilog.Sinks.OpenTelemetry;
 using TemplateApp.Features.Auth;
@@ -8,7 +7,6 @@ using TemplateApp.Features.Users;
 using TemplateApp.Infrastructure.DependencyInjection;
 using TemplateApp.Infrastructure.Http;
 using TemplateApp.Infrastructure.Observability;
-using TemplateApp.Infrastructure.Persistence;
 
 string otlpEndpoint = Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT") ?? "http://localhost:4318";
 string environmentName = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? Environments.Production;
@@ -44,22 +42,19 @@ try
     builder.Host.UseSerilog();
 
     builder.Services.AddBackendInfrastructure(builder.Configuration);
-    builder.Services.AddTemplateObservability(builder.Configuration, builder.Environment);
-    builder.Services.AddAuthFeature(builder.Configuration);
+    builder.Services.AddTemplateObservability(builder.Environment);
+    builder.Services.AddAuthFeature();
     builder.Services.AddUsersFeature();
     builder.Services.AddTasksFeature();
     builder.Services.AddHealthFeature(builder.Configuration);
     builder.Services.AddVersionedApi();
 
     WebApplication app = builder.Build();
-    app.Services.GetRequiredService<IStartupValidator>().Validate();
 
     if (app.Environment.IsDevelopment())
     {
         app.MapOpenApi().WithDocumentPerVersion();
     }
-
-    await app.InitializeDatabaseAsync();
 
     app.UseSerilogRequestLogging();
     app.UseExceptionHandler();

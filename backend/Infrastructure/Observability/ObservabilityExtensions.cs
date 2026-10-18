@@ -13,14 +13,12 @@ public static class ObservabilityExtensions
 
     public static IServiceCollection AddTemplateObservability(
         this IServiceCollection services,
-        IConfiguration configuration,
         IHostEnvironment environment)
     {
-        services.AddOptions<TelemetryOptions>()
-            .Bind(configuration.GetSection(TelemetryOptions.Section))
-            .Configure(options => options.Endpoint = configuration[TelemetryOptions.EndpointVariable] ?? options.Endpoint)
-            .ValidateOnStart();
-        services.AddSingleton<IValidateOptions<TelemetryOptions>, TelemetryOptionsValidator>();
+        services.AddOptionsWithValidateOnStart<TelemetryOptions, TelemetryOptionsValidator>()
+            .BindConfiguration(TelemetryOptions.Section)
+            .Configure<IConfiguration>((options, config) =>
+                options.Endpoint = config[TelemetryOptions.EndpointVariable] ?? options.Endpoint);
         services.AddOptions<OtlpExporterOptions>(TracesExporter)
             .Configure<IOptions<TelemetryOptions>>((exporter, telemetry) =>
                 ConfigureExporter(exporter, telemetry.Value.SignalEndpoint("traces")));

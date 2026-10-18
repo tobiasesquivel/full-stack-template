@@ -15,12 +15,12 @@ public static class BackendInfrastructure
         services.AddProblemDetails();
         services.AddExceptionHandler<GlobalExceptionHandler>();
 
-        services.AddOptions<DatabaseOptions>()
-            .Bind(configuration.GetSection(DatabaseOptions.Section))
-            .ValidateOnStart();
-        services.AddSingleton<IValidateOptions<DatabaseOptions>, DatabaseOptionsValidator>();
+        services.AddOptionsWithValidateOnStart<DatabaseOptions, DatabaseOptionsValidator>()
+            .BindConfiguration(DatabaseOptions.Section);
         services.AddDbContext<AppDbContext>((provider, options) =>
             options.UseNpgsql(provider.GetRequiredService<IOptions<DatabaseOptions>>().Value.DefaultConnection));
+
+        services.AddHostedService<DatabaseInitialization>();
 
         services.AddSingleton(TimeProvider.System);
         services.AddDataProtectionKeys(configuration);

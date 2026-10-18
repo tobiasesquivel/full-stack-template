@@ -7,12 +7,6 @@ public static class DatabaseInitializer
 {
     private const long InitializationLockKey = 7_164_253_001;
 
-    public static Task InitializeDatabaseAsync(this WebApplication app, CancellationToken ct = default)
-    {
-        ArgumentNullException.ThrowIfNull(app);
-        return InitializeAsync(app.Services, ct);
-    }
-
     public static async Task InitializeAsync(IServiceProvider rootServices, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(rootServices);
