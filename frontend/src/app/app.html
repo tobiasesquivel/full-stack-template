@@ -1,12 +1,25 @@
-<a class="absolute -left-[9999px] text-blue-700 hover:underline focus:top-2 focus:left-2" href="#contenido">Saltar al contenido</a>
+<a
+  class="absolute -left-[9999px] text-blue-700 hover:underline focus:top-2 focus:left-2"
+  href="#contenido"
+  >Saltar al contenido</a
+>
 <header class="border-b border-slate-200 bg-white">
-  <nav aria-label="Principal" class="mx-auto flex max-w-3xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
-    <a routerLink="/tasks" class="text-lg/normal font-bold text-slate-900 hover:underline">Tareas</a>
+  <nav
+    aria-label="Principal"
+    class="mx-auto flex max-w-3xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3"
+  >
+    <a routerLink="/tasks" class="text-lg/normal font-bold text-slate-900 hover:underline"
+      >Tareas</a
+    >
     @if (session.status() !== 'restoring') {
       @if (session.isOpen()) {
         <a routerLink="/tasks" class="text-blue-700 hover:underline">Mis tareas</a>
         <a routerLink="/profile" class="text-blue-700 hover:underline">Mi perfil</a>
-        <span role="status" class="ml-auto text-sm/normal text-slate-600 max-xs:ml-0 max-xs:w-full">{{ session.currentUser()?.displayName }}</span>
+        <span
+          role="status"
+          class="ml-auto text-sm/normal text-slate-600 max-xs:ml-0 max-xs:w-full"
+          >{{ session.currentUser()?.displayName }}</span
+        >
         <button
           type="button"
           class="cursor-pointer rounded-lg border border-blue-700 bg-white px-4 py-2 text-blue-700 hover:enabled:border-blue-800 hover:enabled:bg-blue-50 hover:enabled:text-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
@@ -22,7 +35,9 @@
     }
   </nav>
   @if (logoutError()) {
-    <p role="alert" class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-red-800">{{ logoutError() }}</p>
+    <p role="alert" class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-red-800">
+      {{ logoutError() }}
+    </p>
   }
 </header>
 <main id="contenido" class="mx-auto w-full max-w-3xl p-4 max-xs:p-3">

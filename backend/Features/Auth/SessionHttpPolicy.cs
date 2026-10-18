@@ -1,39 +1,79 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Antiforgery;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using TemplateApp.Features.Auth.Domain;
 
 namespace TemplateApp.Features.Auth;
 
-public sealed class SessionHttpPolicy : IEndpointFilter
+public sealed class SessionHttpPolicy
 {
-    private const string RefreshCookieName = "template_refresh";
+    public const string Scheme = CookieAuthenticationDefaults.AuthenticationScheme;
+    public const string CookieName = "__Host-session";
     private const string XsrfCookieName = "XSRF-TOKEN";
 
     private readonly IAntiforgery _antiforgery;
-    private readonly IHostEnvironment _environment;
 
-    public SessionHttpPolicy(IAntiforgery antiforgery, IHostEnvironment environment)
+    public SessionHttpPolicy(IAntiforgery antiforgery)
     {
         _antiforgery = antiforgery;
-        _environment = environment;
     }
 
-    public async ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
+    public static void ConfigureCookie(CookieAuthenticationOptions options, SessionOptions session)
     {
-        if (!HttpMethods.IsPost(context.HttpContext.Request.Method))
-            return await next(context);
+        options.Cookie.Name = CookieName;
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+        options.Cookie.SameSite = SameSiteMode.Strict;
+        options.Cookie.Path = "/";
+        options.ExpireTimeSpan = session.Lifetime;
+        options.SlidingExpiration = false;
+        options.Events.OnValidatePrincipal = ValidatePrincipalAsync;
+        options.Events.OnRedirectToLogin = context => Respond(context.Response, StatusCodes.Status401Unauthorized);
+        options.Events.OnRedirectToAccessDenied = context => Respond(context.Response, StatusCodes.Status403Forbidden);
+    }
 
-        try
+    public static async Task RequireAntiforgeryAsync(HttpContext http, RequestDelegate next)
+    {
+        if (!IsUnsafe(http.Request) || !http.Request.Path.StartsWithSegments("/api", StringComparison.Ordinal))
         {
-            await _antiforgery.ValidateRequestAsync(context.HttpContext);
+            await next(http);
+            return;
         }
-        catch (AntiforgeryValidationException)
+
+        IAntiforgery antiforgery = http.RequestServices.GetRequiredService<IAntiforgery>();
+        if (await antiforgery.IsRequestValidAsync(http))
         {
-            return Results.Problem(
+            await next(http);
+            return;
+        }
+
+        await Results.Problem(
                 statusCode: StatusCodes.Status400BadRequest,
                 title: "Invalid antiforgery token.",
-                extensions: new Dictionary<string, object?> { ["code"] = "Auth.AntiforgeryFailed" });
-        }
+                extensions: new Dictionary<string, object?> { ["code"] = "Auth.AntiforgeryFailed" })
+            .ExecuteAsync(http);
+    }
 
-        return await next(context);
+    public async Task SignInAsync(HttpContext http, Session session)
+    {
+        ClaimsPrincipal principal = SessionPrincipal.Create(session, Scheme);
+        await http.SignInAsync(Scheme, principal, new AuthenticationProperties
+        {
+            IsPersistent = false,
+            AllowRefresh = false,
+            IssuedUtc = session.CreatedAt,
+            ExpiresUtc = session.ExpiresAt,
+        });
+        http.User = principal;
+        IssueCsrf(http);
+    }
+
+    public async Task SignOutAsync(HttpContext http)
+    {
+        await http.SignOutAsync(Scheme);
+        http.User = new ClaimsPrincipal(new ClaimsIdentity());
+        IssueCsrf(http);
     }
 
     public void IssueCsrf(HttpContext http)
@@ -43,37 +83,33 @@ public sealed class SessionHttpPolicy : IEndpointFilter
         http.Response.Cookies.Append(XsrfCookieName, tokens.RequestToken ?? string.Empty, new CookieOptions
         {
             HttpOnly = false,
-            Secure = !_environment.IsDevelopment(),
+            Secure = true,
             SameSite = SameSiteMode.Lax,
             Path = "/",
         });
     }
 
-    public void AttachRefresh(HttpContext http, string plaintext) =>
-        http.Response.Cookies.Append(RefreshCookieName, plaintext, RefreshCookieOptions());
-
-    public void ClearRefresh(HttpContext http)
+    private static async Task ValidatePrincipalAsync(CookieValidatePrincipalContext context)
     {
-        CookieOptions options = RefreshCookieOptions();
-        options.MaxAge = TimeSpan.Zero;
-        http.Response.Cookies.Append(RefreshCookieName, string.Empty, options);
+        Sessions sessions = context.HttpContext.RequestServices.GetRequiredService<Sessions>();
+        bool active = SessionPrincipal.TryRead(context.Principal, out string userId, out Guid sessionId)
+            && await sessions.IsActiveAsync(sessionId, userId, context.HttpContext.RequestAborted);
+        if (active)
+            return;
+
+        context.RejectPrincipal();
+        await context.HttpContext.SignOutAsync(Scheme);
     }
 
-    public bool TryGetRefresh(HttpRequest request, out string? plaintext)
-    {
-        plaintext = null;
-        if (!request.Cookies.TryGetValue(RefreshCookieName, out string? raw) || string.IsNullOrEmpty(raw))
-            return false;
+    private static bool IsUnsafe(HttpRequest request) =>
+        !(HttpMethods.IsGet(request.Method)
+            || HttpMethods.IsHead(request.Method)
+            || HttpMethods.IsOptions(request.Method)
+            || HttpMethods.IsTrace(request.Method));
 
-        plaintext = raw;
-        return true;
+    private static Task Respond(HttpResponse response, int status)
+    {
+        response.StatusCode = status;
+        return Task.CompletedTask;
     }
-
-    private CookieOptions RefreshCookieOptions() => new()
-    {
-        HttpOnly = true,
-        Secure = !_environment.IsDevelopment(),
-        SameSite = SameSiteMode.Strict,
-        Path = "/api/v1/auth",
-    };
 }

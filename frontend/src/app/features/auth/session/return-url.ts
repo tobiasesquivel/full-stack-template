@@ -10,6 +10,7 @@ export function loginUrl(router: Router, returnUrl: string): UrlTree {
 }
 
 export function returnTarget(value: string | null): string {
-  const internal = value !== null && value.startsWith('/') && !value.startsWith('//') && !value.startsWith('/\\');
+  const internal =
+    value !== null && value.startsWith('/') && !value.startsWith('//') && !value.startsWith('/\\');
   return internal ? value : '/tasks';
 }

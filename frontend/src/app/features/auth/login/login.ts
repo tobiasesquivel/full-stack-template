@@ -33,7 +33,9 @@ export class Login {
     try {
       const { userName, password } = this.credentials();
       await this.session.open({ userName, password });
-      await this.router.navigateByUrl(returnTarget(this.route.snapshot.queryParamMap.get('returnUrl')));
+      await this.router.navigateByUrl(
+        returnTarget(this.route.snapshot.queryParamMap.get('returnUrl')),
+      );
     } catch (err) {
       this.error.set(
         err instanceof HttpErrorResponse && err.status === 401

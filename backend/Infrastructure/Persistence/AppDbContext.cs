@@ -15,7 +15,7 @@ public class AppDbContext : IdentityDbContext<AppIdentityUser>
 
     public DbSet<UserProfile> UserProfiles => Set<UserProfile>();
     public DbSet<TaskItem> TaskItems => Set<TaskItem>();
-    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<Session> Sessions => Set<Session>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

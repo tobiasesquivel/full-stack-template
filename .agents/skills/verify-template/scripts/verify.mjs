@@ -1136,8 +1136,6 @@ async function launch(flags) {
     const apiPort = wantApiPort === 0 ? await freePort() : wantApiPort;
     const apiBase = `http://127.0.0.1:${apiPort}/api/v1`;
     state.apiBase = apiBase;
-    const jwtKey = crypto.randomBytes(32).toString('hex');
-    addSecret(jwtKey);
     const connectionString = `Host=127.0.0.1;Port=${pgPort};Database=${DEFAULT_DB_NAME};Username=postgres;Password=${pgPassword}`;
     addSecret(connectionString);
     const apiStdout = path.join(evidenceDir, 'api.stdout.log');
@@ -1150,9 +1148,6 @@ async function launch(flags) {
         ASPNETCORE_ENVIRONMENT: 'Development',
         ASPNETCORE_URLS: `http://127.0.0.1:${apiPort}`,
         ConnectionStrings__DefaultConnection: connectionString,
-        Jwt__Key: jwtKey,
-        Jwt__Issuer: `http://127.0.0.1:${apiPort}`,
-        Jwt__Audience: 'verify-template',
         DOTNET_NOLOGO: '1',
       },
       stdoutPath: apiStdout,

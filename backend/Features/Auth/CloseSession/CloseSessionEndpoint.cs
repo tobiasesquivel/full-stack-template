@@ -11,9 +11,8 @@ public static class CloseSessionEndpoint
         SessionHttpPolicy policy,
         CancellationToken ct)
     {
-        policy.TryGetRefresh(http.Request, out string? plaintext);
-        await slice.ExecuteAsync(plaintext, ct);
-        policy.ClearRefresh(http);
+        await slice.ExecuteAsync(http.User, ct);
+        await policy.SignOutAsync(http);
         return Results.NoContent();
     }
 }

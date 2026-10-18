@@ -22,15 +22,13 @@ public sealed class RegisterUserTests : IClassFixture<ApiFixture>
         TestSession alice = new(_fixture.CreateClient());
         string name = TestAccounts.UniqueName("alice");
         await alice.RegisterAsync(name);
-        TestAccounts.AssertJwtIsIdentityOnly(alice.AccessToken!);
 
         TestSession rival = new(_fixture.CreateClient());
         await rival.CsrfAsync();
         SessionResponse duplicate = await rival.SendAsync(
             HttpMethod.Post,
             "api/v1/auth/register",
-            new { userName = name, email = $"{name}@example.test", password = $"Smoke!{Guid.NewGuid():N}Aa9", displayName = name },
-            authenticated: false);
+            new { userName = name, email = $"{name}@example.test", password = $"Smoke!{Guid.NewGuid():N}Aa9", displayName = name });
 
         duplicate.Payload?.Dispose();
         Assert.Equal(HttpStatusCode.Conflict, duplicate.Status);
@@ -51,8 +49,7 @@ public sealed class RegisterUserTests : IClassFixture<ApiFixture>
         SessionResponse rejected = await bob.SendAsync(
             HttpMethod.Post,
             "api/v1/auth/register",
-            new { userName = name, email = $"{name}@example.test", password = $"Smoke!{Guid.NewGuid():N}Aa9", displayName = "   " },
-            authenticated: false);
+            new { userName = name, email = $"{name}@example.test", password = $"Smoke!{Guid.NewGuid():N}Aa9", displayName = "   " });
 
         Assert.Equal(HttpStatusCode.BadRequest, rejected.Status);
         Assert.NotNull(rejected.Payload);

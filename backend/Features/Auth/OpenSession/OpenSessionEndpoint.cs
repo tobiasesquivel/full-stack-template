@@ -1,5 +1,3 @@
-using ErrorOr;
-using TemplateApp.Features.Auth.Contracts;
 using TemplateApp.Shared.Http;
 
 namespace TemplateApp.Features.Auth.OpenSession;
@@ -18,14 +16,9 @@ public static class OpenSessionEndpoint
     {
         var result = await slice.ExecuteAsync(request, ct);
         if (result.IsError)
-        {
-            if (result.Errors.Any(e => e.Type == ErrorType.Unauthorized))
-                policy.ClearRefresh(http);
             return ApiResults.ToResult(result, _ => Results.Ok());
-        }
 
-        (AuthResponse response, string refresh) = result.Value;
-        policy.AttachRefresh(http, refresh);
-        return Results.Ok(response);
+        await policy.SignInAsync(http, result.Value.Session);
+        return Results.Ok(result.Value.User);
     }
 }

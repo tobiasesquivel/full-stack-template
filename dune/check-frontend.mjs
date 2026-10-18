@@ -7,7 +7,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const require = createRequire(path.join(here, '..', 'frontend', 'package.json'));
 const ts = require('typescript');
 
-export const RULES = ['FRONT001', 'FRONT002', 'FRONT003', 'FRONT004', 'FRONT005', 'FRONT006', 'FRONT007', 'FRONT008', 'FRONT009', 'FRONT010', 'FRONT011', 'FRONT012'];
+export const RULES = ['FRONT001', 'FRONT002', 'FRONT003', 'FRONT004', 'FRONT005', 'FRONT006', 'FRONT007', 'FRONT008', 'FRONT009', 'FRONT010', 'FRONT011', 'FRONT012', 'FRONT013', 'FRONT014'];
 
 const INITIALIZER_TOKENS = new Map([
   ['APP_INITIALIZER', 'provideAppInitializer'],
@@ -21,6 +21,9 @@ const INLINE_VIEW_PROPERTIES = new Map([
 ]);
 
 const STYLE_FILE_PROPERTIES = new Set(['styleUrl', 'styleUrls']);
+
+const COMPONENT_SCHEMATIC = '@schematics/angular:component';
+const CLI_STYLE_RULE = `must set style "none" for ${COMPONENT_SCHEMATIC} so ng generate component creates no .css file and no styleUrl`;
 
 const LEGACY_FORMS_MODULE = 'external:@angular/forms';
 
@@ -229,6 +232,104 @@ function classDecoratorNames(node) {
   return decorators.map((entry) => decoratorName(entry.expression)).filter(Boolean);
 }
 
+const ROUTER_TYPES = new Set(['Router', 'ActivatedRoute']);
+
+function isAngularInject(symbol) {
+  if (!symbol || symbol.name !== 'inject') return false;
+  const file = declarationFile(symbol);
+  return Boolean(file) && toPosix(file).includes('/@angular/core/');
+}
+
+function isComponentClass(node) {
+  return ts.isClassDeclaration(node) && Boolean(node.name) && classDecoratorNames(node).includes('Component');
+}
+
+function componentsNamedIn(node, checker) {
+  const found = [];
+  function visit(current) {
+    const target = ts.isPropertyAccessExpression(current) ? current.name : current;
+    if (ts.isIdentifier(target)) {
+      const symbol = unwrap(checker.getSymbolAtLocation(target), checker);
+      for (const declaration of symbol?.declarations ?? []) {
+        if (isComponentClass(declaration)) found.push(declaration);
+      }
+    }
+    if (ts.isCallExpression(current) && current.expression.kind === ts.SyntaxKind.ImportKeyword && current.arguments[0]) {
+      const moduleSymbol = checker.getSymbolAtLocation(current.arguments[0]);
+      const fallback = moduleSymbol ? unwrap(checker.tryGetMemberInModuleExports('default', moduleSymbol), checker) : null;
+      for (const declaration of fallback?.declarations ?? []) {
+        if (isComponentClass(declaration)) found.push(declaration);
+      }
+    }
+    ts.forEachChild(current, visit);
+  }
+  visit(node);
+  return found;
+}
+
+function collectRoutedComponents(sourceFile, rel, checker) {
+  const routed = [];
+  const routes = rel.endsWith('.routes.ts');
+  function visit(node) {
+    if (routes
+      && ts.isPropertyAssignment(node)
+      && (ts.isIdentifier(node.name) || ts.isStringLiteral(node.name))
+      && (node.name.text === 'component' || node.name.text === 'loadComponent')) {
+      routed.push(...componentsNamedIn(node.initializer, checker));
+    }
+    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === 'bootstrapApplication' && node.arguments[0]) {
+      routed.push(...componentsNamedIn(node.arguments[0], checker));
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(sourceFile);
+  return routed;
+}
+
+function forbiddenInjection(type, appDir) {
+  if (type.isUnion()) {
+    for (const member of type.types) {
+      const name = forbiddenInjection(member, appDir);
+      if (name) return name;
+    }
+    return null;
+  }
+  for (const symbol of [type.aliasSymbol, type.getSymbol()]) {
+    const file = declarationFile(symbol);
+    if (!file) continue;
+    const posix = toPosix(file).toLowerCase();
+    if (posix.startsWith(appDir)) return symbol.name;
+    if (ROUTER_TYPES.has(symbol.name) && posix.includes('/@angular/router/')) return symbol.name;
+  }
+  return null;
+}
+
+function collectInjections(sourceFile, checker, appDir) {
+  const injections = [];
+  function inspect(component) {
+    function visit(node) {
+      if (ts.isCallExpression(node) && isAngularInject(unwrap(checker.getSymbolAtLocation(node.expression), checker))) {
+        const name = forbiddenInjection(checker.getTypeAtLocation(node), appDir);
+        if (name) injections.push({ component, line: lineOf(sourceFile, node.getStart()), name });
+      }
+      if (ts.isConstructorDeclaration(node)) {
+        for (const parameter of node.parameters) {
+          const name = forbiddenInjection(checker.getTypeAtLocation(parameter), appDir);
+          if (name) injections.push({ component, line: lineOf(sourceFile, parameter.getStart()), name });
+        }
+      }
+      ts.forEachChild(node, visit);
+    }
+    for (const member of component.members) visit(member);
+  }
+  function visit(node) {
+    if (isComponentClass(node)) inspect(node);
+    ts.forEachChild(node, visit);
+  }
+  visit(sourceFile);
+  return injections;
+}
+
 function classifyFile(rel, sourceFile) {
   if (COMPOSITION_FILES.has(rel)) return 'composition-root';
   const inCore = rel.startsWith('frontend/src/app/core/');
@@ -373,6 +474,41 @@ function symbolIsUnresolved(symbol) {
   return false;
 }
 
+function jsonProperty(object, name) {
+  if (!object || !ts.isObjectLiteralExpression(object)) return null;
+  return object.properties.find((property) =>
+    ts.isPropertyAssignment(property)
+    && (ts.isStringLiteral(property.name) || ts.isIdentifier(property.name))
+    && property.name.text === name) ?? null;
+}
+
+async function checkCliDefaults(file, rel, report) {
+  let text;
+  try {
+    text = await readFile(file, 'utf8');
+  } catch {
+    report('FRONT014', rel, 1, `${rel} is missing; the frontend ${CLI_STYLE_RULE}`);
+    return;
+  }
+  const json = ts.parseJsonText(file, text);
+  const line = (node) => lineOf(json, node.getStart(json));
+  const projects = jsonProperty(json.statements[0]?.expression, 'projects');
+  if (!projects || !ts.isObjectLiteralExpression(projects.initializer) || projects.initializer.properties.length === 0) {
+    report('FRONT014', rel, projects ? line(projects) : 1, `${rel} declares no projects; each project ${CLI_STYLE_RULE}`);
+    return;
+  }
+  for (const project of projects.initializer.properties) {
+    if (!ts.isPropertyAssignment(project)) continue;
+    const name = project.name.text;
+    const schematics = jsonProperty(project.initializer, 'schematics');
+    const component = jsonProperty(schematics?.initializer, COMPONENT_SCHEMATIC);
+    const style = jsonProperty(component?.initializer, 'style');
+    if (style && ts.isStringLiteral(style.initializer) && style.initializer.text === 'none') continue;
+    const where = style ?? component ?? schematics ?? project;
+    report('FRONT014', rel, line(where), `project ${name} ${CLI_STYLE_RULE}`);
+  }
+}
+
 export function resolveRoot(input) {
   if (input) return path.resolve(input);
   return path.resolve(here, '..');
@@ -412,6 +548,9 @@ export async function analyzeFrontend({ root, project } = {}) {
     diagnostics.push({ rule, path: file, line, message });
   }
   const graph = new Map();
+  const appDir = `${toPosix(path.join(base, 'src', 'app')).toLowerCase()}/`;
+  const routed = new Set();
+  const injections = [];
   for (const fileName of program.getRootFileNames()) {
     const sourceFile = program.getSourceFile(fileName);
     if (!sourceFile || sourceFile.isDeclarationFile) continue;
@@ -423,6 +562,8 @@ export async function analyzeFrontend({ root, project } = {}) {
       throw new Error(`cannot resolve imports in ${rel}: ${error.message}`);
     }
     const refs = collectRefs(sourceFile, checker);
+    for (const component of collectRoutedComponents(sourceFile, rel, checker)) routed.add(component);
+    for (const entry of collectInjections(sourceFile, checker, appDir)) injections.push({ path: rel, ...entry });
     graph.set(rel, { path: rel, kind: classifyFile(rel, sourceFile), ...edges, ...refs, ...collectNaming(sourceFile), ...collectWritableState(sourceFile, checker), exportedTypes: exportedTypes(sourceFile) });
   }
   for (const [rel, node] of graph) {
@@ -481,6 +622,14 @@ export async function analyzeFrontend({ root, project } = {}) {
       }
     }
   }
+  for (const entry of injections) {
+    if (routed.has(entry.component)) continue;
+    const feature = featureOf(entry.path);
+    const routes = feature ? `${feature}.routes.ts` : 'a *.routes.ts file';
+    report('FRONT013', entry.path, entry.line, `${entry.component.name.text} is not a routed component and must not inject ${entry.name}; receive data with input() and report with output(), or load it from a component in ${routes}`);
+  }
+  const cliConfig = path.join(base, 'angular.json');
+  await checkCliDefaults(cliConfig, toPosix(path.relative(resolvedRoot, cliConfig)), report);
   diagnostics.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : a.line - b.line || (a.rule < b.rule ? -1 : 1)));
   return { diagnostics, files: [...graph.values()] };
 }

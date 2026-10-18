@@ -5,7 +5,9 @@ Angular 22.2.1. La app consume la API del mismo origen bajo `/api/v1`
 
 ## Desarrollo
 
-No hay suite de tests: no existe `*.spec.ts` y `npm test` no tiene runner configurado. La prueba real es el navegador contra la API: registro, login, recarga sin perder la sesión, perfil, tareas y logout.
+`npm test -- --watch=false` corre la suite de Vitest con jsdom: el builder `@angular/build:unit-test` de `angular.json`, sin zone.js. Cada spec vive junto a su archivo (`return-url.spec.ts`, `http-error.spec.ts`, `task-pager.spec.ts`). La prueba completa sigue siendo el navegador contra la API: registro, login, recarga sin perder la sesión, perfil, tareas y logout.
+
+`ng generate component` no crea `.css` ni `styleUrl`: `angular.json` fija `"style": "none"`, porque los estilos son clases de Tailwind. FRONT014 lo hace cumplir. También crea el `.spec.ts`, que la suite usa.
 
 ```bash
 npm ci
@@ -37,11 +39,11 @@ Si tu backend escucha en otro puerto, ajusta el `target` de ese archivo
 
 ## Rutas
 
-| Ruta        | Acceso | Contenido                              |
-| ----------- | ------ | -------------------------------------- |
-| `/login`    | libre  | Entrar con usuario y contraseña        |
-| `/register` | libre  | Crear cuenta                           |
-| `/tasks`    | sesión | Lista paginada y CRUD de tareas        |
+| Ruta        | Acceso | Contenido                                        |
+| ----------- | ------ | ------------------------------------------------ |
+| `/login`    | libre  | Entrar con usuario y contraseña                  |
+| `/register` | libre  | Crear cuenta                                     |
+| `/tasks`    | sesión | Lista paginada y CRUD de tareas                  |
 | `/profile`  | sesión | Datos y edición de nombre visible y zona horaria |
 
 Los guards esperan a que el arranque termine antes de decidir:
