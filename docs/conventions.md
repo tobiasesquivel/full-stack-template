@@ -64,7 +64,7 @@ Excepciones (la lista es cerrada):
 - Los endpoints adaptan HTTP y devuelven resultados con `ApiResults`. No acceden a EF ni a `UserManager`.
 - Una operación carga el recurso por Id antes de decidir propietario o permiso. Primero 404, después 403. La lista propia filtra por `OwnerId`.
 - `ErrorOr` Validation produce 400 ValidationProblem; Unauthorized, 401; Forbidden, 403; NotFound, 404; Conflict, 409; Unexpected, 500. Un 500 no publica detalles internos.
-- JSON en camelCase. Rutas bajo `/api/v1`.
+- JSON en camelCase. Toda ruta de la API cuelga del grupo versionado `/api/v{version:apiVersion}` de `Infrastructure/Http/VersionedApi.cs`; hoy la única versión es la 1. Cada `Map<Feature>Endpoints` recibe ese `RouteGroupBuilder` y no crea su propio version set (DUNE0012). Un `Location` se arma con `LinkGenerator.GetPathByName` y el nombre del endpoint de destino, nunca con la ruta escrita a mano.
 
 ## Persistencia
 

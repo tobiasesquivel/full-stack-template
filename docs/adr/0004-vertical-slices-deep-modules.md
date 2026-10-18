@@ -20,7 +20,7 @@ Usamos **Vertical Slice Architecture** (Jimmy Bogard) dentro de features que fun
 1. **Feature = módulo profundo.** Cada capacidad vive en `backend/Features/<Feature>/`. Desde afuera solo se ve `Contracts/`. Todo lo demás es interno.
 2. **Slice = un caso de uso, en su carpeta.** `Features/Tasks/CreateTask/` tiene un archivo por pieza: `CreateTaskRequest.cs`, `CreateTaskRequestValidator.cs`, `CreateTask.cs` (la operación: una clase propia con sus dependencias), `CreateTaskEndpoint.cs` (el adapter HTTP) y `CreateTaskTests.cs`. La carpeta junta el caso de uso; cada archivo tiene un solo tipo.
 3. **Entre features, solo `Contracts`.** Ninguna feature usa el `Domain`, la `Persistence` ni las slices de otra.
-4. **Una sola dirección entre Auth y Users.** Users depende de `Auth.Contracts`. Auth no conoce el interior de Users.
+4. **Auth y Users se usan solo por contrato, en las dos direcciones.** Auth usa `Users.Contracts` (crea y lee el perfil, arma la URL del usuario creado). Users usa `Auth.Contracts` (lee y borra la cuenta). Ninguna conoce el interior de la otra.
 5. **Tipos en la slice, salvo lo compartido.** Un tipo que usa una sola slice vive en la carpeta de la slice. Lo que usa otra feature va a `Contracts/`, igual que las responses HTTP que comparten varias slices. Lo interno que comparten varias slices (errores, servicios como `Sessions`, mapeos) queda en la raíz de la feature o en una carpeta técnica propia (`Access/`). Así `Contracts/` sigue siendo lo único que ve otra feature.
 6. **Lo que nombra una feature va a esa feature.** `Infrastructure/` queda para la fontanería técnica del host. `Shared/` queda como núcleo mínimo que no nombra ninguna feature. Cada feature se registra sola desde su `<Feature>Feature.cs`.
 7. **Un solo proyecto .NET.** Dune hace cumplir los límites.
@@ -30,6 +30,7 @@ Usamos **Vertical Slice Architecture** (Jimmy Bogard) dentro de features que fun
 ## Cambios
 
 - 2026-10-17 (paso 0.4), decide Tobi: la slice pasa de un archivo a una carpeta con un archivo por pieza (punto 2). Lo interno que comparten varias slices queda en la raíz de la feature, no en `Contracts/` (punto 5). Antes el punto 5 mandaba a `Contracts/` todo lo compartido, y eso chocaba con "desde afuera solo se ve `Contracts/`".
+- 2026-10-18 (paso 4), decide Tobi: el punto 4 pasa de "una sola dirección" a "las dos direcciones, solo por contrato". El código ya usaba `Users.Contracts` desde Auth, y `architecture.md` lo describía así. El paso 4 lo hace visible: `RegisterUser` arma la URL del usuario con `Users.Contracts.UserEndpointNames`.
 
 ## Condiciones para que una slice siga siendo profunda
 

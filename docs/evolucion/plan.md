@@ -30,7 +30,7 @@ Es el punto de partida, no un límite. Cualquier pieza puede cambiar si mejora e
 
 ### Lo que falta (los huecos que este plan llena, en este orden)
 
-Nada de bus, outbox, eventos de dominio ni sagas. Nada de caché. Ningún trabajo programado. Sin idempotencia de escritura. Sin control de concurrencia propio en `TaskItem`. Sin auditoría. Sin librería de versionado de API. Validación de configuración por excepciones manuales. Sin cliente HTTP saliente ni resiliencia. Sin SLOs ni tableros. Sin SBOM, escaneo de dependencias ni de secretos. Un solo `DbContext` para todo el sistema. Sin despliegue progresivo.
+Nada de bus, outbox, eventos de dominio ni sagas. Nada de caché. Ningún trabajo programado. Sin idempotencia de escritura. Sin control de concurrencia propio en `TaskItem`. Sin auditoría. Validación de configuración por excepciones manuales. Sin cliente HTTP saliente ni resiliencia. Sin SLOs ni tableros. Sin SBOM, escaneo de dependencias ni de secretos. Un solo `DbContext` para todo el sistema. Sin despliegue progresivo.
 
 ---
 

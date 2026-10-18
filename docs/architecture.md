@@ -29,7 +29,7 @@ backend/
 - **Feature:** un módulo profundo. Su interfaz pública es `Contracts/` más sus rutas HTTP.
 - **Slice:** un caso de uso, en su carpeta. La operación es una clase propia, con sus dependencias. El endpoint solo adapta HTTP y llama a la operación.
 - **Domain:** sin EF, ASP.NET ni infraestructura. Concentra las reglas que comparten las slices.
-- **Infrastructure:** observabilidad, middlewares, arranque de la base y composición del host.
+- **Infrastructure:** observabilidad, middlewares, arranque de la base, el grupo versionado de la API y composición del host.
 - **Shared:** tipos generales que usan varias features, como `ApiResults`.
 
 No hay mediator ni bus. El paso 25 del plan elige uno.

@@ -97,15 +97,15 @@ public static class AuthFeature
     public static IApplicationBuilder UseAuthAntiforgery(this IApplicationBuilder app) =>
         app.Use(SessionHttpPolicy.RequireAntiforgeryAsync);
 
-    public static IEndpointRouteBuilder MapAuthEndpoints(this IEndpointRouteBuilder app)
+    public static RouteGroupBuilder MapAuthEndpoints(this RouteGroupBuilder api)
     {
-        RouteGroupBuilder auth = app.MapGroup("/api/v1/auth");
+        RouteGroupBuilder auth = api.MapGroup("/auth");
 
         IssueCsrfToken.IssueCsrfTokenEndpoint.Map(auth);
         RegisterUser.RegisterUserEndpoint.Map(auth);
         OpenSession.OpenSessionEndpoint.Map(auth);
         CloseSession.CloseSessionEndpoint.Map(auth);
 
-        return app;
+        return api;
     }
 }

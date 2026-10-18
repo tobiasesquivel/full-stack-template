@@ -12,9 +12,11 @@ public static class CreateTaskEndpoint
         CreateTaskRequest request,
         CreateTask slice,
         ClaimsPrincipal user,
+        HttpContext http,
+        LinkGenerator links,
         CancellationToken ct)
     {
         var result = await slice.ExecuteAsync(user.GetCallerId(), request, ct);
-        return ApiResults.ToResult(result, value => Results.Created($"/api/v1/tasks/{value.Id}", value));
+        return ApiResults.ToResult(result, value => Results.Created(links.GetPathByName(http, TaskEndpointNames.GetTask, new { id = value.Id }), value));
     }
 }
