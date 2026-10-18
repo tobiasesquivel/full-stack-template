@@ -7,7 +7,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const require = createRequire(path.join(here, '..', 'frontend', 'package.json'));
 const ts = require('typescript');
 
-export const RULES = ['FRONT001', 'FRONT002', 'FRONT003', 'FRONT004', 'FRONT005', 'FRONT006', 'FRONT007', 'FRONT008', 'FRONT009', 'FRONT010', 'FRONT011', 'FRONT012', 'FRONT013', 'FRONT014'];
+export const RULES = ['FRONT001', 'FRONT002', 'FRONT003', 'FRONT004', 'FRONT005', 'FRONT006', 'FRONT007', 'FRONT008', 'FRONT009', 'FRONT010', 'FRONT011', 'FRONT012', 'FRONT013', 'FRONT014', 'FRONT015', 'FRONT016'];
 
 const INITIALIZER_TOKENS = new Map([
   ['APP_INITIALIZER', 'provideAppInitializer'],
@@ -41,6 +41,8 @@ const HTTP_DECLARATION = '@angular/common/http.d.ts';
 const HTTP_SYMBOLS = new Set(['HttpClient', 'HttpRequest']);
 const FETCH_SYMBOLS = new Set(['fetch', 'XMLHttpRequest']);
 const STORAGE_NAMES = new Set(['localStorage', 'sessionStorage']);
+const AUTHORIZATION_HEADER = 'authorization';
+const SESSION_IN_COOKIE = 'the session is the HttpOnly cookie that the browser sends by itself';
 
 function toPosix(value) {
   return value.split(path.sep).join('/');
@@ -467,6 +469,25 @@ function collectRefs(sourceFile, checker) {
   return { httpRefs, storageRefs };
 }
 
+function collectAuthorizationHeaders(sourceFile) {
+  const found = [];
+  function isHeaderName(name) {
+    return name.toLowerCase() === AUTHORIZATION_HEADER;
+  }
+  function visit(node) {
+    const literal = ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node);
+    const propertyName = ts.isIdentifier(node) && node.parent
+      && (ts.isPropertyAssignment(node.parent) || ts.isShorthandPropertyAssignment(node.parent) || ts.isPropertyAccessExpression(node.parent))
+      && node.parent.name === node;
+    if ((literal || propertyName) && isHeaderName(node.text)) {
+      found.push({ line: lineOf(sourceFile, node.getStart()) });
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(sourceFile);
+  return found;
+}
+
 function symbolIsUnresolved(symbol) {
   if (!symbol) return true;
   const declarations = symbol.declarations;
@@ -564,7 +585,7 @@ export async function analyzeFrontend({ root, project } = {}) {
     const refs = collectRefs(sourceFile, checker);
     for (const component of collectRoutedComponents(sourceFile, rel, checker)) routed.add(component);
     for (const entry of collectInjections(sourceFile, checker, appDir)) injections.push({ path: rel, ...entry });
-    graph.set(rel, { path: rel, kind: classifyFile(rel, sourceFile), ...edges, ...refs, ...collectNaming(sourceFile), ...collectWritableState(sourceFile, checker), exportedTypes: exportedTypes(sourceFile) });
+    graph.set(rel, { path: rel, kind: classifyFile(rel, sourceFile), ...edges, ...refs, authorizationHeaders: collectAuthorizationHeaders(sourceFile), ...collectNaming(sourceFile), ...collectWritableState(sourceFile, checker), exportedTypes: exportedTypes(sourceFile) });
   }
   for (const [rel, node] of graph) {
     for (const edge of [...node.imports, ...node.reexports]) {
@@ -620,6 +641,13 @@ export async function analyzeFrontend({ root, project } = {}) {
       for (const ref of node.storageRefs) {
         report('FRONT003', rel, ref.line, `component must not use ${ref.symbol} directly`);
       }
+    } else {
+      for (const ref of node.storageRefs) {
+        report('FRONT015', rel, ref.line, `must not use ${ref.symbol}: ${SESSION_IN_COOKIE}, and web storage is readable by any script on the page`);
+      }
+    }
+    for (const entry of node.authorizationHeaders) {
+      report('FRONT016', rel, entry.line, `must not set an Authorization header: ${SESSION_IN_COOKIE}, and the frontend handles no tokens`);
     }
   }
   for (const entry of injections) {
