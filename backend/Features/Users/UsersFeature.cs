@@ -13,14 +13,14 @@ public static class UsersFeature
         return services;
     }
 
-    public static IEndpointRouteBuilder MapUsersEndpoints(this IEndpointRouteBuilder app)
+    public static RouteGroupBuilder MapUsersEndpoints(this RouteGroupBuilder api)
     {
-        RouteGroupBuilder users = app.MapGroup("/api/v1/users").RequireAuthorization();
+        RouteGroupBuilder users = api.MapGroup("/users").RequireAuthorization();
 
         GetUser.GetUserEndpoint.Map(users);
         UpdateProfile.UpdateProfileEndpoint.Map(users);
         DeleteUser.DeleteUserEndpoint.Map(users);
 
-        return app;
+        return api;
     }
 }

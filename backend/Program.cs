@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using Serilog;
 using Serilog.Sinks.OpenTelemetry;
 using TemplateApp.Features.Auth;
@@ -5,6 +6,7 @@ using TemplateApp.Features.Health;
 using TemplateApp.Features.Tasks;
 using TemplateApp.Features.Users;
 using TemplateApp.Infrastructure.DependencyInjection;
+using TemplateApp.Infrastructure.Http;
 using TemplateApp.Infrastructure.Observability;
 using TemplateApp.Infrastructure.Persistence;
 
@@ -47,13 +49,14 @@ try
     builder.Services.AddUsersFeature();
     builder.Services.AddTasksFeature();
     builder.Services.AddHealthFeature(builder.Configuration);
-    builder.Services.AddOpenApi();
+    builder.Services.AddVersionedApi();
 
     WebApplication app = builder.Build();
+    app.Services.GetRequiredService<IStartupValidator>().Validate();
 
     if (app.Environment.IsDevelopment())
     {
-        app.MapOpenApi();
+        app.MapOpenApi().WithDocumentPerVersion();
     }
 
     await app.InitializeDatabaseAsync();
@@ -65,10 +68,11 @@ try
     app.UseAuthorization();
     app.UseAuthAntiforgery();
 
-    app.MapAuthEndpoints();
-    app.MapUsersEndpoints();
-    app.MapTasksEndpoints();
-    app.MapHealthEndpoints();
+    RouteGroupBuilder api = app.MapVersionedApi();
+    api.MapAuthEndpoints();
+    api.MapUsersEndpoints();
+    api.MapTasksEndpoints();
+    api.MapHealthEndpoints();
 
     await app.RunAsync();
     return 0;

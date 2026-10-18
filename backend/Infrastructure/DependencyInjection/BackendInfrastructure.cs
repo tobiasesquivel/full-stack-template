@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using TemplateApp.Infrastructure.Middlewares;
 using TemplateApp.Infrastructure.Persistence;
 
@@ -14,9 +15,12 @@ public static class BackendInfrastructure
         services.AddProblemDetails();
         services.AddExceptionHandler<GlobalExceptionHandler>();
 
-        string connectionString = configuration.GetConnectionString("DefaultConnection")
-            ?? throw new InvalidOperationException("ConnectionStrings:DefaultConnection is required. Set it via environment or secret.");
-        services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
+        services.AddOptions<DatabaseOptions>()
+            .Bind(configuration.GetSection(DatabaseOptions.Section))
+            .ValidateOnStart();
+        services.AddSingleton<IValidateOptions<DatabaseOptions>, DatabaseOptionsValidator>();
+        services.AddDbContext<AppDbContext>((provider, options) =>
+            options.UseNpgsql(provider.GetRequiredService<IOptions<DatabaseOptions>>().Value.DefaultConnection));
 
         services.AddSingleton(TimeProvider.System);
         services.AddDataProtectionKeys(configuration);

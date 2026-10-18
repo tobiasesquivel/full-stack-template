@@ -25,6 +25,7 @@ El dominio (tareas) es simple a propósito: importa el rigor técnico. **Todo el
 | [docs/evolucion/informe-sesion-angular.md](docs/evolucion/informe-sesion-angular.md) | Sesión en Angular: estado con signals, guards, interceptor con renovación, varias pestañas y BFF frente a token en memoria. |
 | [docs/evolucion/informe-componentes-angular.md](docs/evolucion/informe-componentes-angular.md) | Componentes ruteados y presentacionales en Angular v22: cuándo separar, cómo fluye el estado con signals y qué conviene en `Tasks`. |
 | [docs/evolucion/informe-frontend-para-agentes.md](docs/evolucion/informe-frontend-para-agentes.md) | Qué hace que un frontend sea fácil para agentes de código, comparado con lo que ya tiene el repo, y los huecos por prioridad. |
+| [docs/evolucion/investigacion/](docs/evolucion/investigacion/) | Cómo se implementa cada paso de forma profesional, con fuentes (regla 12). |
 | [CONTEXT.md](CONTEXT.md) | Vocabulario del dominio. Usá esos términos. |
 | [docs/architecture.md](docs/architecture.md), [docs/conventions.md](docs/conventions.md) | Arquitectura vigente y reglas para escribir código. |
 | [docs/decisions.tsv](docs/decisions.tsv), [docs/adr/](docs/adr/) | Decisiones tomadas y su porqué. |
@@ -42,6 +43,7 @@ El dominio (tareas) es simple a propósito: importa el rigor técnico. **Todo el
 9. **No cambies un gate, analyzer o test para tapar una falla.** Sí podés cambiarlo si ese cambio es el objetivo declarado del paso: con un ADR o una línea en `docs/decisions.tsv`, y con su fixture válida y su violación deliberada.
 10. **Los docs deciden el diseño; Dune los sigue.** La fuente de verdad es ADR-0004, `architecture.md`, `conventions.md` y los informes de `docs/evolucion/`. Justificá cada decisión de diseño con ellos. Si una regla de Dune choca con los docs, corregí la regla en el mismo paso, con lo que pide la regla 9. Si dos docs se contradicen, frená y preguntale a Tobi.
 11. **Un paso cierra cuando Tobi entendió su concepto, no cuando los gates dan verde.** Cada paso para dos veces y espera la respuesta de Tobi: después de la explicación, antes del código, y después de la evidencia, con el concepto explicado sobre el código que cambió. Hasta que Tobi responde, el paso queda `en curso`.
+12. **Antes de explicar un paso que cambia código, investigá cómo se implementa de forma profesional.** El plan dice qué pieza entra; la investigación dice cómo queda bien en este código. Delegala a un subagente con la skill `research`: fuentes primarias (documentación oficial, repos y guías de los mantenedores), con un link por afirmación, y dentro de la arquitectura del repo (ADR-0004, `architecture.md`, `conventions.md`). El resultado va en `docs/evolucion/investigacion/paso-<N>-<tema>.md`. Contrastá cada afirmación con el código antes de usarla, y apoyá la explicación previa en ese archivo. Si la investigación choca con los docs del repo, frená y preguntale a Tobi.
 
 ## Cómo enseñar
 
@@ -67,6 +69,8 @@ Si Tobi dice "enseñame", "quiero entender" o "explicámelo", seguí este métod
 ## Verificación
 
 La lista única de comandos está en [README.md](README.md#ejecutar-gates). Las pruebas backend necesitan Docker (PostgreSQL real). El frontend tiene una suite de Vitest con jsdom (`npm test -- --watch=false` en `frontend/`) para funciones puras y componentes de presentación. El recorrido completo se prueba en el navegador con la skill `verify-template`.
+
+Mientras desarrollás un paso, corré `node .agents/skills/verify-template/scripts/check-all.mjs --run-id <id> --no-e2e`. Las e2e de Playwright tardan unos 7 minutos: corren una sola vez, al cerrar un paso que cambia el frontend o un contrato HTTP. En los demás pasos quedan `NOT_RUN`, y el cierre lo dice.
 
 `.mcp.json` declara el MCP del CLI de Angular en solo lectura (`ng mcp --read-only --root frontend`, con el CLI instalado en `frontend/node_modules`). Da `search_documentation` y `get_best_practices` de la versión instalada y `list_projects`; no ejecuta builds ni el dev server. Claude Code lo pide aprobar la primera vez. Necesita `npm ci` en `frontend/`.
 

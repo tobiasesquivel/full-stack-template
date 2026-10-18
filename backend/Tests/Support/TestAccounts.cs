@@ -25,7 +25,7 @@ internal static class TestAccounts
         Assert.True(session.Cookies.ContainsKey(XsrfCookieName), "CSRF endpoint must issue XSRF-TOKEN.");
     }
 
-    public static async Task RegisterAsync(this TestSession session, string userName)
+    public static async Task<SessionResponse> RegisterAsync(this TestSession session, string userName)
     {
         await session.CsrfAsync();
         session.UserName = userName;
@@ -50,6 +50,7 @@ internal static class TestAccounts
         }
 
         AssertSessionCookie(session);
+        return response;
     }
 
     public static async Task<SessionResponse> OpenAsync(this TestSession session)

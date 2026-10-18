@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using OpenTelemetry;
 using OpenTelemetry.Exporter;
 using OpenTelemetry.Metrics;
@@ -7,14 +8,25 @@ namespace TemplateApp.Infrastructure.Observability;
 
 public static class ObservabilityExtensions
 {
+    private const string TracesExporter = "traces";
+    private const string MetricsExporter = "metrics";
+
     public static IServiceCollection AddTemplateObservability(
         this IServiceCollection services,
         IConfiguration configuration,
         IHostEnvironment environment)
     {
-        string otlpEndpoint = configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]
-            ?? configuration["Otel:Endpoint"]
-            ?? "http://localhost:4318";
+        services.AddOptions<TelemetryOptions>()
+            .Bind(configuration.GetSection(TelemetryOptions.Section))
+            .Configure(options => options.Endpoint = configuration[TelemetryOptions.EndpointVariable] ?? options.Endpoint)
+            .ValidateOnStart();
+        services.AddSingleton<IValidateOptions<TelemetryOptions>, TelemetryOptionsValidator>();
+        services.AddOptions<OtlpExporterOptions>(TracesExporter)
+            .Configure<IOptions<TelemetryOptions>>((exporter, telemetry) =>
+                ConfigureExporter(exporter, telemetry.Value.SignalEndpoint("traces")));
+        services.AddOptions<OtlpExporterOptions>(MetricsExporter)
+            .Configure<IOptions<TelemetryOptions>>((exporter, telemetry) =>
+                ConfigureExporter(exporter, telemetry.Value.SignalEndpoint("metrics")));
 
         services.AddMetrics();
 
@@ -29,23 +41,21 @@ public static class ObservabilityExtensions
                 .AddAspNetCoreInstrumentation()
                 .AddHttpClientInstrumentation()
                 .AddSource("Npgsql", "TemplateApp.Api")
-                .AddOtlpExporter(exporter =>
-                {
-                    exporter.Endpoint = new Uri($"{otlpEndpoint.TrimEnd('/')}/v1/traces");
-                    exporter.Protocol = OtlpExportProtocol.HttpProtobuf;
-                }))
+                .AddOtlpExporter(TracesExporter, configure: null))
             .WithMetrics(metrics => metrics
                 .AddAspNetCoreInstrumentation()
                 .AddHttpClientInstrumentation()
                 .AddRuntimeInstrumentation()
                 .AddOtlpExporter(
-                    (exporter, reader) =>
-                    {
-                        exporter.Endpoint = new Uri($"{otlpEndpoint.TrimEnd('/')}/v1/metrics");
-                        exporter.Protocol = OtlpExportProtocol.HttpProtobuf;
-                        reader.PeriodicExportingMetricReaderOptions.ExportIntervalMilliseconds = 10_000;
-                    }));
+                    MetricsExporter,
+                    (_, reader) => reader.PeriodicExportingMetricReaderOptions.ExportIntervalMilliseconds = 10_000));
 
         return services;
+    }
+
+    private static void ConfigureExporter(OtlpExporterOptions exporter, Uri endpoint)
+    {
+        exporter.Endpoint = endpoint;
+        exporter.Protocol = OtlpExportProtocol.HttpProtobuf;
     }
 }

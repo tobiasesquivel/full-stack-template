@@ -29,6 +29,7 @@ public sealed class CreateTaskTests : IClassFixture<ApiFixture>
             Assert.Equal("Primera tarea", created.GetProperty("title").GetString());
             Assert.False(created.GetProperty("isCompleted").GetBoolean());
             Assert.NotEqual(Guid.Empty.ToString(), created.GetProperty("id").GetString());
+            Assert.Equal($"/api/v1/tasks/{created.GetProperty("id").GetString()}", response.Location);
             Assert.False(created.TryGetProperty("ownerId", out _), "OwnerId must not appear in task JSON.");
         }
     }

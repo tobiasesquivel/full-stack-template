@@ -4,7 +4,7 @@ Registro vivo del [plan](plan.md). El agente lo actualiza al cerrar cada paso.
 
 ## Paso actual
 
-**Fase 2, paso 4: versionado de API declarado.** Estado: pendiente. La Fase 1 cerró con el paso 3 (CI verde de verdad) el 2026-10-18; espera el merge de Tobi. El paso 2 cerró el 2026-10-17 y Tobi lo mergeó. La Fase 0 cerró con el paso 0.28 (reglas de la sesión en Dune). Tobi eligió el BFF del paso 0.26 y el volumen del 0.27 el 2026-10-17. Los pasos 0.10 a 0.28 cerraron. Tobi pidió el 2026-10-17 separar la vista de los componentes (0.10), un archivo por tipo (0.11), Tailwind (0.12), ordenar los archivos sueltos de cada feature (0.13), investigar y aplicar el manejo de sesión en Angular (0.14 a 0.16, [informe-sesion-angular.md](informe-sesion-angular.md)) y aplicar lo que no necesita decisión de herramienta de [informe-componentes-angular.md](informe-componentes-angular.md) y [informe-frontend-para-agentes.md](informe-frontend-para-agentes.md) (0.17 a 0.20). Después eligió Vitest, Prettier, Playwright Test, el MCP del CLI y los ajustes visuales (0.21 a 0.25). Los pasos 0.6 a 0.28 esperan el merge de Tobi. El Stop hook esperaba hasta después del paso 2: ya se puede retomar.
+**Fase 2, paso 6: catálogo de errores estable.** Estado: pendiente. El paso 5 cerró el 2026-10-18 y espera el merge de Tobi (apilado sobre el PR #45). El paso 4 cerró el 2026-10-18 y espera el merge de Tobi (PR #45, apilado sobre #43). La Fase 1 cerró con el paso 3 (CI verde de verdad) el 2026-10-18; espera el merge de Tobi. El paso 2 cerró el 2026-10-17 y Tobi lo mergeó. La Fase 0 cerró con el paso 0.28 (reglas de la sesión en Dune). Tobi eligió el BFF del paso 0.26 y el volumen del 0.27 el 2026-10-17. Los pasos 0.10 a 0.28 cerraron. Tobi pidió el 2026-10-17 separar la vista de los componentes (0.10), un archivo por tipo (0.11), Tailwind (0.12), ordenar los archivos sueltos de cada feature (0.13), investigar y aplicar el manejo de sesión en Angular (0.14 a 0.16, [informe-sesion-angular.md](informe-sesion-angular.md)) y aplicar lo que no necesita decisión de herramienta de [informe-componentes-angular.md](informe-componentes-angular.md) y [informe-frontend-para-agentes.md](informe-frontend-para-agentes.md) (0.17 a 0.20). Después eligió Vitest, Prettier, Playwright Test, el MCP del CLI y los ajustes visuales (0.21 a 0.25). Los pasos 0.6 a 0.28 esperan el merge de Tobi. El Stop hook esperaba hasta después del paso 2: ya se puede retomar.
 
 La Fase 0 va antes del paso 2. El paso 1 (línea base) ya cerró y sirve de referencia para la Fase 0.
 
@@ -46,8 +46,8 @@ Estados: `pendiente`, `en curso`, `cerrado`, `bloqueado (⏸ decisión de Tobi)`
 | 1 | Línea base: qué funciona hoy, con evidencia | cerrado | [linea-base.md](linea-base.md); `artifacts/verify-template/baseline-20261016/` |
 | 2 | Un solo comando de verificación local | cerrado | `artifacts/verify-template/fase1-02-check-all/`, `artifacts/verify-template/fase1-02-check-all-red/` (rojo), `artifacts/verify-template/fase1-02-loose/`, `artifacts/verify-template/fase1-02-loose-runtime/`, `artifacts/verify-template/fase1-02-compose/` (NOT_RUN por puertos) |
 | 3 | CI verde de verdad | cerrado | `artifacts/verify-template/fase1-03-ci/` (runs `39091828498` verde y `39092222604` rojo, artifact `otel-export` descargado) |
-| 4 | Versionado de API declarado | pendiente | |
-| 5 | Validación de configuración al arranque | pendiente | |
+| 4 | Versionado de API declarado | cerrado | `artifacts/verify-template/fase2-04-characterization/`, `fase2-04-red/` (rojo), `fase2-04-backend/`, `fase2-04-metadata-red/` (rojo), `fase2-04-rule-red/` (rojo), `fase2-04-check-all/` |
+| 5 | Validación de configuración al arranque | cerrado | `artifacts/verify-template/fase2-05-config/` (rojo y manual), `fase2-05-check-all/` (sin e2e) |
 | 6 | Catálogo de errores estable | pendiente | |
 | 7 | Paginación por keyset | pendiente | |
 | 8 | Concurrencia optimista en `TaskItem` | pendiente | |
@@ -107,7 +107,15 @@ Cosas vistas durante un paso que no le corresponden. Cada una espera su paso.
 - Las filas de `Sessions` vencidas o abandonadas se borran solo cuando su cookie vuelve. Falta una limpieza periódica. Sin paso asignado.
 - Abrir sesión con una sesión ya abierta en el mismo navegador deja la fila anterior hasta que vence por inactividad. `OpenSession` podría cerrarla. Sin paso asignado.
 - CI no corre las e2e. El job `compose` necesitaría `npm ci` del frontend, un navegador (`npx playwright install chromium --with-deps`) y 65 segundos de espera después del smoke por el limiter de `/auth`; suma unos 7 minutos. Tobi decidió el 2026-10-18 que no entra en el paso 3: es un gate nuevo y pide su propio paso. Sin paso asignado.
+- El bootstrap de Serilog en `Program.cs` lee `OTEL_EXPORTER_OTLP_ENDPOINT` y `ASPNETCORE_ENVIRONMENT` con `Environment.GetEnvironmentVariable`, antes de que exista el host: no pasa por `TelemetryOptions` ni por su validación, y no ve `Otel:Endpoint`. Unificarlo pide un logger de dos etapas (`CreateBootstrapLogger` + `ReadFrom.Services`). Sin paso asignado.
+- `DataProtection:KeysDirectory` sigue leyéndose como string suelto en `BackendInfrastructure`. No tiene regla que validar todavía; una ruta relativa depende del directorio de trabajo y podría prohibirse. Sin paso asignado.
+- El generador de `[OptionsValidator]` (SDK 10.0.401) ignora `ErrorMessage` en `[Range]`: su copia del atributo devuelve siempre "The field {0} must be between {1} and {2}.". Por eso los mensajes de `SessionOptions` nombran el tipo y la propiedad, no la clave `Session:...`. Se revisa al subir de SDK.
+- La validación de `ConnectionStrings:DefaultConnection` también corre sola al crear el `DbContext`; la de `Session` y `Otel` solo corre antes de la base gracias a `IStartupValidator.Validate()` en `Program.cs`. Ninguna regla de Dune exige esa línea: la protege `ConfigurationValidationTests`. Sin paso asignado.
 - CI no frena un merge. `main` no tiene protección de rama: en un repo privado del plan gratis, GitHub responde 403 a la API de protección y de rulesets. Tobi decidió el 2026-10-18 dejarlo así: revisa los checks antes de mergear. Se revisa si el repo pasa a público o a GitHub Pro.
+- Una versión inexistente (`/api/v9/...`) da 404 sin cuerpo, como cualquier ruta inexistente. `UseStatusCodePages` la volvería ProblemDetails, pero cambia todos los 404 sin cuerpo. Paso 6.
+- `informe-dotnet-empresarial.md:110` recomienda `Asp.Versioning.Mvc` / `.ApiExplorer`, que son para controllers. El paso 4 usa `Asp.Versioning.Http` (Minimal APIs). El informe no se corrigió. Sin paso asignado.
+- La librería acepta `/api/v1.0/...` como alias de `/api/v1/...`. Es una URL nueva que nadie usa. Sin paso asignado.
+- `check-comments.mjs` revisa `artifacts/`, aunque está en `.gitignore`. Una corrida de e2e cortada deja `.playwright-artifacts-0/` con `.css` de los traces y el gate falla con NOCOMMENT (paso 4). Sin paso asignado.
 - El plan dice que `check-structure.mjs` prueba "sin herramientas duplicadas". Ninguna regla lo hace: nada impide un segundo script de smoke. Hoy lo cumple el diseño, porque `check-all.mjs` llama a `verify.mjs api`. Sin paso asignado.
 - `compose.yaml` fija los puertos 4317 y 4318 del collector. Otro stack con el mismo compose (`hermes-bot-omp`) los ocupa y este no arranca. `POSTGRES_PORT`, `API_PORT` y `WEB_PORT` sí se pueden cambiar. Sin paso asignado.
 - `smoke-api.mjs` no comprueba a qué API le habla. Si `API_BASE_URL` apunta a otro servicio, registra usuarios ahí. Pasó en el paso 2 de la Fase 1: dos registros `bob<sufijo>` quedaron en la API de `hermes-bot-omp` (`localhost:18080`). Borrarlos es decisión de Tobi. Sin paso asignado.
@@ -123,9 +131,34 @@ Una entrada por paso cerrado, con este formato:
 - Evidencia: artifacts/verify-template/<runId>/
 ```
 
+### Paso 5 — 2026-10-18
+- Enseñado: fail-fast; la configuración es un contrato. `SessionOptions`, `DatabaseOptions` y `TelemetryOptions` llevan sus reglas (`[Range]`, `[Required]`, `IValidatableObject`) y las aplica un validador generado con `[OptionsValidator]`. `ValidateOnStart` solo corre en `RunAsync`, después de migrar la base: `Program.cs` llama a `IStartupValidator.Validate()` apenas construye la app. La cookie lee `IOptions<SessionOptions>` en vez de una segunda lectura sin validar. El test corre la API como proceso porque el `catch` de `Program.cs` devuelve 1 sin relanzar y `WebApplicationFactory` no ve el error.
+- Preguntas: qué es un host. Tobi respondió que quedó claro y que no hacía falta más explicación.
+- Decisiones: dos filas en `docs/decisions.tsv`. Tobi dejó en manos del agente cómo apagar las e2e: `check-all` corre con `--no-e2e` hasta que se necesiten, sin cambiar el script.
+- Evidencia:
+  - Tests nuevos (`ConfigurationValidationTests`): 7/7. Seis valores inválidos salen con código 1 y el mensaje de la clave, sin `NpgsqlException`; la configuración válida pasa la validación y llega a la base.
+  - Rojo (`fase2-05-config/violation-no-early-validate.txt`): sin `IStartupValidator.Validate()` fallan los 3 casos de `Session` y `Otel` (la API intenta la base primero). Se revirtió.
+  - Manual (`fase2-05-config/manual-invalid-session.txt`): `Session__IdleTimeoutMinutes=0` sale con código 1 y `OptionsValidationException`.
+  - `check-all --no-e2e` (`fase2-05-check-all/`): 13 gates, `launch`, `doctor`, smoke y `cleanup` en PASS; `dotnet test` 126/126.
+  - E2E: NOT_RUN por pedido de Tobi. Una corrida previa con e2e quedó cortada (`fase2-05-config/summary-interrumpida.json`); su contenedor se cerró con `verify.mjs cleanup`.
+
+### Paso 4 — 2026-10-18
+- Enseñado: la versión de la API pasa de texto repetido a versión declarada. Un solo grupo, `/api/v{version:apiVersion}` con `HasApiVersion(1.0)`, vive en `Infrastructure/Http/VersionedApi.cs`, y cada feature cuelga de él (`api.MapTasksEndpoints()` en `Program.cs`). La librería informa `api-supported-versions`, rechaza `/api/v9/...` con 404 y completa la versión en los links. Los `Location` salen del nombre del endpoint con `LinkGenerator.GetPathByName`, no de la ruta escrita. La trampa: un grupo con `{version}` sin versiones declaradas acepta cualquiera (`/api/v9/raw` dio 200); la frenan DUNE0012 al compilar y `EveryApiEndpoint_HasVersionMetadata` al ejecutar.
+- Preguntas: qué es lo más profesional para la versión (URL, header o query) y qué dice la regla 3. Tobi eligió la URL y respondió "entendí" a la explicación final.
+- Decisiones: seis filas en `docs/decisions.tsv`. Tobi eligió `Asp.Versioning.Http` y `Asp.Versioning.OpenApi`, la versión en la URL y corregir ADR-0004 punto 4. La investigación previa (regla 12) está en [investigacion/paso-04-versionado-api.md](investigacion/paso-04-versionado-api.md).
+- Evidencia:
+  - Caracterización (`fase2-04-characterization/`): con el código viejo, los tests nuevos de `Location` en `CreateTaskTests` y `RegisterUserTests` pasan, 38/38.
+  - Rojo (`fase2-04-red/`): sin la librería falta `api-supported-versions`; falla 1 de 43. Los 404 y el query ignorado ya pasan: son el contrato de hoy.
+  - Verde (`fase2-04-backend/`): `dotnet test TemplateApp.slnx` 116/116. Los `Location` no cambiaron.
+  - Rojo de metadata (`fase2-04-metadata-red/`): `app.MapGet("/api/v1/raw")` sobre el host da 1 de 44 en rojo. Se revirtió.
+  - Rojo de DUNE0012 (`fase2-04-rule-red/`): con el analyzer vacío fallan 2 de 75 tests de Dune (las dos violaciones; la fixture válida pasa). En el producto, `app.MapGroup("/api/v1/legacy")` y una feature que recibe el host frenan el build con DUNE0012. Se revirtió.
+  - `check-all` (`fase2-04-check-all/`): 13 gates, `launch`, `doctor` y smoke en PASS (16/16). El smoke comprueba `api-supported-versions: 1.0` y `/api/v9/health/live` → 404.
+  - E2E: NOT_RUN. Tobi pidió cortarlas mientras se desarrolla; el frontend no cambió. La corrida cortada dejó restos que hicieron fallar `check-comments`; se borraron (pendiente anotado).
+  - Documento OpenAPI de Development: NOT_RUN en el repo; lo vio el experimento de la investigación.
+
 ### Paso 3 — 2026-10-18
-- Enseñado: CI es un gate solo si un fallo lo pone rojo, y solo frena si la rama lo exige. Verde no alcanza: hay que ver que cada job corra tests reales (no cero) y que cada falla caiga en su step. Un PR de prueba con una falla deliberada por job prueba las dos cosas. Proteger `main` es lo que convierte el rojo en un bloqueo; sin protección, CI avisa y el merge sigue abierto.
-- Preguntas: ninguna.
+- Enseñado (explicado el 2026-10-18, después del cierre): un gate vale si prueba algo real (conteos de tests distintos de cero), si se pone rojo con una violación deliberada en el step correcto (PR #42, una falla por job) y si bloquea. El tercer punto no se cumple: sin protección de rama, CI avisa pero no frena un merge.
+- Preguntas: Tobi preguntó qué entendía el agente que estaban haciendo. Con eso marcó que los pasos 2 y 3 se habían cerrado sin enseñar; de ahí salió la regla 11 de `AGENTS.md`. No preguntó sobre el concepto.
 - Decisiones: Tobi decidió dejar `main` sin protección (el repo privado del plan gratis no la permite) y dejar las e2e de CI para otro paso. Dos filas en `docs/decisions.tsv`.
 - Evidencia:
   - Verde (run `39091828498`, push del merge de #41): los 4 jobs en `success`. Backend 38 tests de producto y 72 de Dune; `check-structure` corre; `check-frontend` 32/32; `check-comments` 18/18; smoke `--compose` con `"result": "PASS"`. Mismos conteos que `check-all.mjs` en el paso 2.
@@ -136,8 +169,8 @@ Una entrada por paso cerrado, con este formato:
   - `ci.yml`: sin cambios. El plan lo cambia solo si un job falla, y ninguno falla.
 
 ### Paso 2 — 2026-10-17
-- Enseñado: un pipeline local reproducible. Una sola entrada, `check-all.mjs`, corre en orden los 13 comandos del README y después `launch`, `doctor`, `api`, las e2e y `cleanup` de `verify.mjs`. No copia lógica: cada etapa llama al comando que ya existe, así el smoke sigue teniendo una sola fuente. El primer `FAIL` corta la corrida y deja el resto `NOT_RUN`, como pide la skill. `cleanup` corre siempre después de `launch`. `launch` queda en primer plano: el wrapper lo arranca como proceso hijo, espera `VERIFY_TEMPLATE_READY` y lo deja terminar con `cleanup`. Además, `smoke-api.mjs` espera la readiness antes de empezar, y una ruta relativa en `E2E_OUTPUT_DIR` se resuelve desde la carpeta donde se corre el comando.
-- Preguntas: ninguna todavía.
+- Enseñado (explicado el 2026-10-18, después del cierre): un pipeline local reproducible. `check-all.mjs` corre en orden los 13 gates del README y el runtime; el primer `FAIL` corta con `break` (`check-all.mjs:201-203`) y lo siguiente queda `NOT_RUN`; `cleanup` corre siempre después de `launch` (`:251`). El smoke HTTP sigue con una sola fuente: el wrapper llama a `verify.mjs api`.
+- Preguntas: ninguna sobre el concepto.
 - Decisiones: una fila en `docs/decisions.tsv` (el wrapper corta en el primer fallo y guarda el runtime en una subcarpeta).
 - Evidencia:
   - Comando nuevo (`fase1-02-check-all/`): 19 de 19 etapas en PASS. `dotnet test` 110/110, `check-structure` 24/24, `check-comments` 18/18, `check-frontend` 32/32, Vitest 13/13, smoke HTTP PASS, e2e 33/33 con Edge, `cleanup` PASS y sin contenedores ni volúmenes propios después.

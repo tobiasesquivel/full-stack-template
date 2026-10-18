@@ -1,5 +1,7 @@
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Options;
 using TemplateApp.Features.Auth.Access;
 using TemplateApp.Features.Auth.Contracts;
 using TemplateApp.Infrastructure.Persistence;
@@ -55,19 +57,15 @@ public static class AuthFeature
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        IConfigurationSection section = configuration.GetSection("Session");
-        SessionOptions options = section.Get<SessionOptions>()
-            ?? throw new InvalidOperationException("Session configuration section is missing.");
-
-        if (options.AbsoluteExpirationDays <= 0)
-            throw new InvalidOperationException("Session:AbsoluteExpirationDays must be positive.");
-        if (options.IdleTimeoutMinutes <= 0)
-            throw new InvalidOperationException("Session:IdleTimeoutMinutes must be positive.");
-
-        services.Configure<SessionOptions>(section);
+        services.AddOptions<SessionOptions>()
+            .Bind(configuration.GetSection(SessionOptions.Section))
+            .ValidateOnStart();
+        services.AddSingleton<IValidateOptions<SessionOptions>, SessionOptionsValidator>();
 
         services.AddAuthentication(SessionHttpPolicy.Scheme)
-            .AddCookie(SessionHttpPolicy.Scheme, cookie => SessionHttpPolicy.ConfigureCookie(cookie, options));
+            .AddCookie(SessionHttpPolicy.Scheme);
+        services.AddOptions<CookieAuthenticationOptions>(SessionHttpPolicy.Scheme)
+            .Configure<IOptions<SessionOptions>>((cookie, session) => SessionHttpPolicy.ConfigureCookie(cookie, session.Value));
 
         services.AddAuthorization();
 
@@ -97,15 +95,15 @@ public static class AuthFeature
     public static IApplicationBuilder UseAuthAntiforgery(this IApplicationBuilder app) =>
         app.Use(SessionHttpPolicy.RequireAntiforgeryAsync);
 
-    public static IEndpointRouteBuilder MapAuthEndpoints(this IEndpointRouteBuilder app)
+    public static RouteGroupBuilder MapAuthEndpoints(this RouteGroupBuilder api)
     {
-        RouteGroupBuilder auth = app.MapGroup("/api/v1/auth");
+        RouteGroupBuilder auth = api.MapGroup("/auth");
 
         IssueCsrfToken.IssueCsrfTokenEndpoint.Map(auth);
         RegisterUser.RegisterUserEndpoint.Map(auth);
         OpenSession.OpenSessionEndpoint.Map(auth);
         CloseSession.CloseSessionEndpoint.Map(auth);
 
-        return app;
+        return api;
     }
 }
