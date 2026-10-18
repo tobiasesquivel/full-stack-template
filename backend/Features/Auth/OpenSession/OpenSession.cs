@@ -1,6 +1,7 @@
 using ErrorOr;
 using Microsoft.AspNetCore.Identity;
 using TemplateApp.Features.Auth.Contracts;
+using TemplateApp.Features.Auth.Domain;
 using TemplateApp.Features.Users.Contracts;
 using TemplateApp.Infrastructure.Persistence;
 
@@ -10,25 +11,25 @@ public sealed class OpenSession
 {
     private readonly UserManager<AppIdentityUser> _users;
     private readonly AppDbContext _db;
-    private readonly TokenService _tokens;
+    private readonly Sessions _sessions;
     private readonly UserAccounts _accounts;
     private readonly IUserProfiles _profiles;
 
     public OpenSession(
         UserManager<AppIdentityUser> users,
         AppDbContext db,
-        TokenService tokens,
+        Sessions sessions,
         UserAccounts accounts,
         IUserProfiles profiles)
     {
         _users = users;
         _db = db;
-        _tokens = tokens;
+        _sessions = sessions;
         _accounts = accounts;
         _profiles = profiles;
     }
 
-    public async Task<ErrorOr<(AuthResponse Response, string RefreshPlaintext)>> ExecuteAsync(OpenSessionRequest request, CancellationToken ct)
+    public async Task<ErrorOr<(UserResponse User, Session Session)>> ExecuteAsync(OpenSessionRequest request, CancellationToken ct)
     {
         string userName = request.UserName.Trim();
         if (userName.Length is < 1 or > 100 || request.Password.Length is < 1 or > 128)
@@ -54,12 +55,10 @@ public sealed class OpenSession
         if (profile is null)
             return AuthErrors.ProfileMissing;
 
-        IssuedSession session = await _tokens.IssueNewFamilyAsync(identity, ct);
+        Session session = _sessions.Open(identity.Id);
         await _db.SaveChangesAsync(ct);
 
         UserAccount account = await _accounts.DescribeAsync(identity, ct);
-        AuthResponse response = _tokens.ToAuthResponse(account, profile, session);
-
-        return (response, session.RefreshPlaintext);
+        return (UserResponse.From(account, profile), session);
     }
 }

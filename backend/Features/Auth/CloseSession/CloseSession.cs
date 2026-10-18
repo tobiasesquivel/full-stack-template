@@ -1,19 +1,21 @@
+using System.Security.Claims;
+
 namespace TemplateApp.Features.Auth.CloseSession;
 
 public sealed class CloseSession
 {
-    private readonly TokenService _tokens;
+    private readonly Sessions _sessions;
 
-    public CloseSession(TokenService tokens)
+    public CloseSession(Sessions sessions)
     {
-        _tokens = tokens;
+        _sessions = sessions;
     }
 
-    public async Task ExecuteAsync(string? refreshPlaintext, CancellationToken ct)
+    public async Task ExecuteAsync(ClaimsPrincipal caller, CancellationToken ct)
     {
-        if (string.IsNullOrEmpty(refreshPlaintext))
+        if (!SessionPrincipal.TryRead(caller, out _, out Guid sessionId))
             return;
 
-        await _tokens.RevokePresentedAsync(refreshPlaintext, ct);
+        await _sessions.CloseAsync(sessionId, ct);
     }
 }

@@ -51,11 +51,8 @@ public sealed class ApiFixture : IAsyncLifetime
             builder.UseEnvironment("Testing");
 
             builder.UseSetting("ConnectionStrings:DefaultConnection", connectionString);
-            builder.UseSetting("Jwt:Key", "test-jwt-key-must-be-at-least-32-chars-long!!");
-            builder.UseSetting("Jwt:Issuer", "https://tests.templateapp.local");
-            builder.UseSetting("Jwt:Audience", "api://tests");
-            builder.UseSetting("Jwt:AccessTokenExpirationMinutes", "15");
-            builder.UseSetting("Jwt:RefreshTokenExpirationDays", "7");
+            builder.UseSetting("Session:AbsoluteExpirationDays", "7");
+            builder.UseSetting("Session:IdleTimeoutMinutes", "30");
         }
     }
 

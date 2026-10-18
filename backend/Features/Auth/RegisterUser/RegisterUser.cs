@@ -2,6 +2,7 @@ using ErrorOr;
 using Microsoft.AspNetCore.Identity;
 using TemplateApp.Features.Auth.Access;
 using TemplateApp.Features.Auth.Contracts;
+using TemplateApp.Features.Auth.Domain;
 using TemplateApp.Features.Users.Contracts;
 using TemplateApp.Infrastructure.Persistence;
 
@@ -11,25 +12,25 @@ public sealed class RegisterUser
 {
     private readonly UserManager<AppIdentityUser> _users;
     private readonly AppDbContext _db;
-    private readonly TokenService _tokens;
+    private readonly Sessions _sessions;
     private readonly UserAccounts _accounts;
     private readonly IUserProfiles _profiles;
 
     public RegisterUser(
         UserManager<AppIdentityUser> users,
         AppDbContext db,
-        TokenService tokens,
+        Sessions sessions,
         UserAccounts accounts,
         IUserProfiles profiles)
     {
         _users = users;
         _db = db;
-        _tokens = tokens;
+        _sessions = sessions;
         _accounts = accounts;
         _profiles = profiles;
     }
 
-    public async Task<ErrorOr<(AuthResponse Response, string RefreshPlaintext)>> ExecuteAsync(RegisterUserRequest request, CancellationToken ct)
+    public async Task<ErrorOr<(UserResponse User, Session Session)>> ExecuteAsync(RegisterUserRequest request, CancellationToken ct)
     {
         string userName = request.UserName.Trim();
         string email = request.Email.Trim();
@@ -57,14 +58,12 @@ public sealed class RegisterUser
         if (profile.IsError)
             return profile.Errors;
 
-        IssuedSession session = await _tokens.IssueNewFamilyAsync(identity, ct);
+        Session session = _sessions.Open(identity.Id);
         await _db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
 
         UserAccount account = await _accounts.DescribeAsync(identity, ct);
-        AuthResponse response = _tokens.ToAuthResponse(account, profile.Value, session);
-
-        return (response, session.RefreshPlaintext);
+        return (UserResponse.From(account, profile.Value), session);
     }
 
     private static List<Error> MapIdentityErrors(IdentityResult result)

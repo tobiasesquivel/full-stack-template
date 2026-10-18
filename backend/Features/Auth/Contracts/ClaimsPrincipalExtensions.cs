@@ -1,4 +1,3 @@
-using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 
 namespace TemplateApp.Features.Auth.Contracts;
@@ -7,12 +6,11 @@ public static class ClaimsPrincipalExtensions
 {
     public static string GetCallerId(this ClaimsPrincipal user)
     {
-        string? sub = user.FindFirstValue(JwtRegisteredClaimNames.Sub)
-            ?? user.FindFirstValue(ClaimTypes.NameIdentifier);
+        string? id = user.FindFirstValue(ClaimTypes.NameIdentifier);
 
-        if (string.IsNullOrWhiteSpace(sub))
-            throw new InvalidOperationException("JWT is missing the 'sub' caller claim. Ensure MapInboundClaims=false.");
+        if (string.IsNullOrWhiteSpace(id))
+            throw new InvalidOperationException("The session is missing the caller id claim.");
 
-        return sub;
+        return id;
     }
 }

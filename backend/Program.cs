@@ -63,7 +63,7 @@ try
     app.UseRateLimiter();
     app.UseAuthentication();
     app.UseAuthorization();
-    app.UseAntiforgery();
+    app.UseAuthAntiforgery();
 
     app.MapAuthEndpoints();
     app.MapUsersEndpoints();
