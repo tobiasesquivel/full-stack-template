@@ -1,5 +1,5 @@
 import { defineConfig } from '@playwright/test';
-declare const process: { env: Record<string, string | undefined> };
+declare const process: { env: Record<string, string | undefined>; cwd(): string };
 
 const baseURL = process.env['E2E_BASE_URL'];
 if (!baseURL) {
@@ -8,6 +8,12 @@ if (!baseURL) {
   );
 }
 
+const outputSetting = process.env['E2E_OUTPUT_DIR'];
+const outputDir =
+  outputSetting === undefined || /^([A-Za-z]:)?[\\/]/.test(outputSetting)
+    ? (outputSetting ?? 'test-results')
+    : `${process.cwd()}/${outputSetting}`;
+
 export default defineConfig({
   testDir: '.',
   fullyParallel: false,
@@ -15,11 +21,8 @@ export default defineConfig({
   retries: 0,
   timeout: 180_000,
   expect: { timeout: 10_000 },
-  outputDir: process.env['E2E_OUTPUT_DIR'] ?? 'test-results',
-  reporter: [
-    ['list'],
-    ['json', { outputFile: `${process.env['E2E_OUTPUT_DIR'] ?? 'test-results'}/report.json` }],
-  ],
+  outputDir,
+  reporter: [['list'], ['json', { outputFile: `${outputDir}/report.json` }]],
   use: {
     baseURL,
     channel: process.env['E2E_CHANNEL'] || undefined,
