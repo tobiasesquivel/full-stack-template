@@ -71,17 +71,26 @@ frontend/src/app/
 ├── app.config.ts, app.routes.ts   raíz: compone las features
 ├── core/                          transversal: errores HTTP (ProblemDetails)
 └── features/
-    └── auth/
-        ├── index.ts               la puerta: lo único que ve el resto de la app
-        ├── auth.service.ts, auth.guard.ts, auth.interceptor.ts
-        ├── auth-models.ts         AuthResponse, RegisterRequest…
-        ├── auth.routes.ts         rutas de la feature, sin guards
-        └── login/, register/      componentes
+    ├── auth/
+    │   ├── index.ts               la puerta: lo único que ve el resto de la app
+    │   ├── auth.routes.ts         rutas de la feature, sin guards
+    │   ├── api/                   AuthApi y sus modelos: AuthResponse, OpenSessionRequest…
+    │   ├── session/               Session, guards e interceptor
+    │   └── login/, register/      un componente por carpeta
+    └── tasks/
+        ├── index.ts, tasks.routes.ts
+        ├── api/                   TasksApi y sus modelos: TaskResponse, UpdateTaskRequest…
+        └── tasks/                 componente
 ```
 
+- En la raíz de una feature solo viven `index.ts` y `<feature>.routes.ts`. El resto va en una carpeta con nombre de propósito: `session/`, `api/` o la carpeta del componente. FRONT011 lo hace cumplir.
+
 - Cada feature tiene su cliente HTTP, sus modelos y sus rutas. Su `index.ts` es el equivalente de `Contracts/` en el backend.
+- `Session` guarda un solo estado en un `signal` privado: `restoring` al arrancar, `open` con el usuario o `closed`. Expone `status`, `currentUser` e `isOpen` como `computed`, y las acciones `restore`, `register`, `open`, `refresh`, `close`, `end` y `replaceUser`. `AuthApi` hace el HTTP; `Session` decide el estado. `provideAppInitializer()` llama a `restore()` sin bloquear el arranque, y los guards esperan a que `status` deje de ser `restoring`.
+- `authInterceptor` agrega el token a `/api/` y deja pasar sin token lo marcado con `SKIP_SESSION` (todo `AuthApi`). Un 401 dispara una sola renovación compartida (`Session.refresh()`) y un reintento. Solo una renovación fallida termina la sesión: `Session.end()` lleva a `/login?returnUrl=<página actual>`, y el `authGuard` hace lo mismo con la página pedida. El login vuelve ahí si es una ruta interna.
+- Varias pestañas: el backend revoca la familia si recibe un refresh token ya rotado (`RefreshSessionTests`). Por eso `Session.refresh()` toma un Web Lock: la segunda pestaña renueva después, con la cookie nueva que dejó la primera. Abrir o cerrar la sesión en una pestaña se avisa a las demás por `BroadcastChannel`; ninguna pestaña comparte el access token, cada una lo pide con su renovación.
 - La raíz de la app compone las rutas y decide qué grupo protege cada guard (`canActivateChild`). Las features no declaran guards: así `auth` y `users` no se importan entre sí al cargar la app.
-- Las dependencias siguen la dirección del backend: Auth usa `UsersService` y `UserResponse` desde `features/users`; el perfil usa `AuthService` desde `features/auth`. Los componentes se cargan lazy.
+- Las dependencias siguen la dirección del backend: Auth usa `UsersApi` y `UserResponse` desde `features/users`; el perfil usa `Session` desde `features/auth`. Los componentes se cargan lazy.
 
 ## Operación
 

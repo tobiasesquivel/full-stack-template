@@ -42,7 +42,7 @@ async function seedAngular(root) {
   await mkdir(path.join(types, 'core'), { recursive: true });
   await mkdir(path.join(types, 'common'), { recursive: true });
   await writeFile(path.join(types, 'core', 'package.json'), JSON.stringify({ name: 'core', version: '0.0.0', types: './index.d.ts' }));
-  await writeFile(path.join(types, 'core', 'index.d.ts'), `export declare function Component(o: unknown): unknown;\nexport declare function Injectable(o?: unknown): unknown;\nexport declare function inject(t: unknown): unknown;\nexport declare function signal<T>(v: T): T;\n`);
+  await writeFile(path.join(types, 'core', 'index.d.ts'), `export declare function Component(o: unknown): unknown;\nexport declare function Injectable(o?: unknown): unknown;\nexport declare function Service(o?: unknown): unknown;\nexport declare function inject(t: unknown): unknown;\nexport interface Signal<T> {\n  (): T;\n}\nexport interface WritableSignal<T> extends Signal<T> {\n  set(v: T): void;\n  asReadonly(): Signal<T>;\n}\nexport declare function signal<T>(v: T): WritableSignal<T>;\nexport declare function computed<T>(f: () => T): Signal<T>;\nexport declare function linkedSignal<T>(f: () => T): WritableSignal<T>;\n`);
   await writeFile(path.join(types, 'common', 'package.json'), JSON.stringify({ name: 'http', version: '0.0.0', types: './http.d.ts' }));
   await writeFile(path.join(types, 'common', 'http.d.ts'), `export declare class HttpClient {}\nexport declare class HttpRequest {}\n`);
   void ANGULAR_STUB;
@@ -54,9 +54,9 @@ describe('check-frontend', () => {
       'frontend/src/app/app.routes.ts': `import { tasksRoutes } from './features/tasks';\nexport const routes = [...tasksRoutes];\n`,
       'frontend/src/app/features/tasks/index.ts': `export { tasksRoutes } from './tasks.routes';\n`,
       'frontend/src/app/features/tasks/tasks.routes.ts': `export const tasksRoutes = [\n  { path: 'tasks', loadComponent: () => import('./tasks/tasks').then((m) => m.Tasks) },\n];\n`,
-      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';\nimport type { User } from '../../users';\n@Component({ selector: 'x', template: '' })\nexport class Tasks {\n  readonly user: User | null = null;\n}\n`,
-      'frontend/src/app/features/users/index.ts': `export type { User } from './users-models';\n`,
-      'frontend/src/app/features/users/users-models.ts': `export interface User {\n  id: string;\n}\n`,
+      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';\nimport type { User } from '../../users';\n@Component({ selector: 'x', templateUrl: './x.html' })\nexport class Tasks {\n  readonly user: User | null = null;\n}\n`,
+      'frontend/src/app/features/users/index.ts': `export type { User } from './api/users-models';\n`,
+      'frontend/src/app/features/users/api/users-models.ts': `export interface User {\n  id: string;\n}\n`,
     });
     try {
       await seedAngular(project.root);
@@ -70,9 +70,9 @@ describe('check-frontend', () => {
   it('rejects composition roots and app components that reach inside a feature', async () => {
     const project = await makeProject({
       'frontend/src/app/app.routes.ts': `export const routes = [\n  { path: 'a', loadComponent: () => import('./features/tasks/tasks/tasks').then((m) => m.Tasks) },\n];\n`,
-      'frontend/src/app/app.ts': `import { Component } from '@angular/core';\nimport { TasksService } from './features/tasks/tasks.service';\n@Component({ selector: 'app-root', template: '' })\nexport class App {\n  readonly service = TasksService;\n}\n`,
+      'frontend/src/app/app.ts': `import { Component } from '@angular/core';\nimport { TasksService } from './features/tasks/tasks.service';\n@Component({ selector: 'app-root', templateUrl: './x.html' })\nexport class App {\n  readonly service = TasksService;\n}\n`,
       'frontend/src/app/features/tasks/tasks.service.ts': `export class TasksService {}\n`,
-      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';\n@Component({ selector: 'x', template: '' })\nexport class Tasks {}\n`,
+      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';\n@Component({ selector: 'x', templateUrl: './x.html' })\nexport class Tasks {}\n`,
     });
     try {
       await seedAngular(project.root);
@@ -86,8 +86,8 @@ describe('check-frontend', () => {
 
   it('accepts the feature HTTP adapter while rejecting component HTTP', async () => {
     const project = await makeProject({
-      'frontend/src/app/features/tasks/tasks.service.ts': `import { Injectable, inject } from '@angular/core';\nimport { HttpClient } from '@angular/common/http';\n@Injectable({ providedIn: 'root' })\nexport class TasksService {\n  private readonly http = inject(HttpClient);\n}\n`,
-      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component, inject } from '@angular/core';\nimport { HttpClient } from '@angular/common/http';\n@Component({ selector: 'x', template: '' })\nexport class Tasks {\n  private readonly http = inject(HttpClient);\n}\n`,
+      'frontend/src/app/features/tasks/api/tasks-api.ts': `import { Service, inject } from '@angular/core';\nimport { HttpClient } from '@angular/common/http';\n@Service()\nexport class TasksApi {\n  private readonly http = inject(HttpClient);\n}\n`,
+      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component, inject } from '@angular/core';\nimport { HttpClient } from '@angular/common/http';\n@Component({ selector: 'x', templateUrl: './x.html' })\nexport class Tasks {\n  private readonly http = inject(HttpClient);\n}\n`,
     });
     try {
       await seedAngular(project.root);
@@ -102,7 +102,7 @@ describe('check-frontend', () => {
 
   it('resolves relative paths and barrel reexports to the implementation target', async () => {
     const project = await makeProject({
-      'frontend/src/app/features/auth/login/login.ts': `import { Component } from '@angular/core';\nimport { thing } from '../../../shared/barrel';\n@Component({ selector: 'x', template: '' })\nexport class Login {\n  readonly value = thing;\n}\n`,
+      'frontend/src/app/features/auth/login/login.ts': `import { Component } from '@angular/core';\nimport { thing } from '../../../shared/barrel';\n@Component({ selector: 'x', templateUrl: './x.html' })\nexport class Login {\n  readonly value = thing;\n}\n`,
       'frontend/src/app/shared/barrel.ts': `export * from './impl';\n`,
       'frontend/src/app/shared/impl.ts': `export const thing = 1;\n`,
     });
@@ -147,7 +147,7 @@ describe('check-frontend', () => {
 
   it('rejects cross-feature imports that skip the index, models included', async () => {
     const project = await makeProject({
-      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';\nimport { helper } from '../../users/impl';\nimport type { User } from '../../users/users-models';\n@Component({ selector: 'x', template: '' })\nexport class Tasks {\n  readonly value = helper;\n  readonly user: User | null = null;\n}\n`,
+      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';\nimport { helper } from '../../users/impl';\nimport type { User } from '../../users/users-models';\n@Component({ selector: 'x', templateUrl: './x.html' })\nexport class Tasks {\n  readonly value = helper;\n  readonly user: User | null = null;\n}\n`,
       'frontend/src/app/features/users/impl.ts': `export const helper = 1;\n`,
       'frontend/src/app/features/users/users-models.ts': `export interface User {\n  id: string;\n}\n`,
     });
@@ -164,7 +164,7 @@ describe('check-frontend', () => {
 
   it('rejects type-only imports of foreign implementations', async () => {
     const project = await makeProject({
-      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';\nimport type { Helper } from '../../users/impl';\n@Component({ selector: 'x', template: '' })\nexport class Tasks {\n  readonly value: Helper | null = null;\n}\n`,
+      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';\nimport type { Helper } from '../../users/impl';\n@Component({ selector: 'x', templateUrl: './x.html' })\nexport class Tasks {\n  readonly value: Helper | null = null;\n}\n`,
       'frontend/src/app/features/users/impl.ts': `export interface Helper {\n  id: string;\n}\n`,
     });
     try {
@@ -178,7 +178,7 @@ describe('check-frontend', () => {
 
   it('flags aliased HttpClient reexports in components', async () => {
     const project = await makeProject({
-      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component, inject } from '@angular/core';\nimport { HttpClient as H } from '../../../http-shim';\n@Component({ selector: 'x', template: '' })\nexport class Tasks {\n  private readonly http = inject(H);\n}\n`,
+      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component, inject } from '@angular/core';\nimport { HttpClient as H } from '../../../http-shim';\n@Component({ selector: 'x', templateUrl: './x.html' })\nexport class Tasks {\n  private readonly http = inject(H);\n}\n`,
       'frontend/src/app/http-shim.ts': `export { HttpClient } from '@angular/common/http';\n`,
     });
     try {
@@ -192,7 +192,7 @@ describe('check-frontend', () => {
 
   it('rejects qualified storage in components while allowing local shadowing', async () => {
     const violating = await makeProject({
-      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';\n@Component({ selector: 'x', template: '' })\nexport class Tasks {\n  read(): string | null {\n    return window.localStorage.getItem('k');\n  }\n}\n`,
+      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';\n@Component({ selector: 'x', templateUrl: './x.html' })\nexport class Tasks {\n  read(): string | null {\n    return window.localStorage.getItem('k');\n  }\n}\n`,
     });
     try {
       await seedAngular(violating.root);
@@ -202,7 +202,7 @@ describe('check-frontend', () => {
       await violating.cleanup();
     }
     const shadowed = await makeProject({
-      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';\n@Component({ selector: 'x', template: '' })\nexport class Tasks {\n  read(localStorage: { getItem(k: string): string | null }): string | null {\n    return localStorage.getItem('k');\n  }\n}\n`,
+      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';\n@Component({ selector: 'x', templateUrl: './x.html' })\nexport class Tasks {\n  read(localStorage: { getItem(k: string): string | null }): string | null {\n    return localStorage.getItem('k');\n  }\n}\n`,
     });
     try {
       await seedAngular(shadowed.root);
@@ -215,7 +215,7 @@ describe('check-frontend', () => {
 
   it('ignores storage names inside strings templates and regex', async () => {
     const project = await makeProject({
-      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';\nconst a = "localStorage.getItem('x')";\nconst b = \`sessionStorage \${a}\`;\nconst c = /localStorage/;\n@Component({ selector: 'x', template: '' })\nexport class Tasks {\n  readonly values = [a, b, c];\n}\n`,
+      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';\nconst a = "localStorage.getItem('x')";\nconst b = \`sessionStorage \${a}\`;\nconst c = /localStorage/;\n@Component({ selector: 'x', templateUrl: './x.html' })\nexport class Tasks {\n  readonly values = [a, b, c];\n}\n`,
     });
     try {
       await seedAngular(project.root);
@@ -228,7 +228,7 @@ describe('check-frontend', () => {
 
   it('rejects fetch and XMLHttpRequest in components including globals and aliases', async () => {
     const project = await makeProject({
-      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';\n@Component({ selector: 'x', template: '' })\nexport class Tasks {\n  async load(): Promise<unknown> {\n    const direct = await fetch('/api/v1/tasks');\n    const global = await globalThis.fetch('/api/v1/tasks');\n    const xhr = new XMLHttpRequest();\n    return [direct, global, xhr];\n  }\n}\n`,
+      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';\n@Component({ selector: 'x', templateUrl: './x.html' })\nexport class Tasks {\n  async load(): Promise<unknown> {\n    const direct = await fetch('/api/v1/tasks');\n    const global = await globalThis.fetch('/api/v1/tasks');\n    const xhr = new XMLHttpRequest();\n    return [direct, global, xhr];\n  }\n}\n`,
     });
     try {
       await seedAngular(project.root);
@@ -239,7 +239,7 @@ describe('check-frontend', () => {
       await project.cleanup();
     }
     const aliased = await makeProject({
-      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';\nimport { fetch as get } from '../../../http-ambient';\n@Component({ selector: 'x', template: '' })\nexport class Tasks {\n  load(): unknown {\n    return get('/api/v1/tasks');\n  }\n}\n`,
+      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';\nimport { fetch as get } from '../../../http-ambient';\n@Component({ selector: 'x', templateUrl: './x.html' })\nexport class Tasks {\n  load(): unknown {\n    return get('/api/v1/tasks');\n  }\n}\n`,
       'frontend/src/app/http-ambient.ts': `export const fetch: typeof globalThis.fetch = globalThis.fetch;\n`,
     });
     try {
@@ -254,7 +254,7 @@ describe('check-frontend', () => {
 
   it('resolves long alias chains and terminates on import cycles', async () => {
     const chained = await makeProject({
-      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';\nimport { a1 } from '../../../chain';\n@Component({ selector: 'x', template: '' })\nexport class Tasks {\n  load(): unknown {\n    return a1('/api/v1/tasks');\n  }\n}\n`,
+      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';\nimport { a1 } from '../../../chain';\n@Component({ selector: 'x', templateUrl: './x.html' })\nexport class Tasks {\n  load(): unknown {\n    return a1('/api/v1/tasks');\n  }\n}\n`,
       'frontend/src/app/chain.ts': `import { a2 } from './chain2';\nexport const a1 = a2;\n`,
       'frontend/src/app/chain2.ts': `import { a3 } from './chain3';\nexport const a2 = a3;\n`,
       'frontend/src/app/chain3.ts': `import { a4 } from './chain4';\nexport const a3 = a4;\n`,
@@ -269,7 +269,7 @@ describe('check-frontend', () => {
       await chained.cleanup();
     }
     const cyclic = await makeProject({
-      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';\nimport { c1 } from '../../../cycle1';\n@Component({ selector: 'x', template: '' })\nexport class Tasks {\n  load(local: string): unknown {\n    return [c1, local];\n  }\n}\n`,
+      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';\nimport { c1 } from '../../../cycle1';\n@Component({ selector: 'x', templateUrl: './x.html' })\nexport class Tasks {\n  load(local: string): unknown {\n    return [c1, local];\n  }\n}\n`,
       'frontend/src/app/cycle1.ts': `import { c2 } from './cycle2';\nexport const c1 = c2;\n`,
       'frontend/src/app/cycle2.ts': `import { c1 } from './cycle1';\nexport const c2 = c1;\n`,
     });
@@ -291,6 +291,208 @@ describe('check-frontend', () => {
       await seedAngular(project.root);
       const { diagnostics } = await analyzeFrontend({ root: project.root });
       assert.ok(diagnostics.some((entry) => entry.rule === 'FRONT001'));
+    } finally {
+      await project.cleanup();
+    }
+  });
+
+  it('accepts intent names without type suffixes and @Service singletons', async () => {
+    const project = await makeProject({
+      'frontend/src/app/features/tasks/api/tasks-api.ts': `import { Service } from '@angular/core';\n@Service()\nexport class TasksApi {}\n`,
+      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';\n@Component({ selector: 'x', templateUrl: './x.html' })\nexport class Tasks {}\n`,
+      'frontend/src/app/features/tasks/tasks.routes.ts': `export const tasksRoutes = [];\n`,
+      'frontend/src/app/features/auth/session/auth-guard.ts': `export const authGuard = () => true;\n`,
+      'frontend/src/app/features/auth/session/scoped-cache.ts': `import { Injectable } from '@angular/core';\n@Injectable()\nexport class ScopedCache {}\n`,
+    });
+    try {
+      await seedAngular(project.root);
+      const { diagnostics } = await analyzeFrontend({ root: project.root });
+      assert.deepEqual(diagnostics, []);
+    } finally {
+      await project.cleanup();
+    }
+  });
+
+  it('rejects type suffixes in file names and decorated class names', async () => {
+    const project = await makeProject({
+      'frontend/src/app/features/tasks/tasks.service.ts': `import { Service } from '@angular/core';\n@Service()\nexport class TasksService {}\n`,
+      'frontend/src/app/features/auth/auth.guard.ts': `export const authGuard = () => true;\n`,
+      'frontend/src/app/features/tasks/tasks/tasks-view.ts': `import { Component } from '@angular/core';\n@Component({ selector: 'x', templateUrl: './x.html' })\nexport class TasksComponent {}\n`,
+    });
+    try {
+      await seedAngular(project.root);
+      const { diagnostics } = await analyzeFrontend({ root: project.root });
+      const naming = diagnostics.filter((entry) => entry.rule === 'FRONT004').map((entry) => `${path.basename(entry.path)}:${entry.line}`);
+      assert.deepEqual(naming, ['auth.guard.ts:1', 'tasks.service.ts:1', 'tasks.service.ts:3', 'tasks-view.ts:3']);
+    } finally {
+      await project.cleanup();
+    }
+  });
+
+  it('rejects @Injectable with providedIn root in favor of @Service', async () => {
+    const project = await makeProject({
+      'frontend/src/app/features/tasks/api/tasks-api.ts': `import { Injectable } from '@angular/core';\n@Injectable({ providedIn: 'root' })\nexport class TasksApi {}\n`,
+    });
+    try {
+      await seedAngular(project.root);
+      const { diagnostics } = await analyzeFrontend({ root: project.root });
+      assert.deepEqual(diagnostics.map((entry) => [entry.rule, entry.line]), [['FRONT005', 2]]);
+    } finally {
+      await project.cleanup();
+    }
+  });
+
+  it('accepts Signal Forms and rejects Reactive or template-driven forms', async () => {
+    const project = await makeProject({
+      'frontend/src/app/features/auth/login/login.ts': `import { Component } from '@angular/core';\nimport { FormField, form } from '@angular/forms/signals';\n@Component({ selector: 'x', templateUrl: './x.html', imports: [FormField] })\nexport class Login {\n  readonly loginForm = form;\n}\n`,
+      'frontend/src/app/features/users/profile/profile.ts': `import { Component } from '@angular/core';\nimport { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';\n@Component({ selector: 'x', templateUrl: './x.html', imports: [ReactiveFormsModule] })\nexport class Profile {\n  readonly builder = FormBuilder;\n  readonly rules = Validators;\n}\n`,
+      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';\nimport { FormsModule } from '@angular/forms';\n@Component({ selector: 'x', templateUrl: './x.html', imports: [FormsModule] })\nexport class Tasks {}\n`,
+    });
+    try {
+      await seedAngular(project.root);
+      const { diagnostics } = await analyzeFrontend({ root: project.root });
+      const forms = diagnostics.filter((entry) => entry.rule === 'FRONT006').map((entry) => `${path.basename(entry.path)}:${entry.line}`);
+      assert.deepEqual(forms, ['tasks.ts:2', 'profile.ts:2']);
+    } finally {
+      await project.cleanup();
+    }
+  });
+
+  it('accepts functional initializers and rejects the initializer tokens', async () => {
+    const project = await makeProject({
+      'frontend/src/app/app.config.ts': `import { APP_INITIALIZER as Init, inject, provideAppInitializer } from '@angular/core';\nexport const appConfig = { providers: [provideAppInitializer(() => inject(Init)), { provide: Init, multi: true, useValue: () => undefined }] };\n`,
+      'frontend/src/main.ts': `import { ENVIRONMENT_INITIALIZER } from '@angular/core';\nexport const token = ENVIRONMENT_INITIALIZER;\n`,
+      'frontend/src/app/features/auth/session.ts': `import { provideAppInitializer } from '@angular/core';\nexport const start = provideAppInitializer;\n`,
+    });
+    try {
+      await seedAngular(project.root);
+      const { diagnostics } = await analyzeFrontend({ root: project.root });
+      const initializers = diagnostics.filter((entry) => entry.rule === 'FRONT007').map((entry) => `${path.basename(entry.path)}:${entry.line}`);
+      assert.deepEqual(initializers, ['app.config.ts:1', 'main.ts:1']);
+    } finally {
+      await project.cleanup();
+    }
+  });
+
+  it('accepts templateUrl and rejects inline template or styles', async () => {
+    const project = await makeProject({
+      'frontend/src/app/app.ts': `import { Component } from '@angular/core';
+@Component({ selector: 'app-root', templateUrl: './app.html' })
+export class App {}
+`,
+      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';
+@Component({
+  selector: 'x',
+  template: '<p></p>',
+  styles: 'p {}',
+})
+export class Tasks {}
+`,
+      'frontend/src/app/features/users/profile/profile.ts': `import { Component } from '@angular/core';
+@Component({ selector: 'x', templateUrl: './profile.html', styles: ['p {}'] })
+export class Profile {}
+`,
+    });
+    try {
+      await seedAngular(project.root);
+      const { diagnostics } = await analyzeFrontend({ root: project.root });
+      const inline = diagnostics.filter((entry) => entry.rule === 'FRONT008').map((entry) => `${path.basename(entry.path)}:${entry.line}`);
+      assert.deepEqual(inline, ['tasks.ts:4', 'tasks.ts:5', 'profile.ts:2']);
+    } finally {
+      await project.cleanup();
+    }
+  });
+
+  it('accepts Tailwind classes in the template and rejects styleUrl or styleUrls', async () => {
+    const project = await makeProject({
+      'frontend/src/app/app.ts': `import { Component } from '@angular/core';
+@Component({ selector: 'app-root', templateUrl: './app.html' })
+export class App {}
+`,
+      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';
+@Component({
+  selector: 'x',
+  templateUrl: './tasks.html',
+  styleUrl: './tasks.css',
+})
+export class Tasks {}
+`,
+      'frontend/src/app/features/users/profile/profile.ts': `import { Component } from '@angular/core';
+@Component({ selector: 'x', templateUrl: './profile.html', 'styleUrls': ['./profile.css'] })
+export class Profile {}
+`,
+      'frontend/src/app/features/auth/login/login.ts': `import { Component } from '@angular/core';
+@Component({ selector: 'x', templateUrl: './login.html', styles: 'p {}' })
+export class Login {}
+`,
+    });
+    try {
+      await seedAngular(project.root);
+      const { diagnostics } = await analyzeFrontend({ root: project.root });
+      const styleFiles = diagnostics.filter((entry) => entry.rule === 'FRONT009');
+      assert.deepEqual(styleFiles.map((entry) => `${path.basename(entry.path)}:${entry.line}`), ['tasks.ts:5', 'profile.ts:2']);
+      assert.match(styleFiles[0].message, /styleUrl.*Tailwind/);
+      assert.match(styleFiles[1].message, /styleUrls.*Tailwind/);
+      const inline = diagnostics.filter((entry) => entry.rule === 'FRONT008');
+      assert.deepEqual(inline.map((entry) => `${path.basename(entry.path)}:${entry.line}`), ['login.ts:2']);
+      assert.match(inline[0].message, /Tailwind/);
+      assert.doesNotMatch(inline[0].message, /styleUrl/);
+    } finally {
+      await project.cleanup();
+    }
+  });
+
+  it('accepts one exported type per file and rejects files that export several', async () => {
+    const project = await makeProject({
+      'frontend/src/app/features/tasks/index.ts': `export type { TaskResponse } from './task-response';\nexport type { TaskListResponse } from './task-list-response';\n`,
+      'frontend/src/app/features/tasks/task-response.ts': `export interface TaskResponse {\n  id: string;\n}\n`,
+      'frontend/src/app/features/tasks/task-list-response.ts': `import type { TaskResponse } from './task-response';\ninterface Page {\n  page: number;\n}\nexport interface TaskListResponse extends Page {\n  items: TaskResponse[];\n}\n`,
+      'frontend/src/app/features/users/users-models.ts': `export interface UserResponse {\n  id: string;\n}\n\nexport type UserId = string;\nexport enum UserKind {\n  Person,\n}\n`,
+      'frontend/src/app/features/auth/session.ts': `export class Session {}\nexport class SessionClock {}\nexport const timeout = 5;\n`,
+    });
+    try {
+      await seedAngular(project.root);
+      const { diagnostics } = await analyzeFrontend({ root: project.root });
+      const types = diagnostics.filter((entry) => entry.rule === 'FRONT010').map((entry) => `${path.basename(entry.path)}:${entry.line}`);
+      assert.deepEqual(types, ['session.ts:2', 'users-models.ts:5', 'users-models.ts:6']);
+    } finally {
+      await project.cleanup();
+    }
+  });
+
+  it('accepts only the door and the routes at a feature root and rejects other loose files', async () => {
+    const project = await makeProject({
+      'frontend/src/app/features/tasks/index.ts': `export { tasksRoutes } from './tasks.routes';\nexport type { TaskResponse } from './api/task-response';\n`,
+      'frontend/src/app/features/tasks/tasks.routes.ts': `export const tasksRoutes = [];\n`,
+      'frontend/src/app/features/tasks/api/task-response.ts': `export interface TaskResponse {\n  id: string;\n}\n`,
+      'frontend/src/app/features/auth/index.ts': `export { Session } from './session';\nexport { authGuard } from './auth-guard';\n`,
+      'frontend/src/app/features/auth/auth.routes.ts': `export const authRoutes = [];\n`,
+      'frontend/src/app/features/auth/session.ts': `export class Session {}\n`,
+      'frontend/src/app/features/auth/auth-guard.ts': `export const authGuard = () => true;\n`,
+      'frontend/src/app/features/auth/session/token-response.ts': `export interface TokenResponse {\n  accessToken: string;\n}\n`,
+      'frontend/src/app/core/http-error.ts': `export const describe = () => '';\n`,
+    });
+    try {
+      await seedAngular(project.root);
+      const { diagnostics } = await analyzeFrontend({ root: project.root });
+      const loose = diagnostics.filter((entry) => entry.rule === 'FRONT011').map((entry) => path.basename(entry.path));
+      assert.deepEqual(loose, ['auth-guard.ts', 'session.ts']);
+    } finally {
+      await project.cleanup();
+    }
+  });
+
+  it('accepts read-only state in a service and rejects a service that exposes a writable signal', async () => {
+    const project = await makeProject({
+      'frontend/src/app/features/auth/session/session.ts': `import { Service, computed, signal } from '@angular/core';\ntype State = { status: 'open' } | { status: 'closed' };\n@Service()\nexport class Session {\n  private readonly state = signal<State>({ status: 'closed' });\n  protected readonly draft = signal('');\n  readonly status = computed(() => this.state().status);\n  readonly user = this.state.asReadonly();\n}\n`,
+      'frontend/src/app/features/tasks/api/tasks-api.ts': `import { Service, signal, linkedSignal, type WritableSignal } from '@angular/core';\ntype Writable = WritableSignal<number>;\n@Service()\nexport class TasksApi {\n  readonly page = signal(1);\n  public readonly size = linkedSignal(() => 10);\n  readonly total: Writable | null = null;\n  private readonly hidden = signal(0);\n}\n`,
+      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component, signal } from '@angular/core';\n@Component({ selector: 'x', templateUrl: './x.html' })\nexport class Tasks {\n  readonly items = signal<string[]>([]);\n}\n`,
+    });
+    try {
+      await seedAngular(project.root);
+      const { diagnostics } = await analyzeFrontend({ root: project.root });
+      const writable = diagnostics.filter((entry) => entry.rule === 'FRONT012').map((entry) => `${path.basename(entry.path)}:${entry.line}`);
+      assert.deepEqual(writable, ['tasks-api.ts:5', 'tasks-api.ts:6', 'tasks-api.ts:7']);
     } finally {
       await project.cleanup();
     }

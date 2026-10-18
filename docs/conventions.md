@@ -9,7 +9,7 @@ El código actual todavía no cumple todas estas reglas. La Fase 0 del [plan](ev
 - Cada capacidad vive en `backend/Features/<Feature>/`. La carpeta de la feature va en plural: `Tasks`, `Users`.
 - Cada caso de uso es una slice: una carpeta con el nombre del caso de uso, en verbo + sustantivo (`CreateTask/`, `ListTasks/`). Adentro, un archivo por pieza: `CreateTaskRequest.cs`, `CreateTaskRequestValidator.cs`, `CreateTask.cs`, `CreateTaskEndpoint.cs` y `CreateTaskTests.cs`. Las piezas que el caso de uso no necesita no existen.
 - La operación (`CreateTask`) es una clase propia con sus dependencias. El endpoint (`CreateTaskEndpoint`) es estático: expone `Map` y un handler privado que llama a la operación. No hay una clase compartida por todas las slices ni una interface por slice.
-- Un archivo por tipo en las features.
+- Un archivo, un tipo, en todo el repo: backend, tests, Dune y frontend. Un tipo auxiliar que usa solo otro tipo queda en el archivo de ese tipo, pero el compilador le impide salir: en C# se declara `file` o anidado y privado; en TypeScript, sin `export`. DUNE0010 lo hace cumplir en el backend y FRONT010 en el frontend (un solo `export` de clase, interface, type o enum por archivo). Las migraciones generadas quedan exentas.
 - Un tipo que usa una sola slice vive en la carpeta de la slice.
 - `Contracts/` contiene lo que ven otras features y las responses HTTP que comparten varias slices.
 - Lo interno que comparten varias slices (errores, servicios, mapeos) vive en la raíz de la feature o en una carpeta técnica propia (`Access/`, `Jwt/`). No va a `Contracts/`.
@@ -25,10 +25,22 @@ El código actual todavía no cumple todas estas reglas. La Fase 0 del [plan](ev
 - El namespace coincide con la ruta, bajo `TemplateApp`. Namespaces file-scoped, nullable e implicit usings.
 - Sufijos con significado único: `*Request`, `*Response`, `*Validator`, `*Endpoint`, `*Tests`, `*Feature`. No se usan `*Module` ni `*Endpoints` en features. DUNE0008 lo hace cumplir.
 - Requests y responses son records. La validación de entrada usa FluentValidation. Los mappings de EF usan Fluent API, fuera de `Domain`.
-- En el frontend, los modelos usan los mismos nombres que el backend: `*Request` y `*Response`.
+- En el frontend, los modelos usan los mismos nombres que el backend: `*Request` y `*Response`. Cada uno va en su archivo: `task-response.ts` / `TaskResponse`.
 - En el frontend, cada feature publica en `features/<feature>/index.ts` lo que ven las demás y la raíz de la app. Fuera de una feature, se importa solo su `index.ts`. FRONT001 lo hace cumplir, también para `app.routes.ts` y `app.config.ts`.
 - Las rutas de una feature van en `<feature>.routes.ts`, sin guards. `app.routes.ts` las compone y aplica los guards.
+- En la raíz de una feature del frontend solo viven `index.ts` y `<feature>.routes.ts`. Lo demás va en una carpeta con nombre de propósito: `api/` para el cliente HTTP y sus modelos, `session/` para la sesión de Auth y una carpeta por componente. No hay carpetas por tipo técnico (`services/`, `models/`). FRONT011 lo hace cumplir.
 - `core/` del frontend no nombra ninguna feature: queda para lo transversal.
+- En el frontend, los archivos y las clases se nombran por su propósito, sin sufijo de tipo (*Intent over Role*, Angular v20+): `session.ts` / `Session`, `tasks-api.ts` / `TasksApi`, `profile.ts` / `Profile`. Guards e interceptores usan guion: `auth-guard.ts`. Se mantienen las convenciones del propio Angular: `*.routes.ts`, `app.config.ts`, `*.spec.ts`. FRONT004 lo hace cumplir.
+- Los servicios de una sola instancia usan `@Service()` (Angular v22), no `@Injectable({ providedIn: 'root' })`. FRONT005 lo hace cumplir.
+- Un servicio guarda su estado en un `signal` privado y expone solo `computed()` o `.asReadonly()`. Nadie de afuera llama a `set()`: el servicio ofrece acciones con nombre (`session.open()`, `session.replaceUser()`). FRONT012 rechaza una propiedad pública de tipo `WritableSignal` en una clase con `@Service()` o `@Injectable()`.
+- La sesión del frontend usa los verbos del backend y de CONTEXT.md: `open`, `refresh`, `close`, más `restore` al recargar. Su estado es uno solo: `restoring`, `open` o `closed`. El HTTP de Auth vive en `auth/api/auth-api.ts` (`AuthApi`), como `UsersApi` y `TasksApi`.
+- El interceptor agrega `Authorization` solo a las URLs que empiezan con `/api/`. Las peticiones de `/auth` van marcadas con el `HttpContextToken` `SKIP_SESSION` y salen sin token: así el token antiforgery siempre se valida como anónimo. Ante un 401, renueva una vez y reintenta una vez. Si la renovación falla, `Session.end()` cierra la sesión y lleva a `/login?returnUrl=…`. Si falla el reintento, su error llega tal cual al componente.
+- `returnUrl` lleva solo rutas internas: empieza con `/` y no con `//`. Cualquier otro valor lleva a `/tasks`. Así el login no redirige a otro sitio.
+- Las pestañas del mismo navegador comparten la cookie de refresh. `Session.refresh()` corre dentro de `navigator.locks.request('session-refresh', …)`: dos pestañas nunca presentan el mismo refresh token a la vez. `Session` avisa `opened` y `closed` por `BroadcastChannel('session')`. Con `closed`, las otras pestañas cierran la sesión local y van a `/login`. Con `opened`, la restauran.
+- Los formularios usan Signal Forms (`@angular/forms/signals`): un `signal` con el modelo, `form()` con las reglas (`required`, `maxLength`…) y `submission.action` para enviar. El `<form>` lleva `[formRoot]` y cada input `[formField]`. Las reglas escriben los atributos `required` y `maxlength`: no se ponen a mano. FRONT006 rechaza importar `@angular/forms`.
+- La inicialización usa providers funcionales: `provideAppInitializer()`, `provideEnvironmentInitializer()` y `providePlatformInitializer()`, no los tokens `APP_INITIALIZER`, `ENVIRONMENT_INITIALIZER` ni `PLATFORM_INITIALIZER`. FRONT007 lo hace cumplir.
+- Cada componente separa vista y lógica: `tasks.ts` declara `templateUrl: './tasks.html'`. No se usan `template` ni `styles` en línea. FRONT008 lo hace cumplir.
+- Los estilos son clases de Tailwind v4 en el template: `class="rounded-lg border border-slate-200 bg-white p-5"`. No hay `.css` por componente ni `style=""`. Se repiten las clases en lugar de inventar clases con `@apply`. `src/styles.css` guarda solo `@import 'tailwindcss'`, los tokens de `@theme` y el foco visible por defecto (`@layer base`). FRONT009 rechaza `styleUrl` y `styleUrls`.
 
 ## Comentarios
 

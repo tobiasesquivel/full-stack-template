@@ -22,6 +22,7 @@ El dominio (tareas) es simple a propósito: importa el rigor técnico. **Todo el
 | [docs/evolucion/informe-deep-mediators.md](docs/evolucion/informe-deep-mediators.md) | Módulos profundos (Ousterhout) vs vertical slices, y mediators/buses en .NET. |
 | [docs/evolucion/informe-dotnet-empresarial.md](docs/evolucion/informe-dotnet-empresarial.md) | Arquitectura .NET para apps grandes: paquetes, patrones, observabilidad, pagos, colas, sagas, licencias. |
 | [docs/evolucion/informe-angular-moderno.md](docs/evolucion/informe-angular-moderno.md) | Angular v20-v22: nombres sin sufijo, `@Service()`, Signal Forms y la skill oficial `angular-developer`. |
+| [docs/evolucion/informe-sesion-angular.md](docs/evolucion/informe-sesion-angular.md) | Sesión en Angular: estado con signals, guards, interceptor con renovación, varias pestañas y BFF frente a token en memoria. |
 | [CONTEXT.md](CONTEXT.md) | Vocabulario del dominio. Usá esos términos. |
 | [docs/architecture.md](docs/architecture.md), [docs/conventions.md](docs/conventions.md) | Arquitectura vigente y reglas para escribir código. |
 | [docs/decisions.tsv](docs/decisions.tsv), [docs/adr/](docs/adr/) | Decisiones tomadas y su porqué. |
@@ -47,6 +48,20 @@ El dominio (tareas) es simple a propósito: importa el rigor técnico. **Todo el
 - Explicá sobre el código real: 5 a 10 renglones con clases y archivos del repo. No uses ejemplos genéricos ni pegues el diff completo.
 - Nivel: Tobi conoce C# y Angular. Explicá el *porqué* de cada patrón, no la sintaxis.
 - Escribí en español técnico simple: frases cortas, voz activa, primero la conclusión.
+
+### Cuando Tobi quiere aprender algo
+
+Si Tobi dice "enseñame", "quiero entender" o "explicámelo", usá la skill `/aprender` si está disponible. Si no, seguí su método:
+
+1. **Elegí 1 a 3 ideas.** La sesión enseña esas ideas, no el tema entero.
+2. **Enseñá desde la fuente:** el código con `archivo:línea` o la documentación oficial con su link.
+3. **Una idea por vez:** respuesta corta, nombre y definición, mecanismo paso a paso y un ejemplo del repo.
+4. **Elegí el medio más simple:**
+   - Texto para una definición o una decisión.
+   - Mermaid para un flujo o una estructura. Armalo de a poco: cada diagrama agrega una parte, con unos 7 elementos como máximo y un verbo en cada flecha.
+   - Página HTML para lo que cambia: un antes y después, un valor que se mueve, un sistema para explorar. En T3 Code, revisala con `html_preview` y publicala en el chat con `html_render`. Fuera de T3, guardala en `~/.aprender/lecciones/` y abrila.
+5. **Cerrá cada idea con 1 a 3 preguntas** que Tobi responda de memoria: predecir qué pasa, explicar una línea con sus palabras, decir dónde cambiaría el código. Esperá la respuesta y dale feedback concreto antes de seguir.
+6. **Ajustá la ayuda:** si acierta rápido, menos ejemplo y preguntas más difíciles; si se traba, otro ejemplo resuelto.
 
 ## Verificación
 

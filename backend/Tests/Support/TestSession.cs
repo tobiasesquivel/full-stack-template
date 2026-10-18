@@ -5,19 +5,6 @@ using System.Text.Json;
 
 namespace TemplateApp.Tests.Support;
 
-internal sealed class SessionCookie
-{
-    public string Value { get; init; } = string.Empty;
-    public string Path { get; init; } = "/";
-    public bool HttpOnly { get; init; }
-}
-
-internal sealed class SessionResponse
-{
-    public HttpStatusCode Status { get; init; }
-    public JsonDocument? Payload { get; init; }
-}
-
 internal sealed class TestSession
 {
     private static readonly JsonSerializerOptions JsonOptions = new()

@@ -1,0 +1,65 @@
+<section aria-labelledby="register-title" class="rounded-xl border border-slate-200 bg-white p-5 shadow-xs max-xs:p-4">
+  <h1 id="register-title" class="mb-4 text-2xl leading-tight">Crear cuenta</h1>
+  <form [formRoot]="registerForm">
+    <div class="mb-3">
+      <label for="register-user" class="mb-1 block text-sm/normal font-semibold">Usuario</label>
+      <input
+        id="register-user"
+        type="text"
+        class="w-full max-w-sm rounded-lg border border-slate-400 bg-white px-3 py-2 focus:border-blue-600"
+        [formField]="registerForm.userName"
+        autocomplete="username"
+      />
+      @if (registerForm.userName().touched() && registerForm.userName().invalid()) {
+        <p class="text-red-800">El usuario es obligatorio (máximo 50 caracteres).</p>
+      }
+    </div>
+    <div class="mb-3">
+      <label for="register-email" class="mb-1 block text-sm/normal font-semibold">Correo</label>
+      <input
+        id="register-email"
+        type="email"
+        class="w-full max-w-sm rounded-lg border border-slate-400 bg-white px-3 py-2 focus:border-blue-600"
+        [formField]="registerForm.email"
+        autocomplete="email"
+      />
+      @if (registerForm.email().touched() && registerForm.email().invalid()) {
+        <p class="text-red-800">Escribe un correo válido.</p>
+      }
+    </div>
+    <div class="mb-3">
+      <label for="register-display" class="mb-1 block text-sm/normal font-semibold">Nombre visible</label>
+      <input
+        id="register-display"
+        type="text"
+        class="w-full max-w-sm rounded-lg border border-slate-400 bg-white px-3 py-2 focus:border-blue-600"
+        [formField]="registerForm.displayName"
+        autocomplete="nickname"
+      />
+    </div>
+    <div class="mb-3">
+      <label for="register-password" class="mb-1 block text-sm/normal font-semibold">Contraseña</label>
+      <input
+        id="register-password"
+        type="password"
+        class="w-full max-w-sm rounded-lg border border-slate-400 bg-white px-3 py-2 focus:border-blue-600"
+        [formField]="registerForm.password"
+        autocomplete="new-password"
+      />
+      @if (registerForm.password().touched() && registerForm.password().invalid()) {
+        <p class="text-red-800">La contraseña necesita entre 6 y 128 caracteres.</p>
+      }
+    </div>
+    @if (error()) {
+      <p role="alert" class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-red-800">{{ error() }}</p>
+    }
+    <button
+      type="submit"
+      class="cursor-pointer rounded-lg border border-blue-700 bg-blue-700 px-4 py-2 text-white hover:enabled:border-blue-800 hover:enabled:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
+      [disabled]="registerForm().submitting()"
+    >
+      {{ registerForm().submitting() ? 'Creando…' : 'Crear cuenta' }}
+    </button>
+  </form>
+  <p>¿Ya tienes cuenta? <a routerLink="/login" class="text-blue-700 hover:underline">Entra</a>.</p>
+</section>
