@@ -41,20 +41,20 @@ El dominio (tareas) es simple a propósito: importa el rigor técnico. **Todo el
 8. **No adelantes pasos.** Si el plan parece equivocado, discutilo antes de ejecutar.
 9. **No cambies un gate, analyzer o test para tapar una falla.** Sí podés cambiarlo si ese cambio es el objetivo declarado del paso: con un ADR o una línea en `docs/decisions.tsv`, y con su fixture válida y su violación deliberada.
 10. **Los docs deciden el diseño; Dune los sigue.** La fuente de verdad es ADR-0004, `architecture.md`, `conventions.md` y los informes de `docs/evolucion/`. Justificá cada decisión de diseño con ellos. Si una regla de Dune choca con los docs, corregí la regla en el mismo paso, con lo que pide la regla 9. Si dos docs se contradicen, frená y preguntale a Tobi.
-11. **Un paso cierra cuando Tobi aprendió su concepto, no cuando los gates dan verde.** Cada paso tiene dos paradas, y en cada una esperás la respuesta de Tobi: la explicación antes del código y las preguntas después de la evidencia. Hasta que Tobi responde las preguntas, el paso queda `en curso`.
+11. **Un paso cierra cuando Tobi entendió su concepto, no cuando los gates dan verde.** Cada paso para dos veces y espera la respuesta de Tobi: después de la explicación, antes del código, y después de la evidencia, con el concepto explicado sobre el código que cambió. Hasta que Tobi responde, el paso queda `en curso`.
 
 ## Cómo enseñar
 
 - Un concepto por paso.
 - **Antes** de tocar código: qué problema resuelve, cómo está hoy, cómo queda y qué conceptos previos asume. Terminá ese mensaje sin código y esperá que Tobi responda: puede preguntar, corregir o elegir.
-- **Después**: el resultado con la evidencia. Qué se corrió, qué devolvió y qué significa cada estado. Cerrá con 1 a 3 preguntas sobre el concepto que Tobi responda de memoria, y dale feedback concreto a cada respuesta.
+- **Después**: el resultado con la evidencia. Qué se corrió, qué devolvió y qué significa cada estado. Explicá el concepto del paso sobre el código que cambió y esperá que Tobi responda.
 - Explicá sobre el código real: 5 a 10 renglones con clases y archivos del repo. No uses ejemplos genéricos ni pegues el diff completo.
 - Nivel: Tobi conoce C# y Angular. Explicá el *porqué* de cada patrón, no la sintaxis.
 - Escribí en español técnico simple: frases cortas, voz activa, primero la conclusión.
 
 ### Cuando Tobi quiere aprender algo
 
-Si Tobi dice "enseñame", "quiero entender" o "explicámelo", usá la skill `/aprender` si está disponible. Si no, seguí su método:
+Si Tobi dice "enseñame", "quiero entender" o "explicámelo", seguí este método. Enseñá sin preguntarle para comprobar: Tobi pregunta lo que necesite.
 
 1. **Elegí 1 a 3 ideas.** La sesión enseña esas ideas, no el tema entero.
 2. **Enseñá desde la fuente:** el código con `archivo:línea` o la documentación oficial con su link.
@@ -63,8 +63,6 @@ Si Tobi dice "enseñame", "quiero entender" o "explicámelo", usá la skill `/ap
    - Texto para una definición o una decisión.
    - Mermaid para un flujo o una estructura. Armalo de a poco: cada diagrama agrega una parte, con unos 7 elementos como máximo y un verbo en cada flecha.
    - Página HTML para lo que cambia: un antes y después, un valor que se mueve, un sistema para explorar. En T3 Code, revisala con `html_preview` y publicala en el chat con `html_render`. Fuera de T3, guardala en `~/.aprender/lecciones/` y abrila.
-5. **Cerrá cada idea con 1 a 3 preguntas** que Tobi responda de memoria: predecir qué pasa, explicar una línea con sus palabras, decir dónde cambiaría el código. Esperá la respuesta y dale feedback concreto antes de seguir.
-6. **Ajustá la ayuda:** si acierta rápido, menos ejemplo y preguntas más difíciles; si se traba, otro ejemplo resuelto.
 
 ## Verificación
 
@@ -76,6 +74,6 @@ La evidencia de cada corrida va en `artifacts/verify-template/<runId>/`. Esa car
 
 ## Al cerrar un paso
 
-1. Actualizá [docs/evolucion/progreso.md](docs/evolucion/progreso.md): estado, evidencia y una entrada en "Cierres". La entrada se escribe después de las respuestas de Tobi: `Enseñado` nombra lo que explicaste y Tobi respondió, y `Preguntas` registra sus preguntas y sus respuestas. El PR puede abrirse antes, con la evidencia.
+1. Actualizá [docs/evolucion/progreso.md](docs/evolucion/progreso.md): estado, evidencia y una entrada en "Cierres". La entrada se escribe después de la respuesta de Tobi: `Enseñado` nombra lo que explicaste y `Preguntas` registra lo que Tobi preguntó. El PR puede abrirse antes, con la evidencia.
 2. Si tomaste una decisión de diseño, agregala a `docs/decisions.tsv`.
 3. Cambiá este archivo solo si cambia una regla.
