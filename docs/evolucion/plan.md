@@ -18,11 +18,11 @@ Es el punto de partida, no un límite. Cualquier pieza puede cambiar si mejora e
 | Contratos | `Features/*/Contracts`, `Features/*/Domain`, `Features/*/Persistence`; `<Slice>Tests.cs` junto a cada slice, excluidos de producción por `Compile Remove`. El contrato HTTP lo fijan los tests de integración |
 | Errores | `Shared/Http/ApiResults` traduce `ErrorOr` a ProblemDetails (400/401/403/404/409/500) |
 | Autorización | `IPermissionService` + `ResourceAuthorizer`; permisos consultados por request; orden 404 antes de 403 |
-| Seguridad | Desde el paso 0.26, sesión en el servidor (BFF): una fila en `Sessions` y la cookie `__Host-session` (HttpOnly, Secure, SameSite=Strict) de la autenticación por cookie de ASP.NET Core, con vencimiento absoluto y por inactividad; sin JWT ni refresh token. Antiforgery en toda escritura de la API, lockout de Identity, rate limiting de ventana fija **solo** en los 3 endpoints de escritura de `/auth` |
+| Seguridad | Desde el paso 0.26, sesión en el servidor (BFF): una fila en `Sessions` y la cookie `__Host-session` (HttpOnly, Secure, SameSite=Strict) de la autenticación por cookie de ASP.NET Core, con vencimiento absoluto y por inactividad; sin JWT ni refresh token. Desde el paso 0.27, las claves de Data Protection viven en el volumen `dataprotection`. Antiforgery en toda escritura de la API, lockout de Identity, rate limiting de ventana fija **solo** en los 3 endpoints de escritura de `/auth` |
 | Observabilidad | OpenTelemetry (trazas + métricas) con exporter OTLP y meters declarados: `Npgsql`, `TemplateApp.Api`, `TemplateApp.Business`; Serilog a consola y OTLP; collector en `deploy/otel-collector-config.yaml`; señales en `otel-export/*.json` |
 | Salud | `/api/v1/health/live` y `/ready` (base + migraciones) |
 | Datos | `AppDbContext` único, las migraciones `InitialCreate` y `ServerSideSessions` (paso 0.26), `DatabaseInitializer`, EF Core + Npgsql |
-| Reglas ejecutables | Dune: analizadores DUNE0001-0009 con severidad error, `BannedSymbols.txt`, `Dune.CommentVerifier`, y los gates Node `check-structure.mjs`, `check-comments.mjs`, `check-frontend.mjs`. Cada regla tiene fixture válida y violación deliberada. El paso 0.2 corrigió `.editorconfig` y cambió el gate de Wolverine por un gate neutral de bus |
+| Reglas ejecutables | Dune: analizadores DUNE0001-0011 con severidad error, `BannedSymbols.txt`, `Dune.CommentVerifier`, y los gates Node `check-structure.mjs`, `check-comments.mjs`, `check-frontend.mjs` (FRONT001-016). Cada regla tiene fixture válida y violación deliberada. El paso 0.2 corrigió `.editorconfig` y cambió el gate de Wolverine por un gate neutral de bus |
 | Pruebas backend | MTP + xunit.v3 + Testcontainers PostgreSQL real; `ApiFixture` y `TestSession` en `backend/Tests/Support` |
 | CI | `.github/workflows/ci.yml` con 4 jobs (backend, frontend, comentarios, compose + smoke con evidencia OTLP) |
 | Verificación runtime | Skill del proyecto `verify-template`: `launch` / `doctor` / `api` / `cleanup` con artefactos en `artifacts/verify-template/<runId>/` |
@@ -50,7 +50,7 @@ Regla de oro: **un paso no termina con tests verdes.** Termina cuando el caso qu
 
 ## 4. El plan
 
-### Fase 0 — Bases (pasos 0.0-0.26)
+### Fase 0 — Bases (pasos 0.0-0.28)
 
 Llevan el repo a la forma de [ADR-0004](../adr/0004-vertical-slices-deep-modules.md). Ningún paso cambia un contrato HTTP, salvo el 0.26 (decisión de Tobi): el smoke de la API prueba que nada se rompió.
 
@@ -204,6 +204,20 @@ El paso 0.26 se agregó el 2026-10-17. Tobi eligió BFF porque es lo que usaría
 **Concepto**: la sesión vive en el servidor y el navegador solo guarda una cookie HttpOnly con su id; cerrar o revocar es borrar una fila; el envío automático de la cookie obliga a defenderse de CSRF; un cliente futuro sin cookies entra por otro esquema de autenticación sobre los mismos endpoints.
 **Cambia**: backend: tabla de sesiones con migración, autenticación por cookie de ASP.NET Core (`__Host-`, `HttpOnly`, `Secure`, `SameSite`, vencimiento absoluto y por inactividad), `OpenSession` y `RegisterUser` abren una sesión, `CloseSession` la borra, una consulta "quién soy" para restaurar y antiforgery en toda escritura; se van JWT, `RefreshSession`, `RefreshToken` y `TokenService`. Frontend: `Session` restaura con "quién soy"; se van el interceptor de `Authorization`, la renovación y `navigator.locks`; el `BroadcastChannel` queda solo para avisar a las otras pestañas que la sesión se abrió o se cerró. Tests, `smoke-api.mjs`, e2e, `architecture.md`, `conventions.md` y las reglas de Dune que nombren tokens, con su fixture válida y su violación deliberada.
 **Verifica**: tests nuevos en rojo con el código del 0.25 y en verde después: después de cerrar sesión, la misma cookie da 401; borrar la fila de la sesión en la base (lo que hará un admin cuando exista esa función) corta el acceso en la request siguiente; una escritura sin token antiforgery da 400; ninguna respuesta lleva un token legible por JavaScript. Suite del backend, gates, Vitest, `smoke-api.mjs` y e2e en el navegador; la sesión sigue después de recargar y entre pestañas.
+
+El paso 0.27 se agregó el 2026-10-17, a pedido de Tobi, con un pendiente del 0.26. Tobi eligió guardar las claves en un volumen de Docker, sin paquete nuevo.
+
+**0.27. Claves de Data Protection en un volumen.**
+**Concepto**: Data Protection cifra la cookie de sesión y el antiforgery con un anillo de claves; si las claves viven en el disco del contenedor, recrearlo cierra todas las sesiones; las claves son estado y necesitan un lugar que sobreviva.
+**Cambia**: `BackendInfrastructure` fija el nombre de aplicación y guarda las claves en `DataProtection:KeysDirectory` cuando existe; el `Dockerfile` crea esa carpeta para el usuario `app` y apunta la variable ahí; `compose.yaml` monta el volumen `dataprotection`; el modo `--compose` de `smoke-api.mjs` recrea el contenedor de la API en lugar de reiniciarlo; un test de backend nuevo; `README.md` y `architecture.md`.
+**Verifica**: en rojo con el código del 0.26 y en verde después: `smoke-api.mjs --compose` recrea la API y la misma cookie da 401 antes y 200 después; el test nuevo prueba que otra instancia con la misma carpeta acepta la cookie y una con otra carpeta la rechaza. Recrear la API y `docker compose down` sin `-v` conservan la sesión. Build, tests, gates y launch de `verify-template` con su smoke.
+
+El paso 0.28 se agregó el 2026-10-17, a pedido de Tobi, con otro pendiente del 0.26: las reglas de la sesión solo las probaban los tests.
+
+**0.28. Reglas de la sesión en Dune.**
+**Concepto**: un test prueba los endpoints que existen; una regla estática frena el cambio que todavía no tiene test, como un endpoint nuevo fuera de `/api` o un token guardado en el navegador.
+**Cambia**: `check-frontend.mjs` suma FRONT015 (`localStorage` y `sessionStorage` fuera de los componentes, que ya cubre FRONT003) y FRONT016 (header `Authorization`); un analyzer nuevo, DUNE0011, que mantiene toda ruta de escritura bajo `/api`; `BannedSymbols.txt` prohíbe `DisableAntiforgery()`, `[RequireAntiforgeryToken(false)]` y `UseAntiforgery()`. Cada regla con su fixture válida y su violación deliberada. `conventions.md`, `architecture.md` y la fila de reglas ejecutables de este plan.
+**Verifica**: los tests nuevos de Dune y de `check-frontend` en rojo sin la regla y en verde con ella; una violación deliberada en el producto frena el build o el gate con el diagnóstico esperado; todos los gates en verde sobre el repo real, build del backend y `ng build`.
 
 ### Fase 1 — Base verificable (pasos 1-3)
 

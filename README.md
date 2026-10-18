@@ -16,7 +16,7 @@ Crea un repositorio desde la copia completa mediante la opción GitHub **Use thi
 
 Instala SDK .NET 10.0.401, Node 26.7 y Docker con Compose v2 y soporte de contenedores Linux. Las versiones Microsoft runtime y paquetes son 10.0.12. Angular está fijado en 22.2.1. Respeta `global.json` y `frontend/package-lock.json`.
 
-Para ejecutar el backend fuera de Compose, configura `ConnectionStrings__DefaultConnection` en el entorno del proceso. La conexión debe apuntar a PostgreSQL con una base y credenciales reales. Los dos guiones bajos representan la jerarquía de configuración ASP.NET. No hay secrets de respaldo en appsettings. La sesión no necesita una clave propia: la cookie la cifra Data Protection de ASP.NET Core con sus claves. `Session:AbsoluteExpirationDays` y `Session:IdleTimeoutMinutes` fijan el vencimiento absoluto y la inactividad.
+Para ejecutar el backend fuera de Compose, configura `ConnectionStrings__DefaultConnection` en el entorno del proceso. La conexión debe apuntar a PostgreSQL con una base y credenciales reales. Los dos guiones bajos representan la jerarquía de configuración ASP.NET. No hay secrets de respaldo en appsettings. La sesión no necesita una clave propia: la cookie la cifra Data Protection de ASP.NET Core con sus claves. `DataProtection:KeysDirectory` elige la carpeta de esas claves. Sin ese valor, ASP.NET Core usa la carpeta del perfil del usuario, que sobrevive entre corridas locales. `Session:AbsoluteExpirationDays` y `Session:IdleTimeoutMinutes` fijan el vencimiento absoluto y la inactividad.
 
 Para Compose, copia `.env.example` a `.env`. Sustituye el valor inválido de `POSTGRES_PASSWORD` por un secret propio antes de iniciar. `.env` no debe versionarse. Los demás nombres de configuración son `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PORT`, `API_PORT`, `WEB_PORT` y `OTEL_EXPORT_DIR`. `docker compose config` puede imprimir secrets interpolados. No adjuntes su salida completa como evidencia pública.
 
@@ -31,7 +31,7 @@ docker compose up --build --wait
 
 El conjunto incluye PostgreSQL persistente, collector OpenTelemetry, API y frontend. El arranque aplica migraciones y seed idempotente. Un error de migración o configuración no es un arranque saludable. No borres el volumen para ocultar errores ni uses EnsureCreated.
 
-Con los puertos de partida, abre `http://localhost:8081` para el frontend. La API está en `http://localhost:8080/api/v1`. `web` hace proxy al servicio `api`. `db` usa PostgreSQL 18 con volumen `pgdata` montado en `/var/lib/postgresql`. `otel` recibe OTLP en 4317 y 4318. Si cambias puertos en `.env`, usa los valores configurados.
+Con los puertos de partida, abre `http://localhost:8081` para el frontend. La API está en `http://localhost:8080/api/v1`. `web` hace proxy al servicio `api`. `db` usa PostgreSQL 18 con volumen `pgdata` montado en `/var/lib/postgresql`. `api` guarda las claves de Data Protection en el volumen `dataprotection`, montado en `/var/lib/templateapp/data-protection-keys`: recrear el contenedor no cierra las sesiones. `otel` recibe OTLP en 4317 y 4318. Si cambias puertos en `.env`, usa los valores configurados.
 
 Para detener contenedores conservando los datos, ejecuta el comando siguiente.
 

@@ -217,10 +217,10 @@ if (process.argv.includes('--compose')) {
     compose('start', 'db');
     await waitReady();
   }
-  compose('restart', 'api');
+  compose('up', '--detach', '--no-deps', '--force-recreate', 'api');
   await waitReady();
   assert.equal((await alice.request('GET', `tasks/${created.id}`)).payload.title, 'Estado final',
-    'Los datos deben persistir al reiniciar DB y API');
+    'Los datos y la sesión deben sobrevivir a reiniciar la DB y a recrear el contenedor de la API');
 }
 
 await alice.request('DELETE', `tasks/${created.id}`, undefined, { expected: 204 });

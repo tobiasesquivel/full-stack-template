@@ -59,16 +59,17 @@ El registro crea identidad, perfil, rol y sesión en una transacción explícita
 - `User` recibe `Tasks.Create`. La propiedad habilita leer y modificar lo propio. `Admin` y `SuperAdmin` reciben permisos globales de Tasks. `SuperAdmin` recibe `Users.Manage`.
 - Los permisos se consultan en cada request. La sesión lleva solo identidad (el id del usuario y el de la sesión), nunca roles ni permisos.
 - La sesión vive en el servidor (BFF): una fila de la tabla `Sessions` (`Auth/Domain/Session`) con usuario, creación, vencimiento absoluto y última actividad. El navegador solo guarda la cookie `__Host-session`: `HttpOnly`, `Secure`, `SameSite=Strict` y `Path=/`. Su valor es el ticket de la autenticación por cookie de ASP.NET Core, cifrado con Data Protection; adentro van los dos ids.
+- Las claves de Data Protection cifran la cookie de sesión y el antiforgery. `BackendInfrastructure` fija el nombre de aplicación `TemplateApp` y, si existe `DataProtection:KeysDirectory`, las guarda en esa carpeta. La imagen Docker apunta esa carpeta a `/var/lib/templateapp/data-protection-keys` y Compose monta ahí el volumen `dataprotection`: recrear el contenedor de la API no cierra las sesiones. Varias instancias necesitan compartir esas claves; un volumen local no alcanza, y guardarlas en PostgreSQL queda como opción.
 - La autenticación por cookie es el único esquema. En cada request, `OnValidatePrincipal` busca la fila: si no está, venció (vencimiento absoluto) o pasó el tiempo de inactividad, rechaza la sesión, borra la cookie y la request sigue como anónima (401 si la ruta pide sesión). La última actividad se escribe como mucho una vez por minuto por sesión.
 - Abrir sesión (`OpenSession`, `RegisterUser`) crea la fila, emite la cookie y devuelve el usuario. Ninguna respuesta lleva un token. Cerrar sesión (`CloseSession`) borra la fila y la cookie. Revocar una sesión es borrar su fila: corta el acceso en la request siguiente. Las otras sesiones del mismo usuario siguen.
 - "Quién soy" es `GET /api/v1/users/me`: con la cookie sola devuelve el usuario. Angular lo usa para restaurar la sesión al recargar.
-- La cookie viaja sola, así que toda escritura de la API (`POST`, `PUT`, `PATCH`, `DELETE` bajo `/api`) valida antiforgery, también para anónimos. Sin token válido responde 400 con el código `Auth.AntiforgeryFailed`. Abrir o cerrar sesión cambia la identidad y emite un `XSRF-TOKEN` nuevo en la misma respuesta.
+- La cookie viaja sola, así que toda escritura de la API (`POST`, `PUT`, `PATCH`, `DELETE` bajo `/api`) valida antiforgery, también para anónimos. Sin token válido responde 400 con el código `Auth.AntiforgeryFailed`. Abrir o cerrar sesión cambia la identidad y emite un `XSRF-TOKEN` nuevo en la misma respuesta. DUNE0011 mantiene toda ruta de escritura bajo `/api` y `BannedSymbols.txt` prohíbe las formas de saltear el antiforgery.
 - `SessionHttpPolicy` es el adapter HTTP de la sesión: configura la cookie, firma la entrada y la salida, emite `XSRF-TOKEN`, valida la sesión en cada request y exige antiforgery en las escrituras. `Sessions` no conoce HTTP: abre, valida y cierra filas.
 - Un cliente sin cookies (una app móvil) entraría por otro esquema de autenticación (Bearer) sobre los mismos endpoints. No existe todavía. Ese esquema no necesitaría antiforgery, porque el navegador no manda su credencial solo.
 
 ## Frontend
 
-Angular consume `/api/v1` del mismo origen, mediante un proxy. No maneja tokens: la sesión es la cookie HttpOnly, que el navegador manda solo.
+Angular consume `/api/v1` del mismo origen, mediante un proxy. No maneja tokens: la sesión es la cookie HttpOnly, que el navegador manda solo. FRONT015 y FRONT003 rechazan `localStorage` y `sessionStorage`; FRONT016 rechaza un header `Authorization`.
 
 ```text
 frontend/src/app/

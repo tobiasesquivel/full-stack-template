@@ -22,9 +22,12 @@ public sealed class ApiFixture : IAsyncLifetime
 
     public IServiceProvider Services => _factory!.Services;
 
-    public HttpClient CreateIsolatedClient(out IServiceProvider services)
+    public HttpClient CreateIsolatedClient(out IServiceProvider services) =>
+        CreateIsolatedClient(new Dictionary<string, string>(), out services);
+
+    public HttpClient CreateIsolatedClient(IReadOnlyDictionary<string, string> settings, out IServiceProvider services)
     {
-        WebApplicationFactory<Program> isolated = CreateFactory(_connectionString);
+        WebApplicationFactory<Program> isolated = new TestApiFactory(_connectionString, settings);
 
         _isolatedFactories.Add(isolated);
         services = isolated.Services;
@@ -42,9 +45,11 @@ public sealed class ApiFixture : IAsyncLifetime
     }
 
     public static WebApplicationFactory<Program> CreateFactory(string connectionString) =>
-        new TestApiFactory(connectionString);
+        new TestApiFactory(connectionString, new Dictionary<string, string>());
 
-    private sealed class TestApiFactory(string connectionString) : WebApplicationFactory<Program>
+    private sealed class TestApiFactory(
+        string connectionString,
+        IReadOnlyDictionary<string, string> settings) : WebApplicationFactory<Program>
     {
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
@@ -53,6 +58,8 @@ public sealed class ApiFixture : IAsyncLifetime
             builder.UseSetting("ConnectionStrings:DefaultConnection", connectionString);
             builder.UseSetting("Session:AbsoluteExpirationDays", "7");
             builder.UseSetting("Session:IdleTimeoutMinutes", "30");
+            foreach ((string key, string value) in settings)
+                builder.UseSetting(key, value);
         }
     }
 

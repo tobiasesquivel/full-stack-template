@@ -7,6 +7,8 @@ RUN dotnet publish "TemplateApp.csproj" -c Release -o /app/publish --no-restore 
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0.12
 WORKDIR /app
+ENV DataProtection__KeysDirectory=/var/lib/templateapp/data-protection-keys
+RUN mkdir -p "$DataProtection__KeysDirectory" && chown app:app "$DataProtection__KeysDirectory"
 USER $APP_UID
 COPY --from=build --chown=app:app /app/publish .
 ENV ASPNETCORE_URLS=http://+:8080

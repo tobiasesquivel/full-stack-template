@@ -629,6 +629,77 @@ export class Login {}
     }
   });
 
+  it('rejects web storage outside components and leaves components to FRONT003', async () => {
+    const project = await makeProject({
+      ...TASKS_COMPONENT,
+      'frontend/src/app/features/auth/session/session.ts': `export class Session {\n  remember(user: string): void {\n    localStorage.setItem('user', user);\n  }\n  forget(): void {\n    globalThis.sessionStorage.clear();\n  }\n}\n`,
+      'frontend/src/app/features/auth/login/login.ts': `import { Component } from '@angular/core';\n@Component({ selector: 'x', templateUrl: './x.html' })\nexport class Login {\n  read(): string | null {\n    return window.localStorage.getItem('k');\n  }\n}\n`,
+    });
+    try {
+      await seedAngular(project.root);
+      const { diagnostics } = await analyzeFrontend({ root: project.root });
+      assert.deepEqual(
+        diagnostics.filter((entry) => entry.rule === 'FRONT003' || entry.rule === 'FRONT015').map((entry) => [entry.rule, entry.path, entry.line]),
+        [
+          ['FRONT003', 'frontend/src/app/features/auth/login/login.ts', 5],
+          ['FRONT015', 'frontend/src/app/features/auth/session/session.ts', 3],
+          ['FRONT015', 'frontend/src/app/features/auth/session/session.ts', 6],
+        ],
+      );
+      assert.match(diagnostics.find((entry) => entry.rule === 'FRONT015').message, /HttpOnly cookie/);
+    } finally {
+      await project.cleanup();
+    }
+  });
+
+  it('accepts a service that shadows storage names or only mentions them in text', async () => {
+    const project = await makeProject({
+      ...TASKS_COMPONENT,
+      'frontend/src/app/features/auth/session/session.ts': `const note = 'localStorage is not used';\nexport class Session {\n  readonly note = note;\n  read(localStorage: { getItem(k: string): string | null }): string | null {\n    return localStorage.getItem('k');\n  }\n}\n`,
+    });
+    try {
+      await seedAngular(project.root);
+      const { diagnostics } = await analyzeFrontend({ root: project.root });
+      assert.deepEqual(diagnostics, []);
+    } finally {
+      await project.cleanup();
+    }
+  });
+
+  it('rejects an Authorization header written by app code', async () => {
+    const project = await makeProject({
+      ...TASKS_COMPONENT,
+      'frontend/src/app/features/auth/session/auth-interceptor.ts': `type Request = { clone(update: { setHeaders: Record<string, string> }): Request };\nexport function withToken(request: Request, token: string): Request {\n  return request.clone({ setHeaders: { Authorization: \`Bearer \${token}\` } });\n}\n`,
+      'frontend/src/app/features/tasks/api/tasks-api.ts': `export class TasksApi {\n  headers(token: string): Headers {\n    const headers = new Headers();\n    headers.set('authorization', token);\n    return headers;\n  }\n  init(token: string): RequestInit {\n    return { headers: { 'Authorization': token } };\n  }\n}\n`,
+    });
+    try {
+      await seedAngular(project.root);
+      const { diagnostics } = await analyzeFrontend({ root: project.root });
+      assert.deepEqual(diagnostics.map((entry) => [entry.rule, entry.path, entry.line]), [
+        ['FRONT016', 'frontend/src/app/features/auth/session/auth-interceptor.ts', 3],
+        ['FRONT016', 'frontend/src/app/features/tasks/api/tasks-api.ts', 4],
+        ['FRONT016', 'frontend/src/app/features/tasks/api/tasks-api.ts', 8],
+      ]);
+      assert.match(diagnostics[0].message, /HttpOnly cookie/);
+    } finally {
+      await project.cleanup();
+    }
+  });
+
+  it('accepts the antiforgery header and messages that only mention authorization', async () => {
+    const project = await makeProject({
+      ...TASKS_COMPONENT,
+      'frontend/src/app/features/tasks/api/tasks-api.ts': `export class TasksApi {\n  readonly failure = 'Authorization failed';\n  headers(token: string): Headers {\n    const headers = new Headers();\n    headers.set('X-XSRF-TOKEN', token);\n    return headers;\n  }\n}\n`,
+    });
+    try {
+      await seedAngular(project.root);
+      const { diagnostics } = await analyzeFrontend({ root: project.root });
+      assert.deepEqual(diagnostics, []);
+    } finally {
+      await project.cleanup();
+    }
+  });
+
   it('fails configuration errors instead of reporting green', async () => {
     await assert.rejects(() => analyzeFrontend({ root: '/nonexistent-root-xyz', project: '/nonexistent.json' }), /cannot read project/);
   });
