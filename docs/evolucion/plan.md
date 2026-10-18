@@ -50,9 +50,9 @@ Regla de oro: **un paso no termina con tests verdes.** Termina cuando el caso qu
 
 ## 4. El plan
 
-### Fase 0 — Bases (pasos 0.0-0.25)
+### Fase 0 — Bases (pasos 0.0-0.26)
 
-Llevan el repo a la forma de [ADR-0004](../adr/0004-vertical-slices-deep-modules.md). Ningún paso cambia un contrato HTTP: el smoke de la API prueba que nada se rompió.
+Llevan el repo a la forma de [ADR-0004](../adr/0004-vertical-slices-deep-modules.md). Ningún paso cambia un contrato HTTP, salvo el 0.26 (decisión de Tobi): el smoke de la API prueba que nada se rompió.
 
 **0.0. Inicialización concurrente de la base.** (adelantado del paso 3)
 **Concepto**: inicialización concurrente; serializar con un advisory lock de PostgreSQL.
@@ -197,6 +197,13 @@ Los pasos 0.21 a 0.25 se agregaron el 2026-10-17, a pedido de Tobi, con sus deci
 **Concepto**: el agente consulta la documentación y la guía de la versión instalada desde el propio CLI.
 **Cambia**: `.mcp.json` con `ng mcp --read-only`; `AGENTS.md` lo nombra.
 **Verifica**: el servidor arranca, lista sus herramientas y `list_projects` devuelve `frontend`.
+
+El paso 0.26 se agregó el 2026-10-17. Tobi eligió BFF porque es lo que usaría en un SaaS ([informe-sesion-angular.md](informe-sesion-angular.md), sección 4, y `docs/decisions.tsv`). Cambia el contrato HTTP de `/auth`: va completo, con backend, frontend y tests juntos.
+
+**0.26. Sesión en el servidor (BFF).** (cambia el contrato HTTP)
+**Concepto**: la sesión vive en el servidor y el navegador solo guarda una cookie HttpOnly con su id; cerrar o revocar es borrar una fila; el envío automático de la cookie obliga a defenderse de CSRF; un cliente futuro sin cookies entra por otro esquema de autenticación sobre los mismos endpoints.
+**Cambia**: backend: tabla de sesiones con migración, autenticación por cookie de ASP.NET Core (`__Host-`, `HttpOnly`, `Secure`, `SameSite`, vencimiento absoluto y por inactividad), `OpenSession` y `RegisterUser` abren una sesión, `CloseSession` la borra, una consulta "quién soy" para restaurar y antiforgery en toda escritura; se van JWT, `RefreshSession`, `RefreshToken` y `TokenService`. Frontend: `Session` restaura con "quién soy"; se van el interceptor de `Authorization`, la renovación y `navigator.locks`; el `BroadcastChannel` queda solo para avisar a las otras pestañas que la sesión se abrió o se cerró. Tests, `smoke-api.mjs`, e2e, `architecture.md`, `conventions.md` y las reglas de Dune que nombren tokens, con su fixture válida y su violación deliberada.
+**Verifica**: tests nuevos en rojo con el código del 0.25 y en verde después: después de cerrar sesión, la misma cookie da 401; borrar la fila de la sesión en la base (lo que hará un admin cuando exista esa función) corta el acceso en la request siguiente; una escritura sin token antiforgery da 400; ninguna respuesta lleva un token legible por JavaScript. Suite del backend, gates, Vitest, `smoke-api.mjs` y e2e en el navegador; la sesión sigue después de recargar y entre pestañas.
 
 ### Fase 1 — Base verificable (pasos 1-3)
 

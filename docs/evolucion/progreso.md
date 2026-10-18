@@ -4,7 +4,7 @@ Registro vivo del [plan](plan.md). El agente lo actualiza al cerrar cada paso.
 
 ## Paso actual
 
-**Fase 1, paso 2: un solo comando de verificación local.** Estado: pendiente. Los pasos 0.10 a 0.25 cerraron. Tobi pidió el 2026-10-17 separar la vista de los componentes (0.10), un archivo por tipo (0.11), Tailwind (0.12), ordenar los archivos sueltos de cada feature (0.13), investigar y aplicar el manejo de sesión en Angular (0.14 a 0.16, [informe-sesion-angular.md](informe-sesion-angular.md)) y aplicar lo que no necesita decisión de herramienta de [informe-componentes-angular.md](informe-componentes-angular.md) y [informe-frontend-para-agentes.md](informe-frontend-para-agentes.md) (0.17 a 0.20). Después eligió Vitest, Prettier, Playwright Test, el MCP del CLI y los ajustes visuales (0.21 a 0.25). Los pasos 0.6 a 0.25 esperan el merge de Tobi. El Stop hook espera hasta después del paso 2.
+**Paso 0.26: sesión en el servidor (BFF).** Estado: pendiente. Tobi eligió BFF el 2026-10-17; después sigue la Fase 1, paso 2. Los pasos 0.10 a 0.25 cerraron. Tobi pidió el 2026-10-17 separar la vista de los componentes (0.10), un archivo por tipo (0.11), Tailwind (0.12), ordenar los archivos sueltos de cada feature (0.13), investigar y aplicar el manejo de sesión en Angular (0.14 a 0.16, [informe-sesion-angular.md](informe-sesion-angular.md)) y aplicar lo que no necesita decisión de herramienta de [informe-componentes-angular.md](informe-componentes-angular.md) y [informe-frontend-para-agentes.md](informe-frontend-para-agentes.md) (0.17 a 0.20). Después eligió Vitest, Prettier, Playwright Test, el MCP del CLI y los ajustes visuales (0.21 a 0.25). Los pasos 0.6 a 0.25 esperan el merge de Tobi. El Stop hook espera hasta después del paso 2.
 
 La Fase 0 va antes del paso 2. El paso 1 (línea base) ya cerró y sirve de referencia para la Fase 0.
 
@@ -40,6 +40,7 @@ Estados: `pendiente`, `en curso`, `cerrado`, `bloqueado (⏸ decisión de Tobi)`
 | 0.23 | Formato verificado con Prettier | cerrado | `artifacts/verify-template/fase0-23-prettier-check/`, `artifacts/verify-template/fase0-23-runtime/` |
 | 0.24 | E2E con Playwright Test | cerrado | `artifacts/verify-template/fase0-24-playwright-e2e/`, `artifacts/verify-template/fase0-24-e2e-try1/` (fallo de red local), `artifacts/verify-template/fase0-24-e2e-red/` (rojo), `artifacts/verify-template/fase0-24-e2e/` |
 | 0.25 | MCP del CLI de Angular, solo lectura | cerrado | `artifacts/verify-template/fase0-25-angular-mcp/` |
+| 0.26 | Sesión en el servidor (BFF) | pendiente | |
 | 1 | Línea base: qué funciona hoy, con evidencia | cerrado | [linea-base.md](linea-base.md); `artifacts/verify-template/baseline-20261016/` |
 | 2 | Un solo comando de verificación local | pendiente | |
 | 3 | CI verde de verdad | pendiente | |

@@ -10,7 +10,7 @@
 
 ## Conclusión
 
-1. **El diseño de seguridad del repo es aceptable y profesional.** El access token vive en memoria y el refresh en una cookie HttpOnly. Es el patrón que el RFC 10017 llama *token-mediating backend*: el segundo en seguridad. El más seguro es el BFF (todo por cookie, ningún token en el navegador). Pasar a BFF cambia el contrato HTTP: es **⏸ DECISIÓN DE TOBI**. [PRIMARIA + INFERENCE]
+1. **El diseño de seguridad del repo es aceptable y profesional.** El access token vive en memoria y el refresh en una cookie HttpOnly. Es el patrón que el RFC 10017 llama *token-mediating backend*: el segundo en seguridad. El más seguro es el BFF (todo por cookie, ningún token en el navegador). Pasar a BFF cambia el contrato HTTP: es **⏸ DECISIÓN DE TOBI**. [PRIMARIA + INFERENCE] **Tobi eligió BFF el 2026-10-17**: lo aplica el paso 0.26 del [plan](plan.md).
 2. **Para una app de este tamaño, la práctica recomendada es un servicio `@Service()` con signals**, no NgRx SignalStore. El estado va en un `signal` privado; lo público son `computed` o `asReadonly()`. El repo ya hace eso a medias. [PRIMARIA]
 3. **El estado de la sesión debería ser uno solo, con tres valores**: `restoring`, `open` y `closed`. Hoy son tres piezas sueltas: `currentUser`, `initialized` y una `Promise` armada a mano. Con un solo estado no hay combinaciones imposibles. [INFERENCE sobre PRIMARIA]
 4. **El interceptor tiene un error de comportamiento.** Si la petición reintentada falla por cualquier motivo (404, 500, 400), cierra la sesión y manda a `/login`. Solo debería cerrarla si falla la renovación. [REPO]
@@ -269,7 +269,8 @@ Además: `ng build`, `node dune/check-frontend.mjs` y `node --test dune/check-fr
 
 ## 11. Decisiones de Tobi
 
-- ⏸ **BFF (sesión solo por cookie, sin JWT en el navegador).** Es el nivel más seguro del RFC 10017. Cambia el contrato de `/auth`, la autenticación del backend, el interceptor y la renovación. No hace falta Duende: alcanza con la autenticación por cookie de ASP.NET Core, porque la app y la API comparten origen.
+- **BFF: elegido por Tobi el 2026-10-17** (ver `docs/decisions.tsv` y el paso 0.26 del plan). Con BFF, los tres puntos que siguen cambian: la cookie de sesión lleva `__Host-` con `Path=/`, el timeout por inactividad lo da la sesión del servidor y el margen de rotación deja de existir porque no hay refresh token. Texto original:
+  ⏸ **BFF (sesión solo por cookie, sin JWT en el navegador).** Es el nivel más seguro del RFC 10017. Cambia el contrato de `/auth`, la autenticación del backend, el interceptor y la renovación. No hace falta Duende: alcanza con la autenticación por cookie de ASP.NET Core, porque la app y la API comparten origen.
 - ⏸ **Prefijo de la cookie de refresh** (`__Secure-`; `__Host-` obliga a `Path=/`). Backend.
 - ⏸ **Timeout por inactividad en el servidor.** Hoy solo hay timeout absoluto. Backend.
 - ⏸ **Margen de rotación del refresh token** (como el *Rotation Overlap Period* de Auth0). Backend. No hace falta si se aplica el paso C.
