@@ -123,9 +123,8 @@ Una entrada por paso cerrado, con este formato:
 - Evidencia: artifacts/verify-template/<runId>/
 ```
 
-### Paso 3 — 2026-10-18
-- Enseñado: CI es un gate solo si un fallo lo pone rojo, y solo frena si la rama lo exige. Verde no alcanza: hay que ver que cada job corra tests reales (no cero) y que cada falla caiga en su step. Un PR de prueba con una falla deliberada por job prueba las dos cosas. Proteger `main` es lo que convierte el rojo en un bloqueo; sin protección, CI avisa y el merge sigue abierto.
-- Preguntas: ninguna.
+$1- Enseñado (explicado el 2026-10-18, después del cierre): un gate vale si prueba algo real (conteos de tests distintos de cero), si se pone rojo con una violación deliberada en el step correcto (PR #42, una falla por job) y si bloquea. El tercer punto no se cumple: sin protección de rama, CI avisa pero no frena un merge.
+- Preguntas: Tobi preguntó qué entendía el agente que estaban haciendo. Con eso marcó que los pasos 2 y 3 se habían cerrado sin enseñar; de ahí salió la regla 11 de `AGENTS.md`. No preguntó sobre el concepto.
 - Decisiones: Tobi decidió dejar `main` sin protección (el repo privado del plan gratis no la permite) y dejar las e2e de CI para otro paso. Dos filas en `docs/decisions.tsv`.
 - Evidencia:
   - Verde (run `39091828498`, push del merge de #41): los 4 jobs en `success`. Backend 38 tests de producto y 72 de Dune; `check-structure` corre; `check-frontend` 32/32; `check-comments` 18/18; smoke `--compose` con `"result": "PASS"`. Mismos conteos que `check-all.mjs` en el paso 2.
@@ -135,9 +134,8 @@ Una entrada por paso cerrado, con este formato:
   - E2E en CI: NOT_RUN, por decisión de Tobi.
   - `ci.yml`: sin cambios. El plan lo cambia solo si un job falla, y ninguno falla.
 
-### Paso 2 — 2026-10-17
-- Enseñado: un pipeline local reproducible. Una sola entrada, `check-all.mjs`, corre en orden los 13 comandos del README y después `launch`, `doctor`, `api`, las e2e y `cleanup` de `verify.mjs`. No copia lógica: cada etapa llama al comando que ya existe, así el smoke sigue teniendo una sola fuente. El primer `FAIL` corta la corrida y deja el resto `NOT_RUN`, como pide la skill. `cleanup` corre siempre después de `launch`. `launch` queda en primer plano: el wrapper lo arranca como proceso hijo, espera `VERIFY_TEMPLATE_READY` y lo deja terminar con `cleanup`. Además, `smoke-api.mjs` espera la readiness antes de empezar, y una ruta relativa en `E2E_OUTPUT_DIR` se resuelve desde la carpeta donde se corre el comando.
-- Preguntas: ninguna todavía.
+$1- Enseñado (explicado el 2026-10-18, después del cierre): un pipeline local reproducible. `check-all.mjs` corre en orden los 13 gates del README y el runtime; el primer `FAIL` corta con `break` (`check-all.mjs:201-203`) y lo siguiente queda `NOT_RUN`; `cleanup` corre siempre después de `launch` (`:251`). El smoke HTTP sigue con una sola fuente: el wrapper llama a `verify.mjs api`.
+- Preguntas: ninguna sobre el concepto.
 - Decisiones: una fila en `docs/decisions.tsv` (el wrapper corta en el primer fallo y guarda el runtime en una subcarpeta).
 - Evidencia:
   - Comando nuevo (`fase1-02-check-all/`): 19 de 19 etapas en PASS. `dotnet test` 110/110, `check-structure` 24/24, `check-comments` 18/18, `check-frontend` 32/32, Vitest 13/13, smoke HTTP PASS, e2e 33/33 con Edge, `cleanup` PASS y sin contenedores ni volúmenes propios después.
