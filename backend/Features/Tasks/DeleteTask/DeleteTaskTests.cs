@@ -25,7 +25,7 @@ public sealed class DeleteTaskTests : IClassFixture<ApiFixture>
         deleted.Payload?.Dispose();
         Assert.Equal(HttpStatusCode.NoContent, deleted.Status);
 
-        var gone = await alice.SendAsync(HttpMethod.Get, $"api/v1/tasks/{id}", authenticated: true, csrf: false);
+        var gone = await alice.SendAsync(HttpMethod.Get, $"api/v1/tasks/{id}", csrf: false);
         gone.Payload?.Dispose();
         Assert.Equal(HttpStatusCode.NotFound, gone.Status);
 

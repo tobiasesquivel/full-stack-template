@@ -26,8 +26,7 @@ public sealed class OpenSessionTests : IClassFixture<ApiFixture>
         SessionResponse bad = await attempt.SendAsync(
             HttpMethod.Post,
             "api/v1/auth/login",
-            new { userName = name, password = "wrong-password" },
-            authenticated: false);
+            new { userName = name, password = "wrong-password" });
 
         bad.Payload?.Dispose();
         Assert.Equal(HttpStatusCode.Unauthorized, bad.Status);
@@ -37,8 +36,7 @@ public sealed class OpenSessionTests : IClassFixture<ApiFixture>
         SessionResponse unknown = await missing.SendAsync(
             HttpMethod.Post,
             "api/v1/auth/login",
-            new { userName = TestAccounts.UniqueName("ghost"), password = "wrong-password" },
-            authenticated: false);
+            new { userName = TestAccounts.UniqueName("ghost"), password = "wrong-password" });
 
         unknown.Payload?.Dispose();
         Assert.Equal(HttpStatusCode.Unauthorized, unknown.Status);
@@ -48,17 +46,42 @@ public sealed class OpenSessionTests : IClassFixture<ApiFixture>
         SessionResponse ok = await login.SendAsync(
             HttpMethod.Post,
             "api/v1/auth/login",
-            new { userName = name, password = alice.Password },
-            authenticated: false);
+            new { userName = name, password = alice.Password });
 
         Assert.Equal(HttpStatusCode.OK, ok.Status);
+        TestAccounts.AssertCarriesNoToken(ok);
         Assert.NotNull(ok.Payload);
         using (ok.Payload)
         {
-            JsonElement root = ok.Payload.RootElement;
-            Assert.False(string.IsNullOrEmpty(root.GetProperty("accessToken").GetString()));
-            Assert.False(root.TryGetProperty("refreshToken", out _));
+            JsonElement user = ok.Payload.RootElement;
+            Assert.Equal(alice.AuthId, user.GetProperty("authId").GetString());
+            Assert.Equal(name, user.GetProperty("userName").GetString());
         }
-        Assert.Contains(login.Cookies.Values, c => c.HttpOnly && c.Path == "/api/v1/auth");
+        TestAccounts.AssertSessionCookie(login);
+        Assert.Equal(
+            [TestAccounts.XsrfCookieName],
+            login.Cookies.Where(c => !c.Value.HttpOnly).Select(c => c.Key).ToArray());
+
+        SessionResponse me = await login.SendAsync(HttpMethod.Get, "api/v1/users/me", csrf: false);
+        me.Payload?.Dispose();
+        Assert.Equal(HttpStatusCode.OK, me.Status);
+    }
+
+    [Fact]
+    public async Task Login_WithBadCredentials_SetsNoSessionCookie()
+    {
+        TestSession alice = new(_fixture.CreateClient());
+        await alice.RegisterAsync(TestAccounts.UniqueName("alice"));
+
+        TestSession attempt = new(_fixture.CreateClient());
+        await attempt.CsrfAsync();
+        SessionResponse bad = await attempt.SendAsync(
+            HttpMethod.Post,
+            "api/v1/auth/login",
+            new { userName = alice.UserName, password = "wrong-password" });
+
+        bad.Payload?.Dispose();
+        Assert.Equal(HttpStatusCode.Unauthorized, bad.Status);
+        Assert.False(attempt.Cookies.ContainsKey(TestAccounts.SessionCookieName));
     }
 }

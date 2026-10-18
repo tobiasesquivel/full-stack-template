@@ -25,7 +25,7 @@ public sealed class DeleteUserTests : IClassFixture<ApiFixture>
         deleted.Payload?.Dispose();
         Assert.Equal(HttpStatusCode.NoContent, deleted.Status);
 
-        SessionResponse denied = await alice.SendAsync(HttpMethod.Get, "api/v1/users/me", authenticated: true, csrf: false);
+        SessionResponse denied = await alice.SendAsync(HttpMethod.Get, "api/v1/users/me", csrf: false);
         denied.Payload?.Dispose();
         Assert.Equal(HttpStatusCode.Unauthorized, denied.Status);
 
@@ -33,8 +33,7 @@ public sealed class DeleteUserTests : IClassFixture<ApiFixture>
         SessionResponse relogin = await alice.SendAsync(
             HttpMethod.Post,
             "api/v1/auth/login",
-            new { userName = alice.UserName, password = alice.Password },
-            authenticated: false);
+            new { userName = alice.UserName, password = alice.Password });
 
         relogin.Payload?.Dispose();
         Assert.Equal(HttpStatusCode.Unauthorized, relogin.Status);

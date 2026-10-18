@@ -14,7 +14,6 @@ internal sealed class TestSession
 
     private readonly HttpClient _client;
     public Dictionary<string, SessionCookie> Cookies { get; } = new(StringComparer.Ordinal);
-    public string? AccessToken { get; set; }
     public string UserName { get; set; } = string.Empty;
     public string AuthId { get; set; } = string.Empty;
     public string Password { get; set; } = string.Empty;
@@ -28,17 +27,18 @@ internal sealed class TestSession
         HttpMethod method,
         string route,
         object? body = null,
-        bool authenticated = true,
         bool csrf = true)
     {
         using HttpRequestMessage request = new(method, route);
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
-        if (Cookies.Count > 0)
-            request.Headers.Add("Cookie", string.Join("; ", Cookies.Select(kv => $"{kv.Key}={kv.Value.Value}")));
-
-        if (authenticated && AccessToken is not null)
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", AccessToken);
+        string path = "/" + route.Split('?')[0];
+        string[] sent = Cookies
+            .Where(kv => path.StartsWith(kv.Value.Path, StringComparison.Ordinal))
+            .Select(kv => $"{kv.Key}={kv.Value.Value}")
+            .ToArray();
+        if (sent.Length > 0)
+            request.Headers.Add("Cookie", string.Join("; ", sent));
 
         if (csrf && method != HttpMethod.Get && Cookies.TryGetValue("XSRF-TOKEN", out SessionCookie? xsrf))
             request.Headers.Add("X-XSRF-TOKEN", Uri.UnescapeDataString(xsrf.Value));
@@ -48,10 +48,12 @@ internal sealed class TestSession
 
         using HttpResponseMessage httpResponse = await _client.SendAsync(request);
 
-        if (httpResponse.Headers.TryGetValues("Set-Cookie", out IEnumerable<string>? setCookies))
+        List<string> setCookies = [];
+        if (httpResponse.Headers.TryGetValues("Set-Cookie", out IEnumerable<string>? values))
         {
-            foreach (string raw in setCookies)
+            foreach (string raw in values)
             {
+                setCookies.Add(raw);
                 string[] parts = raw.Split(';').Select(p => p.Trim()).ToArray();
                 string pair = parts[0];
                 int equals = pair.IndexOf('=', StringComparison.Ordinal);
@@ -67,9 +69,14 @@ internal sealed class TestSession
                     Cookies.Remove(name);
                     continue;
                 }
-                string path = parts.FirstOrDefault(p => p.StartsWith("Path=", StringComparison.OrdinalIgnoreCase))?["Path=".Length..] ?? "/";
-                bool httpOnly = parts.Any(p => p.Equals("HttpOnly", StringComparison.OrdinalIgnoreCase));
-                Cookies[name] = new SessionCookie { Value = value, Path = path, HttpOnly = httpOnly };
+                Cookies[name] = new SessionCookie
+                {
+                    Value = value,
+                    Path = Attribute(parts, "Path") ?? "/",
+                    HttpOnly = parts.Any(p => p.Equals("HttpOnly", StringComparison.OrdinalIgnoreCase)),
+                    Secure = parts.Any(p => p.Equals("Secure", StringComparison.OrdinalIgnoreCase)),
+                    SameSite = Attribute(parts, "SameSite"),
+                };
             }
         }
 
@@ -78,6 +85,24 @@ internal sealed class TestSession
         {
             Status = httpResponse.StatusCode,
             Payload = string.IsNullOrWhiteSpace(text) ? null : JsonDocument.Parse(text),
+            Text = text,
+            SetCookies = setCookies,
         };
     }
+
+    public TestSession CopyTo(HttpClient client)
+    {
+        TestSession copy = new(client)
+        {
+            UserName = UserName,
+            AuthId = AuthId,
+            Password = Password,
+        };
+        foreach (KeyValuePair<string, SessionCookie> kv in Cookies)
+            copy.Cookies[kv.Key] = kv.Value;
+        return copy;
+    }
+
+    private static string? Attribute(string[] parts, string name) =>
+        parts.FirstOrDefault(p => p.StartsWith(name + "=", StringComparison.OrdinalIgnoreCase))?[(name.Length + 1)..];
 }
