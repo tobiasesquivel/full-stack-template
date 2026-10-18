@@ -49,6 +49,7 @@ Estados: `pendiente`, `en curso`, `cerrado`, `bloqueado (⏸ decisión de Tobi)`
 | 4 | Versionado de API declarado | cerrado | `artifacts/verify-template/fase2-04-characterization/`, `fase2-04-red/` (rojo), `fase2-04-backend/`, `fase2-04-metadata-red/` (rojo), `fase2-04-rule-red/` (rojo), `fase2-04-check-all/` |
 | 5 | Validación de configuración al arranque | cerrado | `artifacts/verify-template/fase2-05-config/` (rojo y manual), `fase2-05-check-all/` (sin e2e) |
 | 5.1 | Inicialización de la base como hosted service | cerrado | `artifacts/verify-template/fase2-05-1-red/` (rojo), `fase2-05-1-check-all/` (sin e2e) |
+| 5.2 | Las herramientas de diseño no registran un arranque fallido | cerrado | `artifacts/verify-template/fase2-05-2/`, `fase2-05-2-check-all/` (sin e2e) |
 | 6 | Catálogo de errores estable | pendiente | |
 | 7 | Paginación por keyset | pendiente | |
 | 8 | Concurrencia optimista en `TaskItem` | pendiente | |
@@ -112,7 +113,6 @@ Cosas vistas durante un paso que no le corresponden. Cada una espera su paso.
 - `DataProtection:KeysDirectory` sigue leyéndose como string suelto en `BackendInfrastructure`. No tiene regla que validar todavía; una ruta relativa depende del directorio de trabajo y podría prohibirse. Sin paso asignado.
 - El generador de `[OptionsValidator]` (SDK 10.0.401) ignora `ErrorMessage` en `[Range]`: su copia del atributo devuelve siempre "The field {0} must be between {1} and {2}.". Por eso los mensajes de `SessionOptions` nombran el tipo y la propiedad, no la clave `Session:...`. Es el bug [dotnet/runtime#123137](https://github.com/dotnet/runtime/issues/123137); el arreglo está en el PR [#135927](https://github.com/dotnet/runtime/pull/135927).
 - Ninguna regla de Dune exige que la configuración se lea solo a través de options validadas (`decisions.tsv`, paso 5). Una regla posible: prohibir el indexador de `IConfiguration`, `GetValue`, `GetConnectionString` y `Environment.GetEnvironmentVariable` fuera de los registros de options, con excepción del bootstrap de Serilog. Sin paso asignado.
-- El `catch (Exception ex)` de `Program.cs` también atrapa `HostAbortedException`, que usan `dotnet ef` y otras herramientas para cortar la app después de `Build()`: dejaría un log Fatal falso y salida 1. La guía es `catch (Exception ex) when (ex is not HostAbortedException)`. Sin probar; sin paso asignado.
 - CI no frena un merge. `main` no tiene protección de rama: en un repo privado del plan gratis, GitHub responde 403 a la API de protección y de rulesets. Tobi decidió el 2026-10-18 dejarlo así: revisa los checks antes de mergear. Se revisa si el repo pasa a público o a GitHub Pro.
 - Una versión inexistente (`/api/v9/...`) da 404 sin cuerpo, como cualquier ruta inexistente. `UseStatusCodePages` la volvería ProblemDetails, pero cambia todos los 404 sin cuerpo. Paso 6.
 - `informe-dotnet-empresarial.md:110` recomienda `Asp.Versioning.Mvc` / `.ApiExplorer`, que son para controllers. El paso 4 usa `Asp.Versioning.Http` (Minimal APIs). El informe no se corrigió. Sin paso asignado.
@@ -132,6 +132,15 @@ Una entrada por paso cerrado, con este formato:
 - Preguntas: qué preguntó Tobi.
 - Evidencia: artifacts/verify-template/<runId>/
 ```
+
+### Paso 5.2 — 2026-10-18
+- Enseñado: `dotnet ef` no tiene otra forma de obtener el `DbContext` que ejecutar `Program.cs`. Cuando la app llega a `Build()`, la herramienta la corta con `HostAbortedException`. El `catch (Exception ex)` de `Program.cs` lo tomaba por un fallo y escribía "Application terminated unexpectedly during startup". Ahora el `catch` deja pasar esa excepción (`when (ex is not HostAbortedException)`), que es la forma que documenta Microsoft.
+- Preguntas: Tobi pidió resolver los pendientes del paso 5.1.
+- Evidencia:
+  - Antes (`fase2-05-2/before.txt`): `dotnet ef migrations list --no-connect` lista las 2 migraciones y deja `[FTL] Application terminated unexpectedly during startup` con `HostAbortedException`.
+  - Después (`fase2-05-2/after.txt`): lista las mismas 2 migraciones, sin log Fatal.
+  - Sin test automático: reproducir `HostAbortedException` pide el `HostFactoryResolver` de las herramientas, que es interno. Queda la prueba manual.
+  - `check-all --no-e2e` (`fase2-05-2-check-all/`): 13 gates, `launch`, `doctor`, smoke y `cleanup` en PASS; `dotnet test` 126/126. E2E: NOT_RUN, sin cambios de frontend ni de contrato HTTP.
 
 ### Paso 5.1 — 2026-10-18
 - Enseñado: el host ordena el arranque. `Host.StartAsync` valida las options, después arranca los hosted services en orden de registro, y Kestrel va último. El código entre `Build()` y `RunAsync()` queda fuera de ese orden: por eso el paso 5 necesitó `IStartupValidator.Validate()` a mano, una API pensada para hosts que .NET 11 deja obsoleta. Ahora `DatabaseInitialization` (`Infrastructure/Persistence`) migra desde `StartAsync`, y `Program.cs` no sabe nada de la base. Los registros pasan a `AddOptionsWithValidateOnStart<T, V>().BindConfiguration(...)`, y `AddAuthFeature` y `AddTemplateObservability` ya no reciben `IConfiguration`.
