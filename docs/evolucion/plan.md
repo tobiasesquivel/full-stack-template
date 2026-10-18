@@ -24,7 +24,7 @@ Es el punto de partida, no un límite. Cualquier pieza puede cambiar si mejora e
 | Datos | `AppDbContext` único, las migraciones `InitialCreate` y `ServerSideSessions` (paso 0.26), `DatabaseInitializer`, EF Core + Npgsql |
 | Reglas ejecutables | Dune: analizadores DUNE0001-0011 con severidad error, `BannedSymbols.txt`, `Dune.CommentVerifier`, y los gates Node `check-structure.mjs`, `check-comments.mjs`, `check-frontend.mjs` (FRONT001-016). Cada regla tiene fixture válida y violación deliberada. El paso 0.2 corrigió `.editorconfig` y cambió el gate de Wolverine por un gate neutral de bus |
 | Pruebas backend | MTP + xunit.v3 + Testcontainers PostgreSQL real; `ApiFixture` y `TestSession` en `backend/Tests/Support` |
-| CI | `.github/workflows/ci.yml` con 4 jobs (backend, frontend, comentarios, compose + smoke con evidencia OTLP) |
+| CI | `.github/workflows/ci.yml` con 4 jobs (backend, frontend, comentarios, compose + smoke con evidencia OTLP). Desde el paso 3, probado en verde y en rojo. `main` no tiene protección de rama (repo privado del plan gratis): CI avisa, pero no frena un merge. Las e2e no corren en CI |
 | Verificación runtime | Skill del proyecto `verify-template`: `launch` / `doctor` / `api` / `cleanup` con artefactos en `artifacts/verify-template/<runId>/` |
 | Frontend | Angular 22. Desde el paso 0.22, una suite de Vitest con jsdom para funciones puras y componentes de presentación; el recorrido completo se prueba en el navegador |
 
