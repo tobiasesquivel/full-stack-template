@@ -136,7 +136,7 @@ Reglas que convierten la estructura en algo verificable (no documental):
 
 ### 4.4 Composición y utilidades
 
-`Scrutor` (escaneo de DI), `Microsoft.Extensions.DependencyInjection` con **keyed services**, `Microsoft.Extensions.Options.DataAnnotations` (validación de configuración al arranque), `Microsoft.FeatureManagement.AspNetCore` (feature flags).
+`Scrutor` (escaneo de DI), `Microsoft.Extensions.DependencyInjection` con **keyed services**, validación de configuración al arranque con el validador generado `[OptionsValidator]` y `AddOptionsWithValidateOnStart` ([docs](https://learn.microsoft.com/en-us/dotnet/core/extensions/options-validation-generator)); evita la reflexión de `Microsoft.Extensions.Options.DataAnnotations`, `Microsoft.FeatureManagement.AspNetCore` (feature flags).
 
 ### 4.5 Resiliencia
 

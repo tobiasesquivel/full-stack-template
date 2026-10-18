@@ -10,12 +10,10 @@ namespace TemplateApp.Features.Auth;
 
 public static class AuthFeature
 {
-    public static IServiceCollection AddAuthFeature(
-        this IServiceCollection services,
-        IConfiguration configuration)
+    public static IServiceCollection AddAuthFeature(this IServiceCollection services)
     {
         services.AddAuthIdentity();
-        services.AddAuthSession(configuration);
+        services.AddAuthSession();
         services.AddAuthHttpPolicy();
 
         services.AddScoped<IAccessPolicy, AccessPolicy>();
@@ -53,14 +51,10 @@ public static class AuthFeature
         return services;
     }
 
-    private static IServiceCollection AddAuthSession(
-        this IServiceCollection services,
-        IConfiguration configuration)
+    private static IServiceCollection AddAuthSession(this IServiceCollection services)
     {
-        services.AddOptions<SessionOptions>()
-            .Bind(configuration.GetSection(SessionOptions.Section))
-            .ValidateOnStart();
-        services.AddSingleton<IValidateOptions<SessionOptions>, SessionOptionsValidator>();
+        services.AddOptionsWithValidateOnStart<SessionOptions, SessionOptionsValidator>()
+            .BindConfiguration(SessionOptions.Section);
 
         services.AddAuthentication(SessionHttpPolicy.Scheme)
             .AddCookie(SessionHttpPolicy.Scheme);
