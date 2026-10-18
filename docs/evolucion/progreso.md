@@ -4,7 +4,7 @@ Registro vivo del [plan](plan.md). El agente lo actualiza al cerrar cada paso.
 
 ## Paso actual
 
-**Fase 0, paso 0.6: frontend por feature.** Estado: sin empezar. Los pasos 0.4 y 0.5 esperan el merge de Tobi.
+**Fase 1, paso 2: un solo comando de verificación local.** Estado: sin empezar. La Fase 0 cerró; el paso 0.6 espera el merge de Tobi.
 
 La Fase 0 va antes del paso 2. El paso 1 (línea base) ya cerró y sirve de referencia para la Fase 0.
 
@@ -20,7 +20,7 @@ Estados: `pendiente`, `en curso`, `cerrado`, `bloqueado (⏸ decisión de Tobi)`
 | 0.3 | Reparto del código | cerrado | `artifacts/verify-template/fase0-03-reparto/`, `artifacts/verify-template/fase0-03-runtime/` |
 | 0.4 | Slices | cerrado | `artifacts/verify-template/fase0-04-slices/`, `artifacts/verify-template/fase0-04-runtime/` |
 | 0.5 | Límite entre Auth y Users | cerrado | `artifacts/verify-template/fase0-05-auth-users/`, `artifacts/verify-template/fase0-05-runtime/` |
-| 0.6 | Frontend por feature | pendiente | |
+| 0.6 | Frontend por feature | cerrado | `artifacts/verify-template/fase0-06-frontend/`, `artifacts/verify-template/fase0-06-runtime/` (fallo), `artifacts/verify-template/fase0-06-runtime-2/` |
 | 1 | Línea base: qué funciona hoy, con evidencia | cerrado | [linea-base.md](linea-base.md); `artifacts/verify-template/baseline-20261016/` |
 | 2 | Un solo comando de verificación local | pendiente | |
 | 3 | CI verde de verdad | pendiente | |
@@ -68,6 +68,7 @@ Cosas vistas durante un paso que no le corresponden. Cada una espera su paso.
 - Las dos FKs entre features (`UserProfiles → AspNetUsers`, `TaskItems → UserProfiles`) están en `AppDbContext.ConfigureCrossFeatureRelationships`. Con un `DbContext` por feature hay que elegir: quitarlas y reemplazar la cascada por un evento (Grzybek, Wolverine) o dejarlas solo en SQL (Jovanović). Paso 22.
 - `RegisterUser` (Auth) y `UserProfiles` (Users) usan el mismo `AppDbContext` del request: la atomicidad del registro depende de eso. Con contextos separados hace falta compartir conexión y transacción, o un outbox. Pasos 22 y 24.
 - `"Task.Forbidden"` y `"User.Forbidden"` siguen escritos en línea en cada slice. Paso 6.
+- El rate limiter `auth` es una sola ventana de 20 requests por minuto para toda la API, sin partición por cliente. Un recorrido de navegador seguido del smoke HTTP da 503 (`fase0-06-runtime`). Paso 12.
 - `AuthErrors.AccountNotFound` (`Auth.AccountNotFound`) es nuevo y `DeleteUser` lo traduce a `User.NotFound`. Entra en el catálogo del paso 6.
 - `Tests/Support/TestSession.cs` declara tres tipos en un archivo. La regla de un tipo por archivo hoy cubre solo las features. Sin paso asignado.
 - Hay una carpeta vacía y sin versionar, `backend/Features/Health/Test/`, de antes de este paso. Git la ignora. Borrarla es decisión de Tobi.
@@ -83,6 +84,18 @@ Una entrada por paso cerrado, con este formato:
 - Preguntas: qué preguntó Tobi.
 - Evidencia: artifacts/verify-template/<runId>/
 ```
+
+### Paso 0.6 — 2026-10-17
+- Enseñado: el mismo límite de módulo, en el cliente. Cada feature de Angular publica su puerta en `index.ts`, como `Contracts/` en el backend. La raíz de la app compone las features: aplica los guards con `canActivateChild` sobre las rutas que cada feature exporta. Así se evita un ciclo de imports entre `auth` y `users` al cargar la app.
+- Preguntas: cómo se hacía siempre lo de las entidades y sus relaciones, comparado con el diseño de features. Tobi delegó la ubicación del guard y del interceptor, y aceptó la puerta por feature.
+- Decisiones: cinco filas nuevas en `docs/decisions.tsv`. `architecture.md` y `conventions.md` actualizados.
+- Evidencia: artifacts/verify-template/fase0-06-frontend/, artifacts/verify-template/fase0-06-runtime/ y artifacts/verify-template/fase0-06-runtime-2/.
+  - Rojo antes de verde, gate: con el `check-frontend` viejo fallan 3 de 14 tests (`check-frontend-red.log`). Con el nuevo pasan 14/14.
+  - Rojo antes de verde, producto: el FRONT001 nuevo frena las 4 rutas de `app.routes.ts` que entraban al interior de una feature (`check-frontend-product-red.log`).
+  - Build de Angular: PASS. Los cinco componentes siguen en chunks lazy. `check-frontend`: PASS.
+  - `check-structure` (24/24), `check-comments` (18/18) y `CommentVerifier`: PASS. Build y tests .NET: PASS dentro de launch (30/30 de producto). El paso no toca el backend.
+  - Primera corrida (`fase0-06-runtime`): navegador PASS, smoke HTTP FAIL con 503 en `POST auth/logout`. El navegador acababa de hacer 24 requests de auth y el limiter `auth` permite 20 por minuto para toda la API. Queda como pendiente del paso 12.
+  - Segunda corrida (`fase0-06-runtime-2`), smoke primero: smoke HTTP PASS (45 requests). Después de 65 segundos, navegador PASS (11 pasos): registro, recarga, tarea persistida, perfil persistido, zona inválida 400, logout, guard sin sesión, login, guard de invitado, contraseña incorrecta 401 y storage vacío. Capturas y requests en `ui/`. Cleanup PASS.
 
 ### Paso 0.5 — 2026-10-17
 - Enseñado: dependencia en una sola dirección entre módulos y contrato público. Auth crea y lee el perfil con `Users.Contracts.IUserProfiles`; Users lee y borra la cuenta con `Auth.Contracts.IUserAccounts`. Entre features, una entidad guarda solo el Id del otro lado, sin navegación. Un gate que se esquiva con `var` no hace cumplir la regla: DUNE0004 ahora mira también el tipo de cada expresión.

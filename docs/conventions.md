@@ -26,6 +26,9 @@ El código actual todavía no cumple todas estas reglas. La Fase 0 del [plan](ev
 - Sufijos con significado único: `*Request`, `*Response`, `*Validator`, `*Endpoint`, `*Tests`, `*Feature`. No se usan `*Module` ni `*Endpoints` en features. DUNE0008 lo hace cumplir.
 - Requests y responses son records. La validación de entrada usa FluentValidation. Los mappings de EF usan Fluent API, fuera de `Domain`.
 - En el frontend, los modelos usan los mismos nombres que el backend: `*Request` y `*Response`.
+- En el frontend, cada feature publica en `features/<feature>/index.ts` lo que ven las demás y la raíz de la app. Fuera de una feature, se importa solo su `index.ts`. FRONT001 lo hace cumplir, también para `app.routes.ts` y `app.config.ts`.
+- Las rutas de una feature van en `<feature>.routes.ts`, sin guards. `app.routes.ts` las compone y aplica los guards.
+- `core/` del frontend no nombra ninguna feature: queda para lo transversal.
 
 ## Comentarios
 

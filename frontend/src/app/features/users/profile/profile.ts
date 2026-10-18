@@ -1,7 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { AuthService } from '../../../core/auth.service';
-import { UsersService } from '../../../core/users.service';
+import { AuthService } from '../../auth';
+import { UsersService } from '../users.service';
 import { describeHttpError } from '../../../core/http-error';
 
 @Component({

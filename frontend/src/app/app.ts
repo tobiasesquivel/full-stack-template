@@ -1,6 +1,6 @@
 import { Component, inject, signal } from '@angular/core';
 import { RouterLink, RouterOutlet } from '@angular/router';
-import { AuthService } from './core/auth.service';
+import { AuthService } from './features/auth';
 import { describeHttpError } from './core/http-error';
 
 @Component({

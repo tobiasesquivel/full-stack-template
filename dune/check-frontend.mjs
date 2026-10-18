@@ -115,11 +115,7 @@ function classifyFile(rel, sourceFile) {
   visit(sourceFile);
   if (component) return 'component';
   if (inCore) return 'core';
-  if (inFeature) {
-    if (rel.endsWith('-models.ts')) return 'feature-contracts';
-    if (rel.includes('/domain/') || rel.includes('/contracts/') || rel.endsWith('/api-models.ts')) return 'feature-contracts';
-    return 'feature-impl';
-  }
+  if (inFeature) return 'feature';
   return 'outside';
 }
 
@@ -129,10 +125,8 @@ function featureOf(rel) {
   return rel.slice(marker.length).split('/')[0] ?? null;
 }
 
-function isContractPath(resolved) {
-  if (!resolved || resolved.startsWith('external:')) return false;
-  if (resolved.endsWith('-models.ts')) return true;
-  return resolved.includes('/domain/') || resolved.includes('/contracts/') || resolved.endsWith('/api-models.ts');
+function isFeatureIndex(resolved, feature) {
+  return resolved === `frontend/src/app/features/${feature}/index.ts`;
 }
 
 function collectEdges(sourceFile, rel, options, resolvedRoot) {
@@ -298,12 +292,11 @@ export async function analyzeFrontend({ root, project } = {}) {
       if (node.kind === 'core' && target.startsWith('frontend/src/app/features/')) {
         report('FRONT001', rel, edge.line, `core must not depend on feature ${target}`);
       }
-      if ((node.kind === 'feature-impl' || node.kind === 'component') && !COMPOSITION_FILES.has(rel)) {
-        const fromFeature = featureOf(rel);
-        const toFeature = target.startsWith('external:') ? null : featureOf(target);
-        if (fromFeature && toFeature && fromFeature !== toFeature && !isContractPath(target)) {
-          report('FRONT001', rel, edge.line, `feature ${fromFeature} must not depend on feature implementation ${target}`);
-        }
+      const fromFeature = featureOf(rel);
+      const toFeature = target.startsWith('external:') ? null : featureOf(target);
+      if (toFeature && fromFeature !== toFeature && !isFeatureIndex(target, toFeature)) {
+        const from = fromFeature ? `feature ${fromFeature}` : rel;
+        report('FRONT001', rel, edge.line, `${from} must import feature ${toFeature} through features/${toFeature}/index.ts, not ${target}`);
       }
     }
     if (node.kind === 'component') {

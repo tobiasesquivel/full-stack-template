@@ -13,7 +13,7 @@ export interface TaskListResponse {
   pageSize: number;
 }
 
-export interface UpdateTaskPayload {
+export interface UpdateTaskRequest {
   title: string;
   isCompleted: boolean;
 }

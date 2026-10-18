@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
-import type { TaskListResponse, TaskResponse, UpdateTaskPayload } from './tasks-models';
+import type { TaskListResponse, TaskResponse, UpdateTaskRequest } from './tasks-models';
 
 @Injectable({ providedIn: 'root' })
 export class TasksService {
@@ -16,8 +16,8 @@ export class TasksService {
     return firstValueFrom(this.http.post<TaskResponse>('/api/v1/tasks', { title }));
   }
 
-  update(id: string, payload: UpdateTaskPayload): Promise<TaskResponse> {
-    return firstValueFrom(this.http.put<TaskResponse>(`/api/v1/tasks/${id}`, payload));
+  update(id: string, request: UpdateTaskRequest): Promise<TaskResponse> {
+    return firstValueFrom(this.http.put<TaskResponse>(`/api/v1/tasks/${id}`, request));
   }
 
   remove(id: string): Promise<void> {

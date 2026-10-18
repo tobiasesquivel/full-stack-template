@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import type { ProblemDetails } from './api-models';
+import type { ProblemDetails } from './problem-details';
 
 function asProblem(error: HttpErrorResponse): ProblemDetails | null {
   const body = error.error as Partial<ProblemDetails> | string | null | undefined;

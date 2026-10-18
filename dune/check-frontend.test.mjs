@@ -49,15 +49,36 @@ async function seedAngular(root) {
 }
 
 describe('check-frontend', () => {
-  it('accepts composition routes with dynamic imports across features', async () => {
+  it('accepts composition roots and other features that import through the feature index', async () => {
     const project = await makeProject({
-      'frontend/src/app/app.routes.ts': `export const routes = [\n  { path: 'a', loadComponent: () => import('./features/tasks/tasks/tasks').then((m) => m.Tasks) },\n];\n`,
-      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';\n@Component({ selector: 'x', template: '' })\nexport class Tasks {}\n`,
+      'frontend/src/app/app.routes.ts': `import { tasksRoutes } from './features/tasks';\nexport const routes = [...tasksRoutes];\n`,
+      'frontend/src/app/features/tasks/index.ts': `export { tasksRoutes } from './tasks.routes';\n`,
+      'frontend/src/app/features/tasks/tasks.routes.ts': `export const tasksRoutes = [\n  { path: 'tasks', loadComponent: () => import('./tasks/tasks').then((m) => m.Tasks) },\n];\n`,
+      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';\nimport type { User } from '../../users';\n@Component({ selector: 'x', template: '' })\nexport class Tasks {\n  readonly user: User | null = null;\n}\n`,
+      'frontend/src/app/features/users/index.ts': `export type { User } from './users-models';\n`,
+      'frontend/src/app/features/users/users-models.ts': `export interface User {\n  id: string;\n}\n`,
     });
     try {
       await seedAngular(project.root);
       const { diagnostics } = await analyzeFrontend({ root: project.root });
       assert.deepEqual(diagnostics, []);
+    } finally {
+      await project.cleanup();
+    }
+  });
+
+  it('rejects composition roots and app components that reach inside a feature', async () => {
+    const project = await makeProject({
+      'frontend/src/app/app.routes.ts': `export const routes = [\n  { path: 'a', loadComponent: () => import('./features/tasks/tasks/tasks').then((m) => m.Tasks) },\n];\n`,
+      'frontend/src/app/app.ts': `import { Component } from '@angular/core';\nimport { TasksService } from './features/tasks/tasks.service';\n@Component({ selector: 'app-root', template: '' })\nexport class App {\n  readonly service = TasksService;\n}\n`,
+      'frontend/src/app/features/tasks/tasks.service.ts': `export class TasksService {}\n`,
+      'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';\n@Component({ selector: 'x', template: '' })\nexport class Tasks {}\n`,
+    });
+    try {
+      await seedAngular(project.root);
+      const { diagnostics } = await analyzeFrontend({ root: project.root });
+      const cross = diagnostics.filter((entry) => entry.rule === 'FRONT001').map((entry) => entry.path);
+      assert.deepEqual(cross, ['frontend/src/app/app.routes.ts', 'frontend/src/app/app.ts']);
     } finally {
       await project.cleanup();
     }
@@ -124,7 +145,7 @@ describe('check-frontend', () => {
     }
   });
 
-  it('rejects cross-feature implementation imports but allows contract imports including type-only', async () => {
+  it('rejects cross-feature imports that skip the index, models included', async () => {
     const project = await makeProject({
       'frontend/src/app/features/tasks/tasks/tasks.ts': `import { Component } from '@angular/core';\nimport { helper } from '../../users/impl';\nimport type { User } from '../../users/users-models';\n@Component({ selector: 'x', template: '' })\nexport class Tasks {\n  readonly value = helper;\n  readonly user: User | null = null;\n}\n`,
       'frontend/src/app/features/users/impl.ts': `export const helper = 1;\n`,
@@ -134,7 +155,7 @@ describe('check-frontend', () => {
       await seedAngular(project.root);
       const { diagnostics } = await analyzeFrontend({ root: project.root });
       const cross = diagnostics.filter((entry) => entry.rule === 'FRONT001');
-      assert.equal(cross.length, 1);
+      assert.deepEqual(cross.map((entry) => entry.line), [2, 3]);
       assert.match(cross[0].path, /tasks\.ts$/);
     } finally {
       await project.cleanup();

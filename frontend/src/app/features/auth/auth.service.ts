@@ -2,12 +2,14 @@ import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import type { AuthResponse, RegisterPayload, TokenResponse, UserResponse } from './api-models';
+import { UsersService, type UserResponse } from '../users';
+import type { AuthResponse, RegisterRequest, TokenResponse } from './auth-models';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
+  private readonly users = inject(UsersService);
 
   private readonly currentUserSignal = signal<UserResponse | null>(null);
   private readonly initializedSignal = signal(false);
@@ -48,9 +50,9 @@ export class AuthService {
       });
   }
 
-  async register(payload: RegisterPayload): Promise<void> {
+  async register(request: RegisterRequest): Promise<void> {
     await this.ensureCsrf();
-    const response = await firstValueFrom(this.http.post<AuthResponse>('/api/v1/auth/register', payload));
+    const response = await firstValueFrom(this.http.post<AuthResponse>('/api/v1/auth/register', request));
     this.applyAuth(response);
     await this.router.navigate(['/tasks']);
   }
@@ -104,7 +106,7 @@ export class AuthService {
   }
 
   private async loadMe(): Promise<void> {
-    const me = await firstValueFrom(this.http.get<UserResponse>('/api/v1/users/me'));
+    const me = await this.users.me();
     this.currentUserSignal.set(me);
   }
 
