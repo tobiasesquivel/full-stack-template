@@ -20,9 +20,9 @@ let second: Page;
 let calls: ApiCall[];
 let otherCalls: ApiCall[];
 
-const refreshes = () =>
+const restores = () =>
   [...calls, ...otherCalls].filter(
-    (call) => call.method === 'POST' && call.path === '/api/v1/auth/refresh',
+    (call) => call.method === 'GET' && call.path === '/api/v1/users/me',
   );
 const shownUser = (page: Page) =>
   page.getByRole('navigation', { name: 'Principal' }).getByRole('status');
@@ -53,27 +53,11 @@ test.beforeEach(async () => {
 
 test('two tabs that reload at the same time both keep the session', async () => {
   await bothOpen();
-  let release: () => void = () => undefined;
-  const gate = new Promise<void>((resolve) => (release = resolve));
-  const timer = setTimeout(() => release(), 1500);
-  let arrived = 0;
-  await context.route(
-    (url) => url.pathname === '/api/v1/auth/refresh',
-    async (route) => {
-      arrived += 1;
-      if (arrived === 2) release();
-      await gate;
-      clearTimeout(timer);
-      await route.continue();
-    },
-    { times: 2 },
-  );
-  const before = refreshes().length;
+  const before = restores().length;
   await Promise.all([first.reload(), second.reload()]);
-  await expect.poll(() => refreshes().length - before).toBe(2);
-  await context.unrouteAll({ behavior: 'ignoreErrors' });
+  await expect.poll(() => restores().length - before).toBe(2);
   expect(
-    refreshes()
+    restores()
       .slice(before)
       .map((call) => call.status),
   ).toEqual([200, 200]);

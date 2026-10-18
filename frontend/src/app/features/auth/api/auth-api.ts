@@ -1,13 +1,12 @@
 import { Service, inject } from '@angular/core';
 import { HttpClient, HttpContext } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
-import type { AuthResponse } from './auth-response';
+import type { UserResponse } from '../../users';
 import type { OpenSessionRequest } from './open-session-request';
 import type { RegisterRequest } from './register-request';
 import { SKIP_SESSION } from './skip-session';
-import type { TokenResponse } from './token-response';
 
-function withoutSession(): HttpContext {
+function sessionCall(): HttpContext {
   return new HttpContext().set(SKIP_SESSION, true);
 }
 
@@ -17,35 +16,25 @@ export class AuthApi {
 
   async issueCsrf(): Promise<void> {
     await firstValueFrom(
-      this.http.get('/api/v1/auth/csrf', { responseType: 'text', context: withoutSession() }),
+      this.http.get('/api/v1/auth/csrf', { responseType: 'text', context: sessionCall() }),
     );
   }
 
-  register(request: RegisterRequest): Promise<AuthResponse> {
+  register(request: RegisterRequest): Promise<UserResponse> {
     return firstValueFrom(
-      this.http.post<AuthResponse>('/api/v1/auth/register', request, { context: withoutSession() }),
+      this.http.post<UserResponse>('/api/v1/auth/register', request, { context: sessionCall() }),
     );
   }
 
-  open(request: OpenSessionRequest): Promise<AuthResponse> {
+  open(request: OpenSessionRequest): Promise<UserResponse> {
     return firstValueFrom(
-      this.http.post<AuthResponse>('/api/v1/auth/login', request, { context: withoutSession() }),
-    );
-  }
-
-  refresh(): Promise<TokenResponse> {
-    return firstValueFrom(
-      this.http.post<TokenResponse>('/api/v1/auth/refresh', {}, { context: withoutSession() }),
+      this.http.post<UserResponse>('/api/v1/auth/login', request, { context: sessionCall() }),
     );
   }
 
   async close(): Promise<void> {
     await firstValueFrom(
-      this.http.post(
-        '/api/v1/auth/logout',
-        {},
-        { responseType: 'text', context: withoutSession() },
-      ),
+      this.http.post('/api/v1/auth/logout', {}, { responseType: 'text', context: sessionCall() }),
     );
   }
 }

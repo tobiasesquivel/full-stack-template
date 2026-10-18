@@ -87,17 +87,19 @@ test('a protected page without a session goes to /login with returnUrl and the l
   await page.waitForURL('**/profile');
 });
 
-test('a wrong password shows the message and does not try a refresh', async () => {
+test('a wrong password shows the message and keeps the login page', async () => {
   await signOut(page);
   await page.getByLabel('Usuario').fill(user.userName);
   await page.getByLabel('Contraseña').fill('Wrong!password1');
-  const refreshes = count(calls, 'POST', '/auth/refresh');
   const rejected = response(page, 'POST', '/auth/login', 401);
   await page.locator('form').getByRole('button', { name: 'Entrar' }).click();
   await rejected;
   await expect(page.getByText('Usuario o contraseña incorrectos.')).toBeVisible();
   await page.waitForTimeout(500);
-  expect(count(calls, 'POST', '/auth/refresh')).toBe(refreshes);
+  expect(new URL(page.url()).pathname).toBe('/login');
+  expect(await page.context().cookies()).not.toContainEqual(
+    expect.objectContaining({ name: '__Host-session' }),
+  );
 });
 
 test('an external returnUrl is ignored and the login goes to /tasks', async () => {

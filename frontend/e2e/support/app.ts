@@ -131,7 +131,7 @@ export async function signOut(page: Page): Promise<void> {
 }
 
 export async function reloadWithSession(page: Page): Promise<void> {
-  const refreshed = response(page, 'POST', '/auth/refresh', 200);
+  const restored = response(page, 'GET', '/users/me', 200);
   await page.reload();
-  await refreshed;
+  await restored;
 }
