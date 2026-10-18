@@ -1,0 +1,159 @@
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using Microsoft.CodeAnalysis;
+using Xunit;
+
+namespace Dune.Analyzers.Tests;
+
+public sealed class ApiRouteAnalyzerTests
+{
+    private const string AspNetStub = """
+        using System;
+        using System.Collections.Generic;
+        namespace Microsoft.AspNetCore.Routing
+        {
+            public interface IEndpointRouteBuilder { }
+            public sealed class RouteGroupBuilder : IEndpointRouteBuilder { }
+        }
+        namespace Microsoft.AspNetCore.Builder
+        {
+            using Microsoft.AspNetCore.Routing;
+            public sealed class RouteHandlerBuilder { }
+            public static class EndpointRouteBuilderExtensions
+            {
+                public static RouteGroupBuilder MapGroup(this IEndpointRouteBuilder endpoints, string prefix) => new();
+                public static RouteHandlerBuilder MapGet(this IEndpointRouteBuilder endpoints, string pattern, Delegate handler) => new();
+                public static RouteHandlerBuilder MapPost(this IEndpointRouteBuilder endpoints, string pattern, Delegate handler) => new();
+                public static RouteHandlerBuilder MapPut(this IEndpointRouteBuilder endpoints, string pattern, Delegate handler) => new();
+                public static RouteHandlerBuilder MapPatch(this IEndpointRouteBuilder endpoints, string pattern, Delegate handler) => new();
+                public static RouteHandlerBuilder MapDelete(this IEndpointRouteBuilder endpoints, string pattern, Delegate handler) => new();
+                public static RouteHandlerBuilder MapMethods(this IEndpointRouteBuilder endpoints, string pattern, IEnumerable<string> httpMethods, Delegate handler) => new();
+                public static RouteHandlerBuilder Map(this IEndpointRouteBuilder endpoints, string pattern, Delegate handler) => new();
+            }
+        }
+        """;
+
+    private const string CreateTaskEndpoint = """
+        using Microsoft.AspNetCore.Builder;
+        using Microsoft.AspNetCore.Routing;
+        namespace TemplateApp.Features.Tasks.CreateTask;
+        public static class CreateTaskEndpoint
+        {
+            public static void Map(IEndpointRouteBuilder tasks) => tasks.MapPost("", Handle);
+            private static string Handle() => "created";
+        }
+        """;
+
+    [Fact]
+    public async Task GroupsUnderApiAndSlicesThatMapOnTheirGroupAreAccepted()
+    {
+        var diagnostics = await AnalyzeAsync(
+            ("backend/Features/Tasks/TasksFeature.cs", """
+                using Microsoft.AspNetCore.Builder;
+                using Microsoft.AspNetCore.Routing;
+                using TemplateApp.Features.Tasks.CreateTask;
+                namespace TemplateApp.Features.Tasks;
+                public static class TasksFeature
+                {
+                    public static IEndpointRouteBuilder MapTasksEndpoints(this IEndpointRouteBuilder app)
+                    {
+                        RouteGroupBuilder tasks = app.MapGroup("/api/v1/tasks");
+                        CreateTaskEndpoint.Map(tasks);
+                        RouteGroupBuilder comments = tasks.MapGroup("/{id}/comments");
+                        comments.MapPost("", () => "comment");
+                        app.MapGroup("/api");
+                        app.MapGet("/openapi/v1.json", () => "document");
+                        return app;
+                    }
+                }
+                """),
+            ("backend/Features/Tasks/CreateTask/CreateTaskEndpoint.cs", CreateTaskEndpoint));
+
+        Assert.Empty(diagnostics);
+    }
+
+    [Fact]
+    public async Task GroupOutsideApiOrWithoutALiteralPrefixIsRejected()
+    {
+        var diagnostics = await AnalyzeAsync(
+            ("backend/Features/Webhooks/WebhooksFeature.cs", """
+                using Microsoft.AspNetCore.Builder;
+                using Microsoft.AspNetCore.Routing;
+                namespace TemplateApp.Features.Webhooks;
+                public static class WebhooksFeature
+                {
+                    public static IEndpointRouteBuilder MapWebhooksEndpoints(this IEndpointRouteBuilder app, string prefix)
+                    {
+                        app.MapGroup("/webhooks");
+                        app.MapGroup("/apiary");
+                        app.MapGroup(prefix);
+                        return app;
+                    }
+                }
+                """));
+
+        Assert.Equal(new[] { 8, 9, 10 }, Lines(diagnostics));
+        Assert.All(diagnostics, diagnostic => Assert.Contains("/api", diagnostic.GetMessage(), System.StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task UnsafeRouteOnTheHostIsRejectedWhileGetIsAccepted()
+    {
+        var diagnostics = await AnalyzeAsync(
+            ("backend/Program.cs", """
+                using Microsoft.AspNetCore.Builder;
+                using Microsoft.AspNetCore.Routing;
+                public static class Host
+                {
+                    public static void Map(IEndpointRouteBuilder app)
+                    {
+                        app.MapGet("/status", () => "ok");
+                        app.MapPost("/webhooks/stripe", () => "paid");
+                        app.MapPut("/api/v1/raw", () => "put");
+                        app.MapPatch("/api/v1/raw", () => "patch");
+                        app.MapDelete("/api/v1/raw", () => "delete");
+                        app.MapMethods("/api/v1/raw", new[] { "POST" }, () => "post");
+                        app.Map("/api/v1/raw", () => "any");
+                    }
+                }
+                """));
+
+        Assert.Equal(new[] { 8, 9, 10, 11, 12, 13 }, Lines(diagnostics));
+    }
+
+    [Fact]
+    public async Task SliceThatReceivesTheHostInsteadOfItsGroupIsRejected()
+    {
+        var diagnostics = await AnalyzeAsync(
+            ("backend/Features/Tasks/TasksFeature.cs", """
+                using Microsoft.AspNetCore.Routing;
+                using TemplateApp.Features.Tasks.CreateTask;
+                namespace TemplateApp.Features.Tasks;
+                public static class TasksFeature
+                {
+                    public static IEndpointRouteBuilder MapTasksEndpoints(this IEndpointRouteBuilder app)
+                    {
+                        CreateTaskEndpoint.Map(app);
+                        return app;
+                    }
+                }
+                """),
+            ("backend/Features/Tasks/CreateTask/CreateTaskEndpoint.cs", CreateTaskEndpoint));
+
+        Assert.Equal(new[] { 8 }, Lines(diagnostics));
+    }
+
+    private static Task<System.Collections.Immutable.ImmutableArray<Diagnostic>> AnalyzeAsync(
+        params (string Path, string Source)[] files) =>
+        AnalyzerHost.AnalyzeAsync(
+            new List<(string, string)>(files) { ("stubs/AspNetCore.cs", AspNetStub) },
+            AnalyzerHost.Only<ApiRouteAnalyzer>());
+
+    private static int[] Lines(System.Collections.Immutable.ImmutableArray<Diagnostic> diagnostics) =>
+        diagnostics
+            .Where(diagnostic => diagnostic.Id == "DUNE0011")
+            .Select(diagnostic => diagnostic.Location.GetLineSpan().StartLinePosition.Line + 1)
+            .OrderBy(line => line)
+            .ToArray();
+}
