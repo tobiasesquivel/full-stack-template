@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using Serilog;
 using Serilog.Sinks.OpenTelemetry;
 using TemplateApp.Features.Auth;
@@ -51,6 +52,7 @@ try
     builder.Services.AddVersionedApi();
 
     WebApplication app = builder.Build();
+    app.Services.GetRequiredService<IStartupValidator>().Validate();
 
     if (app.Environment.IsDevelopment())
     {
