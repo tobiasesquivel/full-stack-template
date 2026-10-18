@@ -31,15 +31,14 @@ public sealed class ApiVersioningTests : IClassFixture<ApiFixture>
     [InlineData("api/v9/health/live")]
     [InlineData("api/health/live")]
     [InlineData("api/vabc/health/live")]
-    public async Task UnknownOrMissingVersion_Returns404_WithoutBody(string route)
+    public async Task UnknownOrMissingVersion_Returns404_HttpNotFound(string route)
     {
         TestSession anonymous = new(_fixture.CreateClient());
 
         SessionResponse response = await anonymous.SendAsync(HttpMethod.Get, route);
 
-        Assert.Equal(HttpStatusCode.NotFound, response.Status);
-        Assert.Empty(response.Text);
         Assert.DoesNotContain("api-supported-versions", response.Headers);
+        ProblemAssert.Problem(response, HttpStatusCode.NotFound, "Http.NotFound");
     }
 
     [Fact]

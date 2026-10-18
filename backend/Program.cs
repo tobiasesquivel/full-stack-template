@@ -30,6 +30,7 @@ try
 
     app.UseSerilogRequestLogging(options => options.Logger = app.Services.GetRequiredService<Serilog.ILogger>());
     app.UseExceptionHandler();
+    app.UseStatusCodePages();
     app.UseRateLimiter();
     app.UseAuthentication();
     app.UseAuthorization();
