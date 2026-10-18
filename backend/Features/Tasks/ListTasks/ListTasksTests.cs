@@ -22,7 +22,7 @@ public sealed class ListTasksTests : IClassFixture<ApiFixture>
         foreach (var title in new[] { "Tarea uno", "Tarea dos", "Tarea tres" })
             await alice.CreateTaskAsync(title);
 
-        var firstPage = await alice.SendAsync(HttpMethod.Get, "api/v1/tasks?page=1&pageSize=2", authenticated: true, csrf: false);
+        var firstPage = await alice.SendAsync(HttpMethod.Get, "api/v1/tasks?page=1&pageSize=2", csrf: false);
         Assert.Equal(HttpStatusCode.OK, firstPage.Status);
         Assert.NotNull(firstPage.Payload);
         List<string> firstIds;
@@ -36,7 +36,7 @@ public sealed class ListTasksTests : IClassFixture<ApiFixture>
             firstIds = page.GetProperty("items").EnumerateArray().Select(i => i.GetProperty("id").GetString()!).ToList();
         }
 
-        var secondPage = await alice.SendAsync(HttpMethod.Get, "api/v1/tasks?page=2&pageSize=2", authenticated: true, csrf: false);
+        var secondPage = await alice.SendAsync(HttpMethod.Get, "api/v1/tasks?page=2&pageSize=2", csrf: false);
         Assert.Equal(HttpStatusCode.OK, secondPage.Status);
         Assert.NotNull(secondPage.Payload);
         using (secondPage.Payload)
@@ -47,11 +47,11 @@ public sealed class ListTasksTests : IClassFixture<ApiFixture>
             Assert.Equal(3, new HashSet<string>(firstIds.Concat(secondIds)).Count);
         }
 
-        var tooWide = await alice.SendAsync(HttpMethod.Get, "api/v1/tasks?pageSize=101", authenticated: true, csrf: false);
+        var tooWide = await alice.SendAsync(HttpMethod.Get, "api/v1/tasks?pageSize=101", csrf: false);
         tooWide.Payload?.Dispose();
         Assert.Equal(HttpStatusCode.BadRequest, tooWide.Status);
 
-        var zeroPage = await alice.SendAsync(HttpMethod.Get, "api/v1/tasks?page=0", authenticated: true, csrf: false);
+        var zeroPage = await alice.SendAsync(HttpMethod.Get, "api/v1/tasks?page=0", csrf: false);
         zeroPage.Payload?.Dispose();
         Assert.Equal(HttpStatusCode.BadRequest, zeroPage.Status);
     }
@@ -66,7 +66,7 @@ public sealed class ListTasksTests : IClassFixture<ApiFixture>
 
         await alice.CreateTaskAsync("Solo Alice");
 
-        var bobPage = await bob.SendAsync(HttpMethod.Get, "api/v1/tasks", authenticated: true, csrf: false);
+        var bobPage = await bob.SendAsync(HttpMethod.Get, "api/v1/tasks", csrf: false);
         Assert.Equal(HttpStatusCode.OK, bobPage.Status);
         Assert.NotNull(bobPage.Payload);
         using (bobPage.Payload)

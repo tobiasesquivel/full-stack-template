@@ -1,10 +1,15 @@
-<section aria-labelledby="profile-title" class="rounded-xl border border-slate-200 bg-white p-5 shadow-xs max-xs:p-4">
+<section
+  aria-labelledby="profile-title"
+  class="rounded-xl border border-slate-200 bg-white p-5 shadow-xs max-xs:p-4"
+>
   <h1 id="profile-title" class="mb-4 text-2xl leading-tight">Mi perfil</h1>
 
   @if (loading()) {
     <p role="status" class="text-slate-600">Cargando perfil…</p>
   } @else if (error()) {
-    <p role="alert" class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-red-800">{{ error() }}</p>
+    <p role="alert" class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-red-800">
+      {{ error() }}
+    </p>
     <button
       type="button"
       class="cursor-pointer rounded-lg border border-blue-700 bg-white px-4 py-2 text-blue-700 hover:enabled:border-blue-800 hover:enabled:bg-blue-50 hover:enabled:text-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
@@ -22,7 +27,9 @@
 
     <form [formRoot]="profileForm">
       <div class="mb-3">
-        <label for="profile-display" class="mb-1 block text-sm/normal font-semibold">Nombre visible</label>
+        <label for="profile-display" class="mb-1 block text-sm/normal font-semibold"
+          >Nombre visible</label
+        >
         <input
           id="profile-display"
           type="text"
@@ -34,7 +41,9 @@
         }
       </div>
       <div class="mb-3">
-        <label for="profile-timezone" class="mb-1 block text-sm/normal font-semibold">Zona horaria (IANA)</label>
+        <label for="profile-timezone" class="mb-1 block text-sm/normal font-semibold"
+          >Zona horaria (IANA)</label
+        >
         <input
           id="profile-timezone"
           type="text"
@@ -43,11 +52,15 @@
           placeholder="UTC"
         />
         @if (profileForm.timezone().touched() && profileForm.timezone().invalid()) {
-          <p class="text-red-800">La zona horaria es obligatoria, por ejemplo UTC o Europe/Madrid.</p>
+          <p class="text-red-800">
+            La zona horaria es obligatoria, por ejemplo UTC o Europe/Madrid.
+          </p>
         }
       </div>
       @if (saveError()) {
-        <p role="alert" class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-red-800">{{ saveError() }}</p>
+        <p role="alert" class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-red-800">
+          {{ saveError() }}
+        </p>
       }
       @if (saved()) {
         <p role="status" class="text-slate-600">Perfil actualizado.</p>

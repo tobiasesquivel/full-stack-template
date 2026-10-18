@@ -1,4 +1,7 @@
-<section aria-labelledby="register-title" class="rounded-xl border border-slate-200 bg-white p-5 shadow-xs max-xs:p-4">
+<section
+  aria-labelledby="register-title"
+  class="rounded-xl border border-slate-200 bg-white p-5 shadow-xs max-xs:p-4"
+>
   <h1 id="register-title" class="mb-4 text-2xl leading-tight">Crear cuenta</h1>
   <form [formRoot]="registerForm">
     <div class="mb-3">
@@ -28,7 +31,9 @@
       }
     </div>
     <div class="mb-3">
-      <label for="register-display" class="mb-1 block text-sm/normal font-semibold">Nombre visible</label>
+      <label for="register-display" class="mb-1 block text-sm/normal font-semibold"
+        >Nombre visible</label
+      >
       <input
         id="register-display"
         type="text"
@@ -38,7 +43,9 @@
       />
     </div>
     <div class="mb-3">
-      <label for="register-password" class="mb-1 block text-sm/normal font-semibold">Contraseña</label>
+      <label for="register-password" class="mb-1 block text-sm/normal font-semibold"
+        >Contraseña</label
+      >
       <input
         id="register-password"
         type="password"
@@ -51,7 +58,9 @@
       }
     </div>
     @if (error()) {
-      <p role="alert" class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-red-800">{{ error() }}</p>
+      <p role="alert" class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-red-800">
+        {{ error() }}
+      </p>
     }
     <button
       type="submit"

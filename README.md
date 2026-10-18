@@ -16,15 +16,9 @@ Crea un repositorio desde la copia completa mediante la opción GitHub **Use thi
 
 Instala SDK .NET 10.0.401, Node 26.7 y Docker con Compose v2 y soporte de contenedores Linux. Las versiones Microsoft runtime y paquetes son 10.0.12. Angular está fijado en 22.2.1. Respeta `global.json` y `frontend/package-lock.json`.
 
-Genera una clave aleatoria para JWT con Node. Guarda el resultado en tu secret store, nunca en el repositorio.
+Para ejecutar el backend fuera de Compose, configura `ConnectionStrings__DefaultConnection` en el entorno del proceso. La conexión debe apuntar a PostgreSQL con una base y credenciales reales. Los dos guiones bajos representan la jerarquía de configuración ASP.NET. No hay secrets de respaldo en appsettings. La sesión no necesita una clave propia: la cookie la cifra Data Protection de ASP.NET Core con sus claves. `Session:AbsoluteExpirationDays` y `Session:IdleTimeoutMinutes` fijan el vencimiento absoluto y la inactividad.
 
-```sh
-node -e "console.log(require('node:crypto').randomBytes(48).toString('base64'))"
-```
-
-Para ejecutar el backend fuera de Compose, configura `Jwt__Key` y `ConnectionStrings__DefaultConnection` en el entorno del proceso. La conexión debe apuntar a PostgreSQL con una base y credenciales reales. Los dos guiones bajos representan la jerarquía de configuración ASP.NET. No hay secrets de respaldo en appsettings.
-
-Para Compose, copia `.env.example` a `.env`. Sustituye los valores inválidos de `POSTGRES_PASSWORD` y `JWT_KEY` por secrets propios antes de iniciar. JWT_KEY requiere al menos 32 caracteres. `.env` no debe versionarse. Los demás nombres de configuración son `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PORT`, `API_PORT`, `WEB_PORT`, `JWT_ISSUER`, `JWT_AUDIENCE` y `OTEL_EXPORT_DIR`. `docker compose config` puede imprimir secrets interpolados. No adjuntes su salida completa como evidencia pública.
+Para Compose, copia `.env.example` a `.env`. Sustituye el valor inválido de `POSTGRES_PASSWORD` por un secret propio antes de iniciar. `.env` no debe versionarse. Los demás nombres de configuración son `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PORT`, `API_PORT`, `WEB_PORT` y `OTEL_EXPORT_DIR`. `docker compose config` puede imprimir secrets interpolados. No adjuntes su salida completa como evidencia pública.
 
 ## Ejecutar con Docker
 
@@ -60,13 +54,13 @@ npm ci
 npm start -- --proxy-config proxy.conf.json
 ```
 
-Abre `http://localhost:4200`. Las peticiones `/api/v1` usan el proxy a la API local. No configures orígenes CORS abiertos para sustituir este diseño. Las cookies Secure requieren HTTPS fuera de Development.
+Abre `http://localhost:4200`. Las peticiones `/api/v1` usan el proxy a la API local. No configures orígenes CORS abiertos para sustituir este diseño. Las cookies de sesión y de antiforgery son `Secure` siempre: piden HTTPS, salvo en `localhost` y `127.0.0.1`, que los navegadores tratan como origen seguro.
 
 ## Usar la aplicación
 
-Regístrate con nombre de login, email, contraseña y nombre visible. Inicia sesión por nombre de login. Edita el nombre visible y una zona horaria IANA del perfil. Crea tareas, cambia título y estado final, recorre páginas y elimina tareas. Recarga para comprobar restauración de sesión y cierra sesión para revocar la familia actual.
+Regístrate con nombre de login, email, contraseña y nombre visible. Inicia sesión por nombre de login. Edita el nombre visible y una zona horaria IANA del perfil. Crea tareas, cambia título y estado final, recorre páginas y elimina tareas. Recarga para comprobar restauración de sesión y cierra sesión para borrarla en el servidor.
 
-Si consumes HTTP directamente, primero pide `GET /api/v1/auth/csrf` y conserva cookies. Envía el valor de `XSRF-TOKEN` como `X-XSRF-TOKEN` en register, login, refresh y logout. Usa el access token como Bearer para Users y Tasks. Refresh y logout tienen body vacío y no necesitan un access token vigente. No leas la cookie HttpOnly ni envíes refresh tokens en JSON.
+Si consumes HTTP directamente, primero pide `GET /api/v1/auth/csrf` y conserva cookies. Register y login abren la sesión: devuelven el usuario y la cookie `__Host-session`. Esa cookie autentica Users y Tasks; no hay Bearer. `GET /api/v1/users/me` dice quién es el dueño de la sesión. Envía el valor de `XSRF-TOKEN` como `X-XSRF-TOKEN` en toda escritura (`POST`, `PUT`, `PATCH`, `DELETE`); sin él la API responde 400 con `Auth.AntiforgeryFailed`. Abrir o cerrar sesión renueva `XSRF-TOKEN`: usa el valor nuevo. Logout tiene body vacío y borra la sesión en el servidor.
 
 Los errores usan ProblemDetails. Un recurso inexistente devuelve 404 y un recurso ajeno sin permiso devuelve 403. La lista Tasks siempre es personal, incluso para un administrador. Los tests de integración, uno por slice (`backend/Features/<Feature>/<Slice>/<Slice>Tests.cs`), fijan payloads y estados exactos.
 
@@ -89,10 +83,12 @@ node --test dune/check-comments.test.mjs
 
 Backend usa Microsoft Testing Platform (MTP): `dotnet test` ejecuta el runner MTP de `backend/Tests/TemplateApp.Tests.csproj` y de `dune/Dune.Analyzers.Tests/Dune.Analyzers.Tests.csproj` (xunit.v3). No hay `vstest` ni adaptador clásico; los proyectos Dune viven bajo `dune/`, no bajo `backend/`. La política MSBuild central vive en `dune/Dune.props`; `Directory.Build.props` solo la importa. Los símbolos prohibidos viven en `dune/BannedSymbols.txt`.
 
-No hay suite de tests frontend. La prueba real es el navegador contra la API: registro, login, restauración tras recargar, perfil, tareas y logout. Desde `frontend`, compilá y corré su gate:
+`npm run format:check` corre `prettier --check .` con `frontend/.prettierrc`: falla si un archivo del frontend no tiene el formato de Prettier. `npm run format` lo arregla. El frontend tiene una suite de Vitest con jsdom: funciones puras y componentes de presentación, cada spec junto a su archivo (`*.spec.ts`). No reemplaza la prueba en el navegador contra la API: registro, login, restauración tras recargar, perfil, tareas y logout. Desde `frontend`, compilá, corré la suite y el gate:
 
 ```sh
 npm run build
+npm run format:check
+npm test -- --watch=false
 node --test ../dune/check-frontend.test.mjs
 node ../dune/check-frontend.mjs --root ..
 ```
@@ -104,7 +100,15 @@ node .agents/skills/verify-template/scripts/smoke-api.mjs
 node .agents/skills/verify-template/scripts/smoke-api.mjs --compose
 ```
 
-El escenario HTTP no reemplaza la prueba Angular contra la API real. Comprueba registro, login, restauración, perfil, tareas y logout en el navegador. Las pruebas backend deben observar aislamiento 403, ausencia 404, permisos vigentes en el siguiente request, replay por familia, registro duplicado sin filas parciales y cascadas. No sustituyas esos checks por búsquedas de texto del source.
+El recorrido del navegador vive como specs de Playwright Test en `frontend/e2e/`, por feature: `auth`, `session`, `tasks`, `profile` y `tabs`. Corre contra una instancia de `verify-template`: tomá `frontUrl` de `run.json` y esperá 65 segundos después del smoke HTTP, porque el limiter de `/auth` admite 20 requests por minuto para toda la API. Desde `frontend`:
+
+```sh
+E2E_BASE_URL=<frontUrl> E2E_CHANNEL=msedge npm run e2e
+```
+
+`E2E_CHANNEL=msedge` usa el Edge instalado; sin la variable, Playwright usa su Chromium (`npx playwright install chromium`). Las pruebas corren en serie, con un solo worker, y antes de cada una esperan hasta tener lugar en la ventana del limiter. `E2E_OUTPUT_DIR` elige dónde quedan el reporte JSON, las capturas y los traces de las fallas. CI todavía no corre e2e.
+
+El escenario HTTP no reemplaza la prueba Angular contra la API real. Comprueba registro, login, restauración, perfil, tareas y logout en el navegador. Las pruebas backend deben observar aislamiento 403, ausencia 404, permisos vigentes en el siguiente request, sesión cerrada o borrada que da 401, antiforgery en toda escritura, registro duplicado sin filas parciales y cascadas. No sustituyas esos checks por búsquedas de texto del source.
 
 Comprueba `GET /api/v1/health/live` y `/ready` antes y después de interrumpir PostgreSQL en un conjunto de prueba. Captura logs, métricas y spans recibidos por el collector y su correlación. Registrar exporters en DI no prueba exportación. No publiques secrets en la evidencia.
 

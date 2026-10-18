@@ -32,7 +32,7 @@ public sealed class UpdateProfileTests : IClassFixture<ApiFixture>
             Assert.Equal("America/Argentina/Buenos_Aires", updated.Payload.RootElement.GetProperty("timezone").GetString());
         }
 
-        SessionResponse reread = await alice.SendAsync(HttpMethod.Get, "api/v1/users/me", authenticated: true, csrf: false);
+        SessionResponse reread = await alice.SendAsync(HttpMethod.Get, "api/v1/users/me", csrf: false);
         Assert.Equal(HttpStatusCode.OK, reread.Status);
         Assert.NotNull(reread.Payload);
         using (reread.Payload)

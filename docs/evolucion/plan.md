@@ -18,15 +18,15 @@ Es el punto de partida, no un límite. Cualquier pieza puede cambiar si mejora e
 | Contratos | `Features/*/Contracts`, `Features/*/Domain`, `Features/*/Persistence`; `<Slice>Tests.cs` junto a cada slice, excluidos de producción por `Compile Remove`. El contrato HTTP lo fijan los tests de integración |
 | Errores | `Shared/Http/ApiResults` traduce `ErrorOr` a ProblemDetails (400/401/403/404/409/500) |
 | Autorización | `IPermissionService` + `ResourceAuthorizer`; permisos consultados por request; orden 404 antes de 403 |
-| Seguridad | JWT con validación de sesión activa, refresh rotativo en cookie HttpOnly, antiforgery, lockout de Identity, rate limiting de ventana fija **solo** en los 4 endpoints de `/auth` |
+| Seguridad | Desde el paso 0.26, sesión en el servidor (BFF): una fila en `Sessions` y la cookie `__Host-session` (HttpOnly, Secure, SameSite=Strict) de la autenticación por cookie de ASP.NET Core, con vencimiento absoluto y por inactividad; sin JWT ni refresh token. Antiforgery en toda escritura de la API, lockout de Identity, rate limiting de ventana fija **solo** en los 3 endpoints de escritura de `/auth` |
 | Observabilidad | OpenTelemetry (trazas + métricas) con exporter OTLP y meters declarados: `Npgsql`, `TemplateApp.Api`, `TemplateApp.Business`; Serilog a consola y OTLP; collector en `deploy/otel-collector-config.yaml`; señales en `otel-export/*.json` |
 | Salud | `/api/v1/health/live` y `/ready` (base + migraciones) |
-| Datos | `AppDbContext` único, una migración `InitialCreate`, `DatabaseInitializer`, EF Core + Npgsql |
+| Datos | `AppDbContext` único, las migraciones `InitialCreate` y `ServerSideSessions` (paso 0.26), `DatabaseInitializer`, EF Core + Npgsql |
 | Reglas ejecutables | Dune: analizadores DUNE0001-0009 con severidad error, `BannedSymbols.txt`, `Dune.CommentVerifier`, y los gates Node `check-structure.mjs`, `check-comments.mjs`, `check-frontend.mjs`. Cada regla tiene fixture válida y violación deliberada. El paso 0.2 corrigió `.editorconfig` y cambió el gate de Wolverine por un gate neutral de bus |
 | Pruebas backend | MTP + xunit.v3 + Testcontainers PostgreSQL real; `ApiFixture` y `TestSession` en `backend/Tests/Support` |
 | CI | `.github/workflows/ci.yml` con 4 jobs (backend, frontend, comentarios, compose + smoke con evidencia OTLP) |
 | Verificación runtime | Skill del proyecto `verify-template`: `launch` / `doctor` / `api` / `cleanup` con artefactos en `artifacts/verify-template/<runId>/` |
-| Frontend | Angular 22, **sin suite de tests**: la prueba real es el navegador |
+| Frontend | Angular 22. Desde el paso 0.22, una suite de Vitest con jsdom para funciones puras y componentes de presentación; el recorrido completo se prueba en el navegador |
 
 ### Lo que falta (los huecos que este plan llena, en este orden)
 
@@ -50,9 +50,9 @@ Regla de oro: **un paso no termina con tests verdes.** Termina cuando el caso qu
 
 ## 4. El plan
 
-### Fase 0 — Bases (pasos 0.0-0.16)
+### Fase 0 — Bases (pasos 0.0-0.26)
 
-Llevan el repo a la forma de [ADR-0004](../adr/0004-vertical-slices-deep-modules.md). Ningún paso cambia un contrato HTTP: el smoke de la API prueba que nada se rompió.
+Llevan el repo a la forma de [ADR-0004](../adr/0004-vertical-slices-deep-modules.md). Ningún paso cambia un contrato HTTP, salvo el 0.26 (decisión de Tobi): el smoke de la API prueba que nada se rompió.
 
 **0.0. Inicialización concurrente de la base.** (adelantado del paso 3)
 **Concepto**: inicialización concurrente; serializar con un advisory lock de PostgreSQL.
@@ -149,6 +149,62 @@ Los pasos 0.14 a 0.16 se agregaron el 2026-10-17, a pedido de Tobi: "investigá 
 **Cambia**: `Session.refresh()` corre dentro de `navigator.locks.request`; `Session` publica `opened` y `closed` en un `BroadcastChannel` y reacciona a los de otras pestañas.
 **Verifica**: build de Angular, `check-frontend` y navegador con dos páginas del mismo contexto: rojo en el código del 0.15 y verde después para dos recargas a la vez, el logout en otra pestaña y el login de otro usuario en otra pestaña.
 
+Los pasos 0.17 a 0.20 se agregaron el 2026-10-17, a pedido de Tobi: "aplicá lo que tengas que aplicar". Salen de [informe-componentes-angular.md](informe-componentes-angular.md) y [informe-frontend-para-agentes.md](informe-frontend-para-agentes.md). Ninguno cambia el contrato HTTP ni lo que ve el usuario. Lo que pide una herramienta o una regla nueva (suite de Vitest, e2e con Playwright, `prettier --check`, el MCP del CLI de Angular, un Stop hook) espera la decisión de Tobi.
+
+**0.17. El CLI genera código que pasa el gate.**
+**Concepto**: la herramienta oficial y el gate dicen lo mismo. Si el generador produce algo que el gate rechaza, cada componente nuevo cuesta una vuelta de corrección.
+**Cambia**: `angular.json` fija `"style": "none"` para `@schematics/angular:component`; `frontend/README.md` y `README.md` dicen la verdad sobre el runner de tests (Vitest conectado, sin specs); una regla nueva en `check-frontend.mjs` (FRONT014) con su fixture válida y su violación deliberada.
+**Verifica**: `ng generate component --dry-run` antes y después: antes lista un `.css`, después no; un componente generado de verdad pasa `check-frontend` y se borra; build de Angular y navegador con el recorrido del paso 0.16, como regresión.
+
+**0.18. Componente de ruta y componente de presentación: `TaskPager`.**
+**Concepto**: un componente de ruta orquesta: inyecta servicios y llama a la API. Uno de presentación recibe datos con `input()` y avisa con `output()`. El gate los distingue por las rutas.
+**Cambia**: `features/tasks/task-pager/` nuevo; `Tasks` usa `<app-task-pager />`; una regla nueva en `check-frontend.mjs` (FRONT013) que mira el tipo de cada `inject()`, con su fixture válida y sus violaciones deliberadas; `conventions.md` y `architecture.md`.
+**Verifica**: build de Angular, tests del gate en rojo antes y en verde después, `check-frontend` y navegador: con 11 tareas, `Siguiente` habilitado, "Página 2 de 2 (11)" y `Anterior` vuelve.
+
+**0.19. Estado local en el hijo: `TaskRow`.**
+**Concepto**: el borrador del título es estado de la fila (`linkedSignal`); quién edita es estado de la página (`editingId`).
+**Cambia**: `features/tasks/task-row/` nuevo; la edición en línea usa Signal Forms (`form`, `[formField]`, `required`, `maxLength(200)`); `Tasks` pierde `editTitle`, el `$any` y la validación manual. El mensaje de error queda en el mismo lugar y con el mismo texto.
+**Verifica**: build de Angular, gates y navegador: renombrar da `PUT` 200; un título vacío muestra el mismo mensaje y no manda `PUT`; `Cancelar` restaura el título; abrir otra fila cierra la primera; el checkbox manda `PUT` con `isCompleted=true`; el dato sigue después de recargar.
+
+**0.20. Diálogo de presentación: `TaskDeleteDialog`.**
+**Concepto**: un hijo maneja su propio DOM con `viewChild` y `afterRenderEffect`; el padre decide el foco.
+**Cambia**: `features/tasks/task-delete-dialog/` nuevo; `Tasks` pierde `confirmDialog` y el `showModal()`.
+**Verifica**: build de Angular, gates y navegador: `Escape` cierra y el foco vuelve al `Eliminar` de esa fila; `Confirmar` da `DELETE` 204 y el foco va a "Mis tareas"; borrar la única tarea de la página 2 vuelve a la página 1.
+
+Los pasos 0.21 a 0.25 se agregaron el 2026-10-17, a pedido de Tobi, con sus decisiones sobre los dos informes. Eligió la suite de Vitest, `prettier --check` como gate, el MCP del CLI de Angular en solo lectura y e2e con Playwright Test (`@playwright/test`; tester-army/e2e quedó descartado: es pre-1.0, pide un modelo de IA y manda telemetría por defecto). Para lo visual: centrar el diálogo y llevar el error de la edición en línea bajo su campo. Storybook queda descartado. El Stop hook espera hasta después del paso 2 de la Fase 1.
+
+**0.21. Diálogo centrado y error bajo su campo.** (cambia comportamiento)
+**Concepto**: un error de campo vive junto al campo y se enlaza con `aria-describedby`; un error de la acción vive en la página. El preflight de Tailwind quita el `margin: auto` del `<dialog>`.
+**Cambia**: `TaskDeleteDialog` suma `m-auto`; `TaskRow` muestra "El título es obligatorio (máximo 200 caracteres)." justo después del input y lo enlaza con `aria-describedby`; se van `renameRejected` y el mensaje bajo la lista para ese caso. Los errores de la API siguen bajo la lista.
+**Verifica**: navegador en rojo con el código del 0.20 y en verde después: el centro del diálogo coincide con el del viewport; el mensaje es el elemento que sigue al input y `aria-describedby` apunta a él; mismo texto y sin `PUT`.
+
+**0.22. Primera suite de Vitest.**
+**Concepto**: pruebas unitarias y de componente con Vitest y jsdom, sin zone.js: "Act, Wait, Assert" con `await fixture.whenStable()`.
+**Cambia**: `return-url.spec.ts`, `http-error.spec.ts` y `task-pager.spec.ts`; `ng test --watch=false` en el README, en CI y en `AGENTS.md`.
+**Verifica**: cada spec falla contra una implementación rota a propósito y pasa con la real; build, gates y CI local.
+
+**0.23. Formato verificado con Prettier.**
+**Concepto**: un formato que decide una herramienta, no una persona; el gate falla ante un archivo sin formatear.
+**Cambia**: un commit que solo formatea con la configuración de `frontend/.prettierrc`, y otro con `npm run format:check` en el README y en CI.
+**Verifica**: un archivo mal formateado a propósito hace fallar el gate; después pasa. El build y el navegador no cambian.
+
+**0.24. E2E con Playwright Test.**
+**Concepto**: el recorrido del navegador como specs que corren igual cada vez, con selectores por rol y label.
+**Cambia**: `@playwright/test` en `frontend/`; `frontend/e2e/` con `playwright.config.ts` y specs por feature; la URL sale de una variable de entorno, así corre contra una instancia de `verify-template`; el README y la skill dicen cómo correrlo.
+**Verifica**: una prueba falla contra un label roto a propósito y todo pasa contra una instancia real. CI queda para el paso 3 si el job de compose no lo aloja sin cambios.
+
+**0.25. MCP del CLI de Angular, solo lectura.**
+**Concepto**: el agente consulta la documentación y la guía de la versión instalada desde el propio CLI.
+**Cambia**: `.mcp.json` con `ng mcp --read-only`; `AGENTS.md` lo nombra.
+**Verifica**: el servidor arranca, lista sus herramientas y `list_projects` devuelve `frontend`.
+
+El paso 0.26 se agregó el 2026-10-17. Tobi eligió BFF porque es lo que usaría en un SaaS ([informe-sesion-angular.md](informe-sesion-angular.md), sección 4, y `docs/decisions.tsv`). Cambia el contrato HTTP de `/auth`: va completo, con backend, frontend y tests juntos.
+
+**0.26. Sesión en el servidor (BFF).** (cambia el contrato HTTP)
+**Concepto**: la sesión vive en el servidor y el navegador solo guarda una cookie HttpOnly con su id; cerrar o revocar es borrar una fila; el envío automático de la cookie obliga a defenderse de CSRF; un cliente futuro sin cookies entra por otro esquema de autenticación sobre los mismos endpoints.
+**Cambia**: backend: tabla de sesiones con migración, autenticación por cookie de ASP.NET Core (`__Host-`, `HttpOnly`, `Secure`, `SameSite`, vencimiento absoluto y por inactividad), `OpenSession` y `RegisterUser` abren una sesión, `CloseSession` la borra, una consulta "quién soy" para restaurar y antiforgery en toda escritura; se van JWT, `RefreshSession`, `RefreshToken` y `TokenService`. Frontend: `Session` restaura con "quién soy"; se van el interceptor de `Authorization`, la renovación y `navigator.locks`; el `BroadcastChannel` queda solo para avisar a las otras pestañas que la sesión se abrió o se cerró. Tests, `smoke-api.mjs`, e2e, `architecture.md`, `conventions.md` y las reglas de Dune que nombren tokens, con su fixture válida y su violación deliberada.
+**Verifica**: tests nuevos en rojo con el código del 0.25 y en verde después: después de cerrar sesión, la misma cookie da 401; borrar la fila de la sesión en la base (lo que hará un admin cuando exista esa función) corta el acceso en la request siguiente; una escritura sin token antiforgery da 400; ninguna respuesta lleva un token legible por JavaScript. Suite del backend, gates, Vitest, `smoke-api.mjs` y e2e en el navegador; la sesión sigue después de recargar y entre pestañas.
+
 ### Fase 1 — Base verificable (pasos 1-3)
 
 **1. Línea base: qué funciona hoy, con evidencia.**
@@ -176,7 +232,7 @@ Los pasos 0.14 a 0.16 se agregaron el 2026-10-17, a pedido de Tobi: "investigá 
 
 **5. Validación de configuración al arranque.**
 **Concepto**: fail-fast; la configuración es un contrato, no un supuesto.
-**Cambia**: options de cada feature (por ejemplo `JwtOptions` en Auth) y del host, `appsettings.example.json`, tests de arranque.
+**Cambia**: options de cada feature (por ejemplo `SessionOptions` en Auth) y del host, `appsettings.example.json`, tests de arranque.
 **Verifica**: nuevo test que arranca el host con configuración inválida y espera fallo con mensaje claro; `dotnet test` completo.
 
 **6. Catálogo de errores estable.**

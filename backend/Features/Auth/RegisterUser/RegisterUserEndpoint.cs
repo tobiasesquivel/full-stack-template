@@ -1,4 +1,3 @@
-using TemplateApp.Features.Auth.Contracts;
 using TemplateApp.Shared.Http;
 
 namespace TemplateApp.Features.Auth.RegisterUser;
@@ -19,8 +18,7 @@ public static class RegisterUserEndpoint
         if (result.IsError)
             return ApiResults.ToResult(result, _ => Results.Created());
 
-        (AuthResponse response, string refresh) = result.Value;
-        policy.AttachRefresh(http, refresh);
-        return Results.Created($"/api/v1/users/{response.User.AuthId}", response);
+        await policy.SignInAsync(http, result.Value.Session);
+        return Results.Created($"/api/v1/users/{result.Value.User.AuthId}", result.Value.User);
     }
 }

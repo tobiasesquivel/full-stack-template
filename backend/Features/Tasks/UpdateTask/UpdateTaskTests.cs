@@ -34,7 +34,7 @@ public sealed class UpdateTaskTests : IClassFixture<ApiFixture>
         Assert.Equal(HttpStatusCode.OK, repeated.Status);
         repeated.Payload?.Dispose();
 
-        var fetched = await alice.SendAsync(HttpMethod.Get, $"api/v1/tasks/{id}", authenticated: true, csrf: false);
+        var fetched = await alice.SendAsync(HttpMethod.Get, $"api/v1/tasks/{id}", csrf: false);
         Assert.Equal(HttpStatusCode.OK, fetched.Status);
         Assert.NotNull(fetched.Payload);
         using (fetched.Payload)

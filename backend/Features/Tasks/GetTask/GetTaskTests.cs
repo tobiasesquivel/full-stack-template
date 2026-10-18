@@ -21,13 +21,13 @@ public sealed class GetTaskTests : IClassFixture<ApiFixture>
 
         string id = await alice.CreateTaskAsync("Propia");
 
-        var fetched = await alice.SendAsync(HttpMethod.Get, $"api/v1/tasks/{id}", authenticated: true, csrf: false);
+        var fetched = await alice.SendAsync(HttpMethod.Get, $"api/v1/tasks/{id}", csrf: false);
         Assert.Equal(HttpStatusCode.OK, fetched.Status);
         Assert.NotNull(fetched.Payload);
         using (fetched.Payload)
             Assert.Equal("Propia", fetched.Payload.RootElement.GetProperty("title").GetString());
 
-        var missing = await alice.SendAsync(HttpMethod.Get, $"api/v1/tasks/{Guid.NewGuid():D}", authenticated: true, csrf: false);
+        var missing = await alice.SendAsync(HttpMethod.Get, $"api/v1/tasks/{Guid.NewGuid():D}", csrf: false);
         missing.Payload?.Dispose();
         Assert.Equal(HttpStatusCode.NotFound, missing.Status);
     }
@@ -53,7 +53,7 @@ public sealed class GetTaskTests : IClassFixture<ApiFixture>
 
         await _fixture.SetRoleAsync(bobName, "Admin", member: true);
 
-        var asAdmin = await bob.SendAsync(HttpMethod.Get, $"api/v1/tasks/{id}", authenticated: true, csrf: false);
+        var asAdmin = await bob.SendAsync(HttpMethod.Get, $"api/v1/tasks/{id}", csrf: false);
         Assert.Equal(HttpStatusCode.OK, asAdmin.Status);
         asAdmin.Payload?.Dispose();
 
@@ -63,7 +63,7 @@ public sealed class GetTaskTests : IClassFixture<ApiFixture>
 
         await _fixture.SetRoleAsync(bobName, "Admin", member: false);
 
-        var afterRevoke = await bob.SendAsync(HttpMethod.Get, $"api/v1/tasks/{id}", authenticated: true, csrf: false);
+        var afterRevoke = await bob.SendAsync(HttpMethod.Get, $"api/v1/tasks/{id}", csrf: false);
         afterRevoke.Payload?.Dispose();
         Assert.Equal(HttpStatusCode.Forbidden, afterRevoke.Status);
     }

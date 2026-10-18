@@ -9,16 +9,18 @@ const secrets = [];
 const password = `Smoke!${crypto.randomUUID()}Aa9`;
 secrets.push(password);
 
+const SESSION_COOKIE = '__Host-session';
+const XSRF_COOKIE = 'XSRF-TOKEN';
+
 class ApiClient {
   cookies = new Map();
-  token = undefined;
+  lastText = '';
 
-  async request(method, route, body, { expected = 200, authenticated = true, csrf = true } = {}) {
+  async request(method, route, body, { expected = 200, csrf = true } = {}) {
     const url = new URL(route, base);
     const headers = { accept: 'application/json' };
     const cookies = [...this.cookies.values()].filter(cookie => url.pathname.startsWith(cookie.path));
     if (cookies.length) headers.cookie = cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; ');
-    if (authenticated && this.token) headers.authorization = `Bearer ${this.token}`;
     if (csrf && method !== 'GET') {
       const token = this.cookies.get('XSRF-TOKEN')?.value;
       if (token) headers['X-XSRF-TOKEN'] = decodeURIComponent(token);
@@ -43,11 +45,14 @@ class ApiClient {
       if (expired || !value) this.cookies.delete(name);
       else {
         const httpOnly = attributes.some(value => value.toLowerCase() === 'httponly');
-        this.cookies.set(name, { name, value, path, httpOnly });
-        if (httpOnly && path === '/api/v1/auth') secrets.push(value);
+        const secure = attributes.some(value => value.toLowerCase() === 'secure');
+        const sameSite = attributes.find(value => value.toLowerCase().startsWith('samesite='))?.slice(9).toLowerCase();
+        this.cookies.set(name, { name, value, path, httpOnly, secure, sameSite });
+        if (httpOnly) secrets.push(value);
       }
     }
     const text = await response.text();
+    this.lastText = text;
     let payload;
     try {
       payload = text ? JSON.parse(text) : undefined;
@@ -56,7 +61,7 @@ class ApiClient {
       throw new Error(`${method} ${route} devolvió una respuesta no JSON con status ${response.status}`);
     }
     const observed = {};
-    for (const key of ['id', 'title', 'isCompleted', 'totalCount', 'page', 'pageSize', 'displayName', 'timezone', 'authId', 'status']) {
+    for (const key of ['id', 'title', 'isCompleted', 'totalCount', 'page', 'pageSize', 'displayName', 'timezone', 'authId', 'status', 'code']) {
       if (payload && Object.hasOwn(payload, key)) observed[key] = payload[key];
     }
     if (Array.isArray(payload?.items)) {
@@ -70,37 +75,45 @@ class ApiClient {
   }
 
   async csrf() {
-    await this.request('GET', 'auth/csrf', undefined, { authenticated: false });
-    assert.ok(this.cookies.get('XSRF-TOKEN')?.value, 'El endpoint CSRF debe entregar XSRF-TOKEN');
+    await this.request('GET', 'auth/csrf');
+    assert.ok(this.cookies.get(XSRF_COOKIE)?.value, 'El endpoint CSRF debe entregar XSRF-TOKEN');
   }
 
   async register(userName) {
     await this.csrf();
     const { payload } = await this.request('POST', 'auth/register', {
       userName, email: `${userName}@example.test`, password, displayName: userName,
-    }, { expected: 201, authenticated: false });
-    this.acceptToken(payload);
-    assert.equal(payload.user.userName, userName);
-    assert.equal(payload.user.timezone, 'UTC');
-    assert.equal(payload.refreshToken, undefined, 'El refresh token no pertenece al contrato JSON');
-    assert.ok([...this.cookies.values()].some(cookie => cookie.httpOnly && cookie.path === '/api/v1/auth'),
-      'La sesión debe usar una cookie HttpOnly limitada a auth');
-    return payload.user;
+    }, { expected: 201 });
+    this.acceptSession();
+    assert.equal(payload.userName, userName);
+    assert.equal(payload.timezone, 'UTC');
+    return payload;
   }
 
-  acceptToken(payload) {
-    assert.equal(typeof payload.accessToken, 'string');
-    assert.ok(Date.parse(payload.accessTokenExpiresAt) > Date.now(), 'El access token debe tener vencimiento futuro');
-    this.token = payload.accessToken;
-    secrets.push(this.token);
-    const claims = JSON.parse(Buffer.from(this.token.split('.')[1], 'base64url').toString('utf8'));
-    assert.equal(claims.role, undefined, 'JWT no debe hornear roles');
-    assert.equal(claims.permission, undefined, 'JWT no debe hornear permisos');
-    assert.equal(claims.roles, undefined);
-    assert.equal(claims.permissions, undefined);
-    assert.equal(typeof claims.sub, 'string');
-    assert.equal(typeof claims.sid, 'string');
-    return claims;
+  async open(userName) {
+    await this.csrf();
+    const { payload } = await this.request('POST', 'auth/login', { userName, password });
+    this.acceptSession();
+    assert.equal(payload.userName, userName);
+    return payload;
+  }
+
+  acceptSession() {
+    assert.ok(!/token/i.test(this.lastText), 'Ninguna respuesta de sesión lleva un token en el body');
+    const session = this.cookies.get(SESSION_COOKIE);
+    assert.ok(session, 'La sesión debe usar la cookie __Host-session');
+    assert.equal(session.httpOnly, true, 'La cookie de sesión debe ser HttpOnly');
+    assert.equal(session.secure, true, 'La cookie de sesión debe ser Secure');
+    assert.equal(session.sameSite, 'strict', 'La cookie de sesión debe ser SameSite=Strict');
+    assert.equal(session.path, '/', 'El prefijo __Host- exige Path=/');
+    const readable = [...this.cookies.values()].filter(cookie => !cookie.httpOnly).map(cookie => cookie.name);
+    assert.deepEqual(readable, [XSRF_COOKIE], 'La única cookie legible por JavaScript es XSRF-TOKEN');
+  }
+
+  onlySession() {
+    const copy = new ApiClient();
+    copy.cookies.set(SESSION_COOKIE, { ...this.cookies.get(SESSION_COOKIE) });
+    return copy;
   }
 }
 
@@ -128,14 +141,18 @@ const anonymous = new ApiClient();
 await anonymous.request('GET', 'health/live');
 await anonymous.request('GET', 'health/ready');
 await anonymous.request('GET', 'tasks', undefined, { expected: 401 });
-await anonymous.request('POST', 'auth/login', { userName: 'nobody', password },
-  { expected: 400, authenticated: false, csrf: false });
+const withoutCsrf = await anonymous.request('POST', 'auth/login', { userName: 'nobody', password },
+  { expected: 400, csrf: false });
+assert.equal(withoutCsrf.payload.code, 'Auth.AntiforgeryFailed');
 const aliceName = `alice${suffix}`;
 const aliceUser = await alice.register(aliceName);
 await bob.register(`bob${suffix}`);
 await alice.request('POST', 'auth/register', {
   userName: aliceName, email: `${aliceName}@example.test`, password, displayName: aliceName,
-}, { expected: 409, authenticated: false });
+}, { expected: 409 });
+const writeWithoutCsrf = await alice.request('POST', 'tasks', { title: 'Sin token antiforgery' },
+  { expected: 400, csrf: false });
+assert.equal(writeWithoutCsrf.payload.code, 'Auth.AntiforgeryFailed', 'Toda escritura de la API exige antiforgery');
 
 const profile = (await alice.request('GET', 'users/me')).payload;
 assert.equal(profile.authId, aliceUser.authId);
@@ -179,23 +196,17 @@ assert.equal(updated.isCompleted, true);
 await alice.request('PUT', `tasks/${created.id}`, { title: 'Estado final', isCompleted: true });
 assert.equal((await alice.request('GET', `tasks/${created.id}`)).payload.isCompleted, true);
 
-const staleCookie = [...alice.cookies.values()].find(cookie => cookie.httpOnly && cookie.path === '/api/v1/auth');
-const staleCookieCopy = { ...staleCookie };
-const fresh = await alice.request('POST', 'auth/refresh', undefined, { authenticated: false });
-alice.acceptToken(fresh.payload);
-assert.notEqual([...alice.cookies.values()].find(cookie => cookie.name === staleCookieCopy.name)?.value,
-  staleCookieCopy.value, 'La renovación debe rotar el token de sesión');
-alice.acceptToken((await alice.request('POST', 'auth/refresh', undefined, { authenticated: false })).payload);
-await alice.request('GET', 'users/me');
-const replay = new ApiClient();
-for (const [key, value] of alice.cookies) replay.cookies.set(key, { ...value });
-replay.cookies.set(staleCookieCopy.name, staleCookieCopy);
-await replay.request('POST', 'auth/refresh', undefined, { expected: 401, authenticated: false });
-await alice.request('GET', 'users/me', undefined, { expected: 401 });
-await alice.csrf();
-const relogin = (await alice.request('POST', 'auth/login', { userName: aliceName, password }, { authenticated: false })).payload;
-alice.acceptToken(relogin);
-assert.equal((await alice.request('GET', `tasks/${created.id}`)).payload.title, 'Estado final');
+const reloaded = alice.onlySession();
+assert.equal((await reloaded.request('GET', 'users/me')).payload.authId, aliceUser.authId,
+  'La cookie de sesión sola restaura la sesión');
+const laptop = new ApiClient();
+await laptop.open(aliceName);
+const closedCookie = laptop.onlySession();
+await laptop.request('POST', 'auth/logout', undefined, { expected: 204 });
+assert.equal(laptop.cookies.has(SESSION_COOKIE), false, 'Cerrar la sesión borra la cookie');
+await closedCookie.request('GET', 'users/me', undefined, { expected: 401 });
+assert.equal((await alice.request('GET', `tasks/${created.id}`)).payload.title, 'Estado final',
+  'Cerrar otra sesión del mismo usuario no corta esta');
 
 if (process.argv.includes('--compose')) {
   compose('stop', 'db');
@@ -214,12 +225,11 @@ if (process.argv.includes('--compose')) {
 
 await alice.request('DELETE', `tasks/${created.id}`, undefined, { expected: 204 });
 await alice.request('GET', `tasks/${created.id}`, undefined, { expected: 404 });
-const revokedAccess = alice.token;
-await alice.request('POST', 'auth/logout', undefined, { expected: 204, authenticated: false });
-alice.token = revokedAccess;
+const revoked = alice.onlySession();
+await alice.request('POST', 'auth/logout', undefined, { expected: 204 });
+await revoked.request('GET', 'users/me', undefined, { expected: 401 });
 await alice.request('GET', 'users/me', undefined, { expected: 401 });
-await alice.csrf();
-alice.acceptToken((await alice.request('POST', 'auth/login', { userName: aliceName, password }, { authenticated: false })).payload);
+await alice.open(aliceName);
 await alice.request('DELETE', 'users/me', undefined, { expected: 204 });
 await alice.request('GET', 'users/me', undefined, { expected: 401 });
 await bob.request('DELETE', 'users/me', undefined, { expected: 204 });

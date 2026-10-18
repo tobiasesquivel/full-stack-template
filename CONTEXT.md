@@ -25,9 +25,5 @@ Una agrupación de permisos asignada a un usuario. User, Admin y SuperAdmin son 
 _Avoid_: permiso, categoría de perfil.
 
 **Sesión**:
-Un acceso autenticado que puede renovarse y cerrarse de forma independiente de otros accesos del mismo usuario.
-_Avoid_: identidad, cuenta.
-
-**Familia de sesión**:
-El conjunto de renovaciones sucesivas de una misma sesión. Revocar una familia no equivale a revocar todas las sesiones del usuario.
-_Avoid_: todas las sesiones, familia de usuario.
+Un acceso autenticado que vive en el servidor y se abre, se usa y se cierra de forma independiente de otros accesos del mismo usuario. Vence por tiempo absoluto o por inactividad. Revocar una sesión es cerrarla desde el servidor; no cierra las otras sesiones del usuario.
+_Avoid_: identidad, cuenta, token.

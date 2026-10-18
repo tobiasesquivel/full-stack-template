@@ -35,14 +35,12 @@ jobs:
         run: dotnet build TemplateApp.slnx --configuration Release
         env:
           ConnectionStrings__DefaultConnection: Host=localhost;Port=5432;Database=template_tests;Username=postgres;Password=template-ci;
-          Jwt__Key: ci-jwt-key-at-least-32-characters-long!
       - name: Verificador de comentarios C#
         run: dotnet run --project dune/Dune.CommentVerifier -- --root .
       - name: Backend tests con PostgreSQL real
         run: dotnet test backend/Tests/TemplateApp.Tests.csproj --configuration Release --no-build
         env:
           ConnectionStrings__DefaultConnection: Host=localhost;Port=5432;Database=template_tests;Username=postgres;Password=template-ci;
-          Jwt__Key: ci-jwt-key-at-least-32-characters-long!
           TEST_POSTGRES_CONNECTION: Host=localhost;Port=5432;Database=template_tests;Username=postgres;Password=template-ci;
       - name: Analyzer tests Dune
         run: dotnet test dune/Dune.Analyzers.Tests/Dune.Analyzers.Tests.csproj --configuration Release
@@ -66,6 +64,10 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - run: npm run build
+      - name: Formato del frontend (Prettier)
+        run: npm run format:check
+      - name: Tests de frontend (Vitest)
+        run: npm test -- --watch=false
       - name: Tests del gate de frontend
         run: node --test ../dune/check-frontend.test.mjs
       - name: Gate de frontend
@@ -93,7 +95,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       POSTGRES_PASSWORD: ci-postgres-password
-      JWT_KEY: ci-jwt-key-at-least-32-characters-long!
       OTEL_EXPORT_DIR: ${{ github.workspace }}/otel-export
     steps:
       - uses: actions/checkout@v4
