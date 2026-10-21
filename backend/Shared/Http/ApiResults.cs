@@ -1,5 +1,4 @@
 using ErrorOr;
-using Microsoft.AspNetCore.Http;
 
 namespace TemplateApp.Shared.Http;
 
