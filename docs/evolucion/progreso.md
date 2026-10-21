@@ -53,7 +53,7 @@ Estados: `pendiente`, `en curso`, `cerrado`, `bloqueado (⏸ decisión de Tobi)`
 | 5.3 | La configuración se lee solo con options validadas | cerrado | `artifacts/verify-template/fase2-05-3/` (collector), `fase2-05-3-check-all/` (sin e2e) |
 | 5.4 | Regla de Dune para la lectura de configuración | cerrado | `artifacts/verify-template/fase2-05-4-rule-red/` (rojo), `fase2-05-4-check-all/` (sin e2e) |
 | 6 | Catálogo de errores estable | cerrado | `artifacts/verify-template/fase2-06-red/` (rojo), `fase2-06-log-red/` (rojo del log), `fase2-06-green/`, `fase2-06-check-all/` (sin e2e; Tobi decidió no correr las e2e del paso) |
-| 6.1 | Todo error sin cuerpo sale como ProblemDetails | en curso | `artifacts/verify-template/fase2-06-1-red/` (rojo), `fase2-06-1-green/`, `fase2-06-1-check-all/` (FAIL por restos de la e2e cortada), `fase2-06-1-check-all-2/` (sin e2e) |
+| 6.1 | Todo error sin cuerpo sale como ProblemDetails | en curso | `artifacts/verify-template/fase2-06-1-red/` (rojo), `fase2-06-1-green/`, `fase2-06-1-check-all/` (FAIL por restos de la e2e cortada), `fase2-06-1-check-all-2/` (sin e2e), `fase2-06-1-cierre-2/` (sin e2e, quita un `using` que sobra en `ApiResults.cs`) |
 | 6.2 | Regla de Dune para el catálogo de errores (DUNE0014) | pendiente | |
 | 7 | Paginación por keyset | pendiente | |
 | 8 | Concurrencia optimista en `TaskItem` | pendiente | |
