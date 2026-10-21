@@ -173,6 +173,8 @@ Tres formas de nombrar conviven: plural de sustantivo (`IUserProfiles`), rol (`I
 
 Ninguna se ejecuta en este informe. Cada una es un paso futuro (reglas 1, 7 y 8 de `AGENTS.md`).
 
+**Decisión de Tobi (2026-10-20):** opción A de la propuesta 1; la propuesta 2 va a `conventions.md`; la 3 entra en el mismo paso. Las tres forman el paso 6.3 del plan, después del 6.2 (`docs/decisions.tsv`).
+
 1. **Convención de nombres para `Contracts/`.** ⏸ **DECISIÓN DE TOBI** entre dos opciones:
    - **A. Una puerta por feature, `I<Feature>Module`** (Grzybek, Milan), con métodos por caso de uso. Gana una sola puerta visible por feature; pierde interfaces chicas por rol (Tasks vería toda la puerta de Auth).
    - **B. Interfaces por rol con sufijo fijo** (Fowler, RoleInterface). Gana interfaces chicas; pierde la señal en el nombre de "esto es la puerta de otra feature".

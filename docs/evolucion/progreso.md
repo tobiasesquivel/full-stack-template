@@ -55,6 +55,7 @@ Estados: `pendiente`, `en curso`, `cerrado`, `bloqueado (⏸ decisión de Tobi)`
 | 6 | Catálogo de errores estable | cerrado | `artifacts/verify-template/fase2-06-red/` (rojo), `fase2-06-log-red/` (rojo del log), `fase2-06-green/`, `fase2-06-check-all/` (sin e2e; Tobi decidió no correr las e2e del paso) |
 | 6.1 | Todo error sin cuerpo sale como ProblemDetails | en curso | `artifacts/verify-template/fase2-06-1-red/` (rojo), `fase2-06-1-green/`, `fase2-06-1-check-all/` (FAIL por restos de la e2e cortada), `fase2-06-1-check-all-2/` (sin e2e), `fase2-06-1-cierre-2/` (sin e2e, quita un `using` que sobra en `ApiResults.cs`) |
 | 6.2 | Regla de Dune para el catálogo de errores (DUNE0014) | pendiente | |
+| 6.3 | Convención de nombres para los contratos entre features (DUNE0015) | pendiente | |
 | 7 | Paginación por keyset | pendiente | |
 | 8 | Concurrencia optimista en `TaskItem` | pendiente | |
 | 9 | Idempotencia de escritura | pendiente | |
@@ -90,9 +91,6 @@ Estados: `pendiente`, `en curso`, `cerrado`, `bloqueado (⏸ decisión de Tobi)`
 
 Cosas vistas durante un paso que no le corresponden. Cada una espera su paso.
 
-- Los tipos de `Contracts/` no siguen una convención de nombres: conviven `IUserProfiles` (plural), `IAccessPolicy` (rol) y datos sin propósito en el nombre (`UserAccount`, que parece entidad; `UserProfileSnapshot`). ⏸ Decisión de Tobi entre una puerta por feature (`I<Feature>Module`) o interfaces por rol; los datos pasarían a `<Cosa><Propósito>` y `Response` quedaría solo para HTTP. La regla va a Dune (regla 4). Ver [investigacion/comunicacion-entre-features.md](investigacion/comunicacion-entre-features.md) §4. Sin paso asignado.
-- `conventions.md` no dice que un contrato nace solo cuando otra feature lo pide, y `Contracts/` mezcla lo que ve otra feature con responses HTTP que solo usa la propia (`TaskResponse`, `TaskListResponse`, `HealthStatusResponse`). Va con la convención de nombres. Misma investigación, §4.
-- `UserProfiles.FindAsync` consulta una tabla y copia dos campos: candidato a pasamanos. Revisarlo con el deletion test de la skill `codebase-design`. Misma investigación, §4.
 - El build Release muestra 218 warnings de analyzers (CA2007, CA1707, RS2008, RS1036, CS8602 y otros). Nadie decidió si cada uno se corrige o se baja a `suggestion`. Sin paso asignado: proponer uno.
 - `docs/evolucion/informe-vsa-deep-modules.md` §2.1 propone `AppIdentityUser` en `Auth/Domain`. Choca con `architecture.md` (Domain sin ASP.NET). Desde el paso 0.5, Users ya no lo usa; sigue en `Auth/Contracts` solo porque `AppDbContext` hereda de `IdentityDbContext<AppIdentityUser>`. Paso 22.
 - Las dos FKs entre features (`UserProfiles → AspNetUsers`, `TaskItems → UserProfiles`) están en `AppDbContext.ConfigureCrossFeatureRelationships`. Con un `DbContext` por feature hay que elegir: quitarlas y reemplazar la cascada por un evento (Grzybek, Wolverine) o dejarlas solo en SQL (Jovanović). Paso 22.
