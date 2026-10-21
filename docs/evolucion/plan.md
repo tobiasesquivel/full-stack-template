@@ -284,6 +284,11 @@ El paso 0.28 se agregó el 2026-10-17, a pedido de Tobi, con otro pendiente del 
 **Cambia**: `dune/Dune.Analyzers`, sus tests, `Dune.props`, `conventions.md`.
 **Verifica**: fixture válida y violación deliberada; rojo sobre el código de antes del paso 6; build en verde.
 
+**6.3. Convención de nombres para los contratos entre features (DUNE0015).**
+**Concepto**: la interfaz de un módulo profundo se reconoce por su nombre; cada feature que expone algo tiene una sola puerta, `I<Feature>Module`, con métodos por caso de uso, y los datos que cruzan el límite dicen su propósito (`<Cosa><Propósito>`, sufijo de lista cerrada). `Response` queda solo para HTTP. Un contrato nace solo cuando otra feature lo pide.
+**Cambia**: `Features/*/Contracts` (las interfaces de Auth y Users pasan a `IAuthModule` e `IUsersModule`; `UserAccount` y `UserProfileSnapshot` toman nombre de propósito), sus implementaciones y llamadores, revisión de `UserProfiles.FindAsync` con el deletion test, `conventions.md`, `dune/Dune.Analyzers` y sus tests. No cambia el JSON de la API.
+**Verifica**: fixture válida y violación deliberada de DUNE0015; rojo sobre el código de antes del paso; `dotnet test`; `smoke-api.mjs`.
+
 **7. Paginación por keyset.**
 **Concepto**: lectura estable a escala; el offset se degrada con volumen y duplica filas al insertar.
 **Cambia**: la slice `ListTasks`, `Contracts`, cliente y modelos de tareas en el frontend, tests.
