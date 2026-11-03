@@ -2,7 +2,7 @@
   <PropertyGroup Condition="'$(MSBuildProjectName)' == 'TemplateApp' Or '$(MSBuildProjectName)' == 'TemplateApp.Tests'">
     <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
-    <WarningsAsErrors>DUNE0001;DUNE0002;DUNE0003;DUNE0004;DUNE0005;DUNE0006;DUNE0007;DUNE0008;DUNE0009;DUNE0010;DUNE0011;DUNE0012;DUNE0013;RS0030;RS0031;RS0032;RS0033;RS0034;CA1849</WarningsAsErrors>
+    <WarningsAsErrors>DUNE0001;DUNE0002;DUNE0003;DUNE0004;DUNE0005;DUNE0006;DUNE0007;DUNE0008;DUNE0009;DUNE0010;DUNE0011;DUNE0012;DUNE0013;DUNE0014;RS0030;RS0031;RS0032;RS0033;RS0034;CA1849</WarningsAsErrors>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <AnalysisMode>All</AnalysisMode>
     <CodeAnalysisTreatWarningsAsErrors>false</CodeAnalysisTreatWarningsAsErrors>

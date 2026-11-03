@@ -120,4 +120,22 @@ internal static class DuneDiagnostics
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
         description: "La configuración entra solo por options validadas al arranque (AddOptionsWithValidateOnStart + BindConfiguration). El backend no nombra IConfiguration ni sus implementaciones y no lee variables de entorno; los tests quedan fuera.");
+
+    public static readonly DiagnosticDescriptor ErrorOutsideCatalog = new(
+        id: "DUNE0014",
+        title: "Error fuera del catálogo",
+        messageFormat: "'Error.{0}' arma un error fuera del catálogo; declaralo en un <Feature>Errors.cs o en Shared/Http",
+        category: "Dune",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "Un Error de ErrorOr se crea solo en un archivo *Errors.cs: el código es parte del contrato HTTP y sale de un catálogo. Los handlers devuelven los errores del catálogo; los tests y las migraciones quedan fuera.");
+
+    public static readonly DiagnosticDescriptor ErrorCodePrefix = new(
+        id: "DUNE0014",
+        title: "Código de error con prefijo ajeno",
+        messageFormat: "El código '{0}' no empieza con '{1}', el prefijo de {2}",
+        category: "Dune",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "En un catálogo de feature, el código fijo de un error empieza con el nombre de la clase sin 'Errors' (TaskErrors → Task.). Los errores de validación usan el nombre del campo y quedan fuera; también un código que no es constante.");
 }

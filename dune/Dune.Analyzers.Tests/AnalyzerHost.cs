@@ -54,7 +54,8 @@ internal static class AnalyzerHost
             new OneTypePerFileAnalyzer(),
             new ApiRouteAnalyzer(),
             new VersionedApiAnalyzer(),
-            new ConfigurationAccessAnalyzer());
+            new ConfigurationAccessAnalyzer(),
+            new ErrorCatalogAnalyzer());
 
     public static Func<ImmutableArray<DiagnosticAnalyzer>> Only<T>()
         where T : DiagnosticAnalyzer, new() =>
