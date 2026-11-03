@@ -4,7 +4,7 @@ Registro vivo del [plan](plan.md). El agente lo actualiza al cerrar cada paso.
 
 ## Paso actual
 
-**Fase 2, paso 6.2: regla de Dune para el catálogo de errores (DUNE0014).** Estado: en curso; se apoya en la sección 6 de [investigacion/paso-06-catalogo-errores.md](investigacion/paso-06-catalogo-errores.md). El paso 6.1 cerró el 2026-11-03; Tobi mergeó los PRs #53 y #54. El paso 6 cerró el 2026-10-18 y Tobi mergeó el PR #52. El paso 5.1 cerró el 2026-10-18. Los pasos 3, 4 y 5 y las reglas 11 y 12 entraron a `main` con el PR #47 el 2026-10-18; Tobi pidió integrar todo y borrar las demás ramas. El paso 2 cerró el 2026-10-17 y Tobi lo mergeó. La Fase 0 cerró con el paso 0.28 (reglas de la sesión en Dune). Tobi eligió el BFF del paso 0.26 y el volumen del 0.27 el 2026-10-17. Los pasos 0.10 a 0.28 cerraron. Tobi pidió el 2026-10-17 separar la vista de los componentes (0.10), un archivo por tipo (0.11), Tailwind (0.12), ordenar los archivos sueltos de cada feature (0.13), investigar y aplicar el manejo de sesión en Angular (0.14 a 0.16, [informe-sesion-angular.md](informe-sesion-angular.md)) y aplicar lo que no necesita decisión de herramienta de [informe-componentes-angular.md](informe-componentes-angular.md) y [informe-frontend-para-agentes.md](informe-frontend-para-agentes.md) (0.17 a 0.20). Después eligió Vitest, Prettier, Playwright Test, el MCP del CLI y los ajustes visuales (0.21 a 0.25). Los pasos 0.6 a 0.28 esperan el merge de Tobi. El Stop hook esperaba hasta después del paso 2: ya se puede retomar.
+**Fase 2, paso 6.3: convención de nombres para los contratos entre features (DUNE0015).** Estado: en curso; se apoya en [investigacion/comunicacion-entre-features.md](investigacion/comunicacion-entre-features.md). El paso 6.2 cerró el 2026-11-03 (PR #57). El paso 6.1 cerró el 2026-11-03; Tobi mergeó los PRs #53 y #54. El paso 6 cerró el 2026-10-18 y Tobi mergeó el PR #52. El paso 5.1 cerró el 2026-10-18. Los pasos 3, 4 y 5 y las reglas 11 y 12 entraron a `main` con el PR #47 el 2026-10-18; Tobi pidió integrar todo y borrar las demás ramas. El paso 2 cerró el 2026-10-17 y Tobi lo mergeó. La Fase 0 cerró con el paso 0.28 (reglas de la sesión en Dune). Tobi eligió el BFF del paso 0.26 y el volumen del 0.27 el 2026-10-17. Los pasos 0.10 a 0.28 cerraron. Tobi pidió el 2026-10-17 separar la vista de los componentes (0.10), un archivo por tipo (0.11), Tailwind (0.12), ordenar los archivos sueltos de cada feature (0.13), investigar y aplicar el manejo de sesión en Angular (0.14 a 0.16, [informe-sesion-angular.md](informe-sesion-angular.md)) y aplicar lo que no necesita decisión de herramienta de [informe-componentes-angular.md](informe-componentes-angular.md) y [informe-frontend-para-agentes.md](informe-frontend-para-agentes.md) (0.17 a 0.20). Después eligió Vitest, Prettier, Playwright Test, el MCP del CLI y los ajustes visuales (0.21 a 0.25). Los pasos 0.6 a 0.28 esperan el merge de Tobi. El Stop hook esperaba hasta después del paso 2: ya se puede retomar.
 
 La Fase 0 va antes del paso 2. El paso 1 (línea base) ya cerró y sirve de referencia para la Fase 0.
 
@@ -54,8 +54,8 @@ Estados: `pendiente`, `en curso`, `cerrado`, `bloqueado (⏸ decisión de Tobi)`
 | 5.4 | Regla de Dune para la lectura de configuración | cerrado | `artifacts/verify-template/fase2-05-4-rule-red/` (rojo), `fase2-05-4-check-all/` (sin e2e) |
 | 6 | Catálogo de errores estable | cerrado | `artifacts/verify-template/fase2-06-red/` (rojo), `fase2-06-log-red/` (rojo del log), `fase2-06-green/`, `fase2-06-check-all/` (sin e2e; Tobi decidió no correr las e2e del paso) |
 | 6.1 | Todo error sin cuerpo sale como ProblemDetails | cerrado | `artifacts/verify-template/fase2-06-1-red/` (rojo), `fase2-06-1-green/`, `fase2-06-1-check-all/` (FAIL por restos de la e2e cortada), `fase2-06-1-check-all-2/` (sin e2e), `fase2-06-1-cierre-2/` (sin e2e, quita un `using` que sobra en `ApiResults.cs`) |
-| 6.2 | Regla de Dune para el catálogo de errores (DUNE0014) | en curso | `artifacts/verify-template/fase2-06-2-rule-red/` (rojo de los tests y del backend de antes del paso 6), `fase2-06-2-rule-green/`, `fase2-06-2-check-all/` (FAIL: Docker apagado), `fase2-06-2-check-all-2/` (sin e2e) |
-| 6.3 | Convención de nombres para los contratos entre features (DUNE0015) | pendiente | |
+| 6.2 | Regla de Dune para el catálogo de errores (DUNE0014) | cerrado | `artifacts/verify-template/fase2-06-2-rule-red/` (rojo de los tests y del backend de antes del paso 6), `fase2-06-2-rule-green/`, `fase2-06-2-check-all/` (FAIL: Docker apagado), `fase2-06-2-check-all-2/` (sin e2e) |
+| 6.3 | Convención de nombres para los contratos entre features (DUNE0015) | en curso | |
 | 7 | Paginación por keyset | pendiente | |
 | 8 | Concurrencia optimista en `TaskItem` | pendiente | |
 | 9 | Idempotencia de escritura | pendiente | |
@@ -135,6 +135,16 @@ Una entrada por paso cerrado, con este formato:
 - Preguntas: qué preguntó Tobi.
 - Evidencia: artifacts/verify-template/<runId>/
 ```
+
+### Paso 6.2 — 2026-11-03
+- Enseñado: una convención escrita se vuelve regla ejecutable. DUNE0014 (`ErrorCatalogAnalyzer`) mira cada invocación del backend, salvo tests y migraciones, y se queda con los métodos estáticos de `ErrorOr.Error` por símbolo, no por texto. Fuera de un `*Errors.cs` marca la llamada aunque el código no sea constante (`Error.Validation(code: e.Code, …)`). En `backend/Features/`, el código constante empieza con el nombre de la clase sin `Errors` (`TaskErrors` → `Task.`, no la carpeta `Tasks`); `Validation` queda fuera porque su código es el campo, y un `Error.Failure()` sin código se marca por su valor por defecto `General.Failure`.
+- Preguntas: ninguna; Tobi pidió seguir con el 6.3.
+- Decisiones: una fila en `docs/decisions.tsv` (no se prohíbe la clave `"code"` a mano: `ApiResults` y `CustomizeProblemDetails` la escriben a propósito). `Dune.props` y `.editorconfig` suman DUNE0014; `AnalyzerHost.All()` suma `ErrorCatalogAnalyzer`. `conventions.md` nombra la regla.
+- Evidencia:
+  - Rojo de los tests (`fase2-06-2-rule-red/tests.txt`): con el analyzer vacío, 2 de 3 en rojo (las dos violaciones).
+  - Rojo real (`fase2-06-2-rule-red/build.txt`): el backend de antes del paso 6 (`fc91aeb`) con la regla da 13 errores DUNE0014, los 13 que el paso 6 movió a mano.
+  - Tests de Dune (`fase2-06-2-rule-green/`): 80/80.
+  - `check-all --no-e2e`: `fase2-06-2-check-all/` FAIL porque Docker estaba apagado; `fase2-06-2-check-all-2/` PASS en todas las etapas, `dotnet test` 150/150. E2E: NOT_RUN, sin cambios de frontend ni de contrato HTTP.
 
 ### Paso 6.1 — 2026-11-03
 - Enseñado: ningún error sale mudo. `UseStatusCodePages` (`Program.cs`, después de `UseExceptionHandler`) le escribe un ProblemDetails a toda respuesta 400-599 sin cuerpo, también al 503 del limiter. `CustomizeProblemDetails` completa el `code` con `TryAdd`, que no pisa el código que ya puso `ApiResults` (`Task.NotFound`). `HttpErrors.CodeFor` sale de una tabla explícita de cinco status y, para los demás, de la frase estándar del status. `ApiVersioningTests` cambió a propósito: `/api/v9` responde 404 con `Http.NotFound`.
