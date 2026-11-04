@@ -15,7 +15,7 @@ backend/
     └── Tasks/
         ├── TasksFeature.cs  registra DI y rutas de la feature
         ├── TaskErrors.cs    piezas internas que comparten varias slices
-        ├── Contracts/       lo que ven otras features y las responses HTTP compartidas
+        ├── Contracts/       lo que usa otra feature: la puerta I<Feature>Module y sus datos
         ├── Domain/          modelos puros y reglas del dominio
         ├── Persistence/     mappings de EF
         └── CreateTask/
@@ -48,7 +48,7 @@ Identity guarda el nombre de login, el email y las credenciales. `UserProfile` g
 
 Entre features, una entidad guarda solo el Id de la otra: `TaskItem.OwnerId` es un `string`, sin navegación. Las dos FKs que cruzan features (`UserProfiles → AspNetUsers` y `TaskItems → UserProfiles`) se declaran en `AppDbContext.ConfigureCrossFeatureRelationships`, no en la `Persistence` de cada feature. La base mantiene la integridad y la cascada mientras sea compartida. El paso 22 decide si esas FKs se quitan o quedan solo en SQL.
 
-Auth y Users se usan solo por contrato. Auth crea y lee el perfil con `Users.Contracts.IUserProfiles`. Users lee y borra la cuenta con `Auth.Contracts.IUserAccounts`. Ninguna de las dos conoce el interior de la otra.
+Auth y Users se usan solo por contrato. Auth crea y lee el perfil con `Users.Contracts.IUsersModule`. Users y Tasks leen la cuenta, la borran y deciden permisos con `Auth.Contracts.IAuthModule`. Ninguna de las dos conoce el interior de la otra.
 
 El registro crea identidad, perfil, rol y sesión en una transacción explícita. Las restricciones únicas protegen las carreras. Un resultado de error no confirma la transacción. Las migraciones son forward: renombran y hacen backfill, sin reset de base ni `EnsureCreated`.
 

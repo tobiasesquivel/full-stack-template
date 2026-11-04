@@ -1,6 +1,5 @@
 using ErrorOr;
 using Microsoft.EntityFrameworkCore;
-using TemplateApp.Features.Tasks.Contracts;
 using TemplateApp.Infrastructure.Persistence;
 
 namespace TemplateApp.Features.Tasks.ListTasks;

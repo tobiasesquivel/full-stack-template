@@ -16,9 +16,9 @@ public static class AuthFeature
         services.AddAuthSession();
         services.AddAuthHttpPolicy();
 
-        services.AddScoped<IAccessPolicy, AccessPolicy>();
-        services.AddScoped<UserAccounts>();
-        services.AddScoped<IUserAccounts>(sp => sp.GetRequiredService<UserAccounts>());
+        services.AddScoped<AccessPolicy>();
+        services.AddScoped<AuthModule>();
+        services.AddScoped<IAuthModule>(sp => sp.GetRequiredService<AuthModule>());
         services.AddScoped<IDatabaseSeeder, RoleSeeder>();
         services.AddScoped<Sessions>();
         services.AddScoped<SessionHttpPolicy>();

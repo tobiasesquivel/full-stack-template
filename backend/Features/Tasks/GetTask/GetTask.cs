@@ -9,12 +9,12 @@ namespace TemplateApp.Features.Tasks.GetTask;
 public sealed class GetTask
 {
     private readonly AppDbContext _db;
-    private readonly IAccessPolicy _access;
+    private readonly IAuthModule _auth;
 
-    public GetTask(AppDbContext db, IAccessPolicy access)
+    public GetTask(AppDbContext db, IAuthModule auth)
     {
         _db = db;
-        _access = access;
+        _auth = auth;
     }
 
     public async Task<ErrorOr<TaskResponse>> ExecuteAsync(string callerId, Guid id, CancellationToken ct)
@@ -23,7 +23,7 @@ public sealed class GetTask
         if (item is null)
             return TaskErrors.NotFound(id);
 
-        if (!await _access.CanAccessAsync(callerId, item, TaskPermissions.Read, ct))
+        if (!await _auth.CanAccessAsync(callerId, item, TaskPermissions.Read, ct))
             return TaskErrors.Forbidden;
 
         return TaskResponses.From(item);

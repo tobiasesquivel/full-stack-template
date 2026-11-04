@@ -1,6 +1,6 @@
 namespace TemplateApp.Features.Auth.Contracts;
 
-public sealed record UserAccount(
+public sealed record UserAccountDetails(
     string AuthId,
     string? UserName,
     string? Email,

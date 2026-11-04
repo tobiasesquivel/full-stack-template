@@ -1,5 +1,4 @@
 using System.Linq.Expressions;
-using TemplateApp.Features.Tasks.Contracts;
 using TemplateApp.Features.Tasks.Domain;
 
 namespace TemplateApp.Features.Tasks;

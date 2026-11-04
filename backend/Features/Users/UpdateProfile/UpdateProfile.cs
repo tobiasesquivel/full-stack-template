@@ -13,12 +13,12 @@ public sealed class UpdateProfile
     private static readonly UpdateProfileRequestValidator Validator = new();
 
     private readonly AppDbContext _db;
-    private readonly IUserAccounts _accounts;
+    private readonly IAuthModule _auth;
 
-    public UpdateProfile(AppDbContext db, IUserAccounts accounts)
+    public UpdateProfile(AppDbContext db, IAuthModule auth)
     {
         _db = db;
-        _accounts = accounts;
+        _auth = auth;
     }
 
     public async Task<ErrorOr<UserResponse>> ExecuteAsync(string callerId, UpdateProfileRequest request, CancellationToken ct)
@@ -32,7 +32,7 @@ public sealed class UpdateProfile
         if (profile is null)
             return UserErrors.NotFound(callerId);
 
-        UserAccount? account = await _accounts.FindAsync(callerId, ct);
+        UserAccountDetails? account = await _auth.FindAccountAsync(callerId, ct);
         if (account is null)
             return UserErrors.NotFound(callerId);
 
@@ -40,6 +40,6 @@ public sealed class UpdateProfile
         profile.Timezone = request.Timezone;
         await _db.SaveChangesAsync(ct);
 
-        return UserResponse.From(account, UserProfiles.Snapshot(profile));
+        return UserResponse.From(account, UsersModule.Describe(profile));
     }
 }

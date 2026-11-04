@@ -11,7 +11,7 @@ public sealed record UserResponse(
     IReadOnlyList<string> Roles,
     IReadOnlyList<string> Permissions)
 {
-    public static UserResponse From(UserAccount account, UserProfileSnapshot profile) =>
+    public static UserResponse From(UserAccountDetails account, UserProfileDetails profile) =>
         new(
             account.AuthId,
             account.UserName,

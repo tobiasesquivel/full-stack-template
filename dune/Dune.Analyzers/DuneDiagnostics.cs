@@ -120,4 +120,50 @@ internal static class DuneDiagnostics
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
         description: "La configuración entra solo por options validadas al arranque (AddOptionsWithValidateOnStart + BindConfiguration). El backend no nombra IConfiguration ni sus implementaciones y no lee variables de entorno; los tests quedan fuera.");
+
+    public static readonly DiagnosticDescriptor ErrorOutsideCatalog = new(
+        id: "DUNE0014",
+        title: "Error fuera del catálogo",
+        messageFormat: "'Error.{0}' arma un error fuera del catálogo; declaralo en un <Feature>Errors.cs o en Shared/Http",
+        category: "Dune",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "Un Error de ErrorOr se crea solo en un archivo *Errors.cs: el código es parte del contrato HTTP y sale de un catálogo. Los handlers devuelven los errores del catálogo; los tests y las migraciones quedan fuera.");
+
+    public static readonly DiagnosticDescriptor ErrorCodePrefix = new(
+        id: "DUNE0014",
+        title: "Código de error con prefijo ajeno",
+        messageFormat: "El código '{0}' no empieza con '{1}', el prefijo de {2}",
+        category: "Dune",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "En un catálogo de feature, el código fijo de un error empieza con el nombre de la clase sin 'Errors' (TaskErrors → Task.). Los errores de validación usan el nombre del campo y quedan fuera; también un código que no es constante.");
+
+    public static readonly DiagnosticDescriptor ContractKind = new(
+        id: "DUNE0015",
+        title: "Tipo no admitido en Contracts",
+        messageFormat: "'{0}' no es un contrato; en Contracts/ van {1}, records *Details/*Summary/*Info/*Response, *Permissions o *EndpointNames con constantes y *Extensions",
+        category: "Dune",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "Contracts/ es lo único que ve otra feature, y cada clase de tipo se reconoce por su nombre: una sola puerta I<Feature>Module, datos con un sufijo de la lista cerrada (Details, Summary, Info), responses HTTP, constantes y métodos de extensión. AppIdentityUser es la única excepción hasta el paso 22.");
+
+    public static readonly DiagnosticDescriptor ContractDoorSignature = new(
+        id: "DUNE0015",
+        title: "La puerta de la feature expone un tipo interno",
+        messageFormat: "La puerta '{0}' expone '{1}'; su firma usa la BCL, ErrorOr, Shared y datos *Details/*Summary/*Info",
+        category: "Dune",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "Los métodos de I<Feature>Module devuelven y reciben datos con propósito, no responses HTTP ni entidades. Response queda solo para HTTP.");
+
+    public static readonly DiagnosticDescriptor ContractUnused = new(
+        id: "DUNE0015",
+        title: "Contrato que ninguna otra feature usa",
+        messageFormat: "'{0}' está en Contracts/ pero ninguna otra feature lo usa; un contrato nace cuando otra feature lo pide",
+        category: "Dune",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "Cada tipo de Contracts/ y cada método de la puerta tiene un uso desde otra feature. El uso desde la propia feature, Infrastructure o los tests no cuenta.",
+        customTags: WellKnownDiagnosticTags.CompilationEnd);
 }

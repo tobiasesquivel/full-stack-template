@@ -12,15 +12,15 @@ public sealed class OpenSession
     private readonly UserManager<AppIdentityUser> _users;
     private readonly AppDbContext _db;
     private readonly Sessions _sessions;
-    private readonly UserAccounts _accounts;
-    private readonly IUserProfiles _profiles;
+    private readonly AuthModule _accounts;
+    private readonly IUsersModule _profiles;
 
     public OpenSession(
         UserManager<AppIdentityUser> users,
         AppDbContext db,
         Sessions sessions,
-        UserAccounts accounts,
-        IUserProfiles profiles)
+        AuthModule accounts,
+        IUsersModule profiles)
     {
         _users = users;
         _db = db;
@@ -51,14 +51,14 @@ public sealed class OpenSession
 
         await _users.ResetAccessFailedCountAsync(identity);
 
-        UserProfileSnapshot? profile = await _profiles.FindAsync(identity.Id, ct);
+        UserProfileDetails? profile = await _profiles.FindProfileAsync(identity.Id, ct);
         if (profile is null)
             return AuthErrors.ProfileMissing;
 
         Session session = _sessions.Open(identity.Id);
         await _db.SaveChangesAsync(ct);
 
-        UserAccount account = await _accounts.DescribeAsync(identity, ct);
+        UserAccountDetails account = await _accounts.DescribeAsync(identity, ct);
         return (UserResponse.From(account, profile), session);
     }
 }
