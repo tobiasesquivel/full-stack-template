@@ -78,12 +78,12 @@ export function response(
   return waiting;
 }
 
-export function listPage(page: Page, number: number): Promise<Response> {
+export function listPage(page: Page, which: 'first' | 'next'): Promise<Response> {
   const waiting = page.waitForResponse(
     (candidate) =>
       candidate.request().method() === 'GET' &&
       new URL(candidate.url()).pathname === '/api/v1/tasks' &&
-      new URL(candidate.url()).searchParams.get('page') === String(number) &&
+      new URL(candidate.url()).searchParams.has('cursor') === (which === 'next') &&
       candidate.status() === 200,
   );
   waiting.catch(() => undefined);

@@ -3,7 +3,7 @@ import { TaskPager } from './task-pager';
 
 describe('TaskPager', () => {
   let fixture: ComponentFixture<TaskPager>;
-  let requested: number[];
+  let requested: string[];
 
   function button(name: string): HTMLButtonElement {
     const buttons = Array.from(
@@ -20,13 +20,13 @@ describe('TaskPager', () => {
 
   async function show(
     page: number,
-    totalPages: number,
-    totalCount: number,
+    hasPrevious: boolean,
+    hasNext: boolean,
     disabled = false,
   ): Promise<void> {
     fixture.componentRef.setInput('page', page);
-    fixture.componentRef.setInput('totalPages', totalPages);
-    fixture.componentRef.setInput('totalCount', totalCount);
+    fixture.componentRef.setInput('hasPrevious', hasPrevious);
+    fixture.componentRef.setInput('hasNext', hasNext);
     fixture.componentRef.setInput('disabled', disabled);
     await fixture.whenStable();
   }
@@ -34,36 +34,37 @@ describe('TaskPager', () => {
   beforeEach(() => {
     fixture = TestBed.createComponent(TaskPager);
     requested = [];
-    fixture.componentInstance.pageChange.subscribe((page) => requested.push(page));
+    fixture.componentInstance.previous.subscribe(() => requested.push('previous'));
+    fixture.componentInstance.next.subscribe(() => requested.push('next'));
   });
 
-  it('shows the page, the total pages and the total count inside the Paginación nav', async () => {
-    await show(2, 3, 25);
+  it('shows the page number inside the Paginación nav', async () => {
+    await show(2, true, true);
     expect(fixture.nativeElement.querySelector('nav').getAttribute('aria-label')).toBe(
       'Paginación',
     );
-    expect(status()).toBe('Página 2 de 3 (25)');
+    expect(status()).toBe('Página 2');
   });
 
-  it('disables Anterior on the first page and Siguiente on the last', async () => {
-    await show(1, 2, 11);
+  it('disables Anterior without a previous page and Siguiente without a next one', async () => {
+    await show(1, false, true);
     expect(button('Anterior').disabled).toBe(true);
     expect(button('Siguiente').disabled).toBe(false);
-    await show(2, 2, 11);
+    await show(2, true, false);
     expect(button('Anterior').disabled).toBe(false);
     expect(button('Siguiente').disabled).toBe(true);
   });
 
   it('disables both buttons while disabled', async () => {
-    await show(2, 3, 25, true);
+    await show(2, true, true, true);
     expect(button('Anterior').disabled).toBe(true);
     expect(button('Siguiente').disabled).toBe(true);
   });
 
-  it('asks for the previous and the next page', async () => {
-    await show(2, 3, 25);
+  it('asks for the next and the previous page', async () => {
+    await show(2, true, true);
     button('Siguiente').click();
     button('Anterior').click();
-    expect(requested).toEqual([3, 1]);
+    expect(requested).toEqual(['next', 'previous']);
   });
 });

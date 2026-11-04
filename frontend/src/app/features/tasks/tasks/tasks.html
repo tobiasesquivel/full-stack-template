@@ -70,10 +70,11 @@
     }
     <app-task-pager
       [page]="page()"
-      [totalPages]="totalPages()"
-      [totalCount]="totalCount()"
+      [hasPrevious]="hasPrevious()"
+      [hasNext]="hasNext()"
       [disabled]="loading()"
-      (pageChange)="goTo($event)"
+      (previous)="previous()"
+      (next)="next()"
     />
   }
 </section>

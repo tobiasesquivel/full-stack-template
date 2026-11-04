@@ -61,7 +61,7 @@ class ApiClient {
       throw new Error(`${method} ${route} devolvió una respuesta no JSON con status ${response.status}`);
     }
     const observed = {};
-    for (const key of ['id', 'title', 'isCompleted', 'totalCount', 'page', 'pageSize', 'displayName', 'timezone', 'authId', 'status', 'code']) {
+    for (const key of ['id', 'title', 'isCompleted', 'nextCursor', 'displayName', 'timezone', 'authId', 'status', 'code']) {
       if (payload && Object.hasOwn(payload, key)) observed[key] = payload[key];
     }
     if (Array.isArray(payload?.items)) {
@@ -183,17 +183,19 @@ assert.equal(created.isCompleted, false);
 assert.ok(created.id);
 await alice.request('POST', 'tasks', { title: 'Segunda tarea' }, { expected: 201 });
 await alice.request('POST', 'tasks', { title: 'Tercera tarea' }, { expected: 201 });
-const firstPage = (await alice.request('GET', 'tasks?page=1&pageSize=2')).payload;
-assert.equal(firstPage.totalCount, 3);
-assert.equal(firstPage.page, 1);
-assert.equal(firstPage.pageSize, 2);
+const firstPage = (await alice.request('GET', 'tasks?pageSize=2')).payload;
 assert.equal(firstPage.items.length, 2);
-const secondPage = (await alice.request('GET', 'tasks?page=2&pageSize=2')).payload;
+assert.equal(typeof firstPage.nextCursor, 'string');
+await alice.request('POST', 'tasks', { title: 'Creada entre páginas' }, { expected: 201 });
+const secondPage = (await alice.request('GET', `tasks?pageSize=2&cursor=${encodeURIComponent(firstPage.nextCursor)}`)).payload;
 assert.equal(secondPage.items.length, 1);
+assert.equal(secondPage.nextCursor, null);
 assert.equal(new Set([...firstPage.items, ...secondPage.items].map(item => item.id)).size, 3);
 const bobPage = (await bob.request('GET', 'tasks')).payload;
 assert.deepEqual(bobPage.items, []);
-assert.equal(bobPage.totalCount, 0);
+assert.equal(bobPage.nextCursor, null);
+const brokenCursor = await alice.request('GET', 'tasks?cursor=AAAA', undefined, { expected: 400 });
+assert.equal(brokenCursor.payload.code, 'Validation.Failed');
 const bigPage = await alice.request('GET', 'tasks?pageSize=101', undefined, { expected: 400 });
 assert.equal(bigPage.payload.code, 'Validation.Failed');
 for (const method of ['GET', 'PUT', 'DELETE']) {

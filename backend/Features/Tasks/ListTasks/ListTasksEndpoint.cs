@@ -11,11 +11,11 @@ public static class ListTasksEndpoint
     private static async Task<IResult> HandleAsync(
         ListTasks slice,
         ClaimsPrincipal user,
-        int page = 1,
+        string? cursor = null,
         int pageSize = 20,
         CancellationToken ct = default)
     {
-        var result = await slice.ExecuteAsync(user.GetCallerId(), page, pageSize, ct);
+        var result = await slice.ExecuteAsync(user.GetCallerId(), cursor, pageSize, ct);
         return ApiResults.ToResult(result, value => Results.Ok(value));
     }
 }

@@ -7,8 +7,9 @@ import { Component, input, output } from '@angular/core';
 })
 export class TaskPager {
   readonly page = input.required<number>();
-  readonly totalPages = input.required<number>();
-  readonly totalCount = input.required<number>();
+  readonly hasPrevious = input.required<boolean>();
+  readonly hasNext = input.required<boolean>();
   readonly disabled = input(false);
-  readonly pageChange = output<number>();
+  readonly previous = output();
+  readonly next = output();
 }

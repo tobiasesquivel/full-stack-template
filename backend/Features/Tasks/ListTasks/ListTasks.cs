@@ -13,25 +13,34 @@ public sealed class ListTasks
         _db = db;
     }
 
-    public async Task<ErrorOr<TaskListResponse>> ExecuteAsync(string callerId, int page, int pageSize, CancellationToken ct)
+    public async Task<ErrorOr<TaskListResponse>> ExecuteAsync(string callerId, string? cursor, int pageSize, CancellationToken ct)
     {
-        if (page < 1)
-            return TaskErrors.InvalidPage;
         if (pageSize is < 1 or > 100)
             return TaskErrors.InvalidPageSize;
 
-        var filtered = _db.TaskItems.Where(t => t.OwnerId == callerId);
+        var owned = _db.TaskItems.Where(t => t.OwnerId == callerId);
+        if (cursor is not null)
+        {
+            if (!TaskCursor.TryDecode(cursor, out TaskCursor after))
+                return TaskErrors.InvalidCursor;
 
-        var totalCount = await filtered.CountAsync(ct);
+            owned = owned.Where(t => EF.Functions.LessThan(
+                ValueTuple.Create(t.CreatedAt, t.Id),
+                ValueTuple.Create(after.CreatedAt, after.Id)));
+        }
 
-        var items = await filtered
+        var rows = await owned
             .OrderByDescending(t => t.CreatedAt)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
+            .ThenByDescending(t => t.Id)
+            .Take(pageSize + 1)
             .Select(TaskResponses.Projection)
             .AsNoTracking()
             .ToListAsync(ct);
 
-        return new TaskListResponse(items, totalCount, page, pageSize);
+        if (rows.Count <= pageSize)
+            return new TaskListResponse(rows, null);
+
+        rows.RemoveAt(pageSize);
+        return new TaskListResponse(rows, TaskCursor.Encode(rows[^1]));
     }
 }

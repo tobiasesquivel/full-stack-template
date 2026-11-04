@@ -113,20 +113,20 @@ test('a done row gets the green border and line-through; the dialog deletes it',
 test('with 11 tasks the pager moves between page 1 and page 2', async () => {
   for (let index = 1; index <= 11; index += 1)
     await create(`Paginada ${String(index).padStart(2, '0')}`);
-  await expect(pager().getByRole('status')).toHaveText('Página 1 de 2 (11)');
+  await expect(pager().getByRole('status')).toHaveText('Página 1');
   await expect(rows()).toHaveCount(10);
   await expect(pager().getByRole('button', { name: 'Anterior' })).toBeDisabled();
   await expect(pager().getByRole('button', { name: 'Siguiente' })).toBeEnabled();
-  const second = listPage(page, 2);
+  const second = listPage(page, 'next');
   await pager().getByRole('button', { name: 'Siguiente' }).click();
   await second;
-  await expect(pager().getByRole('status')).toHaveText('Página 2 de 2 (11)');
+  await expect(pager().getByRole('status')).toHaveText('Página 2');
   await expect(rows()).toHaveCount(1);
   await expect(pager().getByRole('button', { name: 'Siguiente' })).toBeDisabled();
-  const first = listPage(page, 1);
+  const first = listPage(page, 'first');
   await pager().getByRole('button', { name: 'Anterior' }).click();
   await first;
-  await expect(pager().getByRole('status')).toHaveText('Página 1 de 2 (11)');
+  await expect(pager().getByRole('status')).toHaveText('Página 1');
   await expect(rows()).toHaveCount(10);
 });
 
@@ -190,18 +190,19 @@ test('the checkbox sends PUT with isCompleted true and the row stays done after 
 
 test('deleting the only task on page 2 goes back to page 1', async () => {
   await pager().getByRole('button', { name: 'Siguiente' }).click();
-  await expect(pager().getByRole('status')).toHaveText('Página 2 de 2 (11)');
+  await expect(pager().getByRole('status')).toHaveText('Página 2');
   const title = (await rows().first().locator('span').textContent())?.trim() ?? '';
   await rows().first().getByRole('button', { name: 'Eliminar' }).click();
   await expect(
     dialog().getByText(`¿Eliminar «${title}»? Esta acción no se puede deshacer.`),
   ).toBeVisible();
   const deleted = response(page, 'DELETE', '/api/v1/tasks/', 204);
-  const first = listPage(page, 1);
+  const first = listPage(page, 'first');
   await dialog().getByRole('button', { name: 'Confirmar' }).click();
   await deleted;
   await first;
-  await expect(pager().getByRole('status')).toHaveText('Página 1 de 1 (10)');
+  await expect(pager().getByRole('status')).toHaveText('Página 1');
+  await expect(pager().getByRole('button', { name: 'Siguiente' })).toBeDisabled();
   await expect(rows()).toHaveCount(10);
   await expect(dialog()).toBeHidden();
 });
@@ -241,7 +242,7 @@ test('Confirmar sends DELETE 204 and moves focus to the Mis tareas heading', asy
   const deleted = response(page, 'DELETE', '/api/v1/tasks/', 204);
   await dialog().getByRole('button', { name: 'Confirmar' }).click();
   await deleted;
-  await expect(pager().getByRole('status')).toHaveText('Página 1 de 1 (9)');
+  await expect(pager().getByRole('status')).toHaveText('Página 1');
   await expect.poll(async () => (await focused()).id).toBe('tasks-title');
   await expect(row(title)).toHaveCount(0);
 });

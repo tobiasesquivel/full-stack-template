@@ -291,7 +291,7 @@ El paso 0.28 se agregó el 2026-10-17, a pedido de Tobi, con otro pendiente del 
 
 **7. Paginación por keyset.**
 **Concepto**: lectura estable a escala; el offset se degrada con volumen y duplica filas al insertar.
-**Cambia**: la slice `ListTasks`, `Contracts`, cliente y modelos de tareas en el frontend, tests.
+**Cambia**: la slice `ListTasks` (con `TaskListResponse`, que desde el paso 6.3 vive en la slice), cliente y modelos de tareas en el frontend, tests.
 **Verifica**: test que inserta filas entre dos páginas y no repite ni omite; navegador (`verify-template` drive) sobre la lista paginada.
 
 ### Fase 3 — Escritura correcta (pasos 8-10)
