@@ -12,13 +12,13 @@ public sealed class CreateTask
     private static readonly CreateTaskRequestValidator Validator = new();
 
     private readonly AppDbContext _db;
-    private readonly IAccessPolicy _access;
+    private readonly IAuthModule _auth;
     private readonly TimeProvider _clock;
 
-    public CreateTask(AppDbContext db, IAccessPolicy access, TimeProvider clock)
+    public CreateTask(AppDbContext db, IAuthModule auth, TimeProvider clock)
     {
         _db = db;
-        _access = access;
+        _auth = auth;
         _clock = clock;
     }
 
@@ -28,7 +28,7 @@ public sealed class CreateTask
         if (!validation.IsValid)
             return ValidationErrors.From(validation);
 
-        if (!await _access.HasPermissionAsync(callerId, TaskPermissions.Create, ct))
+        if (!await _auth.HasPermissionAsync(callerId, TaskPermissions.Create, ct))
             return TaskErrors.Forbidden;
 
         var item = new TaskItem

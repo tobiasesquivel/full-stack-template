@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Immutable;
+using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -69,6 +70,11 @@ public sealed class NamingAnalyzer : DiagnosticAnalyzer
         var name = named.Name;
         if (DunePaths.TryGetFeature(path, out var feature))
         {
+            if (IsFeatureDoor(named, path, feature))
+            {
+                return;
+            }
+
             if (name.EndsWith("Module", System.StringComparison.Ordinal)
                 || name.EndsWith("Endpoints", System.StringComparison.Ordinal))
             {
@@ -113,6 +119,27 @@ public sealed class NamingAnalyzer : DiagnosticAnalyzer
                 Report(context, declaration, name, "fuera de Domain (en la slice o en Contracts)");
             }
         }
+    }
+
+    private static bool IsFeatureDoor(INamedTypeSymbol named, string path, string feature)
+    {
+        var door = "I" + feature + "Module";
+        var segments = DunePaths.FeatureSegments(path, feature);
+        if (named.TypeKind == TypeKind.Interface)
+        {
+            return named.Name.Equals(door, System.StringComparison.Ordinal)
+                && segments.Length == 2
+                && segments[0].Equals("Contracts", System.StringComparison.Ordinal);
+        }
+
+        return named.TypeKind == TypeKind.Class
+            && named.Name.Equals(feature + "Module", System.StringComparison.Ordinal)
+            && segments.Length == 1
+            && named.Interfaces.Any(contract =>
+                contract.Name.Equals(door, System.StringComparison.Ordinal)
+                && DuneSymbols.NamespaceOf(contract).Equals(
+                    "TemplateApp.Features." + feature + ".Contracts",
+                    System.StringComparison.Ordinal));
     }
 
     private static void Report(

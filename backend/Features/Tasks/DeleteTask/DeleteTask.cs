@@ -9,12 +9,12 @@ namespace TemplateApp.Features.Tasks.DeleteTask;
 public sealed class DeleteTask
 {
     private readonly AppDbContext _db;
-    private readonly IAccessPolicy _access;
+    private readonly IAuthModule _auth;
 
-    public DeleteTask(AppDbContext db, IAccessPolicy access)
+    public DeleteTask(AppDbContext db, IAuthModule auth)
     {
         _db = db;
-        _access = access;
+        _auth = auth;
     }
 
     public async Task<ErrorOr<Success>> ExecuteAsync(string callerId, Guid id, CancellationToken ct)
@@ -23,7 +23,7 @@ public sealed class DeleteTask
         if (item is null)
             return TaskErrors.NotFound(id);
 
-        if (!await _access.CanAccessAsync(callerId, item, TaskPermissions.Delete, ct))
+        if (!await _auth.CanAccessAsync(callerId, item, TaskPermissions.Delete, ct))
             return TaskErrors.Forbidden;
 
         _db.TaskItems.Remove(item);

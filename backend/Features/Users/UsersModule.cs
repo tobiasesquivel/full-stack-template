@@ -6,16 +6,16 @@ using TemplateApp.Infrastructure.Persistence;
 
 namespace TemplateApp.Features.Users;
 
-public sealed class UserProfiles : IUserProfiles
+public sealed class UsersModule : IUsersModule
 {
     private readonly AppDbContext _db;
 
-    public UserProfiles(AppDbContext db)
+    public UsersModule(AppDbContext db)
     {
         _db = db;
     }
 
-    public async Task<ErrorOr<UserProfileSnapshot>> CreateAsync(string authId, string displayName, CancellationToken ct)
+    public async Task<ErrorOr<UserProfileDetails>> CreateProfileAsync(string authId, string displayName, CancellationToken ct)
     {
         if (!UserProfile.IsValidDisplayName(displayName))
             return UserErrors.InvalidDisplayName;
@@ -29,18 +29,18 @@ public sealed class UserProfiles : IUserProfiles
         _db.UserProfiles.Add(profile);
         await _db.SaveChangesAsync(ct);
 
-        return Snapshot(profile);
+        return Describe(profile);
     }
 
-    public async Task<UserProfileSnapshot?> FindAsync(string authId, CancellationToken ct)
+    public async Task<UserProfileDetails?> FindProfileAsync(string authId, CancellationToken ct)
     {
         UserProfile? profile = await _db.UserProfiles
             .AsNoTracking()
             .SingleOrDefaultAsync(p => p.AuthId == authId, ct);
 
-        return profile is null ? null : Snapshot(profile);
+        return profile is null ? null : Describe(profile);
     }
 
-    public static UserProfileSnapshot Snapshot(UserProfile profile) =>
+    public static UserProfileDetails Describe(UserProfile profile) =>
         new(profile.DisplayName, profile.Timezone);
 }
