@@ -12,9 +12,9 @@ public static class TaskErrors
         code: "Task.Forbidden",
         description: "Access denied.");
 
-    public static readonly Error InvalidPage = Error.Validation(
-        code: "Page",
-        description: "Page must be greater than or equal to 1.");
+    public static readonly Error InvalidCursor = Error.Validation(
+        code: "Cursor",
+        description: "Cursor is invalid.");
 
     public static readonly Error InvalidPageSize = Error.Validation(
         code: "PageSize",

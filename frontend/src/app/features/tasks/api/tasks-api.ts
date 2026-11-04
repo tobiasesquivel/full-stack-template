@@ -9,8 +9,11 @@ import type { UpdateTaskRequest } from './update-task-request';
 export class TasksApi {
   private readonly http = inject(HttpClient);
 
-  list(page: number, pageSize: number): Promise<TaskListResponse> {
-    const params = new HttpParams().set('page', String(page)).set('pageSize', String(pageSize));
+  list(cursor: string | null, pageSize: number): Promise<TaskListResponse> {
+    let params = new HttpParams().set('pageSize', String(pageSize));
+    if (cursor !== null) {
+      params = params.set('cursor', cursor);
+    }
     return firstValueFrom(this.http.get<TaskListResponse>('/api/v1/tasks', { params }));
   }
 

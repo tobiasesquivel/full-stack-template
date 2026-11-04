@@ -31,9 +31,9 @@ Recarga la página. Espera la restauración de la sesión (`GET /api/v1/users/me
 
 Pulsa `Eliminar` dentro de la misma fila. Acepta la confirmación `¿Eliminar «Prueba persistida»?`; el diálogo aparece centrado. Exige DELETE 204. Recarga y exige que esa fila no aparezca.
 
-Ejecuta `node .agents/skills/verify-template/scripts/verify.mjs api --run-id repro-template`. El smoke crea dos usuarios reales, comprueba páginas sin IDs repetidos, lectura propia, PUT idempotente, 403 de un usuario ajeno y 404 para una tarea inexistente. No inyecta permisos ficticios por headers.
+Ejecuta `node .agents/skills/verify-template/scripts/verify.mjs api --run-id repro-template`. El smoke crea dos usuarios reales, sigue `nextCursor` entre dos páginas con una tarea creada en el medio y comprueba que no repite IDs, rechaza un cursor ilegible con 400, lectura propia, PUT idempotente, 403 de un usuario ajeno y 404 para una tarea inexistente. No inyecta permisos ficticios por headers.
 
-Para la paginación de la UI, crea once títulos distintos en esta misma instancia. Exige `Siguiente` habilitado, pulsa el botón y observa una página distinta. Usa el nav `Paginación`, no coordenadas. Borra esos datos mediante la UI o elimina la base aislada en cleanup.
+Para la paginación de la UI, crea once títulos distintos en esta misma instancia. Exige `Página 1` y `Siguiente` habilitado, pulsa el botón y observa `Página 2` con otras filas. La lista pagina por cursor: no muestra el total. Usa el nav `Paginación`, no coordenadas. Borra esos datos mediante la UI o elimina la base aislada en cleanup.
 
 ## Gotchas
 

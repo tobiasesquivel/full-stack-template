@@ -28,11 +28,11 @@ export class Tasks {
   private readonly tasksApi = inject(TasksApi);
 
   protected readonly items = signal<TaskResponse[]>([]);
-  protected readonly totalCount = signal(0);
-  protected readonly page = signal(1);
-  protected readonly totalPages = computed(() =>
-    Math.max(1, Math.ceil(this.totalCount() / PAGE_SIZE)),
-  );
+  private readonly cursors = signal<(string | null)[]>([null]);
+  private readonly nextCursor = signal<string | null>(null);
+  protected readonly page = computed(() => this.cursors().length);
+  protected readonly hasPrevious = computed(() => this.cursors().length > 1);
+  protected readonly hasNext = computed(() => this.nextCursor() !== null);
   protected readonly loading = signal(true);
   protected readonly error = signal<string | null>(null);
   protected readonly createError = signal<string | null>(null);
@@ -61,10 +61,9 @@ export class Tasks {
     this.loading.set(true);
     this.error.set(null);
     try {
-      const result = await this.tasksApi.list(this.page(), PAGE_SIZE);
+      const result = await this.tasksApi.list(this.cursors().at(-1) ?? null, PAGE_SIZE);
       this.items.set(result.items);
-      this.totalCount.set(result.totalCount);
-      this.page.set(result.page);
+      this.nextCursor.set(result.nextCursor);
     } catch (err) {
       this.error.set(describeHttpError(err));
     } finally {
@@ -72,8 +71,20 @@ export class Tasks {
     }
   }
 
-  protected async goTo(page: number): Promise<void> {
-    this.page.set(page);
+  protected async next(): Promise<void> {
+    const cursor = this.nextCursor();
+    if (cursor === null) {
+      return;
+    }
+    this.cursors.update((cursors) => [...cursors, cursor]);
+    await this.load();
+  }
+
+  protected async previous(): Promise<void> {
+    if (!this.hasPrevious()) {
+      return;
+    }
+    this.cursors.update((cursors) => cursors.slice(0, -1));
     await this.load();
   }
 
@@ -82,7 +93,7 @@ export class Tasks {
     try {
       await this.tasksApi.create(this.newTask().title.trim());
       this.createForm().reset({ title: '' });
-      this.page.set(1);
+      this.cursors.set([null]);
       await this.load();
     } catch (err) {
       this.createError.set(describeHttpError(err));
@@ -144,8 +155,8 @@ export class Tasks {
     let failed = false;
     try {
       await this.tasksApi.remove(task.id);
-      if (this.items().length === 1 && this.page() > 1) {
-        this.page.update((p) => p - 1);
+      if (this.items().length === 1 && this.hasPrevious()) {
+        this.cursors.update((cursors) => cursors.slice(0, -1));
       }
       await this.load();
     } catch (err) {
