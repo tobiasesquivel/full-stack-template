@@ -13,13 +13,13 @@ public sealed class UpdateTask
     private static readonly UpdateTaskRequestValidator Validator = new();
 
     private readonly AppDbContext _db;
-    private readonly IAccessPolicy _access;
+    private readonly IAuthModule _auth;
     private readonly TimeProvider _clock;
 
-    public UpdateTask(AppDbContext db, IAccessPolicy access, TimeProvider clock)
+    public UpdateTask(AppDbContext db, IAuthModule auth, TimeProvider clock)
     {
         _db = db;
-        _access = access;
+        _auth = auth;
         _clock = clock;
     }
 
@@ -33,7 +33,7 @@ public sealed class UpdateTask
         if (item is null)
             return TaskErrors.NotFound(id);
 
-        if (!await _access.CanAccessAsync(callerId, item, TaskPermissions.Update, ct))
+        if (!await _auth.CanAccessAsync(callerId, item, TaskPermissions.Update, ct))
             return TaskErrors.Forbidden;
 
         item.Title = TaskItem.NormalizeTitle(request.Title);

@@ -10,14 +10,12 @@ namespace TemplateApp.Features.Users.GetUser;
 public sealed class GetUser
 {
     private readonly AppDbContext _db;
-    private readonly IAccessPolicy _access;
-    private readonly IUserAccounts _accounts;
+    private readonly IAuthModule _auth;
 
-    public GetUser(AppDbContext db, IAccessPolicy access, IUserAccounts accounts)
+    public GetUser(AppDbContext db, IAuthModule auth)
     {
         _db = db;
-        _access = access;
-        _accounts = accounts;
+        _auth = auth;
     }
 
     public async Task<ErrorOr<UserResponse>> ExecuteAsync(string callerId, string authId, CancellationToken ct)
@@ -28,13 +26,13 @@ public sealed class GetUser
         if (profile is null)
             return UserErrors.NotFound(authId);
 
-        if (!await _access.CanAccessAsync(callerId, profile, UserPermissions.Read, ct))
+        if (!await _auth.CanAccessAsync(callerId, profile, UserPermissions.Read, ct))
             return UserErrors.Forbidden;
 
-        UserAccount? account = await _accounts.FindAsync(authId, ct);
+        UserAccountDetails? account = await _auth.FindAccountAsync(authId, ct);
         if (account is null)
             return UserErrors.NotFound(authId);
 
-        return UserResponse.From(account, UserProfiles.Snapshot(profile));
+        return UserResponse.From(account, UsersModule.Describe(profile));
     }
 }

@@ -315,7 +315,7 @@ El paso 0.28 se agregó el 2026-10-17, a pedido de Tobi, con otro pendiente del 
 
 **11. Permisos memorizados por request.**
 **Concepto**: caché con alcance correcto; hoy cada comprobación golpea Identity, y el alcance permitido es *solo* dentro del request.
-**Cambia**: `IAccessPolicy` en `Features/Auth`, tests.
+**Cambia**: `AccessPolicy` en `Features/Auth/Access` (detrás de `IAuthModule` desde el paso 6.3), tests.
 **Verifica**: test que cuenta consultas de permisos en una request con varias comprobaciones; cambiar un permiso sigue aplicándose en el request siguiente.
 
 **12. Rate limiting por usuario y por tipo de endpoint.**

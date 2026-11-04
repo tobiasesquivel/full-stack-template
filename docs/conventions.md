@@ -11,7 +11,10 @@ El código actual todavía no cumple todas estas reglas. La Fase 0 del [plan](ev
 - La operación (`CreateTask`) es una clase propia con sus dependencias. El endpoint (`CreateTaskEndpoint`) es estático: expone `Map` y un handler privado que llama a la operación. No hay una clase compartida por todas las slices ni una interface por slice.
 - Un archivo, un tipo, en todo el repo: backend, tests, Dune y frontend. Un tipo auxiliar que usa solo otro tipo queda en el archivo de ese tipo, pero el compilador le impide salir: en C# se declara `file` o anidado y privado; en TypeScript, sin `export`. DUNE0010 lo hace cumplir en el backend y FRONT010 en el frontend (un solo `export` de clase, interface, type o enum por archivo). Las migraciones generadas quedan exentas.
 - Un tipo que usa una sola slice vive en la carpeta de la slice.
-- `Contracts/` contiene lo que ven otras features y las responses HTTP que comparten varias slices.
+- `Contracts/` contiene solo lo que usa otra feature. Un contrato nace cuando otra feature lo pide; una response HTTP que solo usa su feature queda en la slice o en la raíz de la feature.
+- Cada feature que expone algo tiene una sola puerta, `I<Feature>Module` en `Contracts/`, con un método por caso de uso (`FindAccountAsync`, `CreateProfileAsync`). La implementa `<Feature>Module` en la raíz de la feature. La firma de la puerta usa la BCL, ErrorOr, `Shared` y datos con propósito: nunca un `*Response` ni una entidad.
+- Los datos que cruzan entre features se nombran `<Cosa><Propósito>` con un sufijo de lista cerrada: `Details` (todo lo público de la cosa), `Summary` (pocos campos, para listar o citar) e `Info` (lo que necesita un consumidor concreto, `<Cosa><Consumidor>Info`). `Response` queda solo para HTTP. Sumar un sufijo pide una línea en `docs/decisions.tsv`.
+- En `Contracts/` solo entran la puerta, records `*Details`, `*Summary`, `*Info` y `*Response`, clases estáticas `*Permissions` o `*EndpointNames` con constantes y `*Extensions` con métodos de extensión. `AppIdentityUser` es la única excepción hasta el paso 22. DUNE0015 lo hace cumplir, y también que otra feature use cada contrato y cada método de la puerta; el uso desde la propia feature, `Infrastructure/` o los tests no cuenta.
 - Lo interno que comparten varias slices (errores, servicios, mapeos) vive en la raíz de la feature o en una carpeta técnica propia (`Access/`). No va a `Contracts/`.
 - `Domain/` contiene modelos puros y las reglas que comparten las slices. Una regla no se copia entre slices: baja al `Domain`.
 - `Persistence/` contiene los mappings de EF.
@@ -23,7 +26,7 @@ El código actual todavía no cumple todas estas reglas. La Fase 0 del [plan](ev
 ## Nombres y estilo
 
 - El namespace coincide con la ruta, bajo `TemplateApp`. Namespaces file-scoped, nullable e implicit usings.
-- Sufijos con significado único: `*Request`, `*Response`, `*Validator`, `*Endpoint`, `*Tests`, `*Feature`. No se usan `*Module` ni `*Endpoints` en features. DUNE0008 lo hace cumplir.
+- Sufijos con significado único: `*Request`, `*Response`, `*Validator`, `*Endpoint`, `*Tests`, `*Feature`. No se usan `*Endpoints` en features, ni `*Module` salvo la puerta `I<Feature>Module` en `Contracts/` y su implementación `<Feature>Module` en la raíz. DUNE0008 lo hace cumplir.
 - Requests y responses son records. La validación de entrada usa FluentValidation. Los mappings de EF usan Fluent API, fuera de `Domain`.
 - En el frontend, los modelos usan los mismos nombres que el backend: `*Request` y `*Response`. Cada uno va en su archivo: `task-response.ts` / `TaskResponse`.
 - En el frontend, cada feature publica en `features/<feature>/index.ts` lo que ven las demás y la raíz de la app. Fuera de una feature, se importa solo su `index.ts`. FRONT001 lo hace cumplir, también para `app.routes.ts` y `app.config.ts`.

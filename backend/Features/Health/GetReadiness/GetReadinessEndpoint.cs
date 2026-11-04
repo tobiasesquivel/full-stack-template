@@ -1,4 +1,3 @@
-using TemplateApp.Features.Health.Contracts;
 
 namespace TemplateApp.Features.Health.GetReadiness;
 

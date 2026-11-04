@@ -1,3 +1,3 @@
-namespace TemplateApp.Features.Tasks.Contracts;
+namespace TemplateApp.Features.Tasks;
 
 public sealed record TaskResponse(Guid Id, string Title, bool IsCompleted, DateTimeOffset CreatedAt, DateTimeOffset? UpdatedAt);

@@ -138,4 +138,32 @@ internal static class DuneDiagnostics
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
         description: "En un catálogo de feature, el código fijo de un error empieza con el nombre de la clase sin 'Errors' (TaskErrors → Task.). Los errores de validación usan el nombre del campo y quedan fuera; también un código que no es constante.");
+
+    public static readonly DiagnosticDescriptor ContractKind = new(
+        id: "DUNE0015",
+        title: "Tipo no admitido en Contracts",
+        messageFormat: "'{0}' no es un contrato; en Contracts/ van {1}, records *Details/*Summary/*Info/*Response, *Permissions o *EndpointNames con constantes y *Extensions",
+        category: "Dune",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "Contracts/ es lo único que ve otra feature, y cada clase de tipo se reconoce por su nombre: una sola puerta I<Feature>Module, datos con un sufijo de la lista cerrada (Details, Summary, Info), responses HTTP, constantes y métodos de extensión. AppIdentityUser es la única excepción hasta el paso 22.");
+
+    public static readonly DiagnosticDescriptor ContractDoorSignature = new(
+        id: "DUNE0015",
+        title: "La puerta de la feature expone un tipo interno",
+        messageFormat: "La puerta '{0}' expone '{1}'; su firma usa la BCL, ErrorOr, Shared y datos *Details/*Summary/*Info",
+        category: "Dune",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "Los métodos de I<Feature>Module devuelven y reciben datos con propósito, no responses HTTP ni entidades. Response queda solo para HTTP.");
+
+    public static readonly DiagnosticDescriptor ContractUnused = new(
+        id: "DUNE0015",
+        title: "Contrato que ninguna otra feature usa",
+        messageFormat: "'{0}' está en Contracts/ pero ninguna otra feature lo usa; un contrato nace cuando otra feature lo pide",
+        category: "Dune",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "Cada tipo de Contracts/ y cada método de la puerta tiene un uso desde otra feature. El uso desde la propia feature, Infrastructure o los tests no cuenta.",
+        customTags: WellKnownDiagnosticTags.CompilationEnd);
 }

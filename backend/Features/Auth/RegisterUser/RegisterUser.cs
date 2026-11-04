@@ -13,15 +13,15 @@ public sealed class RegisterUser
     private readonly UserManager<AppIdentityUser> _users;
     private readonly AppDbContext _db;
     private readonly Sessions _sessions;
-    private readonly UserAccounts _accounts;
-    private readonly IUserProfiles _profiles;
+    private readonly AuthModule _accounts;
+    private readonly IUsersModule _profiles;
 
     public RegisterUser(
         UserManager<AppIdentityUser> users,
         AppDbContext db,
         Sessions sessions,
-        UserAccounts accounts,
-        IUserProfiles profiles)
+        AuthModule accounts,
+        IUsersModule profiles)
     {
         _users = users;
         _db = db;
@@ -54,7 +54,7 @@ public sealed class RegisterUser
         if (!roleResult.Succeeded)
             return MapIdentityErrors(roleResult);
 
-        ErrorOr<UserProfileSnapshot> profile = await _profiles.CreateAsync(identity.Id, request.DisplayName, ct);
+        ErrorOr<UserProfileDetails> profile = await _profiles.CreateProfileAsync(identity.Id, request.DisplayName, ct);
         if (profile.IsError)
             return profile.Errors;
 
@@ -62,7 +62,7 @@ public sealed class RegisterUser
         await _db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
 
-        UserAccount account = await _accounts.DescribeAsync(identity, ct);
+        UserAccountDetails account = await _accounts.DescribeAsync(identity, ct);
         return (UserResponse.From(account, profile.Value), session);
     }
 

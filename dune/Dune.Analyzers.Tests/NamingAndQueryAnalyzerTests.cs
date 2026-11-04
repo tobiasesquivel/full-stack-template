@@ -40,6 +40,57 @@ public sealed class NamingAndQueryAnalyzerTests
     }
 
     [Fact]
+    public async Task FeatureDoorAndItsImplementationAreAccepted()
+    {
+        var diagnostics = await AnalyzerHost.AnalyzeAsync(
+            new List<(string, string)>
+            {
+                ("backend/Features/Users/Contracts/IUsersModule.cs", """
+                    namespace TemplateApp.Features.Users.Contracts;
+                    public interface IUsersModule { }
+                    """),
+                ("backend/Features/Users/UsersModule.cs", """
+                    using TemplateApp.Features.Users.Contracts;
+                    namespace TemplateApp.Features.Users;
+                    public sealed class UsersModule : IUsersModule { }
+                    """),
+            },
+            AnalyzerHost.Only<NamingAnalyzer>());
+
+        Assert.DoesNotContain(diagnostics, diagnostic => diagnostic.Id == "DUNE0008");
+    }
+
+    [Fact]
+    public async Task ModulesThatAreNotTheFeatureDoorAreRejected()
+    {
+        var diagnostics = await AnalyzerHost.AnalyzeAsync(
+            new List<(string, string)>
+            {
+                ("backend/Features/Users/Contracts/IProfilesModule.cs", """
+                    namespace TemplateApp.Features.Users.Contracts;
+                    public interface IProfilesModule { }
+                    """),
+                ("backend/Features/Users/GetUser/IUsersModule.cs", """
+                    namespace TemplateApp.Features.Users.GetUser;
+                    public interface IUsersModule { }
+                    """),
+                ("backend/Features/Users/UsersModule.cs", """
+                    namespace TemplateApp.Features.Users;
+                    public sealed class UsersModule { }
+                    """),
+            },
+            AnalyzerHost.Only<NamingAnalyzer>());
+
+        Assert.Equal(
+            new[] { "IProfilesModule.cs", "IUsersModule.cs", "UsersModule.cs" },
+            diagnostics
+                .Where(diagnostic => diagnostic.Id == "DUNE0008")
+                .Select(diagnostic => System.IO.Path.GetFileName(diagnostic.Location.GetLineSpan().Path))
+                .OrderBy(file => file, System.StringComparer.Ordinal)
+                .ToArray());
+    }
+
+    [Fact]
     public async Task ContractsInDomainAreRejected()
     {
         var diagnostics = await AnalyzerHost.AnalyzeAsync(

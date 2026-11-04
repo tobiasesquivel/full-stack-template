@@ -6,7 +6,7 @@ public static class UsersFeature
 {
     public static IServiceCollection AddUsersFeature(this IServiceCollection services)
     {
-        services.AddScoped<IUserProfiles, UserProfiles>();
+        services.AddScoped<IUsersModule, UsersModule>();
         services.AddScoped<GetUser.GetUser>();
         services.AddScoped<UpdateProfile.UpdateProfile>();
         services.AddScoped<DeleteUser.DeleteUser>();
