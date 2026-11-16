@@ -15,6 +15,7 @@ test.describe.configure({ mode: 'serial' });
 
 const user = newUser('tasks');
 const REQUIRED = 'El título es obligatorio (máximo 200 caracteres).';
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 let page: Page;
 let calls: ApiCall[];
 const bodies: { title: string; isCompleted: boolean; version: number }[] = [];
@@ -28,12 +29,16 @@ const dialog = () => page.getByRole('dialog');
 async function create(title: string): Promise<void> {
   await page.getByLabel('Nueva tarea').fill(title);
   const created = response(page, 'POST', '/api/v1/tasks', 201);
+  await submitCreate();
+  expect((await created).request().headers()['idempotency-key']).toMatch(UUID);
+  await expect(page.getByLabel('Nueva tarea')).toHaveValue('');
+}
+
+async function submitCreate(): Promise<void> {
   await page
     .getByRole('form', { name: 'Crear tarea' })
     .getByRole('button', { name: 'Crear' })
     .click();
-  await created;
-  await expect(page.getByLabel('Nueva tarea')).toHaveValue('');
 }
 
 async function focused(): Promise<{ id: string; text: string; row: string }> {
@@ -284,4 +289,38 @@ test('a stale tab that ticks a task renamed in another tab gets 409 and shows th
   await expect(staleRow('Renombrada en otra pestaña').getByRole('checkbox')).not.toBeChecked();
   await expect(staleRow(title)).toHaveCount(0);
   await stale.close();
+});
+
+test('a lost 201 retried with Crear replays the same key and leaves one task', async () => {
+  const title = 'Respuesta perdida';
+  const keys: string[] = [];
+  let lose = true;
+  await page.route('**/api/v1/tasks', async (route) => {
+    if (route.request().method() !== 'POST') return route.fallback();
+    keys.push(route.request().headers()['idempotency-key']);
+    if (!lose) return route.fallback();
+    lose = false;
+    await route.fetch();
+    await route.abort('connectionreset');
+  });
+
+  await page.getByLabel('Nueva tarea').fill(title);
+  await submitCreate();
+  await expect(page.getByRole('alert')).toHaveText(
+    'Sin conexión con el servidor. Revisa tu red y pulsa Reintentar.',
+  );
+  await expect(page.getByLabel('Nueva tarea')).toHaveValue(title);
+
+  const replayed = response(page, 'POST', '/api/v1/tasks', 201);
+  await submitCreate();
+  expect((await replayed).headers()['idempotent-replayed']).toBe('true');
+  await page.unroute('**/api/v1/tasks');
+
+  expect(keys).toHaveLength(2);
+  expect(keys[0]).toMatch(UUID);
+  expect(keys[1]).toBe(keys[0]);
+  await expect(page.getByLabel('Nueva tarea')).toHaveValue('');
+  await expect(row(title)).toHaveCount(1);
+  await reloadWithSession(page);
+  await expect(row(title)).toHaveCount(1);
 });

@@ -17,8 +17,14 @@ export class TasksApi {
     return firstValueFrom(this.http.get<TaskListResponse>('/api/v1/tasks', { params }));
   }
 
-  create(title: string): Promise<TaskResponse> {
-    return firstValueFrom(this.http.post<TaskResponse>('/api/v1/tasks', { title }));
+  create(title: string, idempotencyKey: string): Promise<TaskResponse> {
+    return firstValueFrom(
+      this.http.post<TaskResponse>(
+        '/api/v1/tasks',
+        { title },
+        { headers: { 'Idempotency-Key': idempotencyKey } },
+      ),
+    );
   }
 
   update(id: string, request: UpdateTaskRequest): Promise<TaskResponse> {

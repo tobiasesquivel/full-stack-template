@@ -16,9 +16,9 @@ class ApiClient {
   cookies = new Map();
   lastText = '';
 
-  async request(method, route, body, { expected = 200, csrf = true } = {}) {
+  async request(method, route, body, { expected = 200, csrf = true, headers: extra = {} } = {}) {
     const url = new URL(route, base);
-    const headers = { accept: 'application/json' };
+    const headers = { accept: 'application/json', ...extra };
     const cookies = [...this.cookies.values()].filter(cookie => url.pathname.startsWith(cookie.path));
     if (cookies.length) headers.cookie = cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; ');
     if (csrf && method !== 'GET') {
@@ -199,6 +199,14 @@ const brokenCursor = await alice.request('GET', 'tasks?cursor=AAAA', undefined, 
 assert.equal(brokenCursor.payload.code, 'Validation.Failed');
 const bigPage = await alice.request('GET', 'tasks?pageSize=101', undefined, { expected: 400 });
 assert.equal(bigPage.payload.code, 'Validation.Failed');
+const idempotencyKey = { 'Idempotency-Key': crypto.randomUUID() };
+const keyed = await alice.request('POST', 'tasks', { title: 'Con clave' }, { expected: 201, headers: idempotencyKey });
+const replayed = await alice.request('POST', 'tasks', { title: 'Con clave' }, { expected: 201, headers: idempotencyKey });
+assert.equal(replayed.payload.id, keyed.payload.id, 'La misma clave repite la tarea creada');
+assert.equal(replayed.headers.get('idempotent-replayed'), 'true');
+assert.equal(keyed.headers.get('idempotent-replayed'), null);
+const reusedKey = await alice.request('POST', 'tasks', { title: 'Otro título' }, { expected: 422, headers: idempotencyKey });
+assert.equal(reusedKey.payload.code, 'Idempotency.KeyReused');
 for (const method of ['GET', 'PUT', 'DELETE']) {
   const foreignTask = await bob.request(method, `tasks/${created.id}`,
     method === 'PUT' ? { title: 'Ajena', isCompleted: true, version: created.version } : undefined, { expected: 403 });
