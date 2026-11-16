@@ -57,7 +57,7 @@ Estados: `pendiente`, `en curso`, `cerrado`, `bloqueado (⏸ decisión de Tobi)`
 | 6.2 | Regla de Dune para el catálogo de errores (DUNE0014) | cerrado | `artifacts/verify-template/fase2-06-2-rule-red/` (rojo de los tests y del backend de antes del paso 6), `fase2-06-2-rule-green/`, `fase2-06-2-check-all/` (FAIL: Docker apagado), `fase2-06-2-check-all-2/` (sin e2e) |
 | 6.3 | Convención de nombres para los contratos entre features (DUNE0015) | cerrado | `artifacts/verify-template/fase2-06-3-rule-red/` (rojo de los tests y del backend de antes del cambio), `fase2-06-3-rule-green/`, `fase2-06-3-check-all/` (sin e2e) |
 | 7 | Paginación por keyset | cerrado | `artifacts/verify-template/fase2-07-red/` (rojo de los tests y de Vitest), `fase2-07-green/`, `fase2-07-check-all/` (FAIL: faltaba el navegador de Playwright), `fase2-07-check-all-3/` y `-4/` (FAIL por restos de la corrida 2 cortada: trazas a medias y un volumen de PostgreSQL con otra contraseña), `fase2-07-check-all-5/` (con e2e) |
-| 8 | Concurrencia optimista en `TaskItem` | en curso | |
+| 8 | Concurrencia optimista en `TaskItem` | en curso | `artifacts/verify-template/fase2-08-red/` (rojo: 2 de 3 tests de `UpdateTaskTests`), `fase2-08-green/` (backend, migración generada y aplicada sin DDL), `fase2-08-check-all/` (sin e2e), `fase2-08-check-all-e2e/` (FAIL: la e2e nueva tomaba la primera fila, que otro test ya había marcado), `fase2-08-check-all-e2e-2/` (con e2e) |
 | 9 | Idempotencia de escritura | pendiente | |
 | 10 | Auditoría de cambios | pendiente | |
 | 11 | Permisos memorizados por request | pendiente | |
