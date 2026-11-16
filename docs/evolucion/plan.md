@@ -303,7 +303,7 @@ El paso 0.28 se agregó el 2026-10-17, a pedido de Tobi, con otro pendiente del 
 
 **9. Idempotencia de escritura.**
 **Concepto**: reintentos seguros; a todo POST de negocio se le puede repetir la intención.
-**Cambia**: mecanismo genérico en `Infrastructure/`, la slice `CreateTask`, migración de la tabla de claves, tests.
+**Cambia**: mecanismo genérico en `Infrastructure/`, la slice `CreateTask`, migración de la tabla de claves, tests. El `POST` suma el header `Idempotency-Key` y respuestas nuevas, así que entran también `ApiResults` y `HttpErrors` (422), el frontend de tareas, `smoke-api.mjs` y los e2e (regla 3), y la regla DUNE0016 (regla 4).
 **Verifica**: test que envía la misma clave dos veces y obtiene un solo recurso y la misma respuesta; `smoke-api.mjs` sin regresión.
 
 **10. Auditoría de cambios.**
