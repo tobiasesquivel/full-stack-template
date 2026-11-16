@@ -23,6 +23,9 @@ public sealed class TaskItemConfiguration : IEntityTypeConfiguration<TaskItem>
 
         builder.Property(t => t.UpdatedAt);
 
+        builder.Property(t => t.Version)
+            .IsRowVersion();
+
         builder.HasIndex(t => t.OwnerId);
 
         builder.ToTable("TaskItems");

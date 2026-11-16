@@ -36,11 +36,25 @@ public sealed class UpdateTask
         if (!await _auth.CanAccessAsync(callerId, item, TaskPermissions.Update, ct))
             return TaskErrors.Forbidden;
 
-        item.Title = TaskItem.NormalizeTitle(request.Title);
+        string title = TaskItem.NormalizeTitle(request.Title);
+        if (item.Version != request.Version)
+            return item.Title == title && item.IsCompleted == request.IsCompleted
+                ? TaskResponses.From(item)
+                : TaskErrors.Conflict;
+
+        item.Title = title;
         item.IsCompleted = request.IsCompleted;
         item.UpdatedAt = _clock.GetUtcNow();
+        _db.Entry(item).Property(t => t.Version).OriginalValue = request.Version.Value;
 
-        await _db.SaveChangesAsync(ct);
+        try
+        {
+            await _db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return TaskErrors.Conflict;
+        }
 
         return TaskResponses.From(item);
     }
