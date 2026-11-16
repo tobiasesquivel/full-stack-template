@@ -17,7 +17,7 @@ const user = newUser('tasks');
 const REQUIRED = 'El título es obligatorio (máximo 200 caracteres).';
 let page: Page;
 let calls: ApiCall[];
-const bodies: { title: string; isCompleted: boolean }[] = [];
+const bodies: { title: string; isCompleted: boolean; version: number }[] = [];
 
 const rows = () => page.getByRole('region', { name: 'Mis tareas' }).getByRole('listitem');
 const row = (title: string) => rows().filter({ hasText: title });
@@ -142,7 +142,11 @@ test('renaming a row sends PUT 200 with the new title', async () => {
   await saved;
   await expect(row('Renombrada en linea')).toBeVisible();
   await expect(editField()).toHaveCount(0);
-  expect(bodies.at(-1)).toEqual({ title: 'Renombrada en linea', isCompleted: false });
+  expect(bodies.at(-1)).toEqual({
+    title: 'Renombrada en linea',
+    isCompleted: false,
+    version: expect.any(Number),
+  });
 });
 
 test('an empty or blank title shows its message under the field and sends no PUT', async () => {
@@ -183,7 +187,11 @@ test('the checkbox sends PUT with isCompleted true and the row stays done after 
   const saved = response(page, 'PUT', '/api/v1/tasks/', 200);
   await row('Renombrada en linea').getByRole('checkbox').check();
   await saved;
-  expect(bodies.at(-1)).toEqual({ title: 'Renombrada en linea', isCompleted: true });
+  expect(bodies.at(-1)).toEqual({
+    title: 'Renombrada en linea',
+    isCompleted: true,
+    version: expect.any(Number),
+  });
   await reloadWithSession(page);
   await expect(row('Renombrada en linea').getByRole('checkbox')).toBeChecked();
 });
@@ -245,4 +253,33 @@ test('Confirmar sends DELETE 204 and moves focus to the Mis tareas heading', asy
   await expect(pager().getByRole('status')).toHaveText('Página 1');
   await expect.poll(async () => (await focused()).id).toBe('tasks-title');
   await expect(row(title)).toHaveCount(0);
+});
+
+test('a stale tab that ticks a task renamed in another tab gets 409 and shows the rename', async () => {
+  const target = rows().first();
+  const title = (await target.locator('span').textContent())?.trim() ?? '';
+  const stale = await page.context().newPage();
+  await stale.goto('/tasks');
+  const staleRow = (text: string) =>
+    stale
+      .getByRole('region', { name: 'Mis tareas' })
+      .getByRole('listitem')
+      .filter({ hasText: text });
+  await expect(staleRow(title).getByRole('checkbox')).not.toBeChecked();
+
+  await target.getByRole('button', { name: 'Editar' }).click();
+  await editField().fill('Renombrada en otra pestaña');
+  const renamed = response(page, 'PUT', '/api/v1/tasks/', 200);
+  await target.getByRole('button', { name: 'Guardar' }).click();
+  await renamed;
+
+  const conflict = response(stale, 'PUT', '/api/v1/tasks/', 409);
+  await staleRow(title).getByRole('checkbox').check();
+  expect(await (await conflict).json()).toMatchObject({ code: 'Task.Conflict' });
+  await expect(stale.getByRole('alert')).toHaveText(
+    'Otra pestaña o dispositivo cambió esta tarea. Se muestran los datos actuales.',
+  );
+  await expect(staleRow('Renombrada en otra pestaña').getByRole('checkbox')).not.toBeChecked();
+  await expect(staleRow(title)).toHaveCount(0);
+  await stale.close();
 });

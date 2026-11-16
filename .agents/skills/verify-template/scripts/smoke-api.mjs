@@ -181,6 +181,7 @@ const created = (await alice.request('POST', 'tasks', { title: '  Primera tarea 
 assert.equal(created.title, 'Primera tarea');
 assert.equal(created.isCompleted, false);
 assert.ok(created.id);
+assert.equal(typeof created.version, 'number');
 await alice.request('POST', 'tasks', { title: 'Segunda tarea' }, { expected: 201 });
 await alice.request('POST', 'tasks', { title: 'Tercera tarea' }, { expected: 201 });
 const firstPage = (await alice.request('GET', 'tasks?pageSize=2')).payload;
@@ -200,15 +201,17 @@ const bigPage = await alice.request('GET', 'tasks?pageSize=101', undefined, { ex
 assert.equal(bigPage.payload.code, 'Validation.Failed');
 for (const method of ['GET', 'PUT', 'DELETE']) {
   const foreignTask = await bob.request(method, `tasks/${created.id}`,
-    method === 'PUT' ? { title: 'Ajena', isCompleted: true } : undefined, { expected: 403 });
+    method === 'PUT' ? { title: 'Ajena', isCompleted: true, version: created.version } : undefined, { expected: 403 });
   assert.equal(foreignTask.payload.code, 'Task.Forbidden');
 }
 const missingTask = await alice.request('GET', `tasks/${crypto.randomUUID()}`, undefined, { expected: 404 });
 assert.equal(missingTask.payload.code, 'Task.NotFound');
-const updated = (await alice.request('PUT', `tasks/${created.id}`, { title: 'Estado final', isCompleted: true })).payload;
+const updated = (await alice.request('PUT', `tasks/${created.id}`, { title: 'Estado final', isCompleted: true, version: created.version })).payload;
 assert.equal(updated.title, 'Estado final');
 assert.equal(updated.isCompleted, true);
-await alice.request('PUT', `tasks/${created.id}`, { title: 'Estado final', isCompleted: true });
+await alice.request('PUT', `tasks/${created.id}`, { title: 'Estado final', isCompleted: true, version: created.version });
+const staleTask = await alice.request('PUT', `tasks/${created.id}`, { title: 'Primera tarea', isCompleted: false, version: created.version }, { expected: 409 });
+assert.equal(staleTask.payload.code, 'Task.Conflict');
 assert.equal((await alice.request('GET', `tasks/${created.id}`)).payload.isCompleted, true);
 
 const reloaded = alice.onlySession();
