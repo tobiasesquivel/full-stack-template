@@ -27,21 +27,24 @@ internal sealed class TestSession
         HttpMethod method,
         string route,
         object? body = null,
-        bool csrf = true) =>
+        bool csrf = true,
+        IReadOnlyDictionary<string, string>? headers = null) =>
         SendCoreAsync(
             method,
             route,
             body is null ? null : new StringContent(JsonSerializer.Serialize(body, JsonOptions), Encoding.UTF8, "application/json"),
-            csrf);
+            csrf,
+            headers);
 
     public Task<SessionResponse> SendRawAsync(HttpMethod method, string route, string body, string mediaType) =>
-        SendCoreAsync(method, route, new StringContent(body, Encoding.UTF8, mediaType), csrf: true);
+        SendCoreAsync(method, route, new StringContent(body, Encoding.UTF8, mediaType), csrf: true, headers: null);
 
     private async Task<SessionResponse> SendCoreAsync(
         HttpMethod method,
         string route,
         HttpContent? content,
-        bool csrf)
+        bool csrf,
+        IReadOnlyDictionary<string, string>? headers)
     {
         using HttpRequestMessage request = new(method, route);
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
@@ -56,6 +59,9 @@ internal sealed class TestSession
 
         if (csrf && method != HttpMethod.Get && Cookies.TryGetValue("XSRF-TOKEN", out SessionCookie? xsrf))
             request.Headers.Add("X-XSRF-TOKEN", Uri.UnescapeDataString(xsrf.Value));
+
+        foreach ((string name, string value) in headers ?? new Dictionary<string, string>())
+            request.Headers.TryAddWithoutValidation(name, value);
 
         request.Content = content;
 
