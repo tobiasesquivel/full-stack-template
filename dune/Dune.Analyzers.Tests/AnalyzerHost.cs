@@ -56,7 +56,8 @@ internal static class AnalyzerHost
             new VersionedApiAnalyzer(),
             new ConfigurationAccessAnalyzer(),
             new ErrorCatalogAnalyzer(),
-            new ContractsAnalyzer());
+            new ContractsAnalyzer(),
+            new IdempotentPostAnalyzer());
 
     public static Func<ImmutableArray<DiagnosticAnalyzer>> Only<T>()
         where T : DiagnosticAnalyzer, new() =>
