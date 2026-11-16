@@ -298,7 +298,7 @@ El paso 0.28 se agregó el 2026-10-17, a pedido de Tobi, con otro pendiente del 
 
 **8. Concurrencia optimista en `TaskItem`.**
 **Concepto**: lost update; el estado final explícito no alcanza sin control de versión.
-**Cambia**: `Domain/TaskItem.cs`, `Persistence/TaskItemConfiguration.cs`, la slice `UpdateTask`, migración forward, tests.
+**Cambia**: `Domain/TaskItem.cs`, `Persistence/TaskItemConfiguration.cs`, la slice `UpdateTask`, `TaskResponse` y `TaskErrors`, migración forward, tests. Como el `PUT` exige la versión, cambia el contrato: entran también el frontend de tareas, `smoke-api.mjs` y los e2e (regla 3).
 **Verifica**: test con dos actualizaciones concurrentes: una gana y la otra recibe 409; migración aplicada por CLI sin editar a mano.
 
 **9. Idempotencia de escritura.**
