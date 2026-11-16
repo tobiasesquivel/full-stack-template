@@ -58,7 +58,7 @@ Estados: `pendiente`, `en curso`, `cerrado`, `bloqueado (⏸ decisión de Tobi)`
 | 6.3 | Convención de nombres para los contratos entre features (DUNE0015) | cerrado | `artifacts/verify-template/fase2-06-3-rule-red/` (rojo de los tests y del backend de antes del cambio), `fase2-06-3-rule-green/`, `fase2-06-3-check-all/` (sin e2e) |
 | 7 | Paginación por keyset | cerrado | `artifacts/verify-template/fase2-07-red/` (rojo de los tests y de Vitest), `fase2-07-green/`, `fase2-07-check-all/` (FAIL: faltaba el navegador de Playwright), `fase2-07-check-all-3/` y `-4/` (FAIL por restos de la corrida 2 cortada: trazas a medias y un volumen de PostgreSQL con otra contraseña), `fase2-07-check-all-5/` (con e2e) |
 | 8 | Concurrencia optimista en `TaskItem` | cerrado | `artifacts/verify-template/fase2-08-red/` (rojo: 2 de 3 tests de `UpdateTaskTests`), `fase2-08-green/` (backend, migración generada y aplicada sin DDL), `fase2-08-check-all/` (sin e2e), `fase2-08-check-all-e2e/` (FAIL: la e2e nueva tomaba la primera fila, que otro test ya había marcado), `fase2-08-check-all-e2e-2/` (con e2e) |
-| 9 | Idempotencia de escritura | en curso | |
+| 9 | Idempotencia de escritura | en curso | `artifacts/verify-template/fase3-09-red/` (rojo: 7 de 12 casos de `CreateTaskTests`), `fase3-09-green/` (backend 90/90, migración generada por CLI, aplicada y sin editar), `fase3-09-rule-red/` (rojo de DUNE0016 sobre el `CreateTaskEndpoint` de antes del paso), `fase3-09-check-all/` (sin e2e), `fase3-09-check-all-e2e/` (con e2e: 18 etapas PASS, .NET 178/178, Vitest 20/20, e2e 35/35) |
 | 10 | Auditoría de cambios | pendiente | |
 | 11 | Permisos memorizados por request | pendiente | |
 | 12 | Rate limiting por usuario y por tipo de endpoint | pendiente | |
@@ -135,6 +135,7 @@ Cosas vistas durante un paso que no le corresponden. Cada una espera su paso.
 - Un segundo pedido simultáneo con la misma clave espera al primero; el borrador IETF sugiere 409 con un tope de espera (`lock_timeout`). Se revisa si aparece un cliente que reintenta en paralelo. Sin paso asignado.
 - La clave de idempotencia del frontend vive en memoria del componente: recargar la página la pierde (FRONT015 prohíbe el storage del navegador). Sin paso asignado.
 - `RegisterUser` abre su propia transacción, así que el filtro de idempotencia no se le puede poner sin cambiar esa slice. Hoy Auth queda fuera de DUNE0016. Sin paso asignado.
+- DUNE0016 mira solo `MapPost`: un `MapMethods(..., ["POST"], ...)` de una feature queda fuera de la regla. Hoy ninguna slice lo usa. Sin paso asignado.
 
 ## Cierres
 
