@@ -38,4 +38,25 @@ public sealed class DeleteUserTests : IClassFixture<ApiFixture>
         relogin.Payload?.Dispose();
         Assert.Equal(HttpStatusCode.Unauthorized, relogin.Status);
     }
+
+    [Fact]
+    public async Task DeleteMe_RemovesStoredIdempotencyKeys()
+    {
+        TestSession alice = new(_fixture.CreateClient());
+        await alice.RegisterAsync(TestAccounts.UniqueName("alice"));
+
+        SessionResponse created = await alice.SendAsync(
+            HttpMethod.Post,
+            "api/v1/tasks",
+            new { title = "Para cascada" },
+            headers: new Dictionary<string, string> { ["Idempotency-Key"] = Guid.NewGuid().ToString() });
+        created.Payload?.Dispose();
+        Assert.Equal(HttpStatusCode.Created, created.Status);
+        Assert.Equal(1, await _fixture.IdempotencyKeyCountAsync(alice.AuthId));
+
+        SessionResponse deleted = await alice.SendAsync(HttpMethod.Delete, "api/v1/users/me");
+        deleted.Payload?.Dispose();
+        Assert.Equal(HttpStatusCode.NoContent, deleted.Status);
+        Assert.Equal(0, await _fixture.IdempotencyKeyCountAsync(alice.AuthId));
+    }
 }

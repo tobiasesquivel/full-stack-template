@@ -8,7 +8,7 @@ public static class ApiResults
         result.IsError ? Problem(result.Errors) : success(result.Value);
 
     public static IResult Problem(Error error) =>
-        Results.Problem(statusCode: StatusFor(error.Type), title: error.Description, extensions: Code(error));
+        Results.Problem(statusCode: StatusFor(error), title: error.Description, extensions: Code(error));
 
     private static IResult Problem(List<Error> errors)
     {
@@ -22,13 +22,14 @@ public static class ApiResults
         return Results.ValidationProblem(fieldErrors, extensions: Code(HttpErrors.ValidationFailed));
     }
 
-    private static int StatusFor(ErrorType type) => type switch
+    private static int StatusFor(Error error) => error.Type switch
     {
         ErrorType.Validation => StatusCodes.Status400BadRequest,
         ErrorType.Unauthorized => StatusCodes.Status401Unauthorized,
         ErrorType.Forbidden => StatusCodes.Status403Forbidden,
         ErrorType.NotFound => StatusCodes.Status404NotFound,
         ErrorType.Conflict => StatusCodes.Status409Conflict,
+        _ when error.NumericType is >= 400 and <= 599 => error.NumericType,
         _ => StatusCodes.Status500InternalServerError,
     };
 

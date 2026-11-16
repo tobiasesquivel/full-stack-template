@@ -127,7 +127,7 @@ public sealed class CreateTaskTests : IClassFixture<ApiFixture>
     [Theory]
     [InlineData("abc")]
     [InlineData("8e03978e40d54c1c8a9b3f0e2c6d7a1b")]
-    [InlineData("")]
+    [InlineData("{8e03978e-40d5-4c1c-8a9b-3f0e2c6d7a1b}")]
     public async Task Create_MalformedKey_Returns400_AndCreatesNothing(string malformed)
     {
         var alice = new TestSession(_fixture.CreateClient());

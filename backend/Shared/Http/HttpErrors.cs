@@ -13,6 +13,16 @@ public static class HttpErrors
         code: "Http.Unexpected",
         description: "An unexpected error occurred.");
 
+    public static readonly Error IdempotencyKeyInvalid = Error.Custom(
+        type: 400,
+        code: "Idempotency.KeyInvalid",
+        description: "The Idempotency-Key header must be a UUID.");
+
+    public static readonly Error IdempotencyKeyReused = Error.Custom(
+        type: 422,
+        code: "Idempotency.KeyReused",
+        description: "The Idempotency-Key was already used with a different request.");
+
     private static readonly Dictionary<int, string> StatusCodes = new()
     {
         [400] = "Http.BadRequest",

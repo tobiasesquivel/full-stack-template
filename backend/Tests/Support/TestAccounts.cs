@@ -111,6 +111,13 @@ internal static class TestAccounts
             .ToListAsync();
     }
 
+    public static async Task<int> IdempotencyKeyCountAsync(this ApiFixture fixture, string authId)
+    {
+        using IServiceScope scope = fixture.Services.CreateScope();
+        AppDbContext db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        return await db.IdempotencyKeys.CountAsync(k => k.OwnerId == authId);
+    }
+
     public static async Task<string> CreateTaskAsync(this TestSession session, string title)
     {
         SessionResponse created = await session.SendAsync(HttpMethod.Post, "api/v1/tasks", new { title });

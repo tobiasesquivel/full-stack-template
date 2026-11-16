@@ -16,6 +16,7 @@ public class AppDbContext : IdentityDbContext<AppIdentityUser>
     public DbSet<UserProfile> UserProfiles => Set<UserProfile>();
     public DbSet<TaskItem> TaskItems => Set<TaskItem>();
     public DbSet<Session> Sessions => Set<Session>();
+    public DbSet<IdempotencyKey> IdempotencyKeys => Set<IdempotencyKey>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -38,6 +39,12 @@ public class AppDbContext : IdentityDbContext<AppIdentityUser>
             .HasOne<UserProfile>()
             .WithMany()
             .HasForeignKey(t => t.OwnerId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<IdempotencyKey>()
+            .HasOne<UserProfile>()
+            .WithMany()
+            .HasForeignKey(k => k.OwnerId)
             .OnDelete(DeleteBehavior.Cascade);
     }
 }
