@@ -4,4 +4,5 @@ export interface TaskResponse {
   isCompleted: boolean;
   createdAt: string;
   updatedAt: string | null;
+  version: number;
 }

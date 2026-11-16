@@ -119,4 +119,13 @@ internal static class TestAccounts
         using (created.Payload)
             return created.Payload.RootElement.GetProperty("id").GetString()!;
     }
+
+    public static async Task<uint> TaskVersionAsync(this TestSession session, string id)
+    {
+        SessionResponse fetched = await session.SendAsync(HttpMethod.Get, $"api/v1/tasks/{id}", csrf: false);
+        Assert.Equal(HttpStatusCode.OK, fetched.Status);
+        Assert.NotNull(fetched.Payload);
+        using (fetched.Payload)
+            return fetched.Payload.RootElement.GetProperty("version").GetUInt32();
+    }
 }

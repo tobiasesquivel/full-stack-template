@@ -12,6 +12,7 @@ public sealed class TaskItem : IOwnedResource
     public bool IsCompleted { get; set; }
     public DateTimeOffset CreatedAt { get; init; }
     public DateTimeOffset? UpdatedAt { get; set; }
+    public uint Version { get; set; }
 
     public static bool IsValidTitle(string title) =>
         NormalizeTitle(title).Length is >= 1 and <= TitleMaxLength;

@@ -77,12 +77,13 @@ public sealed class IssueCsrfTokenTests : IClassFixture<ApiFixture>
         TestSession alice = new(_fixture.CreateClient());
         await alice.RegisterAsync(TestAccounts.UniqueName("alice"));
         string task = await alice.CreateTaskAsync("Intacta");
+        uint version = await alice.TaskVersionAsync(task);
 
         object? body = (method, route) switch
         {
             ("POST", _) => new { title = "Sin token" },
             ("PUT", "api/v1/users/me") => new { displayName = "Sin token", timezone = "UTC" },
-            ("PUT", _) => new { title = "Sin token", isCompleted = true },
+            ("PUT", _) => new { title = "Sin token", isCompleted = true, version },
             _ => null,
         };
         SessionResponse rejected = await alice.SendAsync(

@@ -42,10 +42,11 @@ public sealed class GetTaskTests : IClassFixture<ApiFixture>
         await bob.RegisterAsync(bobName);
 
         string id = await alice.CreateTaskAsync("Ajena");
+        uint read = await alice.TaskVersionAsync(id);
 
         foreach (var method in new[] { HttpMethod.Get, HttpMethod.Put, HttpMethod.Delete })
         {
-            object? body = method == HttpMethod.Put ? new { title = "Ajena", isCompleted = true } : null;
+            object? body = method == HttpMethod.Put ? new { title = "Ajena", isCompleted = true, version = read } : null;
             var forbidden = await bob.SendAsync(method, $"api/v1/tasks/{id}", body);
             forbidden.Payload?.Dispose();
             Assert.Equal(HttpStatusCode.Forbidden, forbidden.Status);
@@ -57,7 +58,7 @@ public sealed class GetTaskTests : IClassFixture<ApiFixture>
         Assert.Equal(HttpStatusCode.OK, asAdmin.Status);
         asAdmin.Payload?.Dispose();
 
-        var adminUpdate = await bob.SendAsync(HttpMethod.Put, $"api/v1/tasks/{id}", new { title = "Editada por admin", isCompleted = false });
+        var adminUpdate = await bob.SendAsync(HttpMethod.Put, $"api/v1/tasks/{id}", new { title = "Editada por admin", isCompleted = false, version = read });
         Assert.Equal(HttpStatusCode.OK, adminUpdate.Status);
         adminUpdate.Payload?.Dispose();
 

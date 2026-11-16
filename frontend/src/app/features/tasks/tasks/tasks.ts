@@ -15,6 +15,7 @@ import type { TaskResponse } from '../api/task-response';
 import { TaskPager } from '../task-pager/task-pager';
 import { TaskRow } from '../task-row/task-row';
 import { TaskDeleteDialog } from '../task-delete-dialog/task-delete-dialog';
+import { taskConflictMessage } from './task-conflict';
 
 const PAGE_SIZE = 10;
 
@@ -103,7 +104,11 @@ export class Tasks {
 
   protected async setCompleted(task: TaskResponse, completed: boolean): Promise<void> {
     await this.runRowAction(task.id, () =>
-      this.tasksApi.update(task.id, { title: task.title, isCompleted: completed }),
+      this.tasksApi.update(task.id, {
+        title: task.title,
+        isCompleted: completed,
+        version: task.version,
+      }),
     );
   }
 
@@ -118,7 +123,11 @@ export class Tasks {
 
   protected async saveTitle(task: TaskResponse, title: string): Promise<void> {
     await this.runRowAction(task.id, () =>
-      this.tasksApi.update(task.id, { title, isCompleted: task.isCompleted }),
+      this.tasksApi.update(task.id, {
+        title,
+        isCompleted: task.isCompleted,
+        version: task.version,
+      }),
     );
     if (this.pendingId() === null && !this.actionError()) {
       this.cancelEdit();
@@ -194,7 +203,11 @@ export class Tasks {
       const updated = await action();
       this.items.update((items) => items.map((item) => (item.id === id ? updated : item)));
     } catch (err) {
-      this.actionError.set(describeHttpError(err));
+      const conflict = taskConflictMessage(err);
+      this.actionError.set(conflict ?? describeHttpError(err));
+      if (conflict) {
+        await this.load();
+      }
     } finally {
       this.pendingId.set(null);
     }

@@ -12,6 +12,10 @@ public static class TaskErrors
         code: "Task.Forbidden",
         description: "Access denied.");
 
+    public static readonly Error Conflict = Error.Conflict(
+        code: "Task.Conflict",
+        description: "The task was changed by another request.");
+
     public static readonly Error InvalidCursor = Error.Validation(
         code: "Cursor",
         description: "Cursor is invalid.");
