@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json;
 using TemplateApp.Tests.Support;
 using Xunit;
 
@@ -47,5 +48,75 @@ public sealed class UpdateTaskTests : IClassFixture<ApiFixture>
         var missing = await alice.SendAsync(HttpMethod.Put, $"api/v1/tasks/{Guid.NewGuid():D}", new { title = "x", isCompleted = false });
         missing.Payload?.Dispose();
         Assert.Equal(HttpStatusCode.NotFound, missing.Status);
+    }
+
+    [Fact]
+    public async Task Update_WithStaleVersion_Returns409_And_KeepsOtherTabChange()
+    {
+        var tabA = new TestSession(_fixture.CreateClient());
+        await tabA.RegisterAsync(TestAccounts.UniqueName("alice"));
+        var tabB = tabA.CopyTo(_fixture.CreateClient());
+
+        string id = await tabA.CreateTaskAsync("Comprar pan");
+        uint? read = await ReadVersionAsync(tabA, id);
+
+        var renamed = await tabA.SendAsync(HttpMethod.Put, $"api/v1/tasks/{id}", new { title = "Comprar pan integral", isCompleted = false, version = read });
+        renamed.Payload?.Dispose();
+        Assert.Equal(HttpStatusCode.OK, renamed.Status);
+
+        var stale = await tabB.SendAsync(HttpMethod.Put, $"api/v1/tasks/{id}", new { title = "Comprar pan", isCompleted = true, version = read });
+
+        var fetched = await tabA.SendAsync(HttpMethod.Get, $"api/v1/tasks/{id}", csrf: false);
+        Assert.Equal(HttpStatusCode.OK, fetched.Status);
+        Assert.NotNull(fetched.Payload);
+        using (fetched.Payload)
+        {
+            Assert.Equal("Comprar pan integral", fetched.Payload.RootElement.GetProperty("title").GetString());
+            Assert.False(fetched.Payload.RootElement.GetProperty("isCompleted").GetBoolean());
+        }
+
+        ProblemAssert.Problem(stale, HttpStatusCode.Conflict, "Task.Conflict");
+    }
+
+    [Fact]
+    public async Task Update_ConcurrentWithSameVersion_OneWins_OtherGets409()
+    {
+        var tabA = new TestSession(_fixture.CreateClient());
+        await tabA.RegisterAsync(TestAccounts.UniqueName("alice"));
+        var tabB = tabA.CopyTo(_fixture.CreateClient());
+
+        string id = await tabA.CreateTaskAsync("Comprar pan");
+        uint? read = await ReadVersionAsync(tabA, id);
+
+        var a = new { title = "Comprar pan integral", isCompleted = false, version = read };
+        var b = new { title = "Comprar pan", isCompleted = true, version = read };
+        SessionResponse[] responses = await Task.WhenAll(
+            tabA.SendAsync(HttpMethod.Put, $"api/v1/tasks/{id}", a),
+            tabB.SendAsync(HttpMethod.Put, $"api/v1/tasks/{id}", b));
+        foreach (SessionResponse response in responses)
+            response.Payload?.Dispose();
+
+        Assert.Equal(
+            [HttpStatusCode.OK, HttpStatusCode.Conflict],
+            responses.Select(r => r.Status).Order().ToArray());
+
+        var winner = responses[0].Status == HttpStatusCode.OK ? a : b;
+        var fetched = await tabA.SendAsync(HttpMethod.Get, $"api/v1/tasks/{id}", csrf: false);
+        Assert.Equal(HttpStatusCode.OK, fetched.Status);
+        Assert.NotNull(fetched.Payload);
+        using (fetched.Payload)
+        {
+            Assert.Equal(winner.title, fetched.Payload.RootElement.GetProperty("title").GetString());
+            Assert.Equal(winner.isCompleted, fetched.Payload.RootElement.GetProperty("isCompleted").GetBoolean());
+        }
+    }
+
+    private static async Task<uint?> ReadVersionAsync(TestSession session, string id)
+    {
+        var fetched = await session.SendAsync(HttpMethod.Get, $"api/v1/tasks/{id}", csrf: false);
+        Assert.Equal(HttpStatusCode.OK, fetched.Status);
+        Assert.NotNull(fetched.Payload);
+        using (fetched.Payload)
+            return fetched.Payload.RootElement.TryGetProperty("version", out JsonElement version) ? version.GetUInt32() : null;
     }
 }
