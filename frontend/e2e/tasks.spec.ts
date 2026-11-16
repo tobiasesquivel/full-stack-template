@@ -256,8 +256,10 @@ test('Confirmar sends DELETE 204 and moves focus to the Mis tareas heading', asy
 });
 
 test('a stale tab that ticks a task renamed in another tab gets 409 and shows the rename', async () => {
+  const title = 'Tarea compartida';
+  await create(title);
   const target = rows().first();
-  const title = (await target.locator('span').textContent())?.trim() ?? '';
+  await expect(target).toContainText(title);
   const stale = await page.context().newPage();
   await stale.goto('/tasks');
   const staleRow = (text: string) =>
