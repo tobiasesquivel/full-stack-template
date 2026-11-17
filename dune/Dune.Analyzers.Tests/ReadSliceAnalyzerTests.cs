@@ -28,11 +28,13 @@ public sealed class ReadSliceAnalyzerTests
         }
         namespace TemplateApp.Features.Tasks.Domain
         {
+            public enum TaskState { Open, Done }
             public sealed class TaskItem
             {
                 public Guid Id { get; set; }
                 public string OwnerId { get; set; } = "";
                 public string Title { get; set; } = "";
+                public TaskState State { get; set; }
             }
         }
         namespace TemplateApp.Features.Users.Domain
@@ -81,6 +83,52 @@ public sealed class ReadSliceAnalyzerTests
                 {
                     public Task<TaskView?> ExecuteAsync(Guid id, CancellationToken ct) =>
                         db.TaskItems.Where(t => t.Id == id).Select(t => new TaskView(t.Id, t.Title)).SingleOrDefaultAsync(ct);
+
+                    public Task<TemplateApp.Features.Tasks.Domain.TaskState> StateAsync(Guid id, CancellationToken ct) =>
+                        db.TaskItems.Where(t => t.Id == id).Select(t => t.State).FirstAsync(ct);
+                }
+                """),
+            ("backend/Features/Tasks/TaskLookup.cs", """
+                using System;
+                using System.Threading;
+                using System.Threading.Tasks;
+                using Microsoft.EntityFrameworkCore;
+                using TemplateApp.Features.Tasks.Domain;
+                using TemplateApp.Infrastructure.Persistence;
+                namespace TemplateApp.Features.Tasks;
+                public sealed class TaskLookup(AppDbContext db)
+                {
+                    public Task<TaskItem> LoadAsync(Guid id, CancellationToken ct) => db.TaskItems.SingleAsync(t => t.Id == id, ct);
+                }
+                """),
+            ("backend/Features/Tasks/RenameTask/RenameTaskEndpoint.cs", """
+                using Microsoft.AspNetCore.Builder;
+                using Microsoft.AspNetCore.Routing;
+                namespace TemplateApp.Features.Tasks.RenameTask;
+                public static class RenameTaskEndpoint
+                {
+                    public static void Map(IEndpointRouteBuilder routes)
+                    {
+                        routes.MapGet("/", () => 0);
+                        routes.MapPut("/", () => 0);
+                    }
+                }
+                """),
+            ("backend/Features/Tasks/RenameTask/RenameTask.cs", """
+                using System;
+                using System.Threading;
+                using System.Threading.Tasks;
+                using Microsoft.EntityFrameworkCore;
+                using TemplateApp.Infrastructure.Persistence;
+                namespace TemplateApp.Features.Tasks.RenameTask;
+                public sealed class RenameTask(AppDbContext db)
+                {
+                    public async Task ExecuteAsync(Guid id, string title, CancellationToken ct)
+                    {
+                        var item = await db.TaskItems.SingleAsync(t => t.Id == id, ct);
+                        item.Title = title;
+                        await db.SaveChangesAsync(ct);
+                    }
                 }
                 """),
             ("backend/Features/Tasks/GetTask/GetTaskTests.cs", """
@@ -158,7 +206,10 @@ public sealed class ReadSliceAnalyzerTests
                         db.TaskItems.Add(new TaskItem());
                         await db.TaskItems.Where(t => t.Id == id).ExecuteDeleteAsync(ct);
                         await db.SaveChangesAsync(ct);
-                        return item ?? found ?? all.FirstOrDefault();
+                        var wrapped = await db.TaskItems.Select(t => new { Item = t }).FirstAsync(ct);
+                        TaskItem? viaContext = await db.FindAsync<TaskItem>(new object[] { id }, ct);
+                        await db.Database.ExecuteSqlRawAsync("DELETE FROM x", ct);
+                        return item ?? found ?? viaContext ?? wrapped.Item ?? all.FirstOrDefault();
                     }
                 }
                 """),
@@ -183,6 +234,9 @@ public sealed class ReadSliceAnalyzerTests
                 ("backend/Features/Tasks/GetTask/GetTask.cs", 17, "usa Add"),
                 ("backend/Features/Tasks/GetTask/GetTask.cs", 18, "usa ExecuteDeleteAsync"),
                 ("backend/Features/Tasks/GetTask/GetTask.cs", 19, "usa SaveChangesAsync"),
+                ("backend/Features/Tasks/GetTask/GetTask.cs", 20, "carga la entidad 'TaskItem' con Select"),
+                ("backend/Features/Tasks/GetTask/GetTask.cs", 21, "carga la entidad 'TaskItem' con FindAsync"),
+                ("backend/Features/Tasks/GetTask/GetTask.cs", 22, "usa ExecuteSqlRawAsync"),
                 ("backend/Features/Users/GetUser/GetUser.cs", 7, "usa SaveChangesAsync"),
             },
             Findings(diagnostics));

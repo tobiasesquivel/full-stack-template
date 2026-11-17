@@ -246,16 +246,16 @@ internal static class DuneDiagnostics
         category: "Dune",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
-        description: "CQRS liviano: una slice cuyo endpoint solo mapea GET no llama a SaveChanges, ExecuteUpdate, ExecuteDelete ni a Add, Update, Remove o Attach de un DbSet o del DbContext.",
+        description: "CQRS liviano: una slice cuyo endpoint solo mapea GET no llama a SaveChanges, ExecuteUpdate, ExecuteDelete, ExecuteSql* ni a Add, Update, Remove o Attach de un DbSet o del DbContext.",
         customTags: WellKnownDiagnosticTags.CompilationEnd);
 
     public static readonly DiagnosticDescriptor ReadSliceLoadsEntity = new(
         id: "DUNE0019",
         title: "Slice de lectura que carga una entidad",
-        messageFormat: "'{0}' es una slice de lectura y carga la entidad '{1}' con {2}: proyectá con Select a su modelo de lectura",
+        messageFormat: "'{0}' es una slice de lectura y carga la entidad '{1}' con {2}: proyectá solo sus columnas a su modelo de lectura",
         category: "Dune",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
-        description: "CQRS liviano: una slice cuyo endpoint solo mapea GET no materializa un tipo del Domain de una feature desde un IQueryable ni con Find; proyecta en una consulta a lo que responde. Users/GetUser es la única excepción hasta que proyecte.",
+        description: "CQRS liviano: una slice cuyo endpoint solo mapea GET no materializa una clase del Domain de una feature desde un IQueryable ni con Find, ni la pasa entera dentro de un Select (EF la trae completa y la rastrea); proyecta sus columnas a lo que responde. Users/GetUser es la única excepción hasta que proyecte.",
         customTags: WellKnownDiagnosticTags.CompilationEnd);
 }

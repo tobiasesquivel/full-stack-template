@@ -29,7 +29,13 @@ public sealed class ReadSliceAnalyzer : DiagnosticAnalyzer
         "ExecuteUpdate",
         "ExecuteUpdateAsync",
         "ExecuteDelete",
-        "ExecuteDeleteAsync");
+        "ExecuteDeleteAsync",
+        "ExecuteSql",
+        "ExecuteSqlAsync",
+        "ExecuteSqlRaw",
+        "ExecuteSqlRawAsync",
+        "ExecuteSqlInterpolated",
+        "ExecuteSqlInterpolatedAsync");
 
     private static readonly ImmutableHashSet<string> TrackedWrites = ImmutableHashSet.Create(
         StringComparer.Ordinal,
@@ -145,7 +151,7 @@ public sealed class ReadSliceAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        if (!EntityLoadExceptions.Contains(key) && LoadedEntity(invocation) is { } entity)
+        if (!EntityLoadExceptions.Contains(key) && LoadedEntity(invocation, context.Compilation) is { } entity)
         {
             findings.Add((key, Diagnostic.Create(
                 DuneDiagnostics.ReadSliceLoadsEntity,
@@ -172,13 +178,24 @@ public sealed class ReadSliceAnalyzer : DiagnosticAnalyzer
             && DuneSymbols.NamespaceOf(type).Equals(EfNamespace, StringComparison.Ordinal))
         || DuneSymbols.DerivesFromDbContext(type, compilation);
 
-    private static ITypeSymbol? LoadedEntity(IInvocationOperation invocation)
+    private static ITypeSymbol? LoadedEntity(IInvocationOperation invocation, Compilation compilation)
     {
         var method = invocation.TargetMethod;
-        if ((method.Name.Equals("Find", StringComparison.Ordinal) || method.Name.Equals("FindAsync", StringComparison.Ordinal))
-            && DuneSymbols.IsDbSet(method.ContainingType))
+        if (method.Name.Equals("Find", StringComparison.Ordinal) || method.Name.Equals("FindAsync", StringComparison.Ordinal))
         {
-            return AsDomainType(method.ContainingType.TypeArguments[0]);
+            if (DuneSymbols.IsDbSet(method.ContainingType))
+            {
+                return AsDomainType(method.ContainingType.TypeArguments[0]);
+            }
+
+            return method.IsGenericMethod && IsDbContext(method.ContainingType, compilation)
+                ? AsDomainType(method.TypeArguments[0])
+                : null;
+        }
+
+        if (IsQueryableSelect(invocation))
+        {
+            return WholeEntityInProjection(invocation.Arguments[1].Value);
         }
 
         if (!Materializers.Contains(method.Name)
@@ -191,6 +208,31 @@ public sealed class ReadSliceAnalyzer : DiagnosticAnalyzer
         }
 
         return AsDomainType(method.TypeArguments[0]);
+    }
+
+    private static bool IsQueryableSelect(IInvocationOperation invocation) =>
+        (invocation.TargetMethod.Name.Equals("Select", StringComparison.Ordinal)
+            || invocation.TargetMethod.Name.Equals("SelectMany", StringComparison.Ordinal))
+        && DuneSymbols.InNamespace(invocation.TargetMethod.ContainingType, "System.Linq")
+        && invocation.Arguments.Length == 2
+        && IsQueryable(invocation.Arguments[0].Value);
+
+    private static ITypeSymbol? WholeEntityInProjection(IOperation selector)
+    {
+        foreach (var reference in selector.Descendants().OfType<IParameterReferenceOperation>())
+        {
+            if (reference.Parent is IMemberReferenceOperation member && member.Instance == reference)
+            {
+                continue;
+            }
+
+            if (AsDomainType(reference.Type!) is { } entity)
+            {
+                return entity;
+            }
+        }
+
+        return null;
     }
 
     private static bool IsQueryable(IOperation receiver)
@@ -210,6 +252,11 @@ public sealed class ReadSliceAnalyzer : DiagnosticAnalyzer
 
     private static ITypeSymbol? AsDomainType(ITypeSymbol type)
     {
+        if (type is not INamedTypeSymbol { TypeKind: TypeKind.Class, IsRecord: false })
+        {
+            return null;
+        }
+
         var ns = DuneSymbols.NamespaceOf(type);
         return ns.StartsWith("TemplateApp.Features.", StringComparison.Ordinal) && ns.EndsWith(".Domain", StringComparison.Ordinal)
             ? type
