@@ -21,6 +21,7 @@ try
     builder.Services.AddHealthFeature();
     builder.Services.AddVersionedApi();
     builder.Services.AddApiRateLimiting();
+    builder.Services.AddApiSecurityHeaders();
 
     WebApplication app = builder.Build();
 
@@ -29,6 +30,7 @@ try
         app.MapOpenApi().WithDocumentPerVersion();
     }
 
+    app.UseApiSecurityHeaders();
     app.UseSerilogRequestLogging(options => options.Logger = app.Services.GetRequiredService<Serilog.ILogger>());
     app.UseExceptionHandler();
     app.UseStatusCodePages();
