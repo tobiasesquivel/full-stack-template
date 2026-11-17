@@ -40,11 +40,11 @@ public sealed class UpdateTask
 
         string title = TaskItem.NormalizeTitle(request.Title);
         if (item.Version != request.Version)
-            return item.Title == title && item.IsCompleted == request.IsCompleted
+            return item.Title == title && (item.CompletedAt is not null) == request.IsCompleted
                 ? TaskResponses.From(item)
                 : TaskErrors.Conflict;
 
-        bool completes = !item.IsCompleted && request.IsCompleted;
+        bool completes = item.CompletedAt is null && request.IsCompleted;
         DateTimeOffset now = _clock.GetUtcNow();
         item.Title = title;
         item.IsCompleted = request.IsCompleted;

@@ -6,7 +6,7 @@ namespace TemplateApp.Features.Tasks;
 public static class TaskResponses
 {
     public static readonly Expression<Func<TaskItem, TaskResponse>> Projection =
-        t => new TaskResponse(t.Id, t.Title, t.IsCompleted, t.CreatedAt, t.UpdatedAt, t.Version);
+        t => new TaskResponse(t.Id, t.Title, t.CompletedAt != null, t.CreatedAt, t.UpdatedAt, t.Version);
 
     private static readonly Func<TaskItem, TaskResponse> Compiled = Projection.Compile();
 
