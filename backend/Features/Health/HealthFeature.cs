@@ -4,7 +4,7 @@ public static class HealthFeature
 {
     public static IServiceCollection AddHealthFeature(this IServiceCollection services)
     {
-        services.AddScoped<GetReadiness.GetReadiness>();
+        services.AddHealthChecks();
         return services;
     }
 

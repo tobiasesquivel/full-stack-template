@@ -159,7 +159,9 @@ const live = await anonymous.request('GET', 'health/live');
 assert.equal(live.headers.get('api-supported-versions'), '1.0', 'La API declara sus versiones soportadas');
 const unknownVersion = await anonymous.request('GET', '../v9/health/live', undefined, { expected: 404 });
 assert.equal(unknownVersion.payload.code, 'Http.NotFound', 'Una versión inexistente responde ProblemDetails con code');
-await anonymous.request('GET', 'health/ready');
+const ready = await anonymous.request('GET', 'health/ready');
+assert.deepEqual(ready.payload.checks, { database: 'healthy', migrations: 'healthy' },
+  'Readiness informa cada dependencia sana');
 const withoutSession = await anonymous.request('GET', 'tasks', undefined, { expected: 401 });
 assert.equal(withoutSession.payload.code, 'Auth.SessionRequired');
 const withoutCsrf = await anonymous.request('POST', 'auth/login', { userName: 'nobody', password },
@@ -259,7 +261,9 @@ if (process.argv.includes('--compose')) {
   compose('stop', 'db');
   try {
     await anonymous.request('GET', 'health/live');
-    await anonymous.request('GET', 'health/ready', undefined, { expected: 503 });
+    const notReady = await anonymous.request('GET', 'health/ready', undefined, { expected: 503 });
+    assert.equal(notReady.payload.status, 'not-ready');
+    assert.equal(notReady.payload.checks.database, 'unhealthy', 'Readiness nombra a la base como la dependencia caída');
   } finally {
     compose('start', 'db');
     await waitReady();
