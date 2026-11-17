@@ -67,6 +67,7 @@ const GATES = [
   { name: 'check-structure-test', ...node('--test', 'dune/check-structure.test.mjs') },
   { name: 'check-secrets', ...node('dune/check-secrets.mjs') },
   { name: 'check-secrets-test', ...node('--test', 'dune/check-secrets.test.mjs') },
+  { name: 'check-otel-export-test', ...node('--test', '.agents/skills/verify-template/scripts/check-otel-export.test.mjs') },
   { name: 'nuget-audit', cmd: 'dotnet', args: ['restore', 'TemplateApp.slnx', '--force', '-warnaserror:NU1903;NU1904'] },
   { name: 'npm-ci', ...npm('ci', '--prefix', 'frontend') },
   { name: 'npm-audit', ...npm('audit', '--omit=dev', '--audit-level=high'), cwd: FRONTEND_DIR },
