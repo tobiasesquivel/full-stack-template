@@ -28,7 +28,7 @@ public sealed class ListTasksPlanTests : IClassFixture<ApiFixture>
     }
 
     [Fact]
-    public async Task List_ReadsOnlyThePage_ThroughTheOwnerIndex()
+    public async Task List_ReadsOnlyThePage_ThroughTheListIndex()
     {
         string database = await TestDatabases.CreateEmptyAsync(_postgres.ConnectionString);
         CapturedCommands commands = new();
@@ -47,9 +47,9 @@ public sealed class ListTasksPlanTests : IClassFixture<ApiFixture>
 
         IReadOnlyList<CapturedCommand> pages = commands.Reading("TaskItems");
         Assert.Equal(2, pages.Count);
-        foreach (CapturedCommand page in pages)
+        for (int page = 0; page < pages.Count; page++)
         {
-            QueryPlan plan = await QueryPlan.ExplainAnalyzeAsync(database, page);
+            QueryPlan plan = await QueryPlan.ExplainAnalyzeAsync(database, pages[page]);
             TestContext.Current.TestOutputHelper?.WriteLine($"Plan: {plan}");
 
             Assert.True(
@@ -60,16 +60,14 @@ public sealed class ListTasksPlanTests : IClassFixture<ApiFixture>
                 $"The index order must make a sort unnecessary. Plan: {plan}");
             Assert.True(
                 plan.Nodes.All(node => node.ActualRows <= PageSize + 1),
-                $"No step may read more rows than one page plus the look-ahead row. Plan: {plan}");
+                $"No step may return more rows than one page plus the look-ahead row. Plan: {plan}");
             Assert.True(
                 plan.Nodes[0].SharedBlocks <= MaxBlocksPerPage,
                 $"A page may touch at most one heap block per row plus the index descent. Plan: {plan}");
+            Assert.True(
+                page == 0 || plan.OfType("Index Scan").Any(node => node.IndexCondition?.Contains("ROW(", StringComparison.Ordinal) == true),
+                $"The cursor comparison must narrow the index scan, not filter its rows. Plan: {plan}");
         }
-
-        QueryPlan afterCursor = await QueryPlan.ExplainAnalyzeAsync(database, pages[1]);
-        Assert.Contains(
-            afterCursor.OfType("Index Scan"),
-            node => node.IndexCondition is not null && node.IndexCondition.Contains("ROW(", StringComparison.Ordinal));
     }
 
     private static async Task<string?> ReadNextCursorAsync(TestSession session, string route)

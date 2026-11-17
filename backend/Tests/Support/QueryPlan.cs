@@ -28,7 +28,7 @@ internal sealed record QueryPlan(IReadOnlyList<QueryPlanNode> Nodes, double Exec
 
     public override string ToString() =>
         string.Join(" -> ", Nodes.Select(node =>
-            $"{node.NodeType}{(node.IndexName is null ? "" : $" using {node.IndexName}")}{(node.ScanDirection is null ? "" : $" {node.ScanDirection}")} rows={node.ActualRows} buffers={node.SharedBlocks}"))
+            $"{node.NodeType}{(node.IndexName is null ? "" : $" using {node.IndexName}")}{(node.ScanDirection is null ? "" : $" {node.ScanDirection}")}{(node.IndexCondition is null ? "" : $" cond={node.IndexCondition}")} rows={node.ActualRows} buffers={node.SharedBlocks}"))
         + string.Create(CultureInfo.InvariantCulture, $" | {ExecutionMilliseconds:0.###} ms");
 
     private static void Collect(JsonElement plan, List<QueryPlanNode> nodes)
