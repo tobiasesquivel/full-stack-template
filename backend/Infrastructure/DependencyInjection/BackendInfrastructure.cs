@@ -22,8 +22,11 @@ public static class BackendInfrastructure
 
         services.AddOptionsWithValidateOnStart<DatabaseOptions, DatabaseOptionsValidator>()
             .BindConfiguration(DatabaseOptions.Section);
-        services.AddDbContext<AppDbContext>((provider, options) =>
-            options.UseNpgsql(provider.GetRequiredService<IOptions<DatabaseOptions>>().Value.DefaultConnection));
+        services.AddHttpContextAccessor();
+        services.AddSingleton<AuditInterceptor>();
+        services.AddDbContext<AppDbContext>((provider, options) => options
+            .UseNpgsql(provider.GetRequiredService<IOptions<DatabaseOptions>>().Value.DefaultConnection)
+            .AddInterceptors(provider.GetRequiredService<AuditInterceptor>()));
 
         services.AddHostedService<DatabaseInitialization>();
 
