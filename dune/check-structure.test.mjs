@@ -152,6 +152,46 @@ describe('check-structure', () => {
     });
   }
 
+  it('acepta un memo por request y nombres que solo se parecen a caché', async () => {
+    const repo = await makeRepo();
+    try {
+      await seedValid(repo);
+      await repo.write(
+        'backend/Features/Auth/Access/AccessPolicy.cs',
+        'using Microsoft.AspNetCore.Identity;\n'
+          + 'public sealed class AccessPolicy { private readonly Dictionary<string, AccessGrant> _grants = new(); }\n',
+      );
+      await repo.write('backend/Shared/Cacheable.cs', 'namespace TemplateApp.Shared.Caching;\npublic interface ICacheable { }\n');
+      const result = await runGate(repo.dir);
+      assert.equal(result.code, 0, result.output);
+    } finally {
+      await repo.cleanup();
+    }
+  });
+
+  for (const [name, rel, content] of [
+    ['paquete de HybridCache en el producto', 'backend/TemplateApp.csproj', '<Project><ItemGroup><Compile Remove="Features/**/*Tests.cs" /><Compile Remove="Tests/**/*.cs" /><PackageReference Include="Microsoft.Extensions.Caching.Hybrid" Version="10.0.0" /></ItemGroup></Project>'],
+    ['paquete de FusionCache en Directory.Build.props', 'Directory.Build.props', '<Project><ItemGroup><PackageReference Include="ZiggyCreatures.FusionCache" Version="2.0.0" /></ItemGroup></Project>'],
+    ['using de IMemoryCache en AccessPolicy', 'backend/Features/Auth/Access/AccessPolicy.cs', 'using Microsoft.Extensions.Caching.Memory;\npublic sealed class AccessPolicy { }\n'],
+    ['IMemoryCache con nombre completo', 'backend/Features/Auth/Access/AccessPolicy.cs', 'public sealed class AccessPolicy(Microsoft.Extensions.Caching.Memory.IMemoryCache cache) { }\n'],
+    ['registro de AddMemoryCache', 'backend/Features/Auth/AuthFeature.cs', 'services.AddMemoryCache();\n'],
+    ['registro de AddHybridCache', 'backend/Program.cs', 'builder.Services.AddHybridCache();\n'],
+    ['caché de salida en un endpoint', 'backend/Features/Tasks/ListTasks/ListTasksEndpoint.cs', 'tasks.MapGet("/", Handle).CacheOutput();\n'],
+  ]) {
+    it(`rechaza ${name}`, async () => {
+      const repo = await makeRepo();
+      try {
+        await seedValid(repo);
+        await repo.write(rel, content);
+        const result = await runGate(repo.dir);
+        assert.equal(result.code, 1);
+        assert.match(result.output, /caché entre requests antes del paso 33/);
+      } finally {
+        await repo.cleanup();
+      }
+    });
+  }
+
   it('acepta severidades bajo secciones que cubren C#', async () => {
     const repo = await makeRepo();
     try {
