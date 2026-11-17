@@ -36,6 +36,7 @@ dotnet_diagnostic.DUNE0015.severity = error
 dotnet_diagnostic.DUNE0016.severity = error
 dotnet_diagnostic.DUNE0017.severity = error
 dotnet_diagnostic.DUNE0018.severity = error
+dotnet_diagnostic.DUNE0019.severity = error
 
 dotnet_diagnostic.RS0030.severity = error
 dotnet_diagnostic.RS0031.severity = error
