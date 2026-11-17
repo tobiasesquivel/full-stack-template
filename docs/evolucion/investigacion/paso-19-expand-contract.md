@@ -43,6 +43,13 @@
 8. **Paso 18:** no editar `AddTaskListIndex`. EF identifica las migraciones aplicadas solo por id, así que editarla no cambia nada en las bases donde ya corrió. Va en una lista explícita de excepciones de la regla, con seis ids y su motivo.
 9. **Decisiones para Tobi:** aceptar el backfill aproximado, decidir si el ciclo queda en `main` o solo en el ensayo, y elegir la herramienta del gate. Lista completa al final.
 
+## Correcciones que trajo el ensayo (agregado al implementar)
+
+El primer ensayo con binarios reales (`artifacts/verify-template/paso19-ensayo-rojo/`) siguió las secciones 2.5 y 4.2 de este informe y falló en dos etapas. La implementación se aparta de este informe en esos dos puntos (`docs/decisions.tsv`):
+
+- **El backfill tiene que ir en las dos direcciones.** La sección 4.2 llena solo las completadas sin fecha. En la etapa 1, el release 1 completa una tarea (escribe las dos columnas) y el release 0, todavía vivo, la reabre tocando solo `IsCompleted`. La tarea queda con `IsCompleted = false` y `CompletedAt` con fecha, y desde la etapa 3 se lee completada. El backfill implementado pone `NULL` en ese caso.
+- **La propiedad de sombra no deja de usar la columna.** La sección 2.5 deja `IsCompleted` como propiedad de sombra con default en la etapa 4. EF la sigue nombrando en cada `SELECT` y en el `RETURNING` del `INSERT`, así que el `DROP` de la etapa 5 le dio 500 al release 4 mientras convivían. La implementación pone el default en la migración Expand, saca la columna del modelo en la etapa 4 y mueve a la migración Contract el `DropColumn` que la CLI genera en la etapa 4.
+
 ## 1. Expand/contract y por qué "nunca destructivo en el mismo release"
 
 **Respuesta:** un cambio de esquema que rompe código viejo se parte en releases. Cada release es compatible con el anterior. El borrado va al final, cuando ningún código vivo lo usa.
