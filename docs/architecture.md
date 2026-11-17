@@ -29,7 +29,7 @@ backend/
 - **Feature:** un módulo profundo. Su interfaz pública es `Contracts/` más sus rutas HTTP.
 - **Slice:** un caso de uso, en su carpeta. La operación es una clase propia, con sus dependencias. El endpoint solo adapta HTTP y llama a la operación.
 - **Domain:** sin EF, ASP.NET ni infraestructura. Concentra las reglas que comparten las slices.
-- **Infrastructure:** observabilidad, middlewares, arranque de la base, el grupo versionado de la API, el filtro de idempotencia de los `POST` (`Http/IdempotencyFilter`, con su tabla `IdempotencyKeys`) y composición del host.
+- **Infrastructure:** observabilidad, middlewares, arranque de la base, el grupo versionado de la API, el filtro de idempotencia de los `POST` (`Http/IdempotencyFilter`, con su tabla `IdempotencyKeys`), la auditoría de cambios (`Persistence/AuditInterceptor`, con su tabla `AuditEntries`) y composición del host.
 - **Shared:** tipos generales que usan varias features, como `ApiResults`.
 
 No hay mediator ni bus. El paso 25 del plan elige uno.
@@ -49,6 +49,18 @@ Identity guarda el nombre de login, el email y las credenciales. `UserProfile` g
 Entre features, una entidad guarda solo el Id de la otra: `TaskItem.OwnerId` es un `string`, sin navegación. Las FKs que cruzan features (`UserProfiles → AspNetUsers`, `TaskItems → UserProfiles` e `IdempotencyKeys → UserProfiles`) se declaran en `AppDbContext.ConfigureCrossFeatureRelationships`, no en la `Persistence` de cada feature. La base mantiene la integridad y la cascada mientras sea compartida. El paso 22 decide si esas FKs se quitan o quedan solo en SQL.
 
 Auth y Users se usan solo por contrato. Auth crea y lee el perfil con `Users.Contracts.IUsersModule`. Users y Tasks leen la cuenta, la borran y deciden permisos con `Auth.Contracts.IAuthModule`. Ninguna de las dos conoce el interior de la otra.
+
+## Auditoría de cambios
+
+`AuditInterceptor` es un `SaveChangesInterceptor` de EF Core registrado en el `AppDbContext`. Antes de cada `SaveChanges`, agrega una fila en `AuditEntries` por cada entidad `IAuditable` (`Shared/Domain`) agregada, modificada o borrada. Hoy son `TaskItem` y `UserProfile`. La fila viaja en el mismo `SaveChanges`, entonces queda en la misma transacción que el cambio: si el cambio hace rollback (un 409 de versión, un 400 dentro del filtro de idempotencia), la fila tampoco queda.
+
+Cada fila dice quién, qué y cuándo, sin datos personales:
+
+- **Quién:** `ActorKind` (`user`, `anonymous` en el registro, `system` fuera de un pedido HTTP) y `ActorId`, el id opaco de Identity leído del claim `NameIdentifier` con `IHttpContextAccessor`, como hace el filtro de idempotencia. Infrastructure no nombra a Auth.
+- **Qué:** `EntityType`, `EntityId`, `Operation` (`Added`, `Modified`, `Deleted`) y `ChangedProperties`, solo los nombres de las propiedades modificadas. Nunca valores: el título de una tarea es texto libre y el perfil guarda nombre visible y zona horaria.
+- **Cuándo:** `OccurredAt` del `TimeProvider` y el `TraceId` de la actividad del pedido, que une la fila con el log y la traza.
+
+Lo que no pasa por el ChangeTracker no deja fila: `ExecuteUpdate`, `ExecuteDelete`, SQL crudo y las cascadas que ejecuta la base. DUNE0017 prohíbe las dos primeras sobre una entidad `IAuditable`. Al borrar la cuenta, queda la fila `Deleted` del perfil (EF lo tiene cargado), pero las tareas las borra la base en cascada, sin fila propia. `AuditEntries` no tiene FK a la cuenta: la historia sobrevive al borrado, con el id opaco. La tabla todavía no es append-only ni se limpia (pendientes en `progreso.md`).
 
 El registro crea identidad, perfil, rol y sesión en una transacción explícita. Las restricciones únicas protegen las carreras. Un resultado de error no confirma la transacción. Las migraciones son forward: renombran y hacen backfill, sin reset de base ni `EnsureCreated`.
 

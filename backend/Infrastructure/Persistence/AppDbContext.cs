@@ -17,6 +17,7 @@ public class AppDbContext : IdentityDbContext<AppIdentityUser>
     public DbSet<TaskItem> TaskItems => Set<TaskItem>();
     public DbSet<Session> Sessions => Set<Session>();
     public DbSet<IdempotencyKey> IdempotencyKeys => Set<IdempotencyKey>();
+    public DbSet<AuditEntry> AuditEntries => Set<AuditEntry>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
