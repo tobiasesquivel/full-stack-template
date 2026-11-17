@@ -1,0 +1,179 @@
+groups:
+  - name: slo-api-availability-sli
+    rules:
+      - record: job:slo_api_availability_errors:ratio_rate5m
+        expr: |
+          1 - (
+            sum by (job) (rate(http_server_request_duration_seconds_count{job="templateapp-api", http_route!~".*/health/.*", http_response_status_code!~"5.."}[5m]))
+            /
+            sum by (job) (rate(http_server_request_duration_seconds_count{job="templateapp-api", http_route!~".*/health/.*"}[5m]))
+          )
+      - record: job:slo_api_availability_errors:ratio_rate30m
+        expr: |
+          1 - (
+            sum by (job) (rate(http_server_request_duration_seconds_count{job="templateapp-api", http_route!~".*/health/.*", http_response_status_code!~"5.."}[30m]))
+            /
+            sum by (job) (rate(http_server_request_duration_seconds_count{job="templateapp-api", http_route!~".*/health/.*"}[30m]))
+          )
+      - record: job:slo_api_availability_errors:ratio_rate1h
+        expr: |
+          1 - (
+            sum by (job) (rate(http_server_request_duration_seconds_count{job="templateapp-api", http_route!~".*/health/.*", http_response_status_code!~"5.."}[1h]))
+            /
+            sum by (job) (rate(http_server_request_duration_seconds_count{job="templateapp-api", http_route!~".*/health/.*"}[1h]))
+          )
+      - record: job:slo_api_availability_errors:ratio_rate2h
+        expr: |
+          1 - (
+            sum by (job) (rate(http_server_request_duration_seconds_count{job="templateapp-api", http_route!~".*/health/.*", http_response_status_code!~"5.."}[2h]))
+            /
+            sum by (job) (rate(http_server_request_duration_seconds_count{job="templateapp-api", http_route!~".*/health/.*"}[2h]))
+          )
+      - record: job:slo_api_availability_errors:ratio_rate6h
+        expr: |
+          1 - (
+            sum by (job) (rate(http_server_request_duration_seconds_count{job="templateapp-api", http_route!~".*/health/.*", http_response_status_code!~"5.."}[6h]))
+            /
+            sum by (job) (rate(http_server_request_duration_seconds_count{job="templateapp-api", http_route!~".*/health/.*"}[6h]))
+          )
+      - record: job:slo_api_availability_errors:ratio_rate1d
+        expr: |
+          1 - (
+            sum by (job) (rate(http_server_request_duration_seconds_count{job="templateapp-api", http_route!~".*/health/.*", http_response_status_code!~"5.."}[1d]))
+            /
+            sum by (job) (rate(http_server_request_duration_seconds_count{job="templateapp-api", http_route!~".*/health/.*"}[1d]))
+          )
+      - record: job:slo_api_availability_errors:ratio_rate3d
+        expr: |
+          1 - (
+            sum by (job) (rate(http_server_request_duration_seconds_count{job="templateapp-api", http_route!~".*/health/.*", http_response_status_code!~"5.."}[3d]))
+            /
+            sum by (job) (rate(http_server_request_duration_seconds_count{job="templateapp-api", http_route!~".*/health/.*"}[3d]))
+          )
+
+  - name: slo-api-latency-sli
+    rules:
+      - record: job:slo_api_latency_errors:ratio_rate5m
+        expr: |
+          1 - (
+            sum by (job) (rate(http_server_request_duration_seconds_bucket{job="templateapp-api", http_route!~".*/health/.*", le="0.5"}[5m]))
+            /
+            sum by (job) (rate(http_server_request_duration_seconds_count{job="templateapp-api", http_route!~".*/health/.*"}[5m]))
+          )
+      - record: job:slo_api_latency_errors:ratio_rate30m
+        expr: |
+          1 - (
+            sum by (job) (rate(http_server_request_duration_seconds_bucket{job="templateapp-api", http_route!~".*/health/.*", le="0.5"}[30m]))
+            /
+            sum by (job) (rate(http_server_request_duration_seconds_count{job="templateapp-api", http_route!~".*/health/.*"}[30m]))
+          )
+      - record: job:slo_api_latency_errors:ratio_rate1h
+        expr: |
+          1 - (
+            sum by (job) (rate(http_server_request_duration_seconds_bucket{job="templateapp-api", http_route!~".*/health/.*", le="0.5"}[1h]))
+            /
+            sum by (job) (rate(http_server_request_duration_seconds_count{job="templateapp-api", http_route!~".*/health/.*"}[1h]))
+          )
+      - record: job:slo_api_latency_errors:ratio_rate2h
+        expr: |
+          1 - (
+            sum by (job) (rate(http_server_request_duration_seconds_bucket{job="templateapp-api", http_route!~".*/health/.*", le="0.5"}[2h]))
+            /
+            sum by (job) (rate(http_server_request_duration_seconds_count{job="templateapp-api", http_route!~".*/health/.*"}[2h]))
+          )
+      - record: job:slo_api_latency_errors:ratio_rate6h
+        expr: |
+          1 - (
+            sum by (job) (rate(http_server_request_duration_seconds_bucket{job="templateapp-api", http_route!~".*/health/.*", le="0.5"}[6h]))
+            /
+            sum by (job) (rate(http_server_request_duration_seconds_count{job="templateapp-api", http_route!~".*/health/.*"}[6h]))
+          )
+      - record: job:slo_api_latency_errors:ratio_rate1d
+        expr: |
+          1 - (
+            sum by (job) (rate(http_server_request_duration_seconds_bucket{job="templateapp-api", http_route!~".*/health/.*", le="0.5"}[1d]))
+            /
+            sum by (job) (rate(http_server_request_duration_seconds_count{job="templateapp-api", http_route!~".*/health/.*"}[1d]))
+          )
+      - record: job:slo_api_latency_errors:ratio_rate3d
+        expr: |
+          1 - (
+            sum by (job) (rate(http_server_request_duration_seconds_bucket{job="templateapp-api", http_route!~".*/health/.*", le="0.5"}[3d]))
+            /
+            sum by (job) (rate(http_server_request_duration_seconds_count{job="templateapp-api", http_route!~".*/health/.*"}[3d]))
+          )
+
+  - name: slo-api-alerts
+    rules:
+      - alert: ApiAvailabilityBudgetBurn
+        expr: |
+          (
+            job:slo_api_availability_errors:ratio_rate1h > (14.4 * 0.005)
+            and
+            job:slo_api_availability_errors:ratio_rate5m > (14.4 * 0.005)
+          )
+          or
+          (
+            job:slo_api_availability_errors:ratio_rate6h > (6 * 0.005)
+            and
+            job:slo_api_availability_errors:ratio_rate30m > (6 * 0.005)
+          )
+        labels:
+          severity: page
+        annotations:
+          summary: La API responde 5xx tan seguido que gasta el presupuesto de disponibilidad de 30 días en horas
+          runbook_url: https://github.com/tobiasesquivel/full-stack-template/blob/main/docs/operacion/runbooks/ApiAvailabilityBudgetBurn.md
+      - alert: ApiAvailabilityBudgetBurn
+        expr: |
+          (
+            job:slo_api_availability_errors:ratio_rate1d > (3 * 0.005)
+            and
+            job:slo_api_availability_errors:ratio_rate2h > (3 * 0.005)
+          )
+          or
+          (
+            job:slo_api_availability_errors:ratio_rate3d > (1 * 0.005)
+            and
+            job:slo_api_availability_errors:ratio_rate6h > (1 * 0.005)
+          )
+        labels:
+          severity: ticket
+        annotations:
+          summary: La API responde 5xx más seguido de lo que permite el presupuesto de disponibilidad de 30 días
+          runbook_url: https://github.com/tobiasesquivel/full-stack-template/blob/main/docs/operacion/runbooks/ApiAvailabilityBudgetBurn.md
+      - alert: ApiLatencyBudgetBurn
+        expr: |
+          (
+            job:slo_api_latency_errors:ratio_rate1h > (14.4 * 0.01)
+            and
+            job:slo_api_latency_errors:ratio_rate5m > (14.4 * 0.01)
+          )
+          or
+          (
+            job:slo_api_latency_errors:ratio_rate6h > (6 * 0.01)
+            and
+            job:slo_api_latency_errors:ratio_rate30m > (6 * 0.01)
+          )
+        labels:
+          severity: page
+        annotations:
+          summary: Tantos requests tardan más de 500 ms que la API gasta el presupuesto de latencia de 30 días en horas
+          runbook_url: https://github.com/tobiasesquivel/full-stack-template/blob/main/docs/operacion/runbooks/ApiLatencyBudgetBurn.md
+      - alert: ApiLatencyBudgetBurn
+        expr: |
+          (
+            job:slo_api_latency_errors:ratio_rate1d > (3 * 0.01)
+            and
+            job:slo_api_latency_errors:ratio_rate2h > (3 * 0.01)
+          )
+          or
+          (
+            job:slo_api_latency_errors:ratio_rate3d > (1 * 0.01)
+            and
+            job:slo_api_latency_errors:ratio_rate6h > (1 * 0.01)
+          )
+        labels:
+          severity: ticket
+        annotations:
+          summary: Más requests de los que permite el presupuesto de latencia de 30 días tardan más de 500 ms
+          runbook_url: https://github.com/tobiasesquivel/full-stack-template/blob/main/docs/operacion/runbooks/ApiLatencyBudgetBurn.md
