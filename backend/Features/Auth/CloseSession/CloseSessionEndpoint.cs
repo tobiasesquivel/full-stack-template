@@ -3,7 +3,7 @@ namespace TemplateApp.Features.Auth.CloseSession;
 public static class CloseSessionEndpoint
 {
     public static void Map(IEndpointRouteBuilder auth) =>
-        auth.MapPost("/logout", HandleAsync).AllowAnonymous().RequireRateLimiting("auth");
+        auth.MapPost("/logout", HandleAsync).AllowAnonymous().RequireRateLimiting(AuthFeature.RateLimitPolicy);
 
     private static async Task<IResult> HandleAsync(
         HttpContext http,

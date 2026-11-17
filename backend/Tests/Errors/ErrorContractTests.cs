@@ -202,18 +202,19 @@ public sealed class ErrorContractTests : IClassFixture<ApiFixture>
     }
 
     [Fact]
-    public async Task AuthLimiterRejection_Returns503_HttpServiceUnavailable()
+    public async Task AuthLimiterRejection_Returns429_HttpTooManyRequests_WithRetryAfter()
     {
         TestSession anonymous = new(_fixture.CreateIsolatedClient(_ => { }, out _));
         await anonymous.CsrfAsync();
         SessionResponse response = await anonymous.SendAsync(HttpMethod.Post, "api/v1/auth/logout");
-        for (int attempt = 0; attempt < 20 && response.Status != HttpStatusCode.ServiceUnavailable; attempt++)
+        for (int attempt = 0; attempt < 20 && response.Status != HttpStatusCode.TooManyRequests; attempt++)
         {
             response.Payload?.Dispose();
             response = await anonymous.SendAsync(HttpMethod.Post, "api/v1/auth/logout");
         }
 
-        ProblemAssert.Problem(response, HttpStatusCode.ServiceUnavailable, "Http.ServiceUnavailable");
+        ProblemAssert.Problem(response, HttpStatusCode.TooManyRequests, "Http.TooManyRequests");
+        Assert.True(int.TryParse(Assert.Contains("Retry-After", response.Headers), out int seconds) && seconds > 0);
     }
 
     [Fact]

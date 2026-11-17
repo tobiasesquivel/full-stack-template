@@ -217,6 +217,18 @@ async function checkNoCrossRequestCache() {
   if (hits.length > 0) fail(`caché entre requests antes del paso 33: ${hits.join(', ')}`);
 }
 
+async function checkRateLimitExemptionOnlyInHealth() {
+  const hits = [];
+  const exemption = /\bDisableRateLimiting(?:Attribute)?\b/;
+  for (const file of await productSources()) {
+    if (!file.endsWith('.cs')) continue;
+    const rel = toPosix(file);
+    if (rel.startsWith('backend/Features/Health/')) continue;
+    if (exemption.test(await readText(file))) hits.push(rel);
+  }
+  if (hits.length > 0) fail(`limiter global: DisableRateLimiting solo en backend/Features/Health: ${hits.join(', ')}`);
+}
+
 function coversCSharp(section) {
   if (section === '*' || section === '**') return true;
   if (/^\*\*?\.cs$/.test(section)) return true;
@@ -326,6 +338,7 @@ await checkSlicesHaveTests();
 await checkProductExcludesTests();
 await checkNoBus();
 await checkNoCrossRequestCache();
+await checkRateLimitExemptionOnlyInHealth();
 await checkEditorconfigSeverities();
 await checkNoToggleAlias();
 await checkTrackedArtifacts();

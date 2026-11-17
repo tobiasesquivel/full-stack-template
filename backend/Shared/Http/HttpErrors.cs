@@ -29,6 +29,7 @@ public static class HttpErrors
         [404] = "Http.NotFound",
         [405] = "Http.MethodNotAllowed",
         [415] = "Http.UnsupportedMediaType",
+        [429] = "Http.TooManyRequests",
         [503] = "Http.ServiceUnavailable",
     };
 

@@ -66,6 +66,8 @@ Si consumes HTTP directamente, primero pide `GET /api/v1/auth/csrf` y conserva c
 
 Los errores usan ProblemDetails. Un recurso inexistente devuelve 404 y un recurso ajeno sin permiso devuelve 403. La lista Tasks siempre es personal, incluso para un administrador. Los tests de integración, uno por slice (`backend/Features/<Feature>/<Slice>/<Slice>Tests.cs`), fijan payloads y estados exactos.
 
+La API limita la cantidad de requests por minuto. Con sesión, cada usuario tiene un balde para lecturas (300) y otro para escrituras (60); sin sesión, el balde es por IP (120). Login, registro y logout tienen además un límite de 20 por minuto por IP. Health no tiene límite. Al pasarse, la API responde 429 con `Http.TooManyRequests` y el header `Retry-After` en segundos. Los límites se cambian en las secciones `RateLimiting` y `AuthRateLimiting` de la configuración.
+
 ## Ejecutar gates
 
 Esta es la lista única de comandos de verificación. Ejecutalos sin desactivar analyzers ni omitir tests.
@@ -110,7 +112,7 @@ node .agents/skills/verify-template/scripts/smoke-api.mjs
 node .agents/skills/verify-template/scripts/smoke-api.mjs --compose
 ```
 
-El recorrido del navegador vive como specs de Playwright Test en `frontend/e2e/`, por feature: `auth`, `session`, `tasks`, `profile` y `tabs`. Corre contra una instancia de `verify-template`: tomá `frontUrl` de `run.json` y esperá 65 segundos después del smoke HTTP, porque el limiter de `/auth` admite 20 requests por minuto para toda la API. Desde `frontend`:
+El recorrido del navegador vive como specs de Playwright Test en `frontend/e2e/`, por feature: `auth`, `session`, `tasks`, `profile` y `tabs`. Corre contra una instancia de `verify-template`: tomá `frontUrl` de `run.json` y esperá 65 segundos después del smoke HTTP, porque el limiter de `/auth` admite 20 requests por minuto por IP y el smoke y el navegador llegan a la API desde la misma IP (`127.0.0.1`). Desde `frontend`:
 
 ```sh
 E2E_BASE_URL=<frontUrl> E2E_CHANNEL=msedge npm run e2e

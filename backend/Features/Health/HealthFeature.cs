@@ -10,7 +10,7 @@ public static class HealthFeature
 
     public static RouteGroupBuilder MapHealthEndpoints(this RouteGroupBuilder api)
     {
-        RouteGroupBuilder health = api.MapGroup("/health").AllowAnonymous();
+        RouteGroupBuilder health = api.MapGroup("/health").AllowAnonymous().DisableRateLimiting();
 
         GetLiveness.GetLivenessEndpoint.Map(health);
         GetReadiness.GetReadinessEndpoint.Map(health);
