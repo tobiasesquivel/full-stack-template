@@ -88,6 +88,7 @@ Excepciones (la lista es cerrada):
 - Se propaga el `CancellationToken` en toda llamada que lo acepte.
 - El tiempo sale de `TimeProvider`, en UTC. No se usa el reloj local, ni bloqueos síncronos de `Task`, ni SQL crudo sin parámetros.
 - Las migraciones se generan por CLI y son forward, con backfill. No se editan a mano.
+- Una entidad de negocio que hay que poder rastrear implementa `IAuditable` (`Shared/Domain`), y `AuditInterceptor` registra cada cambio en `AuditEntries`. Se cambia solo cargándola y guardando con `SaveChanges`: DUNE0017 rechaza `ExecuteUpdate` y `ExecuteDelete` sobre un tipo `IAuditable`. La auditoría guarda ids opacos y nombres de propiedades, nunca valores.
 - Reintentos, caché y bus entran solo con su paso del plan (29, 33 y 25). Hasta el paso 25, `check-structure.mjs` rechaza cualquier librería de bus o mediator (MediatR, MassTransit, Wolverine, NServiceBus, Rebus y otras), sea paquete, `<Using>` o `using`.
 
 ## Seguridad

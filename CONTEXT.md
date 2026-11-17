@@ -8,6 +8,14 @@ Vocabulario de perfiles, tareas y acceso a recursos personales.
 Los datos personales que acompañan a una identidad, incluidos el nombre visible y la zona horaria.
 _Avoid_: cuenta, identidad, usuario como sinónimo de perfil.
 
+**Datos personales**:
+Lo que dice algo de una persona: el nombre de login, el email, las credenciales, el nombre visible, la zona horaria y todo texto libre que escribe el usuario, como el título de una tarea. Un id opaco (el `AuthId`, un GUID al azar) no se considera dato personal en la auditoría: sin la tabla de Identity no dice quién es.
+_Avoid_: PII como sinónimo exacto; para el GDPR el id seudónimo sigue siendo dato personal.
+
+**Auditoría (AuditEntry)**:
+El registro de quién cambió qué entidad y cuándo, sin datos personales.
+_Avoid_: log, historial de valores, event sourcing.
+
 **Propietario (owner)**:
 El usuario al que pertenece una tarea o un perfil.
 _Avoid_: autor, asignado, usuario dueño.
