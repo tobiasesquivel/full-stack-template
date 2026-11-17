@@ -38,7 +38,6 @@ public sealed class CreateTask
             Id = Guid.NewGuid(),
             OwnerId = callerId,
             Title = TaskItem.NormalizeTitle(request.Title),
-            IsCompleted = false,
             CreatedAt = _clock.GetUtcNow(),
         };
 

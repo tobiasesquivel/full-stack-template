@@ -9,7 +9,7 @@ public sealed class TaskItem : IOwnedResource, IAuditable
     public Guid Id { get; init; }
     public required string OwnerId { get; init; }
     public required string Title { get; set; }
-    public bool IsCompleted { get; set; }
+    public DateTimeOffset? CompletedAt { get; set; }
     public DateTimeOffset CreatedAt { get; init; }
     public DateTimeOffset? UpdatedAt { get; set; }
     public uint Version { get; set; }

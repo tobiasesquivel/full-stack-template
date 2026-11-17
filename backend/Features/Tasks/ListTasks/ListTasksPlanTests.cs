@@ -96,8 +96,8 @@ public sealed class ListTasksPlanTests : IClassFixture<ApiFixture>
             INSERT INTO "UserProfiles" ("AuthId", "DisplayName")
             SELECT 'owner-' || o, 'Owner ' || o FROM generate_series(1, @owners) AS o;
 
-            INSERT INTO "TaskItems" ("Id", "OwnerId", "Title", "IsCompleted", "CreatedAt")
-            SELECT gen_random_uuid(), owner_id, 'Task ' || t, t % 3 = 0, created_at
+            INSERT INTO "TaskItems" ("Id", "OwnerId", "Title", "CompletedAt", "CreatedAt")
+            SELECT gen_random_uuid(), owner_id, 'Task ' || t, CASE WHEN t % 3 = 0 THEN created_at END, created_at
             FROM (
                 SELECT 'owner-' || o AS owner_id, t, now() - make_interval(secs => t) AS created_at
                 FROM generate_series(1, @owners) AS o, generate_series(1, @tasksPerOwner) AS t

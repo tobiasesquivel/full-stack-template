@@ -46,7 +46,7 @@ public sealed class AuditTrailTests : IClassFixture<ApiFixture>
             modified =>
             {
                 Assert.Equal(("TaskItem", "Modified", "user", alice.AuthId), (modified.EntityType, modified.Operation, modified.ActorKind, modified.ActorId));
-                Assert.Equal("IsCompleted,Title,UpdatedAt", modified.ChangedProperties);
+                Assert.Equal("CompletedAt,Title,UpdatedAt", modified.ChangedProperties);
                 Assert.Equal(updatedAt, modified.OccurredAt);
                 Assert.Matches("^[0-9a-f]{32}$", modified.TraceId);
             });
@@ -158,12 +158,12 @@ public sealed class AuditTrailTests : IClassFixture<ApiFixture>
         {
             AppDbContext db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             TaskItem item = await db.TaskItems.SingleAsync(t => t.Id == Guid.Parse(id));
-            item.IsCompleted = true;
+            item.Title = "Comprar pan integral";
             await db.SaveChangesAsync();
         }
 
         AuditRow system = (await _fixture.Services.AuditEntriesAsync(id)).Last();
-        Assert.Equal(("Modified", "system", null, "IsCompleted"), (system.Operation, system.ActorKind, system.ActorId, system.ChangedProperties));
+        Assert.Equal(("Modified", "system", null, "Title"), (system.Operation, system.ActorKind, system.ActorId, system.ChangedProperties));
     }
 
     private static Dictionary<string, string> KeyHeader(Guid key) => new() { ["Idempotency-Key"] = key.ToString() };

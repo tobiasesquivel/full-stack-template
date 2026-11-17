@@ -62,7 +62,7 @@ Cada fila dice quién, qué y cuándo, sin datos personales:
 
 Lo que no pasa por el ChangeTracker no deja fila: `ExecuteUpdate`, `ExecuteDelete`, SQL crudo y las cascadas que ejecuta la base. DUNE0017 prohíbe las dos primeras sobre una entidad `IAuditable`. Al borrar la cuenta, queda la fila `Deleted` del perfil (EF lo tiene cargado), pero las tareas las borra la base en cascada, sin fila propia. `AuditEntries` no tiene FK a la cuenta: la historia sobrevive al borrado, con el id opaco. La tabla todavía no es append-only ni se limpia (pendientes en `progreso.md`).
 
-El registro crea identidad, perfil, rol y sesión en una transacción explícita. Las restricciones únicas protegen las carreras. Un resultado de error no confirma la transacción. Las migraciones son forward: renombran y hacen backfill, sin reset de base ni `EnsureCreated`.
+El registro crea identidad, perfil, rol y sesión en una transacción explícita. Las restricciones únicas protegen las carreras. Un resultado de error no confirma la transacción. Las migraciones son forward y siguen expand/contract (`conventions.md`, "Migraciones: expand/contract"): ningún release borra ni renombra lo que usa el release anterior, y el backfill va en su propia migración. Sin reset de base ni `EnsureCreated`.
 
 ## Autorización y sesión
 
