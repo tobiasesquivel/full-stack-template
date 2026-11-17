@@ -178,6 +178,45 @@ async function checkNoBus() {
   if (hits.length > 0) fail(`bus o mediator antes del paso 25: ${hits.join(', ')}`);
 }
 
+const CACHE_LIBRARIES = [
+  'Microsoft.Extensions.Caching',
+  'Microsoft.AspNetCore.OutputCaching',
+  'Microsoft.AspNetCore.ResponseCaching',
+  'ZiggyCreatures.FusionCache',
+  'ZiggyCreatures.Caching',
+  'EasyCaching',
+  'LazyCache',
+  'CacheManager',
+  'CacheTower',
+];
+
+function isCacheLibrary(name) {
+  return CACHE_LIBRARIES.some((library) => name === library || name.startsWith(`${library}.`));
+}
+
+async function checkNoCrossRequestCache() {
+  const hits = [];
+  const references = /<(?:PackageReference|PackageVersion|Using)\s+(?:Include|Update)="([^"]+)"/g;
+  const namespaces = /\b(?:global::)?((?:[A-Z]\w*\.)*[A-Z]\w*)\b/g;
+  const registrations = /\b(Add\w*Cach(?:e|ing)\w*|UseOutputCache|UseResponseCaching|CacheOutput)\s*[<(]/g;
+  for (const file of [...(await productSources()), ...(await buildSources())]) {
+    const text = await readText(file);
+    if (!file.endsWith('.cs')) {
+      for (const match of text.matchAll(references)) {
+        if (isCacheLibrary(match[1])) hits.push(`${toPosix(file)} (${match[1]})`);
+      }
+      continue;
+    }
+    const found = new Set();
+    for (const match of text.matchAll(namespaces)) {
+      if (isCacheLibrary(match[1])) found.add(match[1]);
+    }
+    for (const match of text.matchAll(registrations)) found.add(match[1]);
+    for (const name of found) hits.push(`${toPosix(file)} (${name})`);
+  }
+  if (hits.length > 0) fail(`caché entre requests antes del paso 33: ${hits.join(', ')}`);
+}
+
 function coversCSharp(section) {
   if (section === '*' || section === '**') return true;
   if (/^\*\*?\.cs$/.test(section)) return true;
@@ -286,6 +325,7 @@ async function checkNoNestedGit() {
 await checkSlicesHaveTests();
 await checkProductExcludesTests();
 await checkNoBus();
+await checkNoCrossRequestCache();
 await checkEditorconfigSeverities();
 await checkNoToggleAlias();
 await checkTrackedArtifacts();
