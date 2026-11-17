@@ -45,6 +45,15 @@ El dominio (tareas) es simple a propósito: importa el rigor técnico. **Todo el
 11. **Un paso cierra cuando Tobi entendió su concepto, no cuando los gates dan verde.** Cada paso para dos veces y espera la respuesta de Tobi: después de la explicación, antes del código, y después de la evidencia, con el concepto explicado sobre el código que cambió. Hasta que Tobi responde, el paso queda `en curso`.
 12. **Antes de explicar un paso que cambia código, investigá cómo se implementa de forma profesional.** El plan dice qué pieza entra; la investigación dice cómo queda bien en este código. Delegala a un subagente con la skill `research`: fuentes primarias (documentación oficial, repos y guías de los mantenedores), con un link por afirmación, y dentro de la arquitectura del repo (ADR-0004, `architecture.md`, `conventions.md`). El resultado va en `docs/evolucion/investigacion/paso-<N>-<tema>.md`. Contrastá cada afirmación con el código antes de usarla, y apoyá la explicación previa en ese archivo. Si la investigación choca con los docs del repo, frená y preguntale a Tobi.
 
+## Modo autónomo (pasos 10 a 19)
+
+Tobi lo pidió el 2026-11-16: "yo ahora voy a saltearme la parte de aprender, lo único que quiero es que por cada hilo se realice un paso". Un hilo orquestador abre un hilo por paso, del 10 al 19, y para después del 19. Mientras dure, estas reglas cambian a las de arriba:
+
+- **Regla 11 en pausa.** El paso no para a explicar ni a esperar a Tobi. En "Cierres", `Enseñado` dice "modo autónomo: sin explicación previa" y `Preguntas` dice "ninguna (modo autónomo)".
+- **Cada elección la toma el agente con su recomendación** ("Las opciones que él naturalmente me preguntaría van a ser siempre las que él recomiende"). La anota como decisión. Si es de diseño, va en `docs/decisions.tsv`.
+- **Excepción: herramientas y tecnologías.** Si el paso tiene que elegir una herramienta, una librería o una tecnología, el hilo frena y le pregunta a Tobi en ese hilo ("siempre que pregunten por elegir una herramienta, yo quiero responder"). La regla 5 sigue igual.
+- **Regla 6, el merge:** el orquestador mergea a `main` el PR de cada paso cuando su CI da verde, y el paso siguiente sale de `main` (Tobi eligió "Yo mergeo cada PR" el 2026-11-16).
+
 ## Cómo enseñar
 
 - Un concepto por paso.
