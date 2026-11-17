@@ -1,7 +1,9 @@
 using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
+using Microsoft.CodeAnalysis.Operations;
 
 namespace Dune.Analyzers;
 
@@ -17,16 +19,61 @@ public sealed class CrossFeatureAnalyzer : DiagnosticAnalyzer
     {
         context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
         context.EnableConcurrentExecution();
-        context.RegisterSyntaxNodeAction(Analyze, SyntaxKind.IdentifierName, SyntaxKind.SimpleMemberAccessExpression);
+        context.RegisterSyntaxNodeAction(AnalyzeName, SyntaxKind.IdentifierName, SyntaxKind.SimpleMemberAccessExpression);
+        context.RegisterOperationAction(
+            AnalyzeOperation,
+            OperationKind.Invocation,
+            OperationKind.MethodReference,
+            OperationKind.PropertyReference,
+            OperationKind.FieldReference,
+            OperationKind.EventReference,
+            OperationKind.ObjectCreation,
+            OperationKind.DelegateCreation,
+            OperationKind.Binary,
+            OperationKind.Unary,
+            OperationKind.Conversion,
+            OperationKind.DefaultValue);
+        context.RegisterSyntaxNodeAction(
+            AnalyzePatternMember,
+            SyntaxKind.ForEachStatement,
+            SyntaxKind.ForEachVariableStatement,
+            SyntaxKind.AwaitExpression,
+            SyntaxKind.SimpleAssignmentExpression,
+            SyntaxKind.RecursivePattern);
     }
 
-    private static void Analyze(SyntaxNodeAnalysisContext context)
+    private static void AnalyzePatternMember(SyntaxNodeAnalysisContext context)
+    {
+        if (!TryGetOwner(context.Node.SyntaxTree, out var owner))
+        {
+            return;
+        }
+
+        var model = context.SemanticModel;
+        var methods = context.Node switch
+        {
+            ForEachVariableStatementSyntax loop => new ISymbol?[] { model.GetForEachStatementInfo(loop).GetEnumeratorMethod, model.GetDeconstructionInfo(loop).Method },
+            CommonForEachStatementSyntax loop => new ISymbol?[] { model.GetForEachStatementInfo(loop).GetEnumeratorMethod },
+            AwaitExpressionSyntax awaited => new ISymbol?[] { model.GetAwaitExpressionInfo(awaited).GetAwaiterMethod },
+            AssignmentExpressionSyntax assignment => new ISymbol?[] { model.GetDeconstructionInfo(assignment).Method },
+            _ => new ISymbol?[] { (model.GetOperation(context.Node, context.CancellationToken) as IRecursivePatternOperation)?.DeconstructSymbol },
+        };
+
+        foreach (var method in methods)
+        {
+            var foreign = FindForeignInterior(DeclaringType(method), owner);
+            if (foreign is not null)
+            {
+                context.ReportDiagnostic(Diagnostic.Create(DuneDiagnostics.CrossFeature, context.Node.GetLocation(), foreign.ToDisplayString()));
+                return;
+            }
+        }
+    }
+
+    private static void AnalyzeName(SyntaxNodeAnalysisContext context)
     {
         var node = context.Node;
-        var path = DunePaths.Normalize(node.SyntaxTree.FilePath);
-        if (!DunePaths.IsBackendFile(path)
-            || DunePaths.IsMigration(path)
-            || !DunePaths.TryGetFeature(path, out var owner))
+        if (!TryGetOwner(node.SyntaxTree, out var owner))
         {
             return;
         }
@@ -36,15 +83,52 @@ public sealed class CrossFeatureAnalyzer : DiagnosticAnalyzer
             ? FindForeignInterior(named, owner)
             : FindForeignInterior(context.SemanticModel.GetTypeInfo(node, context.CancellationToken).Type, owner);
 
-        if (foreign is null)
+        if (foreign is not null)
+        {
+            context.ReportDiagnostic(Diagnostic.Create(DuneDiagnostics.CrossFeature, node.GetLocation(), foreign.ToDisplayString()));
+        }
+    }
+
+    private static void AnalyzeOperation(OperationAnalysisContext context)
+    {
+        var operation = context.Operation;
+        if (!TryGetOwner(operation.Syntax.SyntaxTree, out var owner))
         {
             return;
         }
 
-        context.ReportDiagnostic(Diagnostic.Create(
-            DuneDiagnostics.CrossFeature,
-            node.GetLocation(),
-            foreign.ToDisplayString()));
+        ISymbol? member = operation switch
+        {
+            IInvocationOperation invocation => invocation.TargetMethod,
+            IMemberReferenceOperation reference => reference.Member,
+            IBinaryOperation binary => binary.OperatorMethod,
+            IUnaryOperation unary => unary.OperatorMethod,
+            IConversionOperation conversion => conversion.OperatorMethod,
+            _ => null,
+        };
+
+        var foreign = FindForeignInterior(DeclaringType(member), owner)
+            ?? FindForeignInterior(operation.Type, owner);
+
+        if (foreign is not null)
+        {
+            context.ReportDiagnostic(Diagnostic.Create(DuneDiagnostics.CrossFeature, operation.Syntax.GetLocation(), foreign.ToDisplayString()));
+        }
+    }
+
+    private static INamedTypeSymbol? DeclaringType(ISymbol? member)
+    {
+        var type = member?.ContainingType;
+        return type is { IsExtension: true } ? type.ContainingType : type;
+    }
+
+    private static bool TryGetOwner(SyntaxTree tree, out string owner)
+    {
+        owner = string.Empty;
+        var path = DunePaths.Normalize(tree.FilePath);
+        return DunePaths.IsBackendFile(path)
+            && !DunePaths.IsMigration(path)
+            && DunePaths.TryGetFeature(path, out owner);
     }
 
     private static ITypeSymbol? FindForeignInterior(ITypeSymbol? type, string owner)
@@ -92,7 +176,6 @@ public sealed class CrossFeatureAnalyzer : DiagnosticAnalyzer
             return false;
         }
 
-        return !tail.Equals("Contracts", System.StringComparison.Ordinal)
-            && !tail.StartsWith("Contracts.", System.StringComparison.Ordinal);
+        return !tail.Equals("Contracts", System.StringComparison.Ordinal);
     }
 }

@@ -24,6 +24,38 @@ public sealed class NamingAndQueryAnalyzerTests
     }
 
     [Fact]
+    public async Task RecordStructNamespaceMustMatchPath()
+    {
+        var diagnostics = await AnalyzerHost.AnalyzeAsync(
+            new List<(string, string)>
+            {
+                ("backend/Features/Tasks/CreateTask/Hidden.cs", """
+                    namespace TemplateApp.Features.Tasks.Contracts;
+                    internal readonly record struct Hidden(int X);
+                    """),
+            },
+            AnalyzerHost.Only<NamingAnalyzer>());
+
+        Assert.Contains(diagnostics, diagnostic => diagnostic.Id == "DUNE0005");
+    }
+
+    [Fact]
+    public async Task DelegateNamespaceMustMatchPath()
+    {
+        var diagnostics = await AnalyzerHost.AnalyzeAsync(
+            new List<(string, string)>
+            {
+                ("backend/Features/Tasks/CreateTask/HiddenHandler.cs", """
+                    namespace TemplateApp.Features.Tasks.Contracts;
+                    internal delegate void HiddenHandler();
+                    """),
+            },
+            AnalyzerHost.Only<NamingAnalyzer>());
+
+        Assert.Contains(diagnostics, diagnostic => diagnostic.Id == "DUNE0005");
+    }
+
+    [Fact]
     public async Task ModuleOutsideFeatureRootIsRejected()
     {
         var diagnostics = await AnalyzerHost.AnalyzeAsync(
