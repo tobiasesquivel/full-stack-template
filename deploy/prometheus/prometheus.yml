@@ -1,0 +1,8 @@
+global:
+  evaluation_interval: 15s
+
+rule_files:
+  - rules/slo-api.rules.yml
+
+otlp:
+  translation_strategy: UnderscoreEscapingWithSuffixes

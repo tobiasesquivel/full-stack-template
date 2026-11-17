@@ -21,12 +21,34 @@ services:
     image: otel/opentelemetry-collector-contrib:0.162.0
     restart: unless-stopped
     command: ["--config", "/etc/otelcol-contrib/config.yaml"]
+    depends_on:
+      prometheus:
+        condition: service_healthy
     volumes:
       - ./deploy/otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml:ro
       - ${OTEL_EXPORT_DIR:-./otel-export}:/otel-export
     ports:
       - "4317:4317"
       - "4318:4318"
+
+  prometheus:
+    image: prom/prometheus:v3.13.5
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=35d
+      - --web.enable-otlp-receiver
+    volumes:
+      - ./deploy/prometheus:/etc/prometheus:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--output-document=/dev/null", "http://localhost:9090/-/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
   api:
     build:
@@ -62,3 +84,4 @@ services:
 volumes:
   pgdata:
   dataprotection:
+  prometheus-data:

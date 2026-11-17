@@ -59,6 +59,12 @@ function node(...args) {
   return { cmd: process.execPath, args };
 }
 
+function promtool(...args) {
+  const image = readFileSync(path.join(REPO_ROOT, 'compose.yaml'), 'utf8').match(/prom\/prometheus:[^"\s]+/)[0];
+  const rules = `${path.join(REPO_ROOT, 'deploy', 'prometheus')}:/etc/prometheus:ro`;
+  return { cmd: 'docker', args: ['run', '--rm', '--entrypoint', 'promtool', '--volume', rules, image, ...args] };
+}
+
 const GATES = [
   { name: 'dotnet-build', cmd: 'dotnet', args: ['build', 'TemplateApp.slnx', '--configuration', 'Release'] },
   { name: 'dotnet-test', cmd: 'dotnet', args: ['test', 'TemplateApp.slnx', '--configuration', 'Release'] },
@@ -73,6 +79,10 @@ const GATES = [
   { name: 'npm-audit', ...npm('audit', '--omit=dev', '--audit-level=high'), cwd: FRONTEND_DIR },
   { name: 'check-comments', ...node('dune/check-comments.mjs', '--root', '.') },
   { name: 'check-comments-test', ...node('--test', 'dune/check-comments.test.mjs') },
+  { name: 'check-runbooks', ...node('dune/check-runbooks.mjs') },
+  { name: 'check-runbooks-test', ...node('--test', 'dune/check-runbooks.test.mjs') },
+  { name: 'promtool-check', ...promtool('check', 'config', '--lint-fatal', '/etc/prometheus/prometheus.yml') },
+  { name: 'promtool-test', ...promtool('test', 'rules', '/etc/prometheus/rules/slo-api.test.yml') },
   { name: 'front-build', ...npm('run', 'build'), cwd: FRONTEND_DIR },
   { name: 'format-check', ...npm('run', 'format:check'), cwd: FRONTEND_DIR },
   { name: 'vitest', ...npm('test', '--', '--watch=false'), cwd: FRONTEND_DIR },

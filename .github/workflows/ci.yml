@@ -90,6 +90,29 @@ jobs:
       - name: Gate de comentarios
         run: node dune/check-comments.mjs --root .
 
+  slos:
+    name: SLOs, alertas y runbooks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26.7.0
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Instalar dependencias de analisis
+        run: npm ci --prefix frontend
+      - name: Tests del gate de runbooks
+        run: node --test dune/check-runbooks.test.mjs
+      - name: Toda alerta tiene su runbook
+        run: node dune/check-runbooks.mjs
+      - name: Imagen de Prometheus de compose.yaml
+        run: echo "PROMETHEUS_IMAGE=$(grep -oE 'prom/prometheus:[^[:space:]]+' compose.yaml | head -n 1)" >> "$GITHUB_ENV"
+      - name: Configuración y reglas de Prometheus (promtool, lint fatal)
+        run: docker run --rm --entrypoint promtool --volume "$PWD/deploy/prometheus:/etc/prometheus:ro" "$PROMETHEUS_IMAGE" check config --lint-fatal /etc/prometheus/prometheus.yml
+      - name: Pruebas unitarias de las alertas (promtool)
+        run: docker run --rm --entrypoint promtool --volume "$PWD/deploy/prometheus:/etc/prometheus:ro" "$PROMETHEUS_IMAGE" test rules /etc/prometheus/rules/slo-api.test.yml
+
   security:
     name: Escaneo de secretos y dependencias
     runs-on: ubuntu-latest
@@ -159,12 +182,20 @@ jobs:
           done
           echo "La API no alcanzó readiness tras 300s"
           docker compose ps
-          docker compose logs api db otel
+          docker compose logs api db otel prometheus
           exit 1
       - name: Smoke runtime (API, DB down, persistencia, OTEL)
         run: node .agents/skills/verify-template/scripts/smoke-api.mjs --compose
         env:
           API_BASE_URL: http://localhost:8080/api/v1/
+      - name: SLOs consultados en Prometheus y cada alerta disparada en vivo
+        run: node .agents/skills/verify-template/scripts/check-slo-alerts.mjs slo-check
+        env:
+          API_BASE_URL: http://localhost:8080/api/v1/
+          PROMETHEUS_URL: http://localhost:9090/
+      - name: Logs del stack si falla
+        if: failure()
+        run: docker compose logs api db otel prometheus
       - name: Apagar stack
         if: always()
         run: docker compose down --timeout 30 --volumes
@@ -176,3 +207,10 @@ jobs:
         with:
           name: otel-export
           path: otel-export/
+      - name: Publicar evidencia de SLOs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: slo-check
+          path: slo-check/
+          if-no-files-found: ignore

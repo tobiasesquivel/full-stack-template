@@ -32,6 +32,8 @@ exporters:
     append: true
     create_directory: true
     flush_interval: 5s
+  otlp_http/prometheus:
+    endpoint: http://prometheus:9090/api/v1/otlp
 
 service:
   pipelines:
@@ -42,7 +44,7 @@ service:
     metrics:
       receivers: [otlp]
       processors: [batch]
-      exporters: [file/metrics, debug]
+      exporters: [file/metrics, otlp_http/prometheus, debug]
     traces:
       receivers: [otlp]
       processors: [batch]
