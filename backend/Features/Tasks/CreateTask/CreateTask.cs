@@ -14,12 +14,14 @@ public sealed class CreateTask
     private readonly AppDbContext _db;
     private readonly IAuthModule _auth;
     private readonly TimeProvider _clock;
+    private readonly TaskMetrics _metrics;
 
-    public CreateTask(AppDbContext db, IAuthModule auth, TimeProvider clock)
+    public CreateTask(AppDbContext db, IAuthModule auth, TimeProvider clock, TaskMetrics metrics)
     {
         _db = db;
         _auth = auth;
         _clock = clock;
+        _metrics = metrics;
     }
 
     public async Task<ErrorOr<TaskResponse>> ExecuteAsync(string callerId, CreateTaskRequest request, CancellationToken ct)
@@ -42,6 +44,7 @@ public sealed class CreateTask
 
         _db.TaskItems.Add(item);
         await _db.SaveChangesAsync(ct);
+        _metrics.TaskCreated();
 
         return TaskResponses.From(item);
     }

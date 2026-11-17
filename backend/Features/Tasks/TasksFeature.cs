@@ -4,6 +4,7 @@ public static class TasksFeature
 {
     public static IServiceCollection AddTasksFeature(this IServiceCollection services)
     {
+        services.AddSingleton<TaskMetrics>();
         services.AddScoped<CreateTask.CreateTask>();
         services.AddScoped<ListTasks.ListTasks>();
         services.AddScoped<GetTask.GetTask>();
