@@ -166,4 +166,13 @@ internal static class DuneDiagnostics
         isEnabledByDefault: true,
         description: "Cada tipo de Contracts/ y cada método de la puerta tiene un uso desde otra feature. El uso desde la propia feature, Infrastructure o los tests no cuenta.",
         customTags: WellKnownDiagnosticTags.CompilationEnd);
+
+    public static readonly DiagnosticDescriptor IdempotentPost = new(
+        id: "DUNE0016",
+        title: "POST sin idempotencia",
+        messageFormat: "'{0}' mapea un POST sin encadenar WithIdempotency<TRequest>(); el cliente no puede repetir la intención con Idempotency-Key",
+        category: "Dune",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "Todo MapPost de un *Endpoint.cs de una feature encadena WithIdempotency<TRequest>(), así un reintento con la misma clave no crea un segundo recurso. Auth queda fuera: sus POST no crean recursos de negocio o ya son idempotentes.");
 }

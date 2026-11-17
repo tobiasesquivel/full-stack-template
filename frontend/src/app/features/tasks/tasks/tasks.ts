@@ -16,6 +16,7 @@ import { TaskPager } from '../task-pager/task-pager';
 import { TaskRow } from '../task-row/task-row';
 import { TaskDeleteDialog } from '../task-delete-dialog/task-delete-dialog';
 import { taskConflictMessage } from './task-conflict';
+import { type CreateAttempt, nextCreateAttempt } from './create-attempt';
 
 const PAGE_SIZE = 10;
 
@@ -45,6 +46,7 @@ export class Tasks {
   private readonly injector = inject(Injector);
   private readonly tasksHeading = viewChild<ElementRef<HTMLElement>>('tasksHeading');
   private readonly newTask = signal({ title: '' });
+  private lastAttempt: CreateAttempt | null = null;
   protected readonly createForm = form(
     this.newTask,
     (path) => {
@@ -92,7 +94,10 @@ export class Tasks {
   private async create(): Promise<undefined> {
     this.createError.set(null);
     try {
-      await this.tasksApi.create(this.newTask().title.trim());
+      const attempt = nextCreateAttempt(this.lastAttempt, this.newTask().title.trim());
+      this.lastAttempt = attempt;
+      await this.tasksApi.create(attempt.title, attempt.key);
+      this.lastAttempt = null;
       this.createForm().reset({ title: '' });
       this.cursors.set([null]);
       await this.load();

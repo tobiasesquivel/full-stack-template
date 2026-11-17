@@ -1,12 +1,13 @@
 using System.Security.Claims;
 using TemplateApp.Features.Auth.Contracts;
+using TemplateApp.Infrastructure.Http;
 using TemplateApp.Shared.Http;
 
 namespace TemplateApp.Features.Tasks.CreateTask;
 
 public static class CreateTaskEndpoint
 {
-    public static void Map(IEndpointRouteBuilder tasks) => tasks.MapPost("", HandleAsync);
+    public static void Map(IEndpointRouteBuilder tasks) => tasks.MapPost("", HandleAsync).WithIdempotency<CreateTaskRequest>();
 
     private static async Task<IResult> HandleAsync(
         CreateTaskRequest request,
