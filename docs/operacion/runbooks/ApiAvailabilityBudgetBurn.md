@@ -44,10 +44,10 @@ Los usuarios ven errores al listar, crear o editar tareas, o al iniciar sesión.
 - Base parada: `docker compose start db`. La API se reconecta sola; readiness vuelve a 200.
 - Migraciones pendientes: reiniciar la API (`docker compose restart api`), que migra al arrancar bajo un lock.
 - Error de código después de un despliegue: volver a la imagen anterior de la API.
-- Cuando el SLI de 5m vuelve a 0, la página se apaga sola en minutos. El ticket tarda más, porque mira 2h y 6h.
+- Después de arreglar la causa, la página no se apaga enseguida: la condición de 1h y 5m cae en unos 5 minutos, pero la de 6h y 30m sigue hasta que la ventana de 30 minutos baja del umbral, hasta media hora. El ticket tarda más, porque mira 2h y 6h.
 - Una base caída también gasta el presupuesto de latencia: con la base parada cada 500 tarda entre 7,5 y 10 s, porque EF Core reintenta. Puede saltar `ApiLatencyBudgetBurn` al mismo tiempo; se resuelve con la misma causa.
 
 ## Cómo probarla
 
-- Unitaria: `promtool test rules deploy/prometheus/rules/slo-api.test.yml`. Los casos "una caida total dispara la pagina y el ticket de disponibilidad", "un pico corto no despierta a nadie", "una quema lenta abre un ticket y no pagina", "los 503 de readiness no cuentan contra el SLO" y "los 4xx y los 429 son respuestas correctas del servicio" cubren esta alerta.
+- Unitaria: `promtool test rules deploy/prometheus/rules/slo-api.test.yml`. Los casos "una caida total dispara la pagina y el ticket de disponibilidad", "una instancia nueva que solo responde 5xx dispara la pagina de disponibilidad", "un pico corto no despierta a nadie", "una quema media de seis horas pagina por la ventana de 6h y no por la de 1h", "una quema lenta abre un ticket y no pagina", "una quema lenta de tres dias abre ticket por la ventana de 3d y no por la de 1d", "los 503 de readiness no cuentan contra el SLO" y "los 4xx y los 429 son respuestas correctas del servicio" cubren esta alerta.
 - En vivo: `node .agents/skills/verify-template/scripts/check-slo-alerts.mjs` con el stack arriba. La fase "base parada: 5xx" para `db`, manda requests con sesión y espera esta alerta en `firing` con `page` y `ticket`.

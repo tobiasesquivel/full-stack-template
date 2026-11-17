@@ -36,7 +36,8 @@ job:slo_api_availability_errors:ratio_rate1h
 job:slo_api_latency_errors:ratio_rate1h
 ```
 
-La regla se escribe como `1 - buenos / total`. Así vale 0 cuando hay tráfico sin errores; con `malos / total`, si nunca hubo un 5xx, la serie de 5xx no existe y la consulta vuelve vacía.
+- Disponibilidad: `(5xx or 0 * total) / total`. Si nunca hubo un 5xx, la serie de 5xx no existe y `5xx / total` volvería vacía; el `or 0 * total` la reemplaza por 0. No se escribe como `1 - buenos / total`: si una instancia nueva de la API solo responde 5xx, no hay series de requests buenos, la resta vuelve vacía y la alerta se apaga en plena caída.
+- Latencia: `1 - bucket{le="0.5"} / total`. Cada serie del histograma trae su bucket de 0,5 aunque esté en 0, así que el numerador siempre existe.
 
 El presupuesto consumido en 30 días (1 = gastado entero):
 
@@ -77,8 +78,8 @@ Alertas multiventana de burn rate, la forma que recomienda el SRE Workbook de Go
 
 ## Cómo se prueba
 
-- `promtool test rules deploy/prometheus/rules/slo-api.test.yml`: series sintéticas prueban que la caída total pagina, que un pico corto no, que una quema lenta abre un ticket, que los 503 de readiness, los 4xx y los 429 no cuentan, y que los requests lentos disparan la alerta de latencia.
+- `promtool test rules deploy/prometheus/rules/slo-api.test.yml`: series sintéticas prueban que la caída total pagina, que una instancia nueva que solo responde 5xx también, que un pico corto no, que una quema media pagina por la ventana de 6h, que las quemas lentas abren ticket por la de 1d y por la de 3d, que los 503 de readiness, los 4xx y los 429 no cuentan, y que los requests lentos disparan la alerta de latencia.
 - `node dune/check-runbooks.mjs`: toda alerta enlaza su runbook, el runbook existe y tiene sus secciones, y no hay runbooks huérfanos.
-- `node .agents/skills/verify-template/scripts/check-slo-alerts.mjs`: con el stack de Compose arriba, consulta cada SLI en Prometheus, congela la base para producir requests lentos y la para para producir 5xx, y espera cada alerta en `firing`.
+- `node .agents/skills/verify-template/scripts/check-slo-alerts.mjs`: con el stack de Compose arriba, consulta cada SLI en Prometheus, manda 200 requests sanos, congela la base para producir requests lentos y la para para producir 5xx, y espera cada alerta en `firing`.
 
 Revisión: 2027-05-17, o antes si cambia el tráfico.

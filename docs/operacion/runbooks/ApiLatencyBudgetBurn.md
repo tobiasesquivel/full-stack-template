@@ -44,7 +44,7 @@ La app funciona pero se siente trabada: listas que tardan, botones que esperan. 
 - Base congelada: `docker compose unpause db`. Los requests en espera terminan solos.
 - Consulta trabada: cancelarla con `select pg_cancel_backend(<pid>);` y buscar por qué tardó (índice faltante, bloqueo).
 - Contenedor sin recursos: darle más CPU o memoria, o reducir la carga.
-- Cuando el SLI de 5m vuelve a 0, la página se apaga sola en minutos. El ticket tarda más, porque mira 2h y 6h.
+- Después de arreglar la causa, la página no se apaga enseguida: la condición de 1h y 5m cae en unos 5 minutos, pero la de 6h y 30m sigue hasta que la ventana de 30 minutos baja del umbral, hasta media hora. El ticket tarda más, porque mira 2h y 6h.
 
 ## Cómo probarla
 

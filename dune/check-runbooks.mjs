@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, globSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
@@ -30,15 +30,15 @@ function alertsIn(root, violations) {
   const configPath = path.join(root, PROMETHEUS_CONFIG);
   const config = YAML.parse(readFileSync(configPath, 'utf8')) ?? {};
   const alerts = [];
-  for (const ruleFile of config.rule_files ?? []) {
-    const rulePath = path.resolve(path.dirname(configPath), ruleFile);
-    if (!existsSync(rulePath)) {
-      violations.push(['rule-file-missing', `${PROMETHEUS_CONFIG} carga ${ruleFile}, que no existe`]);
-      continue;
-    }
-    const rules = YAML.parse(readFileSync(rulePath, 'utf8'))?.groups?.flatMap(group => group.rules ?? []) ?? [];
-    for (const rule of rules.filter(entry => entry.alert)) {
-      alerts.push({ name: rule.alert, url: rule.annotations?.runbook_url, file: ruleFile });
+  for (const pattern of config.rule_files ?? []) {
+    const ruleFiles = globSync(pattern, { cwd: path.dirname(configPath) });
+    if (ruleFiles.length === 0) violations.push(['rule-file-missing', `${PROMETHEUS_CONFIG} carga ${pattern}, que no existe`]);
+    for (const ruleFile of ruleFiles) {
+      const groups = YAML.parse(readFileSync(path.resolve(path.dirname(configPath), ruleFile), 'utf8'))?.groups ?? [];
+      const rules = groups.flatMap(group => group?.rules ?? []);
+      for (const rule of rules.filter(entry => entry?.alert)) {
+        alerts.push({ name: rule.alert, url: rule.annotations?.runbook_url, file: ruleFile });
+      }
     }
   }
   return alerts;

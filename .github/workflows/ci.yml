@@ -107,7 +107,7 @@ jobs:
       - name: Toda alerta tiene su runbook
         run: node dune/check-runbooks.mjs
       - name: Imagen de Prometheus de compose.yaml
-        run: echo "PROMETHEUS_IMAGE=$(grep -oE 'prom/prometheus:[^[:space:]]+' compose.yaml)" >> "$GITHUB_ENV"
+        run: echo "PROMETHEUS_IMAGE=$(grep -oE 'prom/prometheus:[^[:space:]]+' compose.yaml | head -n 1)" >> "$GITHUB_ENV"
       - name: Configuración y reglas de Prometheus (promtool, lint fatal)
         run: docker run --rm --entrypoint promtool --volume "$PWD/deploy/prometheus:/etc/prometheus:ro" "$PROMETHEUS_IMAGE" check config --lint-fatal /etc/prometheus/prometheus.yml
       - name: Pruebas unitarias de las alertas (promtool)

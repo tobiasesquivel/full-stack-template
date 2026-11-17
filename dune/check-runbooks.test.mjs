@@ -67,6 +67,16 @@ describe('check-runbooks', () => {
     assert.equal(result.code, 0, result.output);
   });
 
+  it('reads the rule files a glob in prometheus.yml names', async () => {
+    const result = await check({ ruleFiles: ['rules/*.rules.yml'] });
+    assert.equal(result.code, 0, result.output);
+    assert.match(result.output, /check-runbooks: OK \(1 alertas, 1 runbooks\)/);
+  });
+
+  it('fails when a glob in prometheus.yml matches no rule file', async () => {
+    await assertViolation({ ruleFiles: ['rules/api.rules.yml', 'rules/*.missing.yml'] }, 'rule-file-missing');
+  });
+
   it('fails when an alert has no runbook_url', async () => {
     await assertViolation({ rules: [rule('ApiDown', { summary: 'sin runbook' })] }, 'runbook-url-missing');
   });

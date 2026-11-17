@@ -11,6 +11,7 @@ const RUNBOOK_URL_PREFIX = 'https://github.com/tobiasesquivel/full-stack-templat
 const SLIS = ['job:slo_api_availability_errors:ratio_rate5m', 'job:slo_api_latency_errors:ratio_rate5m'];
 const ALERTS = ['ApiAvailabilityBudgetBurn', 'ApiLatencyBudgetBurn'];
 const FIRE_TIMEOUT_MS = 300_000;
+const HEALTHY_REQUESTS = 200;
 const report = { startedAt: new Date().toISOString(), slis: {}, phases: [] };
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -119,11 +120,14 @@ async function phase({ name, alert, inject }) {
   const began = Date.now();
   const statuses = {};
   const count = status => { statuses[status] = (statuses[status] ?? 0) + 1; };
-  const stop = { done: false };
-  const load = inject(stop, count);
+  const stop = { done: false, error: null };
+  const load = inject(stop, count).catch(error => {
+    stop.error = error;
+  });
   let fired;
   try {
     fired = await until(`${alert} firing con severity page y ticket`, async () => {
+      if (stop.error) return [];
       const active = (await firing()).filter(entry => entry.labels.alertname === alert);
       const severities = new Set(active.map(entry => entry.labels.severity));
       return severities.has('page') && severities.has('ticket') ? active : null;
@@ -133,6 +137,7 @@ async function phase({ name, alert, inject }) {
     await load;
     await waitReady();
   }
+  if (stop.error) throw stop.error;
   for (const entry of fired) {
     assert.equal(entry.annotations.runbook_url, `${RUNBOOK_URL_PREFIX}${alert}.md`, `${alert} llega con su runbook`);
   }
@@ -183,19 +188,25 @@ try {
   await waitReady();
   await checkRules();
   await user.register();
-  const healthy = { done: false };
+  const healthy = { done: false, sent: 0, error: null };
   const traffic = (async () => {
     while (!healthy.done) {
-      assert.equal(await user.send('GET', 'tasks'), 200);
+      assert.equal(await user.send('GET', 'tasks'), 200, 'Con la base sana, GET tasks responde 200');
+      healthy.sent += 1;
       await sleep(250);
     }
-  })();
+  })().catch(error => {
+    healthy.error = error;
+  });
   try {
     await querySlis();
+    await until(`${HEALTHY_REQUESTS} requests sanos`, async () => healthy.error !== null || healthy.sent >= HEALTHY_REQUESTS, 180_000);
   } finally {
     healthy.done = true;
     await traffic;
   }
+  if (healthy.error) throw healthy.error;
+  report.healthyRequests = healthy.sent;
   assert.deepEqual((await firing()).map(entry => entry.labels.alertname), [], 'Con tráfico sano no hay alertas de SLO');
 
   const othersDuringLatency = await phase({ name: 'base congelada 3 s: requests 200 lentos', alert: 'ApiLatencyBudgetBurn', inject: slowButSuccessful });
