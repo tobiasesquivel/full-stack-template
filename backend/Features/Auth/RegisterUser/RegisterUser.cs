@@ -8,7 +8,7 @@ using TemplateApp.Infrastructure.Persistence;
 
 namespace TemplateApp.Features.Auth.RegisterUser;
 
-public sealed class RegisterUser
+internal sealed class RegisterUser
 {
     private readonly UserManager<AppIdentityUser> _users;
     private readonly AppDbContext _db;

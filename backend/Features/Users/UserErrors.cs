@@ -3,7 +3,7 @@ using TemplateApp.Features.Users.Domain;
 
 namespace TemplateApp.Features.Users;
 
-public static class UserErrors
+internal static class UserErrors
 {
     public static Error NotFound(string authId) => Error.NotFound(
         code: "User.NotFound",

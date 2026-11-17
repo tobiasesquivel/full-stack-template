@@ -4,7 +4,7 @@ using TemplateApp.Features.Tasks.Domain;
 
 namespace TemplateApp.Features.Tasks.Persistence;
 
-public sealed class TaskItemConfiguration : IEntityTypeConfiguration<TaskItem>
+internal sealed class TaskItemConfiguration : IEntityTypeConfiguration<TaskItem>
 {
     public void Configure(EntityTypeBuilder<TaskItem> builder)
     {

@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Identity;
 
 namespace TemplateApp.Features.Auth;
 
-public static class AuthErrors
+internal static class AuthErrors
 {
     public static readonly Error EmailAlreadyExists = Error.Conflict(
         code: "Auth.EmailAlreadyExists",

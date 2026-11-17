@@ -1,6 +1,6 @@
 namespace TemplateApp.Features.Auth.Domain;
 
-public sealed class Session
+internal sealed class Session
 {
     public static readonly TimeSpan TouchInterval = TimeSpan.FromMinutes(1);
 

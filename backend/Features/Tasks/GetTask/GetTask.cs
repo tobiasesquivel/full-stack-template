@@ -10,7 +10,7 @@ using TemplateApp.Shared.Domain;
 
 namespace TemplateApp.Features.Tasks.GetTask;
 
-public sealed class GetTask
+internal sealed class GetTask
 {
     private static readonly Expression<Func<TaskItem, OwnedTask>> Read = ComposeRead((item, response) => new OwnedTask(item.OwnerId, response));
 

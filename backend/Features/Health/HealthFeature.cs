@@ -1,6 +1,6 @@
 namespace TemplateApp.Features.Health;
 
-public static class HealthFeature
+internal static class HealthFeature
 {
     public static IServiceCollection AddHealthFeature(this IServiceCollection services)
     {

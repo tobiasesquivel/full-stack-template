@@ -1,6 +1,6 @@
 namespace TemplateApp.Features.Auth.IssueCsrfToken;
 
-public static class IssueCsrfTokenEndpoint
+internal static class IssueCsrfTokenEndpoint
 {
     public static void Map(IEndpointRouteBuilder auth) => auth.MapGet("/csrf", Handle).AllowAnonymous();
 

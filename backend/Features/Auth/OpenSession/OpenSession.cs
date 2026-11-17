@@ -7,7 +7,7 @@ using TemplateApp.Infrastructure.Persistence;
 
 namespace TemplateApp.Features.Auth.OpenSession;
 
-public sealed class OpenSession
+internal sealed class OpenSession
 {
     private readonly UserManager<AppIdentityUser> _users;
     private readonly AppDbContext _db;

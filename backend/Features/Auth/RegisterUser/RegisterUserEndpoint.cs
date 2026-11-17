@@ -3,7 +3,7 @@ using TemplateApp.Shared.Http;
 
 namespace TemplateApp.Features.Auth.RegisterUser;
 
-public static class RegisterUserEndpoint
+internal static class RegisterUserEndpoint
 {
     public static void Map(IEndpointRouteBuilder auth) =>
         auth.MapPost("/register", HandleAsync).AllowAnonymous().RequireRateLimiting(AuthFeature.RateLimitPolicy);

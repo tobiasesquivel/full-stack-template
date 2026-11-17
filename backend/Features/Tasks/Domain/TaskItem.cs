@@ -2,7 +2,7 @@ using TemplateApp.Shared.Domain;
 
 namespace TemplateApp.Features.Tasks.Domain;
 
-public sealed class TaskItem : IOwnedResource, IAuditable
+internal sealed class TaskItem : IOwnedResource, IAuditable
 {
     public const int TitleMaxLength = 200;
 

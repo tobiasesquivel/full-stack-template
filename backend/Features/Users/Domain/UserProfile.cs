@@ -2,7 +2,7 @@ using TemplateApp.Shared.Domain;
 
 namespace TemplateApp.Features.Users.Domain;
 
-public sealed class UserProfile : IOwnedResource, IAuditable
+internal sealed class UserProfile : IOwnedResource, IAuditable
 {
     public const int DisplayNameMaxLength = 200;
 

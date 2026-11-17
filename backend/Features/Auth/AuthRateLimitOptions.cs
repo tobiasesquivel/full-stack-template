@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace TemplateApp.Features.Auth;
 
-public sealed record AuthRateLimitOptions
+internal sealed record AuthRateLimitOptions
 {
     public const string Section = "AuthRateLimiting";
 

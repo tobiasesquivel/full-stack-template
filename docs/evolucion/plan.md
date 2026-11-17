@@ -375,6 +375,12 @@ El paso 0.28 se agregó el 2026-10-17, a pedido de Tobi, con otro pendiente del 
 **Cambia**: `dune/Dune.Analyzers`, `check-structure.mjs` + su test, `docs/conventions.md`.
 **Verifica**: fixture negativa que referencia el interior de otra feature y falla con el diagnóstico esperado; fixture válida que compila.
 
+**21.1. Cerrar los huecos de DUNE0004.**
+**Concepto**: un gate vale lo que su caso más débil; cada forma de cruzar el límite que no ve es una puerta abierta.
+**Nota**: Tobi lo pidió el 2026-11-17, durante el paso 21. La investigación del paso 21 ([paso-21-contrato-publico.md](investigacion/paso-21-contrato-publico.md), sección 3) probó 16 formas de usar el interior de otra feature y DUNE0004 no ve tres: un método o una propiedad de extensión de otra feature (`s.Shout()` con su `using`), el resultado de una invocación que no se guarda en una variable (`Bridge.Get().Name`), y un tipo en una subcarpeta de `Contracts/` (DUNE0004 acepta `Contracts.*`). La revisión del paso 21 sumó un cuarto: DUNE0005 no visita `record struct` ni `delegate`, así que uno de esos tipos en una slice puede declarar el namespace `...Contracts` y DUNE0004 lo acepta (DUNE0020 ya lo frena si es `public`, pero no si es `internal`).
+**Cambia**: `dune/Dune.Analyzers/CrossFeatureAnalyzer.cs`, `NamingAnalyzer.cs` y sus tests, `docs/conventions.md`.
+**Verifica**: un test rojo por hueco con el analyzer de antes del paso, y los tres en verde después; la suite de Dune y el build del backend sin DUNE0004 nuevos.
+
 **22. Un `DbContext` por feature.**
 **Concepto**: propiedad de datos; el contexto dios impide extraer módulos.
 **Cambia**: `Infrastructure/Persistence` hacia `Features/*/Persistence`, migraciones por contexto, arranque, tests.

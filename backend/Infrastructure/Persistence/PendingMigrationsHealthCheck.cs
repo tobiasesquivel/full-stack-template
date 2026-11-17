@@ -4,7 +4,7 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace TemplateApp.Infrastructure.Persistence;
 
-public sealed class PendingMigrationsHealthCheck : IHealthCheck
+internal sealed class PendingMigrationsHealthCheck : IHealthCheck
 {
     private readonly AppDbContext _db;
 

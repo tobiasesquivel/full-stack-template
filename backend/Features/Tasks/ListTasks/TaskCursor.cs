@@ -3,7 +3,7 @@ using System.Buffers.Text;
 
 namespace TemplateApp.Features.Tasks.ListTasks;
 
-public sealed record TaskCursor(DateTimeOffset CreatedAt, Guid Id)
+internal sealed record TaskCursor(DateTimeOffset CreatedAt, Guid Id)
 {
     private const byte Version = 1;
     private const int Length = 1 + sizeof(long) + 16;

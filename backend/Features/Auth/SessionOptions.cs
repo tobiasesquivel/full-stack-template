@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace TemplateApp.Features.Auth;
 
-public sealed record SessionOptions
+internal sealed record SessionOptions
 {
     public const string Section = "Session";
 

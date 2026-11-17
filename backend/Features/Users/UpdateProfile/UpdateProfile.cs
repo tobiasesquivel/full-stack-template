@@ -8,7 +8,7 @@ using TemplateApp.Shared.Http;
 
 namespace TemplateApp.Features.Users.UpdateProfile;
 
-public sealed class UpdateProfile
+internal sealed class UpdateProfile
 {
     private static readonly UpdateProfileRequestValidator Validator = new();
 

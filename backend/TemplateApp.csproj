@@ -41,4 +41,8 @@
     <Compile Remove="Tests/**/*.cs" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="TemplateApp.Tests" />
+  </ItemGroup>
+
 </Project>

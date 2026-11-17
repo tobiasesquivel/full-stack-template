@@ -2,7 +2,7 @@ using System.Diagnostics.Metrics;
 
 namespace TemplateApp.Features.Tasks;
 
-public sealed class TaskMetrics
+internal sealed class TaskMetrics
 {
     private const string MeterName = "TemplateApp.Tasks";
 

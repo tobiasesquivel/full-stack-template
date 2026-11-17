@@ -4,7 +4,7 @@ using TemplateApp.Shared.Http;
 
 namespace TemplateApp.Features.Tasks.GetTask;
 
-public static class GetTaskEndpoint
+internal static class GetTaskEndpoint
 {
     public static void Map(IEndpointRouteBuilder tasks) => tasks.MapGet("/{id:guid}", HandleAsync).WithName(TaskEndpointNames.GetTask);
 

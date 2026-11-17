@@ -4,7 +4,7 @@ using TemplateApp.Infrastructure.Persistence;
 
 namespace TemplateApp.Features.Tasks.ListTasks;
 
-public sealed class ListTasks
+internal sealed class ListTasks
 {
     private readonly AppDbContext _db;
 

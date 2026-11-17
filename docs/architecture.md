@@ -26,7 +26,7 @@ backend/
             └── CreateTaskTests.cs
 ```
 
-- **Feature:** un módulo profundo. Su interfaz pública es `Contracts/` más sus rutas HTTP.
+- **Feature:** un módulo profundo. Su interfaz pública es `Contracts/` más sus rutas HTTP. En C#, `public` marca exactamente `Contracts/` y el resto es `internal` (DUNE0020). Todas las features viven en `TemplateApp.dll`, así que `internal` no las separa entre sí: lo hace DUNE0004.
 - **Slice:** un caso de uso, en su carpeta. La operación es una clase propia, con sus dependencias. El endpoint solo adapta HTTP y llama a la operación.
 - **Domain:** sin EF, ASP.NET ni infraestructura. Concentra las reglas que comparten las slices.
 - **Infrastructure:** observabilidad, middlewares, arranque de la base, los health checks de la base (`Persistence/DatabaseHealthCheck` y `Persistence/PendingMigrationsHealthCheck`), el grupo versionado de la API, el filtro de idempotencia de los `POST` (`Http/IdempotencyFilter`, con su tabla `IdempotencyKeys`), la auditoría de cambios (`Persistence/AuditInterceptor`, con su tabla `AuditEntries`), el limiter global de requests (`Http/ApiRateLimiting`), las cabeceras de seguridad de toda respuesta (`Http/ApiSecurityHeaders`) y composición del host.

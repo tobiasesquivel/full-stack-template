@@ -2,7 +2,7 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace TemplateApp.Features.Health.GetReadiness;
 
-public static class GetReadinessEndpoint
+internal static class GetReadinessEndpoint
 {
     public static void Map(IEndpointRouteBuilder health) => health.MapGet("/ready", HandleAsync);
 

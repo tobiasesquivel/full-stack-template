@@ -2,7 +2,7 @@ using System.Diagnostics.Metrics;
 
 namespace TemplateApp.Features.Auth;
 
-public sealed class AuthMetrics
+internal sealed class AuthMetrics
 {
     private const string MeterName = "TemplateApp.Auth";
 

@@ -5,7 +5,7 @@ using TemplateApp.Features.Auth.Domain;
 
 namespace TemplateApp.Features.Auth.Persistence;
 
-public sealed class SessionConfiguration : IEntityTypeConfiguration<Session>
+internal sealed class SessionConfiguration : IEntityTypeConfiguration<Session>
 {
     public void Configure(EntityTypeBuilder<Session> builder)
     {

@@ -1,6 +1,6 @@
 namespace TemplateApp.Features.Auth.CloseSession;
 
-public static class CloseSessionEndpoint
+internal static class CloseSessionEndpoint
 {
     public static void Map(IEndpointRouteBuilder auth) =>
         auth.MapPost("/logout", HandleAsync).AllowAnonymous().RequireRateLimiting(AuthFeature.RateLimitPolicy);

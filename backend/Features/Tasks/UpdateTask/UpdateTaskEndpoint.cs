@@ -4,7 +4,7 @@ using TemplateApp.Shared.Http;
 
 namespace TemplateApp.Features.Tasks.UpdateTask;
 
-public static class UpdateTaskEndpoint
+internal static class UpdateTaskEndpoint
 {
     public static void Map(IEndpointRouteBuilder tasks) => tasks.MapPut("/{id:guid}", HandleAsync);
 

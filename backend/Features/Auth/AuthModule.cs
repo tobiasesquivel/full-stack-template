@@ -6,7 +6,7 @@ using TemplateApp.Shared.Domain;
 
 namespace TemplateApp.Features.Auth;
 
-public sealed class AuthModule : IAuthModule
+internal sealed class AuthModule : IAuthModule
 {
     private readonly UserManager<AppIdentityUser> _users;
     private readonly AccessPolicy _access;

@@ -4,7 +4,7 @@ using TemplateApp.Infrastructure.Persistence;
 
 namespace TemplateApp.Features.Auth.Access;
 
-public sealed class RoleSeeder : IDatabaseSeeder
+internal sealed class RoleSeeder : IDatabaseSeeder
 {
     private readonly RoleManager<IdentityRole> _roleManager;
 

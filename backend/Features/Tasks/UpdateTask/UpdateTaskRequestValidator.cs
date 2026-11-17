@@ -2,7 +2,7 @@ using FluentValidation;
 
 namespace TemplateApp.Features.Tasks.UpdateTask;
 
-public sealed class UpdateTaskRequestValidator : AbstractValidator<UpdateTaskRequest>
+internal sealed class UpdateTaskRequestValidator : AbstractValidator<UpdateTaskRequest>
 {
     public UpdateTaskRequestValidator()
     {
