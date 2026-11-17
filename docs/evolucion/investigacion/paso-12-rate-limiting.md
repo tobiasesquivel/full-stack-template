@@ -340,6 +340,18 @@ Las de diseño (1, 2, 4, 5, 6, 7, 8 y 12) van en `docs/decisions.tsv`.
 - La regla de `check-structure.mjs`: no la escribí ni la corrí.
 - Que `FakeTimeProvider` no tenga ningún efecto en los limiters: lo deduzco del código (no reciben `TimeProvider`); no lo probé.
 
+## Contraste con el código (hilo del paso, 2026-11-16)
+
+Lo que el hilo del paso comprobó en el repo después de esta investigación:
+
+- Con el código de antes del paso fallan 8 casos nuevos o cambiados: 5 de `RateLimitingTests` (201 o 200 donde se espera 429; la segunda IP recibe el 429 de la primera), el contrato de `ErrorContractTests` (503 en vez de 429) y los 2 casos de `ConfigurationValidationTests` (las secciones no existen). `HealthEndpoints_AreExempt` ya pasaba: protege contra una regresión.
+- Con el limiter nuevo pasan los 34 tests de esas tres clases. Volver a poner `UseRateLimiter()` antes de `UseAuthentication()` hace fallar 3 casos de `RateLimitingTests`: la partición por usuario de la sección 2 queda atrapada por los tests.
+- `ClientAddressProbe` (el `IStartupFilter` de la sección 2) funciona: dos IPs de prueba caen en baldes distintos, tanto en el global anónimo como en la política `auth`.
+- Se aparta de la sección 5 en un punto: los valores por defecto viven en el código de las options, no en `appsettings.json`. `ConfigurationValidationTests` arranca la API en una carpeta sin `appsettings.json`, y `TelemetryOptions` ya trae su valor por defecto en el código.
+- La regla de `check-structure.mjs` quedó escrita y corrida: 4 violaciones deliberadas pasan el gate de antes y fallan con el nuevo; un `DisableRateLimiting` plantado en `ListTasksEndpoint.cs` rompe el gate.
+- Con los límites por defecto, la suite completa (197 tests), el smoke de la API y las e2e pasan: los números no frenan a nadie.
+- Evidencia en `artifacts/verify-template/fase4-12-red/`, `fase4-12-green/`, `fase4-12-rule/`, `fase4-12-check-all/` y `fase4-12-check-all-e2e/`.
+
 ## Fuentes
 
 - https://learn.microsoft.com/en-us/aspnet/core/performance/rate-limit?view=aspnetcore-10.0
