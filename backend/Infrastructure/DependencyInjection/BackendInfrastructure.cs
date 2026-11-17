@@ -11,6 +11,8 @@ namespace TemplateApp.Infrastructure.DependencyInjection;
 
 public static class BackendInfrastructure
 {
+    private static readonly TimeSpan HealthCheckTimeout = TimeSpan.FromSeconds(2);
+
     public static IServiceCollection AddBackendInfrastructure(this IServiceCollection services)
     {
         services.AddProblemDetails(options => options.CustomizeProblemDetails = context =>
@@ -29,6 +31,9 @@ public static class BackendInfrastructure
             .AddInterceptors(provider.GetRequiredService<AuditInterceptor>()));
 
         services.AddHostedService<DatabaseInitialization>();
+        services.AddHealthChecks()
+            .AddCheck<DatabaseHealthCheck>("database", timeout: HealthCheckTimeout)
+            .AddCheck<PendingMigrationsHealthCheck>("migrations", timeout: HealthCheckTimeout);
 
         services.AddSingleton(TimeProvider.System);
         services.AddDataProtectionKeys();

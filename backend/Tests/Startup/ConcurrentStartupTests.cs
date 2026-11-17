@@ -38,7 +38,7 @@ public sealed class ConcurrentStartupTests : IAsyncLifetime
             server = _postgres.GetConnectionString();
         }
 
-        _connection = await CreateEmptyDatabaseAsync(server);
+        _connection = await TestDatabases.CreateEmptyAsync(server);
         _factory = ApiFixture.CreateFactory(_connection);
         _ = _factory.Services;
     }
@@ -78,19 +78,6 @@ public sealed class ConcurrentStartupTests : IAsyncLifetime
             await Task.WhenAll(initializers);
             await AssertEachRoleHasExactlyItsPermissionsAsync(services);
         }
-    }
-
-    private static async Task<string> CreateEmptyDatabaseAsync(string server)
-    {
-        string name = $"startup_{Guid.NewGuid():N}";
-        NpgsqlConnectionStringBuilder admin = new(server) { Database = "postgres" };
-
-        await using NpgsqlConnection connection = new(admin.ConnectionString);
-        await connection.OpenAsync();
-        await using NpgsqlCommand create = new($"CREATE DATABASE \"{name}\"", connection);
-        await create.ExecuteNonQueryAsync();
-
-        return new NpgsqlConnectionStringBuilder(server) { Database = name }.ConnectionString;
     }
 
     private async Task DeleteRolesAsync()
