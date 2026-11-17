@@ -55,22 +55,29 @@ function validExport() {
   };
 }
 
-async function writeExport(dir, { logs, spans, metrics }) {
-  const line = (key, inner, items) => JSON.stringify({ [key]: [{ resource: {}, [inner]: [{ scope: { name: 'fixture' }, ...items }] }] });
+function exportLines(resourceKey, scopeKey, itemKey, items) {
+  const resource = item => ({ resource: {}, [scopeKey]: [{ scope: { name: 'fixture' }, [itemKey]: [item] }, { scope: { name: 'empty' } }] });
+  const [first, ...rest] = items;
+  const lines = [{ [resourceKey]: first === undefined ? [] : [resource(first)] }];
+  if (rest.length) lines.push({ [resourceKey]: rest.map(resource) });
+  return lines.map(line => JSON.stringify(line)).join('\n');
+}
+
+async function writeExport(dir, { logs, spans, metrics }, suffix = '') {
   const files = {
-    'logs.json': logs && line('resourceLogs', 'scopeLogs', { logRecords: logs }),
-    'traces.json': spans && line('resourceSpans', 'scopeSpans', { spans }),
-    'metrics.json': metrics && line('resourceMetrics', 'scopeMetrics', { metrics }),
+    'logs.json': logs && exportLines('resourceLogs', 'scopeLogs', 'logRecords', logs),
+    'traces.json': spans && exportLines('resourceSpans', 'scopeSpans', 'spans', spans),
+    'metrics.json': metrics && exportLines('resourceMetrics', 'scopeMetrics', 'metrics', metrics),
   };
   for (const [name, content] of Object.entries(files)) {
-    if (content !== undefined) await writeFile(path.join(dir, name), `${content}\n`);
+    if (content !== undefined) await writeFile(path.join(dir, name), `${content}\n${name === 'logs.json' ? suffix : ''}`);
   }
 }
 
-async function check(signals) {
+async function check(signals, suffix) {
   const dir = await mkdtemp(path.join(tmpdir(), 'otel-export-'));
   try {
-    await writeExport(dir, signals);
+    await writeExport(dir, signals, suffix);
     let code = 0;
     try {
       await run(process.execPath, [script, dir]);
@@ -99,6 +106,13 @@ describe('check-otel-export', () => {
     assert.equal(report.requestLogs, 2);
     assert.equal(report.serverSpans, 2);
     assert.equal(report.metrics, 2);
+  });
+
+  it('falla con informe si una línea del export quedó cortada', async () => {
+    const { code, report, failed } = await check(validExport(), '{"resourceLogs":[{"resource":');
+    assert.equal(code, 1);
+    assert.deepEqual(failed, ['export-json-valid']);
+    assert.deepEqual(report.failures[0].samples, [{ file: 'logs.json', line: 3 }]);
   });
 
   it('falla si un log de request no trae traceId ni spanId', async () => {

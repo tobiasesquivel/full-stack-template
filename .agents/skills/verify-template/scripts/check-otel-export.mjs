@@ -6,7 +6,7 @@ const METRIC_DATA = ['sum', 'gauge', 'histogram', 'exponentialHistogram', 'summa
 const SAMPLE_LIMIT = 5;
 const REPORT_FILE = 'otel-check.json';
 
-async function readSignal(dir, file, resourceKey, scopeKey, itemKey) {
+async function readSignal(dir, file, resourceKey, scopeKey, itemKey, brokenLines) {
   let content;
   try {
     content = await readFile(path.join(dir, file), 'utf8');
@@ -14,9 +14,18 @@ async function readSignal(dir, file, resourceKey, scopeKey, itemKey) {
     if (error.code === 'ENOENT') return [];
     throw error;
   }
-  return content.split('\n').filter(line => line.trim()).flatMap(line =>
-    (JSON.parse(line)[resourceKey] ?? []).flatMap(resource =>
-      (resource[scopeKey] ?? []).flatMap(scope => scope[itemKey] ?? [])));
+  return content.split('\n').flatMap((line, index) => {
+    if (!line.trim()) return [];
+    let request;
+    try {
+      request = JSON.parse(line);
+    } catch {
+      brokenLines.push({ file, line: index + 1 });
+      return [];
+    }
+    return (request[resourceKey] ?? []).flatMap(resource =>
+      (resource[scopeKey] ?? []).flatMap(scope => scope[itemKey] ?? []));
+  });
 }
 
 const validId = (value, length) => typeof value === 'string'
@@ -32,6 +41,11 @@ const describeLog = record => ({
 });
 
 const RULES = [
+  {
+    rule: 'export-json-valid',
+    message: 'Cada línea del export debe ser un JSON completo',
+    violations: ({ brokenLines }) => brokenLines,
+  },
   {
     rule: 'request-logs-present',
     message: 'El collector debe recibir logs de request (con RequestId)',
@@ -74,11 +88,13 @@ const RULES = [
 ];
 
 async function checkOtelExport(dir) {
-  const logRecords = await readSignal(dir, 'logs.json', 'resourceLogs', 'scopeLogs', 'logRecords');
-  const spans = await readSignal(dir, 'traces.json', 'resourceSpans', 'scopeSpans', 'spans');
-  const metrics = await readSignal(dir, 'metrics.json', 'resourceMetrics', 'scopeMetrics', 'metrics');
+  const brokenLines = [];
+  const logRecords = await readSignal(dir, 'logs.json', 'resourceLogs', 'scopeLogs', 'logRecords', brokenLines);
+  const spans = await readSignal(dir, 'traces.json', 'resourceSpans', 'scopeSpans', 'spans', brokenLines);
+  const metrics = await readSignal(dir, 'metrics.json', 'resourceMetrics', 'scopeMetrics', 'metrics', brokenLines);
   const requestLogs = logRecords.filter(isRequestLog);
   const signals = {
+    brokenLines,
     requestLogs,
     metrics,
     serverSpans: spans.filter(span => span.kind === SPAN_KIND_SERVER),
