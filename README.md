@@ -90,6 +90,7 @@ node dune/check-structure.mjs
 node --test dune/check-structure.test.mjs
 node dune/check-secrets.mjs
 node --test dune/check-secrets.test.mjs
+node --test .agents/skills/verify-template/scripts/check-otel-export.test.mjs
 dotnet restore TemplateApp.slnx --force "-warnaserror:NU1903;NU1904"
 npm ci --prefix frontend
 npm audit --prefix frontend --omit=dev --audit-level=high
@@ -114,6 +115,8 @@ Para levantar una instancia aislada y probar la API real, usá la skill `verify-
 ```sh
 node .agents/skills/verify-template/scripts/smoke-api.mjs
 node .agents/skills/verify-template/scripts/smoke-api.mjs --compose
+docker compose down --timeout 30 --volumes
+node .agents/skills/verify-template/scripts/check-otel-export.mjs otel-export
 ```
 
 El recorrido del navegador vive como specs de Playwright Test en `frontend/e2e/`, por feature: `auth`, `session`, `tasks`, `profile` y `tabs`. Corre contra una instancia de `verify-template`: tomá `frontUrl` de `run.json` y esperá 65 segundos después del smoke HTTP, porque el limiter de `/auth` admite 20 requests por minuto por IP y el smoke y el navegador llegan a la API desde la misma IP (`127.0.0.1`). Desde `frontend`:
@@ -128,7 +131,7 @@ El escenario HTTP no reemplaza la prueba Angular contra la API real. Comprueba r
 
 Comprueba `GET /api/v1/health/live` y `/ready` antes y después de interrumpir PostgreSQL en un conjunto de prueba. Captura logs, métricas y spans recibidos por el collector y su correlación. Registrar exporters en DI no prueba exportación. No publiques secrets en la evidencia.
 
-`deploy/otel-collector-config.yaml` configura el collector. Con `OTEL_EXPORT_DIR` sin cambio, busca `otel-export/logs.json`, `metrics.json` y `traces.json`, archivos JSONL escritos por el collector. El flush de batch puede requerir hasta 30 segundos después de una petición. Observa `http.server.request.duration` y correlaciona traceId de un log con un span recibido. Revisa también la consola de `docker compose logs otel`. No confundas archivos creados pero vacíos con señales observadas.
+`deploy/otel-collector-config.yaml` configura el collector. Con `OTEL_EXPORT_DIR` sin cambio, busca `otel-export/logs.json`, `metrics.json` y `traces.json`, archivos JSONL escritos por el collector. El smoke de Compose espera hasta 30 segundos el flush de batch y comprueba las métricas HTTP y de negocio. La correlación se comprueba después de `docker compose down`, porque al apagarse la API y el collector vacían sus buffers y el export queda completo: `check-otel-export.mjs` falla si no hay logs de request (los que llevan `RequestId`), si uno no trae `traceId` y `spanId` válidos, si apunta a un span que el collector no recibió, si no hay spans SERVER, si un span SERVER no tiene su log de request, si no llegan métricas o una llega sin puntos, o si una línea del export quedó cortada. Deja `otel-check.json` en la carpeta del export. El collector agrega al final de cada archivo: usá una carpeta vacía por corrida, porque los datos de una corrida vieja tapan o ensucian el resultado. El job `compose` de CI lo corre igual y publica esa carpeta. Revisa también la consola de `docker compose logs otel`. No confundas archivos creados pero vacíos con señales observadas.
 
 ## Cambiar el código
 
