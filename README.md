@@ -78,7 +78,7 @@ Un solo comando los corre todos en este orden, y después el runtime de la skill
 E2E_CHANNEL=msedge node .agents/skills/verify-template/scripts/check-all.mjs --run-id <id>
 ```
 
-Deja `summary.json` en `artifacts/verify-template/<id>/`, con `PASS`, `FAIL` o `NOT_RUN` por etapa y un log por comando. El primer `FAIL` corta la corrida: las etapas siguientes quedan `NOT_RUN`. `cleanup` corre siempre después de `launch`. `--gates-only` corre solo los comandos de esta sección; `--no-e2e` omite las e2e. Los comandos sueltos siguen valiendo para repetir una etapa. Las pruebas de integración necesitan Docker para PostgreSQL real. `check-comments` necesita las dependencias de `frontend/node_modules`, por eso va después de `npm ci`.
+Deja `summary.json` en `artifacts/verify-template/<id>/`, con `PASS`, `FAIL` o `NOT_RUN` por etapa y un log por comando. El primer `FAIL` corta la corrida: las etapas siguientes quedan `NOT_RUN`. `cleanup` corre siempre después de `launch`. `--gates-only` corre solo los comandos de esta sección; `--no-e2e` omite las e2e. Los comandos sueltos siguen valiendo para repetir una etapa. Las pruebas de integración necesitan Docker para PostgreSQL real. `check-comments` necesita las dependencias de `frontend/node_modules`, por eso va después de `npm ci`. `check-secrets` necesita gitleaks 8.30.1 en el `PATH` (en Windows: `winget install --id Gitleaks.Gitleaks --version 8.30.1 --exact`; o la ruta del ejecutable en `GITLEAKS_BIN`). Revisa el historial alcanzable desde `HEAD` y los cambios sin commitear; la auditoría NuGet y `npm audit` fallan ante un aviso alto o crítico en una dependencia de producción. CI corre lo mismo en el job `security`.
 
 Desde la raíz:
 
@@ -88,7 +88,11 @@ dotnet test TemplateApp.slnx --configuration Release
 dotnet run --project dune/Dune.CommentVerifier -- --root .
 node dune/check-structure.mjs
 node --test dune/check-structure.test.mjs
+node dune/check-secrets.mjs
+node --test dune/check-secrets.test.mjs
+dotnet restore TemplateApp.slnx --force "-warnaserror:NU1903;NU1904"
 npm ci --prefix frontend
+npm audit --prefix frontend --omit=dev --audit-level=high
 node dune/check-comments.mjs --root .
 node --test dune/check-comments.test.mjs
 ```
