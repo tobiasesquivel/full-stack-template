@@ -14,39 +14,42 @@ public sealed class OpenSession
     private readonly Sessions _sessions;
     private readonly AuthModule _accounts;
     private readonly IUsersModule _profiles;
+    private readonly AuthMetrics _metrics;
 
     public OpenSession(
         UserManager<AppIdentityUser> users,
         AppDbContext db,
         Sessions sessions,
         AuthModule accounts,
-        IUsersModule profiles)
+        IUsersModule profiles,
+        AuthMetrics metrics)
     {
         _users = users;
         _db = db;
         _sessions = sessions;
         _accounts = accounts;
         _profiles = profiles;
+        _metrics = metrics;
     }
 
     public async Task<ErrorOr<(UserResponse User, Session Session)>> ExecuteAsync(OpenSessionRequest request, CancellationToken ct)
     {
         string userName = request.UserName.Trim();
         if (userName.Length is < 1 or > 100 || request.Password.Length is < 1 or > 128)
-            return AuthErrors.InvalidCredentials;
+            return Rejected(LoginOutcome.InvalidCredentials);
 
         AppIdentityUser? identity = await _users.FindByNameAsync(userName);
         if (identity is null)
-            return AuthErrors.InvalidCredentials;
+            return Rejected(LoginOutcome.InvalidCredentials);
 
         if (await _users.IsLockedOutAsync(identity))
-            return AuthErrors.InvalidCredentials;
+            return Rejected(LoginOutcome.LockedOut);
 
         bool valid = await _users.CheckPasswordAsync(identity, request.Password);
         if (!valid)
         {
             await _users.AccessFailedAsync(identity);
-            return AuthErrors.InvalidCredentials;
+            return Rejected(LoginOutcome.InvalidCredentials);
         }
 
         await _users.ResetAccessFailedCountAsync(identity);
@@ -57,8 +60,15 @@ public sealed class OpenSession
 
         Session session = _sessions.Open(identity.Id);
         await _db.SaveChangesAsync(ct);
+        _metrics.LoginAttempted(LoginOutcome.Success);
 
         UserAccountDetails account = await _accounts.DescribeAsync(identity, ct);
         return (UserResponse.From(account, profile), session);
+    }
+
+    private Error Rejected(LoginOutcome outcome)
+    {
+        _metrics.LoginAttempted(outcome);
+        return AuthErrors.InvalidCredentials;
     }
 }

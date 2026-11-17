@@ -1,4 +1,6 @@
 using System.Net;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Time.Testing;
 using TemplateApp.Tests.Support;
 using Xunit;
 
@@ -54,6 +56,39 @@ public sealed class UpdateTaskTests : IClassFixture<ApiFixture>
         var missing = await alice.SendAsync(HttpMethod.Put, $"api/v1/tasks/{Guid.NewGuid():D}", new { title = "x", isCompleted = false, version = read });
         missing.Payload?.Dispose();
         Assert.Equal(HttpStatusCode.NotFound, missing.Status);
+    }
+
+    [Fact]
+    public async Task Update_RecordsTimeToComplete_OnlyWhenTheTaskBecomesCompleted()
+    {
+        var clock = new FakeTimeProvider(DateTimeOffset.FromUnixTimeSeconds(DateTimeOffset.UtcNow.ToUnixTimeSeconds()));
+        var client = _fixture.CreateIsolatedClient(services => services.AddSingleton<TimeProvider>(clock), out IServiceProvider services);
+        var alice = new TestSession(client);
+        await alice.RegisterAsync(TestAccounts.UniqueName("alice"));
+        string id = await alice.CreateTaskAsync("Comprar pan");
+        using var completion = new RecordedMeasurements(services, "TemplateApp.Tasks", "templateapp.tasks.completion.duration");
+
+        clock.Advance(TimeSpan.FromMinutes(10));
+        uint created = await alice.TaskVersionAsync(id);
+        var renamed = await alice.SendAsync(HttpMethod.Put, $"api/v1/tasks/{id}", new { title = "Comprar pan integral", isCompleted = false, version = created });
+        renamed.Payload?.Dispose();
+        Assert.Equal(HttpStatusCode.OK, renamed.Status);
+        Assert.Empty(completion.Values);
+
+        clock.Advance(TimeSpan.FromMinutes(15));
+        uint read = await alice.TaskVersionAsync(id);
+        var completed = await alice.SendAsync(HttpMethod.Put, $"api/v1/tasks/{id}", new { title = "Comprar pan integral", isCompleted = true, version = read });
+        var replay = await alice.SendAsync(HttpMethod.Put, $"api/v1/tasks/{id}", new { title = "Comprar pan integral", isCompleted = true, version = read });
+        var stale = await alice.SendAsync(HttpMethod.Put, $"api/v1/tasks/{id}", new { title = "Otra cosa", isCompleted = true, version = read });
+        completed.Payload?.Dispose();
+        replay.Payload?.Dispose();
+
+        Assert.Equal(HttpStatusCode.OK, completed.Status);
+        Assert.Equal(HttpStatusCode.OK, replay.Status);
+        ProblemAssert.Problem(stale, HttpStatusCode.Conflict, "Task.Conflict");
+        var measurement = Assert.Single(completion.Values);
+        Assert.Equal(TimeSpan.FromMinutes(25).TotalSeconds, measurement.Value);
+        Assert.Empty(measurement.Tags);
     }
 
     [Fact]

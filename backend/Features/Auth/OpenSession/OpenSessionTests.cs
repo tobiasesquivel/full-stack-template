@@ -68,6 +68,33 @@ public sealed class OpenSessionTests : IClassFixture<ApiFixture>
     }
 
     [Fact]
+    public async Task Login_CountsEachAttemptByOutcome()
+    {
+        HttpClient client = _fixture.CreateIsolatedClient(
+            new Dictionary<string, string> { ["AuthRateLimiting:PermitLimit"] = "100" },
+            out IServiceProvider services);
+        TestSession alice = new(client);
+        string name = TestAccounts.UniqueName("alice");
+        await alice.RegisterAsync(name);
+        using RecordedMeasurements attempts = new(services, "TemplateApp.Auth", "templateapp.auth.login.attempts");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, await LoginAsync(client, TestAccounts.UniqueName("ghost"), "wrong-password"));
+        Assert.Equal(HttpStatusCode.OK, await LoginAsync(client, name, alice.Password));
+        for (int attempt = 0; attempt < 5; attempt++)
+            Assert.Equal(HttpStatusCode.Unauthorized, await LoginAsync(client, name, "wrong-password"));
+        Assert.Equal(HttpStatusCode.Unauthorized, await LoginAsync(client, name, alice.Password));
+
+        Assert.All(attempts.Values, measurement =>
+        {
+            Assert.Equal(1, measurement.Value);
+            Assert.Equal([Outcome], measurement.Tags.Keys);
+        });
+        Assert.Equal(
+            ["invalid_credentials", "success", "invalid_credentials", "invalid_credentials", "invalid_credentials", "invalid_credentials", "invalid_credentials", "locked_out"],
+            attempts.Values.Select(measurement => (string?)measurement.Tags[Outcome]).ToArray());
+    }
+
+    [Fact]
     public async Task Login_WithBadCredentials_SetsNoSessionCookie()
     {
         TestSession alice = new(_fixture.CreateClient());
@@ -83,5 +110,16 @@ public sealed class OpenSessionTests : IClassFixture<ApiFixture>
         bad.Payload?.Dispose();
         Assert.Equal(HttpStatusCode.Unauthorized, bad.Status);
         Assert.False(attempt.Cookies.ContainsKey(TestAccounts.SessionCookieName));
+    }
+
+    private const string Outcome = "templateapp.auth.login.outcome";
+
+    private static async Task<HttpStatusCode> LoginAsync(HttpClient client, string userName, string password)
+    {
+        TestSession attempt = new(client);
+        await attempt.CsrfAsync();
+        SessionResponse response = await attempt.SendAsync(HttpMethod.Post, "api/v1/auth/login", new { userName, password });
+        response.Payload?.Dispose();
+        return response.Status;
     }
 }

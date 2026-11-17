@@ -190,6 +190,29 @@ public sealed class CreateTaskTests : IClassFixture<ApiFixture>
         Assert.Equal(["Comprar pan", "Comprar pan"], await TitlesAsync(alice));
     }
 
+    [Fact]
+    public async Task Create_CountsTheSavedTask_ButNotItsReplayNorARejectedOne()
+    {
+        var alice = new TestSession(_fixture.CreateClient());
+        await alice.RegisterAsync(TestAccounts.UniqueName("alice"));
+        var key = KeyHeader(Guid.NewGuid().ToString());
+        using var created = new RecordedMeasurements(_fixture.Services, "TemplateApp.Tasks", "templateapp.tasks.created");
+
+        var first = await alice.SendAsync(HttpMethod.Post, "api/v1/tasks", new { title = "Comprar pan" }, headers: key);
+        var replay = await alice.SendAsync(HttpMethod.Post, "api/v1/tasks", new { title = "Comprar pan" }, headers: key);
+        var blank = await alice.SendAsync(HttpMethod.Post, "api/v1/tasks", new { title = "   " });
+        first.Payload?.Dispose();
+        replay.Payload?.Dispose();
+        blank.Payload?.Dispose();
+
+        Assert.Equal(HttpStatusCode.Created, first.Status);
+        Assert.Equal(HttpStatusCode.Created, replay.Status);
+        Assert.Equal(HttpStatusCode.BadRequest, blank.Status);
+        var measurement = Assert.Single(created.Values);
+        Assert.Equal(1, measurement.Value);
+        Assert.Empty(measurement.Tags);
+    }
+
     private const string ReplayedHeader = "Idempotent-Replayed";
 
     private static Dictionary<string, string> KeyHeader(string key) => new() { ["Idempotency-Key"] = key };

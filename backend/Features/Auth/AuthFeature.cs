@@ -20,6 +20,7 @@ public static class AuthFeature
         services.AddAuthSession();
         services.AddAuthHttpPolicy();
 
+        services.AddSingleton<AuthMetrics>();
         services.AddScoped<AccessPolicy>();
         services.AddScoped<AuthModule>();
         services.AddScoped<IAuthModule>(sp => sp.GetRequiredService<AuthModule>());

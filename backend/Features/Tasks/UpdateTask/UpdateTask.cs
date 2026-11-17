@@ -15,12 +15,14 @@ public sealed class UpdateTask
     private readonly AppDbContext _db;
     private readonly IAuthModule _auth;
     private readonly TimeProvider _clock;
+    private readonly TaskMetrics _metrics;
 
-    public UpdateTask(AppDbContext db, IAuthModule auth, TimeProvider clock)
+    public UpdateTask(AppDbContext db, IAuthModule auth, TimeProvider clock, TaskMetrics metrics)
     {
         _db = db;
         _auth = auth;
         _clock = clock;
+        _metrics = metrics;
     }
 
     public async Task<ErrorOr<TaskResponse>> ExecuteAsync(string callerId, Guid id, UpdateTaskRequest request, CancellationToken ct)
@@ -42,9 +44,11 @@ public sealed class UpdateTask
                 ? TaskResponses.From(item)
                 : TaskErrors.Conflict;
 
+        bool completes = !item.IsCompleted && request.IsCompleted;
+        DateTimeOffset now = _clock.GetUtcNow();
         item.Title = title;
         item.IsCompleted = request.IsCompleted;
-        item.UpdatedAt = _clock.GetUtcNow();
+        item.UpdatedAt = now;
         _db.Entry(item).Property(t => t.Version).OriginalValue = request.Version.Value;
 
         try
@@ -55,6 +59,9 @@ public sealed class UpdateTask
         {
             return TaskErrors.Conflict;
         }
+
+        if (completes)
+            _metrics.TaskCompleted(now - item.CreatedAt);
 
         return TaskResponses.From(item);
     }

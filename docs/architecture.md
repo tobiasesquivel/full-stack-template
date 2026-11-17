@@ -121,6 +121,7 @@ frontend/src/app/
 
 - Compose levanta PostgreSQL 18 con volumen, un collector OpenTelemetry, la API (sin root) y el frontend.
 - Serilog exporta logs por OTLP. OpenTelemetry exporta métricas y trazas a `/v1/metrics` y `/v1/traces`.
+- Además de las métricas de ASP.NET Core, HttpClient, runtime e Identity, hay métricas de negocio: el Meter `TemplateApp.Tasks` (`templateapp.tasks.created` y el histograma `templateapp.tasks.completion.duration`) y el Meter `TemplateApp.Auth` (`templateapp.auth.login.attempts` por `outcome`). El smoke de Compose falla si no llegan al collector.
 - Los logs de request llevan trace y span, sin credenciales.
 - Readiness comprueba PostgreSQL y las migraciones. Liveness no depende de la base.
 
