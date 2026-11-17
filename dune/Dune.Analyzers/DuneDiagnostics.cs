@@ -175,4 +175,13 @@ internal static class DuneDiagnostics
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
         description: "Todo MapPost de un *Endpoint.cs de una feature encadena WithIdempotency<TRequest>(), así un reintento con la misma clave no crea un segundo recurso. Auth queda fuera: sus POST no crean recursos de negocio o ya son idempotentes.");
+
+    public static readonly DiagnosticDescriptor AuditBypass = new(
+        id: "DUNE0017",
+        title: "Escritura masiva sobre una entidad auditada",
+        messageFormat: "'{0}' sobre '{1}' no pasa por SaveChanges y no deja fila en AuditEntries; cargá la entidad, cambiala y guardala con SaveChangesAsync",
+        category: "Dune",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "ExecuteUpdate y ExecuteDelete no pasan por el ChangeTracker, entonces AuditInterceptor no los ve. Una entidad que implementa IAuditable se cambia solo con SaveChanges; las demás (Session, IdempotencyKey) pueden usar escrituras masivas.");
 }
