@@ -12,6 +12,8 @@ Es un laboratorio de aprendizaje. Tobi lleva el backend hasta una arquitectura .
 
 El dominio (tareas) es simple a propósito: importa el rigor técnico. **Todo el repo puede cambiar.** El código actual es el punto de partida, no un límite.
 
+**Un patrón del plan se aplica aunque `Tasks` no lo necesite.** Si un informe dice que un patrón no conviene para un CRUD simple, el paso lo hace igual y anota el choque en `docs/decisions.tsv`; no frena a preguntar. Tobi, 2026-11-17: "usemos cqrs porque recorda que el repositorio es para aprender arquitectura empresarial, no importa que no tenga sentido".
+
 ## Qué leer
 
 | Archivo | Para qué |
