@@ -20,7 +20,7 @@ Para ejecutar el backend fuera de Compose, configura `ConnectionStrings__Default
 
 La API valida su configuración al arrancar, antes de tocar la base. Si un valor no cumple su regla, no levanta: sale con código 1 y el log dice qué clave falló. Las reglas son: `ConnectionStrings:DefaultConnection` obligatoria, con formato de PostgreSQL y con `Host`; `Session:AbsoluteExpirationDays` entre 1 y 365; `Session:IdleTimeoutMinutes` entre 1 y 1440; `Otel:Endpoint` (u `OTEL_EXPORTER_OTLP_ENDPOINT`) como URL absoluta `http` o `https`; `DataProtection:KeysDirectory` vacía o como ruta absoluta. `backend/appsettings.example.json` muestra cada clave.
 
-Para Compose, copia `.env.example` a `.env`. Sustituye el valor inválido de `POSTGRES_PASSWORD` por un secret propio antes de iniciar. `.env` no debe versionarse. Los demás nombres de configuración son `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PORT`, `API_PORT`, `WEB_PORT` y `OTEL_EXPORT_DIR`. `docker compose config` puede imprimir secrets interpolados. No adjuntes su salida completa como evidencia pública.
+Para Compose, copia `.env.example` a `.env`. Sustituye el valor inválido de `POSTGRES_PASSWORD` por un secret propio antes de iniciar. `.env` no debe versionarse. Los demás nombres de configuración son `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PORT`, `API_PORT`, `WEB_PORT`, `PROMETHEUS_PORT` y `OTEL_EXPORT_DIR`. `docker compose config` puede imprimir secrets interpolados. No adjuntes su salida completa como evidencia pública.
 
 ## Ejecutar con Docker
 
@@ -31,9 +31,9 @@ docker compose config
 docker compose up --build --wait
 ```
 
-El conjunto incluye PostgreSQL persistente, collector OpenTelemetry, API y frontend. El arranque aplica migraciones y seed idempotente. Un error de migración o configuración no es un arranque saludable. No borres el volumen para ocultar errores ni uses EnsureCreated.
+El conjunto incluye PostgreSQL persistente, collector OpenTelemetry, Prometheus, API y frontend. El arranque aplica migraciones y seed idempotente. Un error de migración o configuración no es un arranque saludable. No borres el volumen para ocultar errores ni uses EnsureCreated.
 
-Con los puertos de partida, abre `http://localhost:8081` para el frontend. La API está en `http://localhost:8080/api/v1`. `web` hace proxy al servicio `api`. `db` usa PostgreSQL 18 con volumen `pgdata` montado en `/var/lib/postgresql`. `api` guarda las claves de Data Protection en el volumen `dataprotection`, montado en `/var/lib/templateapp/data-protection-keys`: recrear el contenedor no cierra las sesiones. `otel` recibe OTLP en 4317 y 4318. Si cambias puertos en `.env`, usa los valores configurados.
+Con los puertos de partida, abre `http://localhost:8081` para el frontend. La API está en `http://localhost:8080/api/v1`. `web` hace proxy al servicio `api`. `db` usa PostgreSQL 18 con volumen `pgdata` montado en `/var/lib/postgresql`. `api` guarda las claves de Data Protection en el volumen `dataprotection`, montado en `/var/lib/templateapp/data-protection-keys`: recrear el contenedor no cierra las sesiones. `otel` recibe OTLP en 4317 y 4318 y manda las métricas a `prometheus`, que las guarda 35 días y evalúa las alertas de SLO; su interfaz está en `http://localhost:9090`. Los SLOs, las alertas y sus runbooks están en [docs/operacion/slos.md](docs/operacion/slos.md). Si cambias puertos en `.env`, usa los valores configurados.
 
 Para detener contenedores conservando los datos, ejecuta el comando siguiente.
 
@@ -78,7 +78,7 @@ Un solo comando los corre todos en este orden, y después el runtime de la skill
 E2E_CHANNEL=msedge node .agents/skills/verify-template/scripts/check-all.mjs --run-id <id>
 ```
 
-Deja `summary.json` en `artifacts/verify-template/<id>/`, con `PASS`, `FAIL` o `NOT_RUN` por etapa y un log por comando. El primer `FAIL` corta la corrida: las etapas siguientes quedan `NOT_RUN`. `cleanup` corre siempre después de `launch`. `--gates-only` corre solo los comandos de esta sección; `--no-e2e` omite las e2e. Los comandos sueltos siguen valiendo para repetir una etapa. Las pruebas de integración necesitan Docker para PostgreSQL real. `check-comments` necesita las dependencias de `frontend/node_modules`, por eso va después de `npm ci`. `check-secrets` necesita gitleaks 8.30.1 en el `PATH` (en Windows: `winget install --id Gitleaks.Gitleaks --version 8.30.1 --exact`; o la ruta del ejecutable en `GITLEAKS_BIN`). Revisa el historial alcanzable desde `HEAD` y los cambios sin commitear; la auditoría NuGet y `npm audit` fallan ante un aviso alto o crítico en una dependencia de producción. CI corre lo mismo en el job `security`.
+Deja `summary.json` en `artifacts/verify-template/<id>/`, con `PASS`, `FAIL` o `NOT_RUN` por etapa y un log por comando. El primer `FAIL` corta la corrida: las etapas siguientes quedan `NOT_RUN`. `cleanup` corre siempre después de `launch`. `--gates-only` corre solo los comandos de esta sección; `--no-e2e` omite las e2e. Los comandos sueltos siguen valiendo para repetir una etapa. Las pruebas de integración necesitan Docker para PostgreSQL real. `check-comments` necesita las dependencias de `frontend/node_modules`, por eso va después de `npm ci`. `check-secrets` necesita gitleaks 8.30.1 en el `PATH` (en Windows: `winget install --id Gitleaks.Gitleaks --version 8.30.1 --exact`; o la ruta del ejecutable en `GITLEAKS_BIN`). Revisa el historial alcanzable desde `HEAD` y los cambios sin commitear; la auditoría NuGet y `npm audit` fallan ante un aviso alto o crítico en una dependencia de producción. CI corre lo mismo en el job `security`. `check-runbooks` también necesita `frontend/node_modules` (lee el YAML de las reglas) y falla si una alerta no enlaza su runbook, si el runbook no existe o le falta una sección, o si un runbook no tiene alerta. Los dos `promtool` usan la imagen de Prometheus de `compose.yaml` (`check-all` y CI la leen de ahí): validan la configuración y las reglas con lint fatal y corren las pruebas unitarias de las alertas. CI los corre en el job `slos`.
 
 Desde la raíz:
 
@@ -96,6 +96,10 @@ npm ci --prefix frontend
 npm audit --prefix frontend --omit=dev --audit-level=high
 node dune/check-comments.mjs --root .
 node --test dune/check-comments.test.mjs
+node dune/check-runbooks.mjs
+node --test dune/check-runbooks.test.mjs
+docker run --rm --entrypoint promtool --volume "$PWD/deploy/prometheus:/etc/prometheus:ro" prom/prometheus:v3.13.5 check config --lint-fatal /etc/prometheus/prometheus.yml
+docker run --rm --entrypoint promtool --volume "$PWD/deploy/prometheus:/etc/prometheus:ro" prom/prometheus:v3.13.5 test rules /etc/prometheus/rules/slo-api.test.yml
 ```
 
 Backend usa Microsoft Testing Platform (MTP): `dotnet test` ejecuta el runner MTP de `backend/Tests/TemplateApp.Tests.csproj` y de `dune/Dune.Analyzers.Tests/Dune.Analyzers.Tests.csproj` (xunit.v3). No hay `vstest` ni adaptador clásico; los proyectos Dune viven bajo `dune/`, no bajo `backend/`. La política MSBuild central vive en `dune/Dune.props`; `Directory.Build.props` solo la importa. Los símbolos prohibidos viven en `dune/BannedSymbols.txt`.
@@ -115,6 +119,7 @@ Para levantar una instancia aislada y probar la API real, usá la skill `verify-
 ```sh
 node .agents/skills/verify-template/scripts/smoke-api.mjs
 node .agents/skills/verify-template/scripts/smoke-api.mjs --compose
+node .agents/skills/verify-template/scripts/check-slo-alerts.mjs slo-check
 docker compose down --timeout 30 --volumes
 node .agents/skills/verify-template/scripts/check-otel-export.mjs otel-export
 ```
@@ -131,7 +136,9 @@ El escenario HTTP no reemplaza la prueba Angular contra la API real. Comprueba r
 
 Comprueba `GET /api/v1/health/live` y `/ready` antes y después de interrumpir PostgreSQL en un conjunto de prueba. Captura logs, métricas y spans recibidos por el collector y su correlación. Registrar exporters en DI no prueba exportación. No publiques secrets en la evidencia.
 
-`deploy/otel-collector-config.yaml` configura el collector. Con `OTEL_EXPORT_DIR` sin cambio, busca `otel-export/logs.json`, `metrics.json` y `traces.json`, archivos JSONL escritos por el collector. El smoke de Compose espera hasta 30 segundos el flush de batch y comprueba las métricas HTTP y de negocio. La correlación se comprueba después de `docker compose down`, porque al apagarse la API y el collector vacían sus buffers y el export queda completo: `check-otel-export.mjs` falla si no hay logs de request (los que llevan `RequestId`), si uno no trae `traceId` y `spanId` válidos, si apunta a un span que el collector no recibió, si no hay spans SERVER, si un span SERVER no tiene su log de request, si no llegan métricas o una llega sin puntos, o si una línea del export quedó cortada. Deja `otel-check.json` en la carpeta del export. El collector agrega al final de cada archivo: usá una carpeta vacía por corrida, porque los datos de una corrida vieja tapan o ensucian el resultado. El job `compose` de CI lo corre igual y publica esa carpeta. Revisa también la consola de `docker compose logs otel`. No confundas archivos creados pero vacíos con señales observadas.
+`deploy/otel-collector-config.yaml` configura el collector. Con `OTEL_EXPORT_DIR` sin cambio, busca `otel-export/logs.json`, `metrics.json` y `traces.json`, archivos JSONL escritos por el collector. El smoke de Compose espera hasta 30 segundos el flush de batch y comprueba las métricas HTTP y de negocio. La correlación se comprueba después de `docker compose down`, porque al apagarse la API y el collector vacían sus buffers y el export queda completo: `check-otel-export.mjs` falla si no hay logs de request (los que llevan `RequestId`), si uno no trae `traceId` y `spanId` válidos, si apunta a un span que el collector no recibió, si no hay spans SERVER, si un span SERVER no tiene su log de request, si no llegan métricas o una llega sin puntos, o si una línea del export quedó cortada. Deja `otel-check.json` en la carpeta del export. El collector agrega al final de cada archivo: usá una carpeta vacía por corrida, porque los datos de una corrida vieja tapan o ensucian el resultado. El job `compose` de CI lo corre igual y publica esa carpeta.
+
+`check-slo-alerts.mjs` es la prueba en vivo de los SLOs, con el stack recién levantado y después del smoke (`PROMETHEUS_URL`, por defecto `http://localhost:9090/`). Comprueba que Prometheus cargó las reglas sin error, consulta cada SLI y la métrica cruda, y pide que no haya alertas con tráfico sano. Después congela `db` 3 s por vuelta (requests 200 lentos) hasta ver `ApiLatencyBudgetBurn` en `firing`, sin `ApiAvailabilityBudgetBurn`; y para `db` (5xx) hasta ver `ApiAvailabilityBudgetBurn`. Cada alerta tiene que llegar con `page`, `ticket` y su `runbook_url`. Tarda unos 2 minutos y deja `slo-check.json` en la carpeta que recibe. Necesita un stack sin alertas previas: con un stack viejo, bajalo con `--volumes`. CI la corre en el job `compose` y publica `slo-check/`. Revisa también la consola de `docker compose logs otel`. No confundas archivos creados pero vacíos con señales observadas.
 
 ## Cambiar el código
 
