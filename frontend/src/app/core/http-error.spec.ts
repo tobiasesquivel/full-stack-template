@@ -1,8 +1,12 @@
-import { HttpErrorResponse } from '@angular/common/http';
+import { HttpErrorResponse, HttpHeaders } from '@angular/common/http';
 import { describeHttpError } from './http-error';
 
-function httpError(status: number, error: unknown = null): HttpErrorResponse {
-  return new HttpErrorResponse({ status, error });
+function httpError(
+  status: number,
+  error: unknown = null,
+  headers?: Record<string, string>,
+): HttpErrorResponse {
+  return new HttpErrorResponse({ status, error, headers: new HttpHeaders(headers) });
 }
 
 describe('describeHttpError', () => {
@@ -73,6 +77,21 @@ describe('describeHttpError', () => {
     );
     expect(describeHttpError(httpError(500, unexpected))).toBe(
       'Error inesperado del servidor. Inténtalo más tarde.',
+    );
+  });
+
+  it('asks to wait the seconds of Retry-After when the API limits the requests', () => {
+    const tooMany = {
+      status: 429,
+      title: 'Too Many Requests',
+      code: 'Http.TooManyRequests',
+      traceId: '00-trace-span-00',
+    };
+    expect(describeHttpError(httpError(429, tooMany, { 'Retry-After': '60' }))).toBe(
+      'Demasiadas solicitudes. Vuelve a intentarlo en 60 segundos.',
+    );
+    expect(describeHttpError(httpError(429, tooMany))).toBe(
+      'Demasiadas solicitudes. Espera un momento y vuelve a intentarlo.',
     );
   });
 });

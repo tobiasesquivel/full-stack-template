@@ -21,6 +21,13 @@ function validationText(problem: ProblemDetails | null): string | null {
   return messages.length > 0 ? messages.join(' ') : null;
 }
 
+function retryText(retryAfter: string | null): string {
+  const seconds = retryAfter === null ? NaN : Number(retryAfter);
+  return Number.isInteger(seconds) && seconds > 0
+    ? `Demasiadas solicitudes. Vuelve a intentarlo en ${seconds} segundos.`
+    : 'Demasiadas solicitudes. Espera un momento y vuelve a intentarlo.';
+}
+
 export function describeHttpError(error: unknown): string {
   if (!(error instanceof HttpErrorResponse)) {
     return 'Error inesperado. Inténtalo de nuevo.';
@@ -45,6 +52,8 @@ export function describeHttpError(error: unknown): string {
       return 'El recurso solicitado no existe o ya fue eliminado.';
     case 409:
       return detail ?? 'Ya existe un registro con esos datos.';
+    case 429:
+      return retryText(error.headers.get('Retry-After'));
     default:
       return detail ?? 'Error inesperado del servidor. Inténtalo más tarde.';
   }

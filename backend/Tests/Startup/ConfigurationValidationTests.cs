@@ -13,6 +13,8 @@ public sealed class ConfigurationValidationTests : IDisposable
     [Theory]
     [InlineData("Session__AbsoluteExpirationDays", "0", "SessionOptions.AbsoluteExpirationDays must be between 1 and 365.")]
     [InlineData("Session__IdleTimeoutMinutes", "2000", "SessionOptions.IdleTimeoutMinutes must be between 1 and 1440.")]
+    [InlineData("RateLimiting__UserWrites", "0", "ApiRateLimitOptions.UserWrites must be between 1 and 100000.")]
+    [InlineData("AuthRateLimiting__WindowSeconds", "0", "AuthRateLimitOptions.WindowSeconds must be between 1 and 86400.")]
     [InlineData("ConnectionStrings__DefaultConnection", null, "ConnectionStrings:DefaultConnection is required.")]
     [InlineData("ConnectionStrings__DefaultConnection", "postgres://localhost/app", "ConnectionStrings:DefaultConnection is not a valid PostgreSQL connection string.")]
     [InlineData("ConnectionStrings__DefaultConnection", "Database=app;Username=postgres", "ConnectionStrings:DefaultConnection must set Host.")]

@@ -33,7 +33,7 @@ public sealed class ApiFixture : IAsyncLifetime
     public HttpClient CreateIsolatedClient(Action<IServiceCollection> configureServices, out IServiceProvider services) =>
         CreateIsolatedClient(new Dictionary<string, string>(), configureServices, out services);
 
-    private HttpClient CreateIsolatedClient(
+    public HttpClient CreateIsolatedClient(
         IReadOnlyDictionary<string, string> settings,
         Action<IServiceCollection> configureServices,
         out IServiceProvider services)

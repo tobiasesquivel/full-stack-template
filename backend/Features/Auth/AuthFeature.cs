@@ -1,15 +1,19 @@
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
 using TemplateApp.Features.Auth.Access;
 using TemplateApp.Features.Auth.Contracts;
+using TemplateApp.Infrastructure.Http;
 using TemplateApp.Infrastructure.Persistence;
 
 namespace TemplateApp.Features.Auth;
 
 public static class AuthFeature
 {
+    public const string RateLimitPolicy = "auth";
+
     public static IServiceCollection AddAuthFeature(this IServiceCollection services)
     {
         services.AddAuthIdentity();
@@ -73,15 +77,13 @@ public static class AuthFeature
             options.HeaderName = "X-XSRF-TOKEN";
         });
 
-        services.AddRateLimiter(options =>
-        {
-            options.AddFixedWindowLimiter("auth", limiter =>
-            {
-                limiter.Window = TimeSpan.FromMinutes(1);
-                limiter.PermitLimit = 20;
-                limiter.QueueLimit = 0;
-            });
-        });
+        services.AddOptionsWithValidateOnStart<AuthRateLimitOptions, AuthRateLimitOptionsValidator>()
+            .BindConfiguration(AuthRateLimitOptions.Section);
+        services.AddOptions<RateLimiterOptions>()
+            .Configure<IOptions<AuthRateLimitOptions>>((limiter, limits) =>
+                limiter.AddPolicy(RateLimitPolicy, http => RateLimitPartition.GetFixedWindowLimiter(
+                    ApiRateLimiting.ClientAddressOf(http),
+                    _ => ApiRateLimiting.FixedWindow(limits.Value.PermitLimit, limits.Value.Window))));
 
         return services;
     }

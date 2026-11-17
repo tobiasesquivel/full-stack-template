@@ -5,7 +5,7 @@ namespace TemplateApp.Features.Auth.OpenSession;
 public static class OpenSessionEndpoint
 {
     public static void Map(IEndpointRouteBuilder auth) =>
-        auth.MapPost("/login", HandleAsync).AllowAnonymous().RequireRateLimiting("auth");
+        auth.MapPost("/login", HandleAsync).AllowAnonymous().RequireRateLimiting(AuthFeature.RateLimitPolicy);
 
     private static async Task<IResult> HandleAsync(
         OpenSessionRequest request,
