@@ -10,6 +10,7 @@ public sealed class AccessPolicy
 {
     private readonly UserManager<AppIdentityUser> _users;
     private readonly RoleManager<IdentityRole> _roles;
+    private readonly Dictionary<string, AccessGrant> _grants = new(StringComparer.Ordinal);
 
     public AccessPolicy(UserManager<AppIdentityUser> users, RoleManager<IdentityRole> roles)
     {
@@ -17,13 +18,41 @@ public sealed class AccessPolicy
         _roles = roles;
     }
 
-    public async Task<IReadOnlySet<string>> GetPermissionsAsync(string userId, CancellationToken ct = default)
+    public async Task<AccessGrant> GetGrantAsync(string userId, CancellationToken ct = default)
+    {
+        if (_grants.TryGetValue(userId, out AccessGrant? known))
+            return known;
+
+        AccessGrant grant = await LoadGrantAsync(userId, ct);
+        _grants[userId] = grant;
+        return grant;
+    }
+
+    public async Task<bool> HasPermissionAsync(string userId, string permission, CancellationToken ct = default)
+    {
+        AccessGrant grant = await GetGrantAsync(userId, ct);
+        return grant.Permissions.Contains(permission);
+    }
+
+    public async Task<bool> CanAccessAsync(
+        string callerId,
+        IOwnedResource resource,
+        string permission,
+        CancellationToken ct = default)
+    {
+        if (string.Equals(callerId, resource.OwnerId, StringComparison.Ordinal))
+            return true;
+
+        return await HasPermissionAsync(callerId, permission, ct);
+    }
+
+    private async Task<AccessGrant> LoadGrantAsync(string userId, CancellationToken ct)
     {
         AppIdentityUser? user = await _users.Users
             .AsNoTracking()
             .SingleOrDefaultAsync(u => u.Id == userId, ct);
         if (user is null)
-            return new HashSet<string>(StringComparer.Ordinal);
+            return AccessGrant.None;
 
         IList<string> roleNames = await _users.GetRolesAsync(user);
         HashSet<string> permissions = new(StringComparer.Ordinal);
@@ -42,24 +71,6 @@ public sealed class AccessPolicy
             }
         }
 
-        return permissions;
-    }
-
-    public async Task<bool> HasPermissionAsync(string userId, string permission, CancellationToken ct = default)
-    {
-        IReadOnlySet<string> permissions = await GetPermissionsAsync(userId, ct);
-        return permissions.Contains(permission);
-    }
-
-    public async Task<bool> CanAccessAsync(
-        string callerId,
-        IOwnedResource resource,
-        string permission,
-        CancellationToken ct = default)
-    {
-        if (string.Equals(callerId, resource.OwnerId, StringComparison.Ordinal))
-            return true;
-
-        return await HasPermissionAsync(callerId, permission, ct);
+        return new AccessGrant(roleNames.ToList().AsReadOnly(), permissions);
     }
 }

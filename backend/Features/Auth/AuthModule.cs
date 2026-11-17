@@ -31,15 +31,14 @@ public sealed class AuthModule : IAuthModule
 
     public async Task<UserAccountDetails> DescribeAsync(AppIdentityUser identity, CancellationToken ct)
     {
-        IList<string> roles = await _users.GetRolesAsync(identity);
-        IReadOnlySet<string> permissions = await _access.GetPermissionsAsync(identity.Id, ct);
+        AccessGrant grant = await _access.GetGrantAsync(identity.Id, ct);
 
         return new UserAccountDetails(
             identity.Id,
             identity.UserName,
             identity.Email,
-            new List<string>(roles).AsReadOnly(),
-            permissions.ToList().AsReadOnly());
+            grant.Roles,
+            grant.Permissions.ToList().AsReadOnly());
     }
 
     public async Task<ErrorOr<Success>> DeleteAccountAsync(string authId, CancellationToken ct)
