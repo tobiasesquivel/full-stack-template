@@ -34,6 +34,8 @@ backend/
 
 No hay mediator ni bus. El paso 25 del plan elige uno.
 
+Lectura y escritura están separadas por slice (CQRS liviano): misma base y mismo `AppDbContext`, dos modelos. Las slices de escritura cargan la entidad rastreada, la cambian y guardan. Las de lectura (`ListTasks`, `GetTask`) proyectan a la respuesta en una consulta y no rastrean la entidad. `Users/GetUser` todavía carga `UserProfile` sin rastreo: es la excepción de la regla. Los permisos sí pueden dejar roles de Identity rastreados (pendiente en `progreso.md`). DUNE0019 lo hace cumplir (`conventions.md`, "Lecturas").
+
 ## Estado actual frente al objetivo
 
 El código todavía no tiene la forma de arriba. La Fase 0 del [plan](evolucion/plan.md) lo lleva hasta ahí.
@@ -66,7 +68,7 @@ El registro crea identidad, perfil, rol y sesión en una transacción explícita
 
 ## Autorización y sesión
 
-- Una operación carga el recurso por Id. Si no existe, devuelve 404. Después decide propietario o permiso, y si falla devuelve 403.
+- Una operación lee el recurso por Id: una escritura carga la entidad y una lectura, su modelo de lectura. Si no existe, devuelve 404. Después decide propietario o permiso, y si falla devuelve 403.
 - Solo la lista personal filtra por propietario. Un permiso administrativo no amplía la lista personal.
 - `User` recibe `Tasks.Create`. La propiedad habilita leer y modificar lo propio. `Admin` y `SuperAdmin` reciben permisos globales de Tasks. `SuperAdmin` recibe `Users.Manage`.
 - Los permisos se consultan en cada request. La sesión lleva solo identidad (el id del usuario y el de la sesión), nunca roles ni permisos.

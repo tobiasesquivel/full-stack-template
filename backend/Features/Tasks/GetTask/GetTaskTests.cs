@@ -1,4 +1,9 @@
 using System.Net;
+using ErrorOr;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using TemplateApp.Features.Tasks.Domain;
+using TemplateApp.Infrastructure.Persistence;
 using TemplateApp.Tests.Support;
 using Xunit;
 
@@ -30,6 +35,67 @@ public sealed class GetTaskTests : IClassFixture<ApiFixture>
         var missing = await alice.SendAsync(HttpMethod.Get, $"api/v1/tasks/{Guid.NewGuid():D}", csrf: false);
         missing.Payload?.Dispose();
         Assert.Equal(HttpStatusCode.NotFound, missing.Status);
+    }
+
+    [Fact]
+    public async Task Detail_EqualsItsRowInTheList_ForOpenCompletedAndReopened()
+    {
+        var alice = new TestSession(_fixture.CreateClient());
+        await alice.RegisterAsync(TestAccounts.UniqueName("alice"));
+
+        string open = await alice.CreateTaskAsync("Abierta");
+        string completed = await alice.CreateTaskAsync("Completada");
+        await PutAsync(alice, completed, "Completada", isCompleted: true);
+        string reopened = await alice.CreateTaskAsync("Reabierta");
+        await PutAsync(alice, reopened, "Reabierta", isCompleted: true);
+        await PutAsync(alice, reopened, "Reabierta otra vez", isCompleted: false);
+
+        var list = await alice.SendAsync(HttpMethod.Get, "api/v1/tasks?pageSize=10", csrf: false);
+        Assert.Equal(HttpStatusCode.OK, list.Status);
+        Assert.NotNull(list.Payload);
+        Dictionary<string, string> rows;
+        using (list.Payload)
+            rows = list.Payload.RootElement.GetProperty("items").EnumerateArray()
+                .ToDictionary(item => item.GetProperty("id").GetString()!, item => item.GetRawText());
+
+        foreach (string id in new[] { open, completed, reopened })
+        {
+            var detail = await alice.SendAsync(HttpMethod.Get, $"api/v1/tasks/{id}", csrf: false);
+            Assert.Equal(HttpStatusCode.OK, detail.Status);
+            Assert.NotNull(detail.Payload);
+            using (detail.Payload)
+                Assert.Equal(rows[id], detail.Payload.RootElement.GetRawText());
+        }
+    }
+
+    [Fact]
+    public async Task Read_IsOneQuery_And_LeavesNoTaskTracked()
+    {
+        CapturedCommands commands = new();
+        HttpClient client = _fixture.CreateIsolatedClient(
+            services => services.ConfigureDbContext<AppDbContext>(options => options.AddInterceptors(commands)),
+            out IServiceProvider services);
+        var alice = new TestSession(client);
+        await alice.RegisterAsync(TestAccounts.UniqueName("alice"));
+        string id = await alice.CreateTaskAsync("Sin rastreo");
+
+        using IServiceScope scope = services.CreateScope();
+        commands.Reset();
+        ErrorOr<TaskResponse> read = await scope.ServiceProvider.GetRequiredService<GetTask>()
+            .ExecuteAsync(alice.AuthId, Guid.Parse(id), TestContext.Current.CancellationToken);
+
+        Assert.False(read.IsError);
+        Assert.Equal("Sin rastreo", read.Value.Title);
+        Assert.Single(commands.Reading("TaskItems"));
+        Assert.Empty(scope.ServiceProvider.GetRequiredService<AppDbContext>().ChangeTracker.Entries<TaskItem>());
+    }
+
+    private static async Task PutAsync(TestSession session, string id, string title, bool isCompleted)
+    {
+        uint version = await session.TaskVersionAsync(id);
+        var updated = await session.SendAsync(HttpMethod.Put, $"api/v1/tasks/{id}", new { title, isCompleted, version });
+        updated.Payload?.Dispose();
+        Assert.Equal(HttpStatusCode.OK, updated.Status);
     }
 
     [Fact]
