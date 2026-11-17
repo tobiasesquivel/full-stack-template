@@ -53,6 +53,7 @@ public sealed class CrossFeatureCoverageTests
                 extension(System.Version)
                 {
                     public static System.Version operator +(System.Version v, int n) => v;
+                    public static System.Version operator ++(System.Version v) => v;
                 }
             }
             """),
@@ -111,6 +112,9 @@ public sealed class CrossFeatureCoverageTests
                 public static UserInfo Info() => new("x");
                 public static event Action<UserThing>? Changed;
                 public static void Raise() => Changed?.Invoke(new());
+                public static Dictionary<UserThing, int>.KeyCollection Keys() => new Dictionary<UserThing, int>().Keys;
+                public static void Many(params UserThing[] items) { }
+                public static void ManyList(params List<UserThing> items) { }
             }
             """),
         ("backend/Features/Tasks/Own/OwnThing.cs", """
@@ -133,11 +137,18 @@ public sealed class CrossFeatureCoverageTests
         { "extension_block_operator", "public object? M(string s) => new System.Version() + 1;" },
         { "pattern_foreach_enumerator", "public object? M(string s) { foreach (var i in 3) { return i; } return null; }" },
         { "pattern_deconstruct", "public object? M(System.Uri u) { var (a, b) = u; return a + b; }" },
-        { "pattern_collection_add", "public object? M(string s) => new System.Collections.Generic.List<int> { \"x\" };" },
+        { "collection_initializer_extension_add", "public object? M(string s) => new System.Collections.Generic.List<int> { \"x\" };" },
         { "pattern_await", "public async System.Threading.Tasks.Task M() { await System.TimeSpan.Zero; }" },
         { "pattern_positional", "public object? M(System.Uri u) => u is (\"h\", _);" },
         { "pattern_foreach_deconstruct", "public object? M(System.Uri[] us) { foreach (var (a, b) in us) { return a; } return null; }" },
-        { "pattern_linq_select", "public object? M(System.Version v) => from x in v select x;" },
+        { "query_extension_select", "public object? M(System.Version v) => from x in v select x;" },
+        { "extension_compound_assignment", "public object? M(System.Version v) { v += 1; return v; }" },
+        { "extension_increment", "public object? M(System.Version v) { v++; return v; }" },
+        { "pattern_nested_deconstruct", "public object? M(System.Uri u) { var ((a, b), n) = (u, 1); return a + n; }" },
+        { "pattern_var_deconstruct", "public object? M(System.Uri u) => u is var (a, b) ? a : null;" },
+        { "nested_type_of_generic", "public object? M() => Bridge.Keys().Count;" },
+        { "params_array", "public object? M() { Bridge.Many(); return null; }" },
+        { "params_collection", "public object? M() { Bridge.ManyList(); return null; }" },
         { "invocation_member", "public object? M() => Bridge.Get().Name;" },
         { "invocation_argument", "public object? M() => System.Convert.ToString(Bridge.Get());" },
         { "invocation_discarded", "public object? M() { Bridge.Get(); return null; }" },

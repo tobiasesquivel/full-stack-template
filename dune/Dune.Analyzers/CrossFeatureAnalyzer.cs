@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -31,15 +32,20 @@ public sealed class CrossFeatureAnalyzer : DiagnosticAnalyzer
             OperationKind.DelegateCreation,
             OperationKind.Binary,
             OperationKind.Unary,
+            OperationKind.CompoundAssignment,
+            OperationKind.Increment,
+            OperationKind.Decrement,
             OperationKind.Conversion,
-            OperationKind.DefaultValue);
+            OperationKind.DefaultValue,
+            OperationKind.ArrayCreation,
+            OperationKind.CollectionExpression,
+            OperationKind.RecursivePattern);
         context.RegisterSyntaxNodeAction(
             AnalyzePatternMember,
             SyntaxKind.ForEachStatement,
             SyntaxKind.ForEachVariableStatement,
             SyntaxKind.AwaitExpression,
-            SyntaxKind.SimpleAssignmentExpression,
-            SyntaxKind.RecursivePattern);
+            SyntaxKind.SimpleAssignmentExpression);
     }
 
     private static void AnalyzePatternMember(SyntaxNodeAnalysisContext context)
@@ -50,14 +56,23 @@ public sealed class CrossFeatureAnalyzer : DiagnosticAnalyzer
         }
 
         var model = context.SemanticModel;
-        var methods = context.Node switch
+        var methods = new List<ISymbol?>();
+        switch (context.Node)
         {
-            ForEachVariableStatementSyntax loop => new ISymbol?[] { model.GetForEachStatementInfo(loop).GetEnumeratorMethod, model.GetDeconstructionInfo(loop).Method },
-            CommonForEachStatementSyntax loop => new ISymbol?[] { model.GetForEachStatementInfo(loop).GetEnumeratorMethod },
-            AwaitExpressionSyntax awaited => new ISymbol?[] { model.GetAwaitExpressionInfo(awaited).GetAwaiterMethod },
-            AssignmentExpressionSyntax assignment => new ISymbol?[] { model.GetDeconstructionInfo(assignment).Method },
-            _ => new ISymbol?[] { (model.GetOperation(context.Node, context.CancellationToken) as IRecursivePatternOperation)?.DeconstructSymbol },
-        };
+            case ForEachVariableStatementSyntax loop:
+                methods.Add(model.GetForEachStatementInfo(loop).GetEnumeratorMethod);
+                AddDeconstructMethods(model.GetDeconstructionInfo(loop), methods);
+                break;
+            case CommonForEachStatementSyntax loop:
+                methods.Add(model.GetForEachStatementInfo(loop).GetEnumeratorMethod);
+                break;
+            case AwaitExpressionSyntax awaited:
+                methods.Add(model.GetAwaitExpressionInfo(awaited).GetAwaiterMethod);
+                break;
+            case AssignmentExpressionSyntax { Left: TupleExpressionSyntax or DeclarationExpressionSyntax } assignment:
+                AddDeconstructMethods(model.GetDeconstructionInfo(assignment), methods);
+                break;
+        }
 
         foreach (var method in methods)
         {
@@ -67,6 +82,15 @@ public sealed class CrossFeatureAnalyzer : DiagnosticAnalyzer
                 context.ReportDiagnostic(Diagnostic.Create(DuneDiagnostics.CrossFeature, context.Node.GetLocation(), foreign.ToDisplayString()));
                 return;
             }
+        }
+    }
+
+    private static void AddDeconstructMethods(DeconstructionInfo info, List<ISymbol?> methods)
+    {
+        methods.Add(info.Method);
+        foreach (var nested in info.Nested)
+        {
+            AddDeconstructMethods(nested, methods);
         }
     }
 
@@ -103,7 +127,11 @@ public sealed class CrossFeatureAnalyzer : DiagnosticAnalyzer
             IMemberReferenceOperation reference => reference.Member,
             IBinaryOperation binary => binary.OperatorMethod,
             IUnaryOperation unary => unary.OperatorMethod,
+            ICompoundAssignmentOperation compound => compound.OperatorMethod,
+            IIncrementOrDecrementOperation step => step.OperatorMethod,
             IConversionOperation conversion => conversion.OperatorMethod,
+            ICollectionExpressionOperation collection => collection.ConstructMethod,
+            IRecursivePatternOperation pattern => pattern.DeconstructSymbol,
             _ => null,
         };
 
@@ -139,10 +167,18 @@ public sealed class CrossFeatureAnalyzer : DiagnosticAnalyzer
                 return null;
             case IArrayTypeSymbol array:
                 return FindForeignInterior(array.ElementType, owner);
+            case IPointerTypeSymbol pointer:
+                return FindForeignInterior(pointer.PointedAtType, owner);
             case INamedTypeSymbol named:
                 if (IsForeignInterior(DuneSymbols.NamespaceOf(named.OriginalDefinition), owner))
                 {
                     return named;
+                }
+
+                if (named.ContainingType is not null
+                    && FindForeignInterior(named.ContainingType, owner) is { } container)
+                {
+                    return container;
                 }
 
                 foreach (var argument in named.TypeArguments)
