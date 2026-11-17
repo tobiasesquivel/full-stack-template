@@ -278,7 +278,7 @@ namespace TemplateApp.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("OwnerId");
+                    b.HasIndex("OwnerId", "CreatedAt", "Id");
 
                     b.ToTable("TaskItems", (string)null);
                 });

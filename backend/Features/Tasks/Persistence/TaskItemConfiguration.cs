@@ -26,7 +26,7 @@ public sealed class TaskItemConfiguration : IEntityTypeConfiguration<TaskItem>
         builder.Property(t => t.Version)
             .IsRowVersion();
 
-        builder.HasIndex(t => t.OwnerId);
+        builder.HasIndex(t => new { t.OwnerId, t.CreatedAt, t.Id });
 
         builder.ToTable("TaskItems");
     }
