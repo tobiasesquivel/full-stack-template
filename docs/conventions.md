@@ -91,6 +91,15 @@ Excepciones (la lista es cerrada):
 - Una entidad de negocio que hay que poder rastrear implementa `IAuditable` (`Shared/Domain`), y `AuditInterceptor` registra cada cambio en `AuditEntries`. Se cambia solo cargándola y guardando con `SaveChanges`: DUNE0017 rechaza `ExecuteUpdate` y `ExecuteDelete` sobre un tipo `IAuditable`. La auditoría guarda ids opacos y nombres de propiedades, nunca valores.
 - Reintentos, caché y bus entran solo con su paso del plan (29, 33 y 25). Hasta el paso 25, `check-structure.mjs` rechaza cualquier librería de bus o mediator (MediatR, MassTransit, Wolverine, NServiceBus, Rebus y otras), sea paquete, `<Using>` o `using`. Hasta el paso 33, también rechaza la caché que dura más que un request: paquetes y namespaces `Microsoft.Extensions.Caching.*`, `OutputCaching`, `ResponseCaching`, FusionCache y otras, y los registros `Add*Cache`/`Add*Caching`, `UseOutputCache`, `UseResponseCaching` y `CacheOutput`. Un memo en un campo de un servicio scoped no es caché: muere con el request.
 
+## Métricas
+
+- Una métrica responde "cuántos" o "cuánto tarda" sobre muchos eventos. Lo que describe un evento concreto (quién, qué id) va al log.
+- Cada feature que mide tiene un `<Feature>Metrics` en su raíz (`TaskMetrics`, `AuthMetrics`), registrado como singleton, con un Meter `TemplateApp.<Feature>` que crea `IMeterFactory`. `BannedSymbols.txt` prohíbe `new Meter(...)`. `ObservabilityExtensions` los exporta con `AddMeter("TemplateApp.*")`, sin nombrar features.
+- El instrumento se llama como el Meter en minúsculas más el hecho (`templateapp.tasks.created`), sin `_total`, con unidad UCUM (`{task}`, `s`).
+- Una etiqueta sale solo de un enum cerrado de la feature, que `<Feature>Metrics` traduce a un texto fijo (`LoginOutcome` → `templateapp.auth.login.outcome`). Ids, títulos, usuarios y emails nunca son etiquetas.
+- Se mide después del `SaveChangesAsync` que confirma el hecho: un replay de idempotencia o un 409 no cuentan.
+- Las pruebas escuchan con `RecordedMeasurements` (`backend/Tests/Support`), que filtra por el `IMeterFactory` del host del test: las clases de test corren en paralelo en el mismo proceso.
+
 ## Seguridad
 
 - El propietario nunca viene del cliente.
