@@ -129,6 +129,48 @@ describe('check-structure', () => {
     }
   });
 
+  it('acepta InternalsVisibleTo para TemplateApp.Tests', async () => {
+    const repo = await makeRepo();
+    try {
+      await seedValid(repo);
+      await repo.write(
+        'backend/TemplateApp.csproj',
+        '<Project><ItemGroup><Compile Remove="Features/**/*Tests.cs" /><Compile Remove="Tests/**/*.cs" /></ItemGroup>'
+          + '<ItemGroup><InternalsVisibleTo Include="TemplateApp.Tests" /></ItemGroup></Project>',
+      );
+      const result = await runGate(repo.dir);
+      assert.equal(result.code, 0, result.output);
+    } finally {
+      await repo.cleanup();
+    }
+  });
+
+  for (const [name, rel, content] of [
+    ['InternalsVisibleTo a otro ensamblado en el csproj', 'backend/TemplateApp.csproj', '<Project><ItemGroup><Compile Remove="Features/**/*Tests.cs" /><Compile Remove="Tests/**/*.cs" /><InternalsVisibleTo Include="TemplateApp.Tools" /></ItemGroup></Project>'],
+    ['InternalsVisibleTo como AssemblyAttribute en Directory.Build.props', 'Directory.Build.props', '<Project><ItemGroup><AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo"><_Parameter1>DynamicProxyGenAssembly2</_Parameter1></AssemblyAttribute></ItemGroup></Project>'],
+    ['atributo InternalsVisibleTo en el código', 'backend/Infrastructure/AssemblyInfo.cs', '[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("TemplateApp.Benchmarks")]\n'],
+    ['atributo InternalsVisibleTo en Properties/', 'backend/Properties/AssemblyInfo.cs', '[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("TemplateApp.Benchmarks")]\n'],
+    ['InternalsVisibleTo en un props importado por el backend', 'backend/Build/Internals.props', '<Project><ItemGroup><InternalsVisibleTo Include="TemplateApp.Tools" /></ItemGroup></Project>'],
+    ['InternalsVisibleTo con otro atributo antes de Include', 'backend/TemplateApp.csproj', '<Project><ItemGroup><Compile Remove="Features/**/*Tests.cs" /><Compile Remove="Tests/**/*.cs" /><InternalsVisibleTo Condition="true" Include="TemplateApp.Tools" /></ItemGroup></Project>'],
+    ['InternalsVisibleTo con comillas simples', 'backend/TemplateApp.csproj', '<Project><ItemGroup><Compile Remove="Features/**/*Tests.cs" /><Compile Remove="Tests/**/*.cs" /><InternalsVisibleTo Include=\'TemplateApp.Tools\' /></ItemGroup></Project>'],
+    ['AssemblyAttribute con _Parameter1 como atributo', 'backend/TemplateApp.csproj', '<Project><ItemGroup><Compile Remove="Features/**/*Tests.cs" /><Compile Remove="Tests/**/*.cs" /><AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo" _Parameter1="TemplateApp.Tools" /></ItemGroup></Project>'],
+    ['atributo InternalsVisibleTo con argumento con nombre', 'backend/Infrastructure/AssemblyInfo.cs', '[assembly: System.Runtime.CompilerServices.InternalsVisibleTo(assemblyName: "TemplateApp.Benchmarks")]\n'],
+    ['atributo InternalsVisibleTo con una constante', 'backend/Infrastructure/AssemblyInfo.cs', '[assembly: System.Runtime.CompilerServices.InternalsVisibleTo(Names.Benchmarks)]\n'],
+  ]) {
+    it(`rechaza ${name}`, async () => {
+      const repo = await makeRepo();
+      try {
+        await seedValid(repo);
+        await repo.write(rel, content);
+        const result = await runGate(repo.dir);
+        assert.equal(result.code, 1);
+        assert.match(result.output, /InternalsVisibleTo solo para TemplateApp\.Tests/);
+      } finally {
+        await repo.cleanup();
+      }
+    });
+  }
+
   for (const [name, rel, content] of [
     ['paquete MediatR en el producto', 'backend/TemplateApp.csproj', '<Project><ItemGroup><Compile Remove="Features/**/*Tests.cs" /><Compile Remove="Tests/**/*.cs" /><PackageReference Include="MediatR" Version="12.0.0" /></ItemGroup></Project>'],
     ['paquete MassTransit en Directory.Build.props', 'Directory.Build.props', '<Project><ItemGroup><PackageReference Include="MassTransit.RabbitMQ" Version="8.0.0" /></ItemGroup></Project>'],

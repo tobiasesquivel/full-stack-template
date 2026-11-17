@@ -164,6 +164,37 @@ async function buildSources() {
   return all;
 }
 
+async function internalsSources() {
+  const all = [];
+  await collectFiles(backend, all);
+  const own = all.filter((file) => {
+    const rel = toPosix(file);
+    return /\.(cs|csproj|props|targets)$/.test(rel) && !rel.startsWith('backend/Tests/') && !rel.endsWith('Tests.cs');
+  });
+  return [...new Set([...own, ...(await buildSources())])];
+}
+
+async function checkInternalsOnlyForTests() {
+  const hits = [];
+  const msbuild = [
+    /<InternalsVisibleTo\b[^>]*?\b(?:Include|Update)\s*=\s*["']([^"']+)["']/g,
+    /<AssemblyAttribute\b[^>]*?\bInclude\s*=\s*["']System\.Runtime\.CompilerServices\.InternalsVisibleTo(?:Attribute)?["'][^>]*?(?:\b_Parameter1\s*=\s*["']([^"']+)["']|>\s*<_Parameter1>([^<]+)<\/_Parameter1>)/g,
+  ];
+  const csharp = /\bInternalsVisibleTo(?:Attribute)?\s*\(\s*(?:assemblyName\s*:\s*)?(?:"([^"]*)"|([^)]*))/g;
+  for (const file of await internalsSources()) {
+    const text = await readText(file);
+    const patterns = file.endsWith('.cs') ? [csharp] : msbuild;
+    for (const pattern of patterns) {
+      for (const match of text.matchAll(pattern)) {
+        const literal = match[1] ?? (file.endsWith('.cs') ? undefined : match[2]);
+        const target = literal === undefined ? `argumento no literal: ${match[2].trim()}` : literal.split(',')[0].trim();
+        if (target !== 'TemplateApp.Tests') hits.push(`${toPosix(file)} (${target})`);
+      }
+    }
+  }
+  if (hits.length > 0) fail(`InternalsVisibleTo solo para TemplateApp.Tests: el interior de las features no se abre a otro ensamblado: ${hits.join(', ')}`);
+}
+
 async function checkNoBus() {
   const hits = [];
   const references = /<(?:PackageReference|PackageVersion|Using)\s+(?:Include|Update)="([^"]+)"/g;
@@ -336,6 +367,7 @@ async function checkNoNestedGit() {
 
 await checkSlicesHaveTests();
 await checkProductExcludesTests();
+await checkInternalsOnlyForTests();
 await checkNoBus();
 await checkNoCrossRequestCache();
 await checkRateLimitExemptionOnlyInHealth();

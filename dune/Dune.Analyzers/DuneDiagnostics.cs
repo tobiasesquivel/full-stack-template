@@ -258,4 +258,21 @@ internal static class DuneDiagnostics
         isEnabledByDefault: true,
         description: "CQRS liviano: una slice cuyo endpoint solo mapea GET no materializa una clase del Domain de una feature desde un IQueryable ni con Find, ni la pasa entera dentro de un Select (EF la trae completa y la rastrea); proyecta sus columnas a lo que responde. Users/GetUser es la única excepción hasta que proyecte.",
         customTags: WellKnownDiagnosticTags.CompilationEnd);
+    public static readonly DiagnosticDescriptor PublicInterior = new(
+        id: "DUNE0020",
+        title: "Tipo public fuera de Contracts",
+        messageFormat: "'{0}' es public fuera de Contracts/: el interior de una feature es internal",
+        category: "Dune",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "Dentro de backend/Features, public significa contrato: solo los tipos de Contracts/ son public y todo lo demás es internal (ADR-0004, punto 1). Así el compilador impide que un contrato exponga un tipo interior en su firma.");
+
+    public static readonly DiagnosticDescriptor ContractNotPublic = new(
+        id: "DUNE0020",
+        title: "Contrato que no es public",
+        messageFormat: "'{0}' está en Contracts/ y no es public: lo que ve otra feature es public",
+        category: "Dune",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "Dentro de backend/Features, public y Contracts/ son lo mismo en las dos direcciones: un tipo de Contracts/ es public.");
 }
