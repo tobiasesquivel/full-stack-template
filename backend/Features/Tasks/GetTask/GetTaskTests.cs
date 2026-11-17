@@ -1,4 +1,9 @@
 using System.Net;
+using ErrorOr;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using TemplateApp.Features.Tasks.Domain;
+using TemplateApp.Infrastructure.Persistence;
 using TemplateApp.Tests.Support;
 using Xunit;
 
@@ -61,6 +66,28 @@ public sealed class GetTaskTests : IClassFixture<ApiFixture>
             using (detail.Payload)
                 Assert.Equal(rows[id], detail.Payload.RootElement.GetRawText());
         }
+    }
+
+    [Fact]
+    public async Task Read_IsOneQuery_And_LeavesNoTaskTracked()
+    {
+        CapturedCommands commands = new();
+        HttpClient client = _fixture.CreateIsolatedClient(
+            services => services.ConfigureDbContext<AppDbContext>(options => options.AddInterceptors(commands)),
+            out IServiceProvider services);
+        var alice = new TestSession(client);
+        await alice.RegisterAsync(TestAccounts.UniqueName("alice"));
+        string id = await alice.CreateTaskAsync("Sin rastreo");
+
+        using IServiceScope scope = services.CreateScope();
+        commands.Reset();
+        ErrorOr<TaskResponse> read = await scope.ServiceProvider.GetRequiredService<GetTask>()
+            .ExecuteAsync(alice.AuthId, Guid.Parse(id), TestContext.Current.CancellationToken);
+
+        Assert.False(read.IsError);
+        Assert.Equal("Sin rastreo", read.Value.Title);
+        Assert.Single(commands.Reading("TaskItems"));
+        Assert.Empty(scope.ServiceProvider.GetRequiredService<AppDbContext>().ChangeTracker.Entries<TaskItem>());
     }
 
     private static async Task PutAsync(TestSession session, string id, string title, bool isCompleted)
