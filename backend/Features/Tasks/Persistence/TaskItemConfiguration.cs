@@ -23,6 +23,11 @@ public sealed class TaskItemConfiguration : IEntityTypeConfiguration<TaskItem>
 
         builder.Property(t => t.UpdatedAt);
 
+        builder.Property(t => t.IsCompleted)
+            .HasDefaultValue(false);
+
+        builder.Property(t => t.CompletedAt);
+
         builder.Property(t => t.Version)
             .IsRowVersion();
 

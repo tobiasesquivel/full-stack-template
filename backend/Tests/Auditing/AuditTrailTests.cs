@@ -46,7 +46,7 @@ public sealed class AuditTrailTests : IClassFixture<ApiFixture>
             modified =>
             {
                 Assert.Equal(("TaskItem", "Modified", "user", alice.AuthId), (modified.EntityType, modified.Operation, modified.ActorKind, modified.ActorId));
-                Assert.Equal("IsCompleted,Title,UpdatedAt", modified.ChangedProperties);
+                Assert.Equal("CompletedAt,IsCompleted,Title,UpdatedAt", modified.ChangedProperties);
                 Assert.Equal(updatedAt, modified.OccurredAt);
                 Assert.Matches("^[0-9a-f]{32}$", modified.TraceId);
             });
