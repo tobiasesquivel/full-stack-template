@@ -29,7 +29,7 @@ backend/
 - **Feature:** un módulo profundo. Su interfaz pública es `Contracts/` más sus rutas HTTP.
 - **Slice:** un caso de uso, en su carpeta. La operación es una clase propia, con sus dependencias. El endpoint solo adapta HTTP y llama a la operación.
 - **Domain:** sin EF, ASP.NET ni infraestructura. Concentra las reglas que comparten las slices.
-- **Infrastructure:** observabilidad, middlewares, arranque de la base, el grupo versionado de la API, el filtro de idempotencia de los `POST` (`Http/IdempotencyFilter`, con su tabla `IdempotencyKeys`), la auditoría de cambios (`Persistence/AuditInterceptor`, con su tabla `AuditEntries`), el limiter global de requests (`Http/ApiRateLimiting`), las cabeceras de seguridad de toda respuesta (`Http/ApiSecurityHeaders`) y composición del host.
+- **Infrastructure:** observabilidad, middlewares, arranque de la base, los health checks de la base (`Persistence/DatabaseHealthCheck` y `Persistence/PendingMigrationsHealthCheck`), el grupo versionado de la API, el filtro de idempotencia de los `POST` (`Http/IdempotencyFilter`, con su tabla `IdempotencyKeys`), la auditoría de cambios (`Persistence/AuditInterceptor`, con su tabla `AuditEntries`), el limiter global de requests (`Http/ApiRateLimiting`), las cabeceras de seguridad de toda respuesta (`Http/ApiSecurityHeaders`) y composición del host.
 - **Shared:** tipos generales que usan varias features, como `ApiResults`.
 
 No hay mediator ni bus. El paso 25 del plan elige uno.
@@ -123,7 +123,7 @@ frontend/src/app/
 - Serilog exporta logs por OTLP. OpenTelemetry exporta métricas y trazas a `/v1/metrics` y `/v1/traces`.
 - Además de las métricas de ASP.NET Core, HttpClient, runtime e Identity, hay métricas de negocio: el Meter `TemplateApp.Tasks` (`templateapp.tasks.created` y el histograma `templateapp.tasks.completion.duration`) y el Meter `TemplateApp.Auth` (`templateapp.auth.login.attempts` por `outcome`). El smoke de Compose falla si no llegan al collector.
 - Los logs de request llevan trace y span, sin credenciales. El job `compose` de CI lo comprueba sobre el export completo, después de apagar el stack: cada log de request apunta a un span que el collector recibió, cada span SERVER tiene su log de request y ninguna métrica llega vacía (`check-otel-export.mjs`).
-- Readiness comprueba PostgreSQL y las migraciones. Liveness no depende de la base.
+- Readiness (`GET /api/v1/health/ready`) corre todos los health checks registrados con el framework de ASP.NET Core: `database` (un `SELECT 1`) y `migrations` (ninguna migración pendiente). Los registra `Infrastructure`, cada uno con un límite de 2 s que también acota la conexión de Npgsql del check; la feature `Health` no sabe qué dependencias hay. Responde 503 si alguno sale `Unhealthy`, y el body nombra cada check con su estado (`{"status":"not-ready","timestamp":…,"checks":{"database":"unhealthy","migrations":"unhealthy"}}`), sin descripción ni excepción. El motivo de cada falla queda en el log, con su excepción. Liveness no corre checks y no depende de la base. El collector de OpenTelemetry no entra en readiness: si se cae, la API sigue atendiendo.
 
 ## Dune
 
