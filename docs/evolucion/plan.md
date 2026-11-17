@@ -385,12 +385,24 @@ El paso 0.28 se agregó el 2026-10-17, a pedido de Tobi, con otro pendiente del 
 **Cambia**: gateway (YARP), `compose.yaml`, Dockerfiles, `ci.yml`.
 **Verifica**: `docker compose up --build --wait` + `smoke-api.mjs --compose` contra el nuevo despliegue; navegador completo; health de cada proceso.
 
+**23.1. Segunda entidad con reglas propias y una lectura con otra forma.**
+**Concepto**: CQRS completo del lado de escritura y de lectura. Con `Task` sola, el comando casi no tiene reglas que proteger y la respuesta es una copia de la tabla, así que separar lectura y escritura no muestra su beneficio. Una entidad con reglas que siempre tienen que cumplirse (invariantes) muestra por qué el comando carga y protege la entidad, y una lectura que junta datos de varias features muestra por qué la consulta no la carga.
+**Nota**: Tobi lo pidió el 2026-11-17, durante el paso 20 ("dale si la tercera"). La entidad la elige la investigación del paso (regla 12); un candidato es `Projects`, un proyecto con estados (activo, archivado) y reglas que solo él protege, con una lectura "proyecto con sus contadores de tareas y el nombre del dueño". Va después del paso 22: con un `DbContext` por feature, esa lectura no puede unir tablas de otras features y tiene que pasar por sus `Contracts`.
+**Cambia**: feature nueva con Domain/Contracts/Persistence/Tests, migración, endpoints, frontend (regla 3: el contrato HTTP es nuevo), `smoke-api.mjs`.
+**Verifica**: un test por invariante, donde el comando que la rompe falla sin cambiar la base; la lectura no carga la entidad (test que lo afirma); smoke y navegador con la feature nueva.
+
 ### Fase 8 — Asincronía, mensajería y consistencia (pasos 24-28)
 
 **24. Eventos de dominio + outbox transaccional, sin broker.**
 **Concepto**: atomicidad entre estado y evento; el error clásico es publicar antes de confirmar.
 **Cambia**: `Features/Tasks` (eventos), tabla de outbox, `Infrastructure/Persistence`, migración, tests.
 **Verifica**: test donde el relay falla y el evento queda pendiente sin perder el cambio de estado; duplicado entregado dos veces y consumido una sola vez.
+
+**24.1. Modelo de lectura alimentado por eventos.**
+**Concepto**: proyección con consistencia eventual: la lectura vive en su propia tabla y se pone al día después de la escritura, a partir de los eventos del paso 24.
+**Nota**: Tobi lo pidió el 2026-11-17 junto con el paso 23.1. La proyección reemplaza la lectura del paso 23.1 que junta varias features.
+**Cambia**: tabla de proyección, consumidor de eventos que la actualiza, la consulta del paso 23.1, migración, tests.
+**Verifica**: test comparativo, donde la proyección devuelve lo mismo que la lectura de antes; test donde el consumidor se atrasa y la lectura muestra el dato viejo hasta procesar el evento; reconstrucción de la proyección desde cero con el mismo resultado.
 
 **25. Broker real con consumidor idempotente y DLQ.**
 **Concepto**: at-least-once, deduplicación, mensajes venenosos, orden por partición.

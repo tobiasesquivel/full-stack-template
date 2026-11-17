@@ -73,7 +73,9 @@ Estados: `pendiente`, `en curso`, `cerrado`, `bloqueado (⏸ decisión de Tobi)`
 | 21 | Contrato público por feature, y gate que lo haga cumplir | pendiente (gran parte absorbida por 0.5) | |
 | 22 | Un `DbContext` por feature | pendiente | |
 | 23 | Extraer un servicio con gateway adelante | pendiente | |
+| 23.1 | Segunda entidad con reglas propias y una lectura con otra forma | pendiente | |
 | 24 | Eventos de dominio + outbox transaccional, sin broker | pendiente | |
+| 24.1 | Modelo de lectura alimentado por eventos | pendiente | |
 | 25 | Broker real con consumidor idempotente y DLQ | pendiente | |
 | 26 | Saga coreografiada (3 pasos con compensación) | pendiente | |
 | 27 | Saga orquestada con máquina de estados persistida | pendiente | |
