@@ -29,13 +29,21 @@ public sealed class MigrationSafetyAnalyzer : DiagnosticAnalyzer
         "DropSequence",
         "DropSchema");
 
+    private static readonly ImmutableHashSet<string> ConstraintDrops = ImmutableHashSet.Create(
+        StringComparer.Ordinal,
+        "DropForeignKey",
+        "DropPrimaryKey",
+        "DropUniqueConstraint",
+        "DropCheckConstraint");
+
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
         ImmutableArray.Create(
             DuneDiagnostics.MigrationRename,
             DuneDiagnostics.MigrationDropOutsideContract,
             DuneDiagnostics.MigrationContractMixed,
             DuneDiagnostics.MigrationIndexNotConcurrent,
-            DuneDiagnostics.MigrationNotNullOnExisting);
+            DuneDiagnostics.MigrationNotNullOnExisting,
+            DuneDiagnostics.MigrationTypeChange);
 
     public override void Initialize(AnalysisContext context)
     {
@@ -99,6 +107,11 @@ public sealed class MigrationSafetyAnalyzer : DiagnosticAnalyzer
             return DuneDiagnostics.MigrationRename;
         }
 
+        if (ConstraintDrops.Contains(name))
+        {
+            return null;
+        }
+
         var drops = Drops.Contains(name);
         if (drops != isContract)
         {
@@ -117,6 +130,14 @@ public sealed class MigrationSafetyAnalyzer : DiagnosticAnalyzer
             && Argument(operation, "oldNullable") is true)
         {
             return DuneDiagnostics.MigrationNotNullOnExisting;
+        }
+
+        if (name == "AlterColumn"
+            && Argument(operation, "type") is string type
+            && Argument(operation, "oldType") is string oldType
+            && !string.Equals(type, oldType, StringComparison.Ordinal))
+        {
+            return DuneDiagnostics.MigrationTypeChange;
         }
 
         return null;

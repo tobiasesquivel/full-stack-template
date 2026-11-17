@@ -84,6 +84,7 @@ public sealed class MigrationSafetyAnalyzerTests
                 {
                     protected override void Up(MigrationBuilder migrationBuilder)
                     {
+                        migrationBuilder.DropForeignKey(name: "FK_TaskItems_UserProfiles_OwnerId", table: "TaskItems");
                         migrationBuilder.DropIndex(name: "IX_TaskItems_OwnerId", table: "TaskItems");
                         migrationBuilder.DropColumn(name: "IsCompleted", table: "TaskItems");
                         migrationBuilder.DropTable(name: "RefreshTokens");
@@ -156,6 +157,7 @@ public sealed class MigrationSafetyAnalyzerTests
                             defaultValue: new DateTimeOffset(new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             oldClrType: typeof(DateTimeOffset),
                             oldNullable: true);
+                        migrationBuilder.AlterColumn<string>(name: "OwnerId", table: "Tasks", type: "uuid", oldClrType: typeof(string), oldType: "character varying(450)");
                     }
 
                     protected override void Down(MigrationBuilder migrationBuilder)
@@ -192,6 +194,7 @@ public sealed class MigrationSafetyAnalyzerTests
                 ("20261118000004_RenameTitle.cs", 10, "RenameTable"),
                 ("20261118000004_RenameTitle.cs", 11, "DropColumn"),
                 ("20261118000004_RenameTitle.cs", 12, "AlterColumn"),
+                ("20261118000004_RenameTitle.cs", 19, "AlterColumn"),
                 ("20261118000005_ContractAndExpand.cs", 10, "AddColumn"),
                 ("20261118000005_ContractAndExpand.cs", 11, "RenameColumn"),
             },

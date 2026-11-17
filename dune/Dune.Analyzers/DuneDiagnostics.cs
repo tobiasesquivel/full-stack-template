@@ -229,4 +229,13 @@ internal static class DuneDiagnostics
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
         description: "Una columna nueva entra nullable; el backfill la llena con datos reales y el código deja de escribir NULL antes de cualquier restricción.");
+
+    public static readonly DiagnosticDescriptor MigrationTypeChange = new(
+        id: "DUNE0018",
+        title: "Cambio de tipo de una columna existente",
+        messageFormat: "'{0}' usa {1} para cambiar el tipo de una columna existente: el release anterior sigue leyendo y escribiendo el tipo viejo; agregá una columna nueva y seguí las etapas de expand/contract",
+        category: "Dune",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "PostgreSQL reescribe la tabla con ACCESS EXCLUSIVE y el código del release anterior espera el tipo viejo. Un cambio de tipo es una columna nueva, un backfill y un Contract.");
 }

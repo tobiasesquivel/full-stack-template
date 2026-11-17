@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
-import { createWriteStream, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { createWriteStream, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
@@ -92,11 +92,16 @@ async function waitFor(label, check, timeoutMs = 120000) {
 function publish(ref) {
   const sha = run('git', ['rev-parse', '--verify', `${ref}^{commit}`]).stdout.trim();
   const output = path.join(cacheDir, sha, 'bin');
-  if (existsSync(path.join(output, 'TemplateApp.dll'))) return { ref, sha, output };
+  const published = path.join(cacheDir, sha, 'published');
+  if (existsSync(published)) return { ref, sha, output };
   const source = path.join(cacheDir, sha, 'src');
+  run('git', ['worktree', 'remove', '--force', source], { allowFailure: true });
+  rmSync(source, { recursive: true, force: true });
+  rmSync(output, { recursive: true, force: true });
   run('git', ['worktree', 'add', '--force', '--detach', source, sha]);
   try {
     run('dotnet', ['publish', path.join(source, 'backend', 'TemplateApp.csproj'), '-c', 'Release', '-o', output, '--nologo']);
+    writeFileSync(published, new Date().toISOString());
   } finally {
     run('git', ['worktree', 'remove', '--force', source], { allowFailure: true });
   }
@@ -105,7 +110,13 @@ function publish(ref) {
 
 function killTree(pid) {
   if (process.platform === 'win32') spawnSync('taskkill', ['/PID', String(pid), '/T', '/F'], { stdio: 'ignore' });
-  else process.kill(pid, 'SIGKILL');
+  else {
+    try {
+      process.kill(pid, 'SIGKILL');
+    } catch {
+      return;
+    }
+  }
 }
 
 async function startApi(release, index, pgPort) {
