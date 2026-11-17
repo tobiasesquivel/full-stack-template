@@ -192,6 +192,49 @@ describe('check-structure', () => {
     });
   }
 
+  it('acepta la exención del limiter en Health', async () => {
+    const repo = await makeRepo();
+    try {
+      await seedValid(repo);
+      await repo.write(
+        'backend/Features/Health/HealthFeature.cs',
+        'RouteGroupBuilder health = api.MapGroup("/health").AllowAnonymous().DisableRateLimiting();\n',
+      );
+      await repo.write(
+        'backend/Features/Health/PingHealth/PingHealthEndpoint.cs',
+        '[DisableRateLimiting]\npublic static class PingHealthEndpoint { }\n',
+      );
+      await repo.write(
+        'backend/Infrastructure/Http/ApiRateLimiting.cs',
+        'limiter.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(Partition);\n',
+      );
+      const result = await runGate(repo.dir);
+      assert.equal(result.code, 0, result.output);
+    } finally {
+      await repo.cleanup();
+    }
+  });
+
+  for (const [name, rel, content] of [
+    ['DisableRateLimiting en un endpoint de Tasks', 'backend/Features/Tasks/ListTasks/ListTasksEndpoint.cs', 'tasks.MapGet("/", Handle).DisableRateLimiting();\n'],
+    ['el atributo [DisableRateLimiting] en Users', 'backend/Features/Users/GetUser/GetUserEndpoint.cs', '[DisableRateLimiting]\npublic static class GetUserEndpoint { }\n'],
+    ['DisableRateLimitingAttribute en Infrastructure', 'backend/Infrastructure/Http/VersionedApi.cs', 'group.WithMetadata(new DisableRateLimitingAttribute());\n'],
+    ['DisableRateLimiting en Program.cs', 'backend/Program.cs', 'app.MapGroup("/api").DisableRateLimiting();\n'],
+  ]) {
+    it(`rechaza ${name}`, async () => {
+      const repo = await makeRepo();
+      try {
+        await seedValid(repo);
+        await repo.write(rel, content);
+        const result = await runGate(repo.dir);
+        assert.equal(result.code, 1);
+        assert.match(result.output, /limiter global: DisableRateLimiting solo en backend\/Features\/Health/);
+      } finally {
+        await repo.cleanup();
+      }
+    });
+  }
+
   it('acepta severidades bajo secciones que cubren C#', async () => {
     const repo = await makeRepo();
     try {
