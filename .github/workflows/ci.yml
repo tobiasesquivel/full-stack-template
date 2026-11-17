@@ -90,6 +90,42 @@ jobs:
       - name: Gate de comentarios
         run: node dune/check-comments.mjs --root .
 
+  security:
+    name: Escaneo de secretos y dependencias
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      GITLEAKS_VERSION: 8.30.1
+      GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 26.7.0
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        with:
+          dotnet-version: 10.0.401
+      - name: Instalar gitleaks (versión y checksum fijos)
+        run: |
+          mkdir -p "$RUNNER_TEMP/gitleaks"
+          curl -fsSLo "$RUNNER_TEMP/gitleaks.tar.gz" "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  $RUNNER_TEMP/gitleaks.tar.gz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/gitleaks.tar.gz" -C "$RUNNER_TEMP/gitleaks" gitleaks
+          echo "$RUNNER_TEMP/gitleaks" >> "$GITHUB_PATH"
+      - name: Secretos en el historial alcanzable desde HEAD
+        run: node dune/check-secrets.mjs
+      - name: Tests del gate de secretos
+        run: node --test dune/check-secrets.test.mjs
+      - name: Auditoría NuGet (alta y crítica fallan)
+        run: dotnet restore TemplateApp.slnx "-warnaserror:NU1903;NU1904"
+      - name: Auditoría npm de producción (alta y crítica fallan)
+        working-directory: frontend
+        run: npm audit --omit=dev --audit-level=high
+
   compose:
     name: Docker config y smoke runtime
     runs-on: ubuntu-latest
