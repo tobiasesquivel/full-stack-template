@@ -302,7 +302,20 @@ if (process.env.OTEL_EXPORT_DIR) {
       assert.ok(records.some(record => record.traceId && traceIds.has(record.traceId)), 'Debe existir correlación real de log y span');
       const metricNames = metrics.flatMap(resource => (resource.scopeMetrics ?? []).flatMap(scope => (scope.metrics ?? []).map(metric => metric.name)));
       assert.ok(metricNames.includes('http.server.request.duration'), 'Debe exportarse la duración HTTP real');
-      observed = { correlatedLogs: true, httpDurationMetric: true };
+      const scopes = metrics.flatMap(resource => resource.scopeMetrics ?? []);
+      const points = (meter, name, kind) => scopes
+        .filter(scope => scope.scope?.name === meter)
+        .flatMap(scope => scope.metrics ?? [])
+        .filter(metric => metric.name === name && metric[kind])
+        .flatMap(metric => metric[kind].dataPoints ?? []);
+      assert.ok(points('TemplateApp.Tasks', 'templateapp.tasks.created', 'sum').some(point => Number(point.asInt) >= 1),
+        'Debe exportarse el contador de tareas creadas del Meter TemplateApp.Tasks');
+      assert.ok(points('TemplateApp.Tasks', 'templateapp.tasks.completion.duration', 'histogram').some(point => Number(point.count) >= 1),
+        'Debe exportarse el histograma del tiempo hasta completar una tarea');
+      assert.ok(points('TemplateApp.Auth', 'templateapp.auth.login.attempts', 'sum').some(point => point.attributes?.some(
+        attribute => attribute.key === 'templateapp.auth.login.outcome' && attribute.value?.stringValue === 'success')),
+        'Debe exportarse el contador de logins con outcome=success del Meter TemplateApp.Auth');
+      observed = { correlatedLogs: true, httpDurationMetric: true, businessMetrics: true };
       break;
     } catch (error) {
       if (Date.now() + 500 >= deadline) throw error;
