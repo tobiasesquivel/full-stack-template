@@ -29,7 +29,7 @@ backend/
 - **Feature:** un módulo profundo. Su interfaz pública es `Contracts/` más sus rutas HTTP.
 - **Slice:** un caso de uso, en su carpeta. La operación es una clase propia, con sus dependencias. El endpoint solo adapta HTTP y llama a la operación.
 - **Domain:** sin EF, ASP.NET ni infraestructura. Concentra las reglas que comparten las slices.
-- **Infrastructure:** observabilidad, middlewares, arranque de la base, el grupo versionado de la API, el filtro de idempotencia de los `POST` (`Http/IdempotencyFilter`, con su tabla `IdempotencyKeys`), la auditoría de cambios (`Persistence/AuditInterceptor`, con su tabla `AuditEntries`) y composición del host.
+- **Infrastructure:** observabilidad, middlewares, arranque de la base, el grupo versionado de la API, el filtro de idempotencia de los `POST` (`Http/IdempotencyFilter`, con su tabla `IdempotencyKeys`), la auditoría de cambios (`Persistence/AuditInterceptor`, con su tabla `AuditEntries`), el limiter global de requests (`Http/ApiRateLimiting`) y composición del host.
 - **Shared:** tipos generales que usan varias features, como `ApiResults`.
 
 No hay mediator ni bus. El paso 25 del plan elige uno.
@@ -78,6 +78,7 @@ El registro crea identidad, perfil, rol y sesión en una transacción explícita
 - "Quién soy" es `GET /api/v1/users/me`: con la cookie sola devuelve el usuario. Angular lo usa para restaurar la sesión al recargar.
 - La cookie viaja sola, así que toda escritura de la API (`POST`, `PUT`, `PATCH`, `DELETE` bajo `/api`) valida antiforgery, también para anónimos. Sin token válido responde 400 con el código `Auth.AntiforgeryFailed`. Abrir o cerrar sesión cambia la identidad y emite un `XSRF-TOKEN` nuevo en la misma respuesta. DUNE0011 mantiene toda ruta de escritura bajo `/api` y `BannedSymbols.txt` prohíbe las formas de saltear el antiforgery.
 - `SessionHttpPolicy` es el adapter HTTP de la sesión: configura la cookie, firma la entrada y la salida, emite `XSRF-TOKEN`, valida la sesión en cada request y exige antiforgery en las escrituras. `Sessions` no conoce HTTP: abre, valida y cierra filas.
+- El limiter global (`Infrastructure/Http/ApiRateLimiting`) cuenta toda request de la API en un balde de ventana fija. El balde depende de quién llama y del tipo de request: el id de usuario de la sesión, separado en lecturas (`GET`, `HEAD`, `OPTIONS`) y escrituras; sin sesión, la IP del cliente. Auth suma su política `auth` por IP en login, registro y logout, contra el abuso de credenciales; la request necesita lugar en los dos baldes. Health queda exento. `UseRateLimiter()` va después de `UseAuthentication()`, porque la partición lee al usuario. El rechazo es 429 con `Retry-After` y `Http.TooManyRequests`. Los límites salen de las options `RateLimiting` y `AuthRateLimiting`. Los contadores viven en memoria de cada instancia: con varias instancias, el límite efectivo se multiplica. Detrás de un proxy, la API ve la IP del proxy hasta que se configuren los forwarded headers.
 - Un cliente sin cookies (una app móvil) entraría por otro esquema de autenticación (Bearer) sobre los mismos endpoints. No existe todavía. Ese esquema no necesitaría antiforgery, porque el navegador no manda su credencial solo.
 
 ## Frontend
