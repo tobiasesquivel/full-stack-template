@@ -184,4 +184,49 @@ internal static class DuneDiagnostics
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
         description: "ExecuteUpdate y ExecuteDelete no pasan por el ChangeTracker, entonces AuditInterceptor no los ve. Una entidad que implementa IAuditable se cambia solo con SaveChanges; las demás (Session, IdempotencyKey) pueden usar escrituras masivas.");
+
+    public static readonly DiagnosticDescriptor MigrationRename = new(
+        id: "DUNE0018",
+        title: "Migración que renombra",
+        messageFormat: "'{0}' usa {1}: el código del release anterior sigue leyendo el nombre viejo; agregá lo nuevo, copiá los datos y borrá lo viejo en una migración Contract posterior",
+        category: "Dune",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "Un rename rompe el código que todavía corre durante un despliegue por tandas. EF genera RenameColumn también cuando se borra una columna y se agrega otra del mismo tipo.");
+
+    public static readonly DiagnosticDescriptor MigrationDropOutsideContract = new(
+        id: "DUNE0018",
+        title: "Borrado fuera de una migración Contract",
+        messageFormat: "'{0}' usa {1}: un borrado va solo en una migración cuyo nombre empieza con Contract, en un release posterior al que dejó de usar lo borrado",
+        category: "Dune",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "Nunca destructivo en el mismo release (expand/contract). DropColumn, DropTable, DropIndex, DropSequence y DropSchema viven en una migración Contract propia.");
+
+    public static readonly DiagnosticDescriptor MigrationContractMixed = new(
+        id: "DUNE0018",
+        title: "Migración Contract con otras operaciones",
+        messageFormat: "'{0}' es una migración Contract y usa {1}: una migración Contract solo borra",
+        category: "Dune",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "La migración Contract es el release que borra lo que ya nadie usa. Lo que agrega o cambia va en otra migración, de otro release.");
+
+    public static readonly DiagnosticDescriptor MigrationIndexNotConcurrent = new(
+        id: "DUNE0018",
+        title: "Índice sin CONCURRENTLY sobre una tabla existente",
+        messageFormat: "'{0}' usa {1} sobre una tabla que ya existe sin IsCreatedConcurrently(): CREATE INDEX frena las escrituras de la tabla hasta terminar",
+        category: "Dune",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "Un índice sobre una tabla con datos se crea con CREATE INDEX CONCURRENTLY (HasIndex(...).IsCreatedConcurrently() de Npgsql), que no bloquea escrituras. Un índice de una tabla creada en la misma migración no lo necesita.");
+
+    public static readonly DiagnosticDescriptor MigrationNotNullOnExisting = new(
+        id: "DUNE0018",
+        title: "NOT NULL sobre una columna existente",
+        messageFormat: "'{0}' usa {1} para pasar a NOT NULL una columna que admitía NULL: EF rellena los NULL con un valor inventado y el código del release anterior todavía puede escribir NULL",
+        category: "Dune",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "Una columna nueva entra nullable; el backfill la llena con datos reales y el código deja de escribir NULL antes de cualquier restricción.");
 }
