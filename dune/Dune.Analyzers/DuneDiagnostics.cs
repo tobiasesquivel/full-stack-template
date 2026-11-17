@@ -38,7 +38,7 @@ internal static class DuneDiagnostics
         category: "Dune",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
-        description: "Entre features solo se usa Contracts (ADR-0004, punto 3). La regla mira el tipo nombrado, el tipo que declara cada miembro usado (también extensiones y los métodos que el compilador busca solo, como GetEnumerator o Deconstruct) y el tipo de cada resultado, aunque no se guarde en una variable. Una subcarpeta de Contracts es interior.");
+        description: "Entre features solo se usa Contracts (ADR-0004, punto 3). La regla mira el tipo nombrado, el tipo de cada operación (cada resultado, aunque no se guarde en una variable) y el tipo que declara cada miembro usado y su firma (también extensiones y los métodos que el compilador busca solo, como GetEnumerator o Deconstruct). Una subcarpeta de Contracts es interior.");
 
     public static readonly DiagnosticDescriptor NamespacePath = new(
         id: "DUNE0005",

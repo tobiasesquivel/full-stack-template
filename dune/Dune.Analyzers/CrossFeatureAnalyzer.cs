@@ -1,5 +1,7 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -16,82 +18,24 @@ public sealed class CrossFeatureAnalyzer : DiagnosticAnalyzer
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
         ImmutableArray.Create(DuneDiagnostics.CrossFeature);
 
+    private static readonly OperationKind[] AllOperationKinds = Enum.GetValues(typeof(OperationKind))
+        .Cast<OperationKind>()
+        .Where(kind => kind != OperationKind.None)
+        .Distinct()
+        .ToArray();
+
     public override void Initialize(AnalysisContext context)
     {
         context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
         context.EnableConcurrentExecution();
         context.RegisterSyntaxNodeAction(AnalyzeName, SyntaxKind.IdentifierName, SyntaxKind.SimpleMemberAccessExpression);
-        context.RegisterOperationAction(
-            AnalyzeOperation,
-            OperationKind.Invocation,
-            OperationKind.MethodReference,
-            OperationKind.PropertyReference,
-            OperationKind.FieldReference,
-            OperationKind.EventReference,
-            OperationKind.ObjectCreation,
-            OperationKind.DelegateCreation,
-            OperationKind.Binary,
-            OperationKind.Unary,
-            OperationKind.CompoundAssignment,
-            OperationKind.Increment,
-            OperationKind.Decrement,
-            OperationKind.Conversion,
-            OperationKind.DefaultValue,
-            OperationKind.ArrayCreation,
-            OperationKind.CollectionExpression,
-            OperationKind.RecursivePattern);
+        context.RegisterOperationAction(AnalyzeOperation, AllOperationKinds);
         context.RegisterSyntaxNodeAction(
-            AnalyzePatternMember,
+            AnalyzeCompilerPattern,
             SyntaxKind.ForEachStatement,
             SyntaxKind.ForEachVariableStatement,
             SyntaxKind.AwaitExpression,
             SyntaxKind.SimpleAssignmentExpression);
-    }
-
-    private static void AnalyzePatternMember(SyntaxNodeAnalysisContext context)
-    {
-        if (!TryGetOwner(context.Node.SyntaxTree, out var owner))
-        {
-            return;
-        }
-
-        var model = context.SemanticModel;
-        var methods = new List<ISymbol?>();
-        switch (context.Node)
-        {
-            case ForEachVariableStatementSyntax loop:
-                methods.Add(model.GetForEachStatementInfo(loop).GetEnumeratorMethod);
-                AddDeconstructMethods(model.GetDeconstructionInfo(loop), methods);
-                break;
-            case CommonForEachStatementSyntax loop:
-                methods.Add(model.GetForEachStatementInfo(loop).GetEnumeratorMethod);
-                break;
-            case AwaitExpressionSyntax awaited:
-                methods.Add(model.GetAwaitExpressionInfo(awaited).GetAwaiterMethod);
-                break;
-            case AssignmentExpressionSyntax { Left: TupleExpressionSyntax or DeclarationExpressionSyntax } assignment:
-                AddDeconstructMethods(model.GetDeconstructionInfo(assignment), methods);
-                break;
-        }
-
-        foreach (var method in methods)
-        {
-            var foreign = FindForeignInterior(DeclaringType(method), owner);
-            if (foreign is not null)
-            {
-                context.ReportDiagnostic(Diagnostic.Create(DuneDiagnostics.CrossFeature, context.Node.GetLocation(), foreign.ToDisplayString()));
-                return;
-            }
-        }
-    }
-
-    private static void AddDeconstructMethods(DeconstructionInfo info, List<ISymbol?> methods)
-    {
-        methods.Add(info.Method);
-        foreach (var nested in info.Nested)
-        {
-            AddDeconstructMethods(nested, methods);
-        }
     }
 
     private static void AnalyzeName(SyntaxNodeAnalysisContext context)
@@ -107,10 +51,7 @@ public sealed class CrossFeatureAnalyzer : DiagnosticAnalyzer
             ? FindForeignInterior(named, owner)
             : FindForeignInterior(context.SemanticModel.GetTypeInfo(node, context.CancellationToken).Type, owner);
 
-        if (foreign is not null)
-        {
-            context.ReportDiagnostic(Diagnostic.Create(DuneDiagnostics.CrossFeature, node.GetLocation(), foreign.ToDisplayString()));
-        }
+        Report(context.ReportDiagnostic, node, foreign);
     }
 
     private static void AnalyzeOperation(OperationAnalysisContext context)
@@ -121,26 +62,110 @@ public sealed class CrossFeatureAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        ISymbol? member = operation switch
+        var foreign = FindForeignInterior(operation.Type, owner)
+            ?? FirstForeign(ExtraTypes(operation), owner)
+            ?? FirstForeignMember(UsedMembers(operation), owner);
+
+        Report(context.ReportDiagnostic, operation.Syntax, foreign);
+    }
+
+    private static void AnalyzeCompilerPattern(SyntaxNodeAnalysisContext context)
+    {
+        if (!TryGetOwner(context.Node.SyntaxTree, out var owner))
         {
-            IInvocationOperation invocation => invocation.TargetMethod,
-            IMemberReferenceOperation reference => reference.Member,
-            IBinaryOperation binary => binary.OperatorMethod,
-            IUnaryOperation unary => unary.OperatorMethod,
-            ICompoundAssignmentOperation compound => compound.OperatorMethod,
-            IIncrementOrDecrementOperation step => step.OperatorMethod,
-            IConversionOperation conversion => conversion.OperatorMethod,
-            ICollectionExpressionOperation collection => collection.ConstructMethod,
-            IRecursivePatternOperation pattern => pattern.DeconstructSymbol,
-            _ => null,
-        };
+            return;
+        }
 
-        var foreign = FindForeignInterior(DeclaringType(member), owner)
-            ?? FindForeignInterior(operation.Type, owner);
+        var model = context.SemanticModel;
+        var members = new List<ISymbol?>();
+        var types = new List<ITypeSymbol?>();
+        switch (context.Node)
+        {
+            case CommonForEachStatementSyntax loop:
+                var loopInfo = model.GetForEachStatementInfo(loop);
+                members.Add(loopInfo.GetEnumeratorMethod);
+                members.Add(loopInfo.MoveNextMethod);
+                members.Add(loopInfo.CurrentProperty);
+                members.Add(loopInfo.DisposeMethod);
+                types.Add(loopInfo.ElementType);
+                if (loop is ForEachVariableStatementSyntax deconstructed)
+                {
+                    AddDeconstructMethods(model.GetDeconstructionInfo(deconstructed), members);
+                }
 
+                break;
+            case AwaitExpressionSyntax awaited:
+                var awaitInfo = model.GetAwaitExpressionInfo(awaited);
+                members.Add(awaitInfo.GetAwaiterMethod);
+                members.Add(awaitInfo.GetResultMethod);
+                members.Add(awaitInfo.IsCompletedProperty);
+                break;
+            case AssignmentExpressionSyntax { Left: TupleExpressionSyntax or DeclarationExpressionSyntax } assignment:
+                AddDeconstructMethods(model.GetDeconstructionInfo(assignment), members);
+                break;
+        }
+
+        Report(context.ReportDiagnostic, context.Node, FirstForeign(types, owner) ?? FirstForeignMember(members, owner));
+    }
+
+    private static void AddDeconstructMethods(DeconstructionInfo info, List<ISymbol?> methods)
+    {
+        methods.Add(info.Method);
+        foreach (var nested in info.Nested)
+        {
+            AddDeconstructMethods(nested, methods);
+        }
+    }
+
+    private static IEnumerable<ISymbol?> UsedMembers(IOperation operation) => operation switch
+    {
+        IInvocationOperation invocation => new ISymbol?[] { invocation.TargetMethod },
+        IMemberReferenceOperation reference => new ISymbol?[] { reference.Member },
+        IObjectCreationOperation creation => new ISymbol?[] { creation.Constructor },
+        IBinaryOperation binary => new ISymbol?[] { binary.OperatorMethod },
+        IUnaryOperation unary => new ISymbol?[] { unary.OperatorMethod },
+        ICompoundAssignmentOperation compound => new ISymbol?[] { compound.OperatorMethod },
+        IIncrementOrDecrementOperation step => new ISymbol?[] { step.OperatorMethod },
+        IConversionOperation conversion => new ISymbol?[] { conversion.OperatorMethod },
+        ICollectionExpressionOperation collection => new ISymbol?[] { collection.ConstructMethod },
+        IRecursivePatternOperation pattern => new ISymbol?[] { pattern.DeconstructSymbol },
+        IListPatternOperation list => new ISymbol?[] { list.LengthSymbol, list.IndexerSymbol },
+        ISlicePatternOperation slice => new ISymbol?[] { slice.SliceSymbol },
+        IImplicitIndexerReferenceOperation indexer => new ISymbol?[] { indexer.LengthSymbol, indexer.IndexerSymbol },
+        _ => Array.Empty<ISymbol?>(),
+    };
+
+    private static IEnumerable<ITypeSymbol?> ExtraTypes(IOperation operation) => operation switch
+    {
+        IPatternOperation pattern => new[] { pattern.InputType, pattern.NarrowedType },
+        ISpreadOperation spread => new[] { spread.ElementType },
+        _ => Array.Empty<ITypeSymbol?>(),
+    };
+
+    private static IEnumerable<ITypeSymbol?> SignatureTypes(ISymbol? member) => member switch
+    {
+        IMethodSymbol method => method.Parameters.Select(parameter => (ITypeSymbol?)parameter.Type).Prepend(method.ReturnType),
+        IPropertySymbol property => property.Parameters.Select(parameter => (ITypeSymbol?)parameter.Type).Prepend(property.Type),
+        IFieldSymbol field => new ITypeSymbol?[] { field.Type },
+        IEventSymbol @event => new ITypeSymbol?[] { @event.Type },
+        _ => Array.Empty<ITypeSymbol?>(),
+    };
+
+    private static ITypeSymbol? FirstForeignMember(IEnumerable<ISymbol?> members, string owner) =>
+        members
+            .Select(member => FindForeignInterior(DeclaringType(member), owner) ?? FirstForeign(SignatureTypes(member), owner))
+            .FirstOrDefault(found => found is not null);
+
+    private static ITypeSymbol? FirstForeign(IEnumerable<ITypeSymbol?> types, string owner) =>
+        types
+            .Select(type => FindForeignInterior(type, owner))
+            .FirstOrDefault(found => found is not null);
+
+    private static void Report(Action<Diagnostic> report, SyntaxNode node, ITypeSymbol? foreign)
+    {
         if (foreign is not null)
         {
-            context.ReportDiagnostic(Diagnostic.Create(DuneDiagnostics.CrossFeature, operation.Syntax.GetLocation(), foreign.ToDisplayString()));
+            report(Diagnostic.Create(DuneDiagnostics.CrossFeature, node.GetLocation(), foreign.ToDisplayString()));
         }
     }
 

@@ -125,6 +125,138 @@ public sealed class CrossFeatureCoverageTests
                 public string Name { get; set; } = "";
             }
             """),
+        ("backend/Features/Users/UserExtra.cs", """
+            using System;
+            using System.Collections.Generic;
+            using System.Threading.Tasks;
+            using TemplateApp.Infrastructure;
+            namespace TemplateApp.Features.Users;
+            public static class UserExtra
+            {
+                public static async IAsyncEnumerator<int> GetAsyncEnumerator(this long n) { await Task.Yield(); yield return 1; }
+                public static IEnumerable<int> Where(this Version v, Func<int, bool> f) { yield return v.Major; }
+                public static int OrderBy(this Version v, Func<int, int> k) => 1;
+                public static int Join(this Version v, Version w, Func<int, int> a, Func<int, int> b, Func<int, int, int> r) => 1;
+                public static int GroupBy(this Version v, Func<int, int> k) => 1;
+                public static IEnumerable<T> Select<T>(this DateTime d, Func<int, T> f) { yield return f(1); }
+            }
+            """),
+        ("backend/Features/Users/UserCursor.cs", """
+            namespace TemplateApp.Features.Users;
+            public struct UserCursor
+            {
+                public int Current => 1;
+                public bool MoveNext() => false;
+            }
+            """),
+        ("backend/Features/Users/UserLimits.cs", """
+            namespace TemplateApp.Features.Users;
+            public class UserLimits
+            {
+                public const int Limit = 3;
+                public static int Count { get; set; }
+            }
+            """),
+        ("backend/Features/Users/UserHandler.cs", """
+            namespace TemplateApp.Features.Users;
+            [System.Runtime.CompilerServices.InterpolatedStringHandler]
+            public ref struct UserHandler
+            {
+                public UserHandler(int literalLength, int formattedCount) { }
+                public void AppendLiteral(string s) { }
+                public void AppendFormatted<T>(T t) { }
+            }
+            """),
+        ("backend/Infrastructure/GlobalUsings.cs", """
+            global using static TemplateApp.Features.Users.UserLimits;
+            global using UT = TemplateApp.Features.Users.UserThing;
+            """),
+        ("backend/Infrastructure/Bag.cs", """
+            namespace TemplateApp.Infrastructure;
+            public sealed class Bag : System.Collections.IEnumerable
+            {
+                public System.Collections.IEnumerator GetEnumerator() => System.Array.Empty<int>().GetEnumerator();
+            }
+            """),
+        ("backend/Infrastructure/InfraLimits.cs", """
+            namespace TemplateApp.Infrastructure;
+            public class InfraLimits : TemplateApp.Features.Users.UserLimits { }
+            """),
+        ("backend/Infrastructure/Box.cs", """
+            using TemplateApp.Features.Users;
+            namespace TemplateApp.Infrastructure;
+            public sealed class Box
+            {
+                public int Count => 1;
+                public UserThing this[int i] => new();
+                public UserThing Slice(int start, int length) => new();
+            }
+            """),
+        ("backend/Infrastructure/Buf.cs", """
+            using TemplateApp.Features.Users;
+            namespace TemplateApp.Infrastructure;
+            [System.Runtime.CompilerServices.InlineArray(2)]
+            public struct Buf { private UserThing _e; }
+            """),
+        ("backend/Infrastructure/Bridge2.cs", """
+            using System;
+            using System.Collections.Generic;
+            using System.Runtime.CompilerServices;
+            using TemplateApp.Features.Users;
+            namespace TemplateApp.Infrastructure;
+            public static class Bridge2
+            {
+                public static TaskAwaiter<UserThing> GetAwaiter(this DateTimeOffset d) => System.Threading.Tasks.Task.FromResult(new UserThing()).GetAwaiter();
+                public static IEnumerator<UserThing> GetEnumerator(this short n) { yield return new UserThing(); }
+                public static UserCursor GetEnumerator(this byte n) => new();
+                public static void Deconstruct(this Guid g, out UserThing a, out int b) { a = new(); b = 1; }
+                public static Box Box() => new();
+                public static Buf Buf() => new();
+                public static void Log(UserHandler h) { }
+                public static void Opt(UserThing? u = null) { }
+                public static object Obj() => new UserThing();
+                public static UserThing Thing() => new();
+            }
+            """),
+        ("backend/Features/Users/UserOperators.cs", """
+            using TemplateApp.Infrastructure;
+            namespace TemplateApp.Features.Users;
+            public static class UserOperators
+            {
+                extension(System.Guid)
+                {
+                    public static bool operator true(System.Guid g) => true;
+                    public static bool operator false(System.Guid g) => false;
+                    public static System.Guid operator &(System.Guid a, System.Guid b) => a;
+                }
+                extension(Thin t)
+                {
+                    public int Count => 1;
+                }
+            }
+            """),
+        ("backend/Infrastructure/Roster.cs", """
+            using System.Collections;
+            using System.Collections.Generic;
+            using TemplateApp.Features.Users;
+            namespace TemplateApp.Infrastructure;
+            public sealed class Roster : IEnumerable<UserThing>
+            {
+                public static Roster Make() => new();
+                public static InfraPair Pair() => new(new(), 1);
+                public IEnumerator<UserThing> GetEnumerator() { yield return new UserThing(); }
+                IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+            }
+            """),
+        ("backend/Infrastructure/Thin.cs", """
+            namespace TemplateApp.Infrastructure;
+            public sealed class Thin { public int this[int i] => i; }
+            """),
+        ("backend/Infrastructure/InfraPair.cs", """
+            using TemplateApp.Features.Users;
+            namespace TemplateApp.Infrastructure;
+            public sealed record InfraPair(UserThing A, int B);
+            """),
     };
 
     public static readonly TheoryData<string, string> ForeignInteriorUses = new()
@@ -185,6 +317,56 @@ public sealed class CrossFeatureCoverageTests
         { "nested_base_class", "private sealed class Nested : UserBase { }" },
         { "static_member", "public object? M() => UserBase.Value;" },
         { "contracts_subfolder", "public TemplateApp.Features.Users.Contracts.Inner.Secret? M() => null;" },
+        { "await_foreach_ext", "public async System.Threading.Tasks.Task M() { await foreach (var i in 5L) { } }" },
+        { "query_where", "public object? M(System.Version v) => from x in v where x > 0 select x;" },
+        { "query_orderby", "public object? M(System.Version v) => from x in v orderby x select x;" },
+        { "query_join", "public object? M(System.Version v) => from a in v join b in v on a equals b select a;" },
+        { "query_group", "public object? M(System.Version v) => from x in v group x by x;" },
+        { "query_let", "public object? M(System.DateTime d) => from x in d let y = x + 1 select y;" },
+        { "ext_property_pattern", "public object? M(string s) => s is { Weight: 3 };" },
+        { "await_result_infra_awaiter", "public async System.Threading.Tasks.Task<object?> M() => await System.DateTimeOffset.Now;" },
+        { "await_result_discarded", "public async System.Threading.Tasks.Task M() { await System.DateTimeOffset.Now; }" },
+        { "foreach_element_infra_ext", "public object? M() { foreach (object o in (short)1) { return o; } return null; }" },
+        { "foreach_foreign_enumerator", "public object? M() { foreach (var i in (byte)1) { return i; } return null; }" },
+        { "deconstruct_infra_ext", "public object? M(System.Guid g) { (object a, int b) = g; return a; }" },
+        { "positional_infra_ext", "public object? M(System.Guid g) => g is ({ }, 1);" },
+        { "implicit_index", "public object? M() { object o = Bridge2.Box()[^1]; return o; }" },
+        { "implicit_range", "public object? M() { object o = Bridge2.Box()[1..]; return o; }" },
+        { "plain_indexer", "public object? M() { object o = Bridge2.Box()[0]; return o; }" },
+        { "list_pattern", "public object? M() => Bridge2.Box() is [{ }];" },
+        { "slice_pattern", "public object? M() => Bridge2.Box() is [_, .. { }];" },
+        { "switch_list_arm", "public object? M() => Bridge2.Box() switch { [{ }] => 1, _ => 0 };" },
+        { "inline_array", "public object? M() { var b = Bridge2.Buf(); object o = b[0]; return o; }" },
+        { "inline_array_foreach", "public object? M() { var b = Bridge2.Buf(); foreach (object o in b) { return o; } return null; }" },
+        { "interp_handler", "public object? M() { Bridge2.Log($\"a{1}\"); return null; }" },
+        { "optional_default", "public object? M() { Bridge2.Opt(); return null; }" },
+        { "using_static_property", "public object? M() => Count;" },
+        { "using_static_const", "public object? M() => Limit;" },
+        { "nameof_using_static", "public object? M() => nameof(Count);" },
+        { "attr_arg_using_static_const", "[System.ComponentModel.DefaultValue(Limit)] public object? M() => null;" },
+        { "param_default_using_static", "public object? M(int x = Limit) => x;" },
+        { "switch_case_using_static", "public object? M(int x) { switch (x) { case Limit: return 1; } return 0; }" },
+        { "const_pattern_using_static", "public object? M(int x) => x is Limit;" },
+        { "inherited_const_attr", "[System.ComponentModel.DefaultValue(InfraLimits.Limit)] public object? M() => null;" },
+        { "inherited_nameof", "public object? M() => nameof(InfraLimits.Count);" },
+        { "inherited_static", "public object? M() => InfraLimits.Count;" },
+        { "alias_typeof", "public object? M() => typeof(UT);" },
+        { "alias_default", "public object? M() => default(UT);" },
+        { "alias_nameof", "public object? M() => nameof(UT);" },
+        { "cast_pattern_obj", "public object? M() => Bridge2.Obj() is UT;" },
+        { "throw_switch", "public object? M(int x) => x switch { 1 => Bridge2.Thing(), _ => null };" },
+        { "local_func_static_lambda", "public object? M() { System.Func<object> f = static () => Bridge2.Thing(); return f; }" },
+        { "out_discard", "public object? M(System.Guid g) { g.Deconstruct(out _, out var n); return n; }" },
+        { "tuple_literal_target", "public object? M() { (object, int) t = (Bridge2.Thing(), 1); return t; }" },
+        { "goto_case_const", "public object? M(int x) { switch (x) { case 1: goto case Limit; case Limit: return 1; } return 0; }" },
+        { "checked_ext_op", "public object? M(System.Version v) => checked(v + 1);" },
+        { "is_not", "public object? M() => Bridge2.Obj() is not UT;" },
+        { "extension_true_false_operators", "public object? M(System.Guid g) => g && g;" },
+        { "extension_count_for_implicit_index", "public object? M(Thin t) => t[^1];" },
+        { "foreach_element_of_infrastructure", "public object? M() { foreach (object o in Roster.Make()) { return o; } return null; }" },
+        { "spread_element_of_infrastructure", "public object? M() { object[] a = [.. Roster.Make()]; return a; }" },
+        { "deconstruct_infrastructure_record", "public object? M() { var (_, n) = Roster.Pair(); return n; }" },
+        { "positional_infrastructure_record", "public object? M() => Roster.Pair() is ({ }, 1);" },
     };
 
     [Theory]
@@ -221,6 +403,30 @@ public sealed class CrossFeatureCoverageTests
                         var linq = xs.Where(x => x > 0).Select(x => x.ToString()).ToList();
                         return label + own + ok + linq + new[] { info } + string.Join(",", xs);
                     }
+                    public async System.Threading.Tasks.Task<object?> FP(UserInfo info, UserInfo[] arr, System.Collections.Generic.List<UserInfo> list)
+                    {
+                        var a = await System.Threading.Tasks.Task.FromResult(info);
+                        await System.Threading.Tasks.Task.Yield();
+                        foreach (object o in list) { }
+                        foreach (var o in arr) { }
+                        object[] spread = [.. list, .. arr];
+                        var lp = arr is [{ Name: "x" }, .. var rest] && arr[^1] is { Size: 1 };
+                        var pos = info is UserInfo(var n) && n != "";
+                        var (s1, s2) = (info, 1);
+                        var w = info with { Name = "y" };
+                        var eq = info == w;
+                        var sw = arr switch { [] => 0, [_] => 1, _ => 2 };
+                        object r = "abc"[1..] + "abc"[^1];
+                        var q = from i in list where i.Name != "" orderby i.Name group i by i.Name into g select g.Key;
+                        var q2 = from i in list join j in arr on i.Name equals j.Name let k = j.Size select k;
+                        System.Collections.Generic.List<object> col = [info, .. list];
+                        var nm = nameof(UserInfo.Name) + nameof(info.Name) + nameof(OwnThing.Make);
+                        await foreach (var x in Gen()) { }
+                        using var ms = new System.IO.MemoryStream();
+                        lock (list) { }
+                        return a.ToString() + lp + pos + s1 + s2 + eq + sw + r + q + q2 + col + nm + info.GetHashCode() + new Bag();
+                    }
+                    private static async System.Collections.Generic.IAsyncEnumerable<UserInfo> Gen() { await System.Threading.Tasks.Task.Yield(); yield return new("x"); }
                 }
                 """)).ToList(),
             AnalyzerHost.Only<CrossFeatureAnalyzer>());
