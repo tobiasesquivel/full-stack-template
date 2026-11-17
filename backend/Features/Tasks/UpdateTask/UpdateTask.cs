@@ -47,7 +47,6 @@ public sealed class UpdateTask
         bool completes = item.CompletedAt is null && request.IsCompleted;
         DateTimeOffset now = _clock.GetUtcNow();
         item.Title = title;
-        item.IsCompleted = request.IsCompleted;
         item.CompletedAt = request.IsCompleted ? item.CompletedAt ?? now : null;
         item.UpdatedAt = now;
         _db.Entry(item).Property(t => t.Version).OriginalValue = request.Version.Value;
