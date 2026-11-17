@@ -1,0 +1,6 @@
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Idempotency-Key de ejemplo de la documentación pública de Stripe, citado en las investigaciones de los pasos 9 y 13"
+regexes = ['''KG5LxwFBepaKHyUD''']

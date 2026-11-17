@@ -10,6 +10,22 @@ const password = `Smoke!${crypto.randomUUID()}Aa9`;
 secrets.push(password);
 
 const SESSION_COOKIE = '__Host-session';
+const SECURITY_HEADERS = {
+  'x-content-type-options': 'nosniff',
+  'content-security-policy': "default-src 'none'; frame-ancestors 'none'",
+  'x-frame-options': 'DENY',
+  'referrer-policy': 'no-referrer',
+  'cross-origin-resource-policy': 'same-origin',
+  'cache-control': 'no-store',
+};
+
+function assertSecurityHeaders(response, label) {
+  for (const [name, value] of Object.entries(SECURITY_HEADERS)) {
+    assert.equal(response.headers.get(name), value, `${label}: ${name} debe ser ${value}`);
+  }
+  assert.equal(response.headers.get('server'), null, `${label}: la API no anuncia su servidor`);
+  console.log(JSON.stringify({ securityHeaders: label, ok: true }));
+}
 const XSRF_COOKIE = 'XSRF-TOKEN';
 
 class ApiClient {
@@ -149,6 +165,10 @@ assert.equal(withoutSession.payload.code, 'Auth.SessionRequired');
 const withoutCsrf = await anonymous.request('POST', 'auth/login', { userName: 'nobody', password },
   { expected: 400, csrf: false });
 assert.equal(withoutCsrf.payload.code, 'Auth.AntiforgeryFailed');
+assertSecurityHeaders(live, 'GET health/live 200');
+assertSecurityHeaders(unknownVersion, 'GET v9 404');
+assertSecurityHeaders(withoutSession, 'GET tasks 401');
+assertSecurityHeaders(withoutCsrf, 'POST auth/login 400');
 const aliceName = `alice${suffix}`;
 const aliceUser = await alice.register(aliceName);
 await bob.register(`bob${suffix}`);

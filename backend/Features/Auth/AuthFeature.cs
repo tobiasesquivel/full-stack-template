@@ -75,6 +75,7 @@ public static class AuthFeature
         services.AddAntiforgery(options =>
         {
             options.HeaderName = "X-XSRF-TOKEN";
+            options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
         });
 
         services.AddOptionsWithValidateOnStart<AuthRateLimitOptions, AuthRateLimitOptionsValidator>()
