@@ -5,7 +5,7 @@ using TemplateApp.Shared.Http;
 
 namespace TemplateApp.Features.Users.DeleteUser;
 
-public static class DeleteUserEndpoint
+internal static class DeleteUserEndpoint
 {
     public static void Map(IEndpointRouteBuilder users)
     {

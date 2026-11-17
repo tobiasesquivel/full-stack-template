@@ -1,7 +1,7 @@
 
 namespace TemplateApp.Features.Health.GetLiveness;
 
-public static class GetLivenessEndpoint
+internal static class GetLivenessEndpoint
 {
     public static void Map(IEndpointRouteBuilder health) => health.MapGet("/live", Handle);
 

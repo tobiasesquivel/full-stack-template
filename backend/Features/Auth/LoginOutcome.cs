@@ -1,6 +1,6 @@
 namespace TemplateApp.Features.Auth;
 
-public enum LoginOutcome
+internal enum LoginOutcome
 {
     Success,
     InvalidCredentials,

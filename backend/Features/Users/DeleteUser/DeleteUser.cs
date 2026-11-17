@@ -7,7 +7,7 @@ using TemplateApp.Infrastructure.Persistence;
 
 namespace TemplateApp.Features.Users.DeleteUser;
 
-public sealed class DeleteUser
+internal sealed class DeleteUser
 {
     private readonly AppDbContext _db;
     private readonly IAuthModule _auth;

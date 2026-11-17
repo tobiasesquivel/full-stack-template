@@ -3,7 +3,7 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace TemplateApp.Infrastructure.Persistence;
 
-public sealed class DatabaseHealthCheck : IHealthCheck
+internal sealed class DatabaseHealthCheck : IHealthCheck
 {
     private readonly AppDbContext _db;
 

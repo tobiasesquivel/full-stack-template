@@ -3,7 +3,7 @@ using TemplateApp.Features.Auth.Domain;
 
 namespace TemplateApp.Features.Auth;
 
-public static class SessionPrincipal
+internal static class SessionPrincipal
 {
     public const string SessionIdClaim = "sid";
 

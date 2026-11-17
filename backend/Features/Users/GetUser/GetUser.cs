@@ -7,7 +7,7 @@ using TemplateApp.Infrastructure.Persistence;
 
 namespace TemplateApp.Features.Users.GetUser;
 
-public sealed class GetUser
+internal sealed class GetUser
 {
     private readonly AppDbContext _db;
     private readonly IAuthModule _auth;

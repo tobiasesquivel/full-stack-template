@@ -8,7 +8,7 @@ using TemplateApp.Shared.Http;
 
 namespace TemplateApp.Features.Tasks.UpdateTask;
 
-public sealed class UpdateTask
+internal sealed class UpdateTask
 {
     private static readonly UpdateTaskRequestValidator Validator = new();
 

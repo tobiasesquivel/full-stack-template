@@ -6,7 +6,7 @@ using TemplateApp.Infrastructure.Persistence;
 
 namespace TemplateApp.Features.Users;
 
-public sealed class UsersModule : IUsersModule
+internal sealed class UsersModule : IUsersModule
 {
     private readonly AppDbContext _db;
 

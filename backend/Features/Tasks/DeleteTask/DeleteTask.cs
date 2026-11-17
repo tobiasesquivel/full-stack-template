@@ -6,7 +6,7 @@ using TemplateApp.Infrastructure.Persistence;
 
 namespace TemplateApp.Features.Tasks.DeleteTask;
 
-public sealed class DeleteTask
+internal sealed class DeleteTask
 {
     private readonly AppDbContext _db;
     private readonly IAuthModule _auth;

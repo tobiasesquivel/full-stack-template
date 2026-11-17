@@ -1,3 +1,3 @@
 namespace TemplateApp.Features.Health.GetLiveness;
 
-public sealed record HealthStatusResponse(string Status, DateTimeOffset Timestamp);
+internal sealed record HealthStatusResponse(string Status, DateTimeOffset Timestamp);

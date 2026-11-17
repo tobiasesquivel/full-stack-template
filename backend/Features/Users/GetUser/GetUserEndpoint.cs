@@ -6,7 +6,7 @@ using TemplateApp.Shared.Http;
 
 namespace TemplateApp.Features.Users.GetUser;
 
-public static class GetUserEndpoint
+internal static class GetUserEndpoint
 {
     public static void Map(IEndpointRouteBuilder users)
     {

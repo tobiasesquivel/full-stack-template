@@ -3,7 +3,7 @@ using TemplateApp.Features.Tasks.Domain;
 
 namespace TemplateApp.Features.Tasks;
 
-public static class TaskTitleRules
+internal static class TaskTitleRules
 {
     public static IRuleBuilderOptions<T, string> TaskTitle<T>(this IRuleBuilderInitial<T, string> rule) =>
         rule

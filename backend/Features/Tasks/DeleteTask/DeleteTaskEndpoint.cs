@@ -5,7 +5,7 @@ using TemplateApp.Shared.Http;
 
 namespace TemplateApp.Features.Tasks.DeleteTask;
 
-public static class DeleteTaskEndpoint
+internal static class DeleteTaskEndpoint
 {
     public static void Map(IEndpointRouteBuilder tasks) => tasks.MapDelete("/{id:guid}", HandleAsync);
 

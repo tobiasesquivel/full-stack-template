@@ -5,7 +5,7 @@ using TemplateApp.Shared.Http;
 
 namespace TemplateApp.Features.Tasks.CreateTask;
 
-public static class CreateTaskEndpoint
+internal static class CreateTaskEndpoint
 {
     public static void Map(IEndpointRouteBuilder tasks) => tasks.MapPost("", HandleAsync).WithIdempotency<CreateTaskRequest>();
 

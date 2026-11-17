@@ -7,7 +7,7 @@ using TemplateApp.Shared.Http;
 
 namespace TemplateApp.Features.Auth;
 
-public sealed class SessionHttpPolicy
+internal sealed class SessionHttpPolicy
 {
     public const string Scheme = CookieAuthenticationDefaults.AuthenticationScheme;
     public const string CookieName = "__Host-session";

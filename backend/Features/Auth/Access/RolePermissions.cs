@@ -3,7 +3,7 @@ using TemplateApp.Features.Users.Contracts;
 
 namespace TemplateApp.Features.Auth.Access;
 
-public static class RolePermissions
+internal static class RolePermissions
 {
     public const string ClaimType = "permission";
 

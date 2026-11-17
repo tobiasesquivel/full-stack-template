@@ -2,7 +2,7 @@ using System.Security.Claims;
 
 namespace TemplateApp.Features.Auth.CloseSession;
 
-public sealed class CloseSession
+internal sealed class CloseSession
 {
     private readonly Sessions _sessions;
 

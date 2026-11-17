@@ -6,7 +6,7 @@ using TemplateApp.Shared.Domain;
 
 namespace TemplateApp.Features.Auth.Access;
 
-public sealed class AccessPolicy
+internal sealed class AccessPolicy
 {
     private readonly UserManager<AppIdentityUser> _users;
     private readonly RoleManager<IdentityRole> _roles;

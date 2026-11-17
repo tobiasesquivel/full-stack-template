@@ -1,6 +1,6 @@
 namespace TemplateApp.Features.Tasks;
 
-public static class TasksFeature
+internal static class TasksFeature
 {
     public static IServiceCollection AddTasksFeature(this IServiceCollection services)
     {

@@ -10,7 +10,7 @@ using TemplateApp.Infrastructure.Persistence;
 
 namespace TemplateApp.Features.Auth;
 
-public static class AuthFeature
+internal static class AuthFeature
 {
     public const string RateLimitPolicy = "auth";
 

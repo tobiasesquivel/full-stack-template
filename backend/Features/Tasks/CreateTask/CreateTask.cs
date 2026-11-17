@@ -7,7 +7,7 @@ using TemplateApp.Shared.Http;
 
 namespace TemplateApp.Features.Tasks.CreateTask;
 
-public sealed class CreateTask
+internal sealed class CreateTask
 {
     private static readonly CreateTaskRequestValidator Validator = new();
 

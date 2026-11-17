@@ -5,7 +5,7 @@ using TemplateApp.Infrastructure.Persistence;
 
 namespace TemplateApp.Features.Auth;
 
-public sealed class Sessions
+internal sealed class Sessions
 {
     private readonly AppDbContext _db;
     private readonly SessionOptions _options;

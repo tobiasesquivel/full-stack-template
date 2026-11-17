@@ -3,7 +3,7 @@ using TemplateApp.Features.Tasks.Domain;
 
 namespace TemplateApp.Features.Tasks;
 
-public static class TaskResponses
+internal static class TaskResponses
 {
     public static readonly Expression<Func<TaskItem, TaskResponse>> Projection =
         t => new TaskResponse(t.Id, t.Title, t.CompletedAt != null, t.CreatedAt, t.UpdatedAt, t.Version);

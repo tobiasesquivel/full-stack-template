@@ -2,7 +2,7 @@ using TemplateApp.Features.Users.Contracts;
 
 namespace TemplateApp.Features.Users;
 
-public static class UsersFeature
+internal static class UsersFeature
 {
     public static IServiceCollection AddUsersFeature(this IServiceCollection services)
     {

@@ -7,7 +7,7 @@ using TemplateApp.Features.Users.Domain;
 
 namespace TemplateApp.Infrastructure.Persistence;
 
-public class AppDbContext : IdentityDbContext<AppIdentityUser>
+internal class AppDbContext : IdentityDbContext<AppIdentityUser>
 {
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
     {

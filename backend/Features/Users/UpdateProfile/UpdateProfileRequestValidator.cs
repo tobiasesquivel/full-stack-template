@@ -3,7 +3,7 @@ using TemplateApp.Features.Users.Domain;
 
 namespace TemplateApp.Features.Users.UpdateProfile;
 
-public sealed class UpdateProfileRequestValidator : AbstractValidator<UpdateProfileRequest>
+internal sealed class UpdateProfileRequestValidator : AbstractValidator<UpdateProfileRequest>
 {
     public UpdateProfileRequestValidator()
     {

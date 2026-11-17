@@ -6,7 +6,7 @@ using TemplateApp.Shared.Http;
 
 namespace TemplateApp.Features.Users.UpdateProfile;
 
-public static class UpdateProfileEndpoint
+internal static class UpdateProfileEndpoint
 {
     public static void Map(IEndpointRouteBuilder users) => users.MapPut("/me", HandleAsync);
 
