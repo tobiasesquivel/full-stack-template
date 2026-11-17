@@ -7,6 +7,8 @@ namespace TemplateApp.Infrastructure.Persistence;
 
 public static class HealthCheckConnection
 {
+    private const int MaxConnections = 2;
+
     public static void LimitTo(DatabaseFacade database, HealthCheckRegistration registration)
     {
         ArgumentNullException.ThrowIfNull(database);
@@ -19,6 +21,8 @@ public static class HealthCheckConnection
         {
             Timeout = seconds,
             CommandTimeout = seconds,
+            MinPoolSize = 0,
+            MaxPoolSize = MaxConnections,
         }.ConnectionString);
     }
 }
