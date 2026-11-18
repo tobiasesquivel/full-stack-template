@@ -1,5 +1,5 @@
 <Project>
-  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'TemplateApp' Or '$(MSBuildProjectName)' == 'TemplateApp.Tests'">
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'TemplateApp' Or '$(MSBuildProjectName)' == 'TemplateApp.Tests' Or '$(MSBuildProjectName)' == 'TemplateApp.Gateway'">
     <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <WarningsAsErrors>DUNE0001;DUNE0002;DUNE0003;DUNE0004;DUNE0005;DUNE0006;DUNE0007;DUNE0008;DUNE0009;DUNE0010;DUNE0011;DUNE0012;DUNE0013;DUNE0014;DUNE0015;DUNE0016;DUNE0017;DUNE0018;DUNE0019;DUNE0020;DUNE0021;RS0030;RS0031;RS0032;RS0033;RS0034;CA1849</WarningsAsErrors>
@@ -8,7 +8,7 @@
     <CodeAnalysisTreatWarningsAsErrors>false</CodeAnalysisTreatWarningsAsErrors>
   </PropertyGroup>
 
-  <ItemGroup Condition="'$(MSBuildProjectName)' == 'TemplateApp' Or '$(MSBuildProjectName)' == 'TemplateApp.Tests'">
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'TemplateApp' Or '$(MSBuildProjectName)' == 'TemplateApp.Tests' Or '$(MSBuildProjectName)' == 'TemplateApp.Gateway'">
     <ProjectReference Include="$(MSBuildThisFileDirectory)Dune.Analyzers/Dune.Analyzers.csproj"
                       PrivateAssets="all"
                       ReferenceOutputAssembly="false"
