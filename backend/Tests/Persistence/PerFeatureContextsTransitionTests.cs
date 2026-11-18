@@ -20,7 +20,7 @@ public sealed class PerFeatureContextsTransitionTests : IClassFixture<ApiFixture
     [
         ("auth", ["_InitialCreate", "_MoveAuthToSchema"]),
         ("users", ["_InitialCreate", "_MoveUsersToSchema"]),
-        ("tasks", ["_InitialCreate", "_MoveTasksToSchema", "_AddTaskProjectId"]),
+        ("tasks", ["_InitialCreate", "_MoveTasksToSchema", "_AddTaskProjectId", "_AddTaskProjectIdIndex"]),
         ("platform", ["_InitialCreate", "_MovePlatformToSchema"]),
         ("projects", ["_InitialCreate"]),
     ];
