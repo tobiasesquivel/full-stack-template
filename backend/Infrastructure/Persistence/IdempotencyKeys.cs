@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace TemplateApp.Infrastructure.Persistence;
 
-internal sealed class IdempotencyKeys
+public sealed class IdempotencyKeys
 {
     private readonly PlatformDbContext _db;
 

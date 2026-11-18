@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace TemplateApp.Infrastructure.Persistence;
 
-internal sealed class PlatformDbContext : DbContext
+public sealed class PlatformDbContext : DbContext
 {
     public const string Schema = "platform";
 
