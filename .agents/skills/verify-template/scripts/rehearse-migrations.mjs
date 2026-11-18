@@ -13,7 +13,8 @@ const USAGE = [
   '  Publishes the API of every git ref and deploys them in order against one PostgreSQL with data.',
   '  Each new release starts while the previous one still runs, like a rolling deploy.',
   '  Per stage: readiness of both releases, cross-release writes and reads, and every task',
-  '  read through both releases must match what the rehearsal expects.',
+  '  read through both releases must match what the rehearsal expects. The previous release',
+  '  then deletes an account that both releases wrote to, and no row of it may stay behind.',
 ].join('\n');
 
 function parseArgs(argv) {
@@ -60,6 +61,22 @@ function run(cmd, args, { cwd = REPO_ROOT, allowFailure = false, input } = {}) {
 
 function psql(sql) {
   return run('docker', ['exec', '-i', container, 'psql', '-U', 'postgres', '-d', 'rehearsal', '-v', 'ON_ERROR_STOP=1', '-At'], { input: sql }).stdout.trim();
+}
+
+function migrationHistory() {
+  const schemas = psql(`SELECT table_schema FROM information_schema.tables WHERE table_name = '__EFMigrationsHistory' ORDER BY 1`).split('\n').filter(Boolean);
+  return schemas.flatMap(schema => psql(`SELECT '${schema}.' || "MigrationId" FROM "${schema}"."__EFMigrationsHistory" ORDER BY 1`).split('\n').filter(Boolean));
+}
+
+function orphans() {
+  const missing = column => `NOT EXISTS (SELECT 1 FROM "AspNetUsers" u WHERE u."Id" = ${column})`;
+  const [tasks, profiles, keys, sessions] = psql(`
+    SELECT concat_ws(',',
+      (SELECT count(*) FROM "TaskItems" t WHERE ${missing('t."OwnerId"')}),
+      (SELECT count(*) FROM "UserProfiles" p WHERE ${missing('p."AuthId"')}),
+      (SELECT count(*) FROM "IdempotencyKeys" k WHERE ${missing('k."OwnerId"')}),
+      (SELECT count(*) FROM "Sessions" s WHERE ${missing('s."UserId"')}))`).split(',').map(Number);
+  return { tasks, profiles, keys, sessions };
 }
 
 async function freePort() {
@@ -161,8 +178,8 @@ class Client {
     this.api = api;
   }
 
-  async request(method, route, body) {
-    const headers = { accept: 'application/json' };
+  async request(method, route, body, extraHeaders = {}) {
+    const headers = { accept: 'application/json', ...extraHeaders };
     if (this.cookies.size) headers.cookie = [...this.cookies].map(([name, value]) => `${name}=${value}`).join('; ');
     if (method !== 'GET' && this.cookies.has('XSRF-TOKEN')) headers['X-XSRF-TOKEN'] = decodeURIComponent(this.cookies.get('XSRF-TOKEN'));
     if (body !== undefined) headers['content-type'] = 'application/json';
@@ -183,8 +200,8 @@ class Client {
     return { status: response.status, payload: text ? JSON.parse(text) : undefined };
   }
 
-  async expect(method, route, body, status) {
-    const response = await this.request(method, route, body);
+  async expect(method, route, body, status, extraHeaders) {
+    const response = await this.request(method, route, body, extraHeaders);
     assert.equal(response.status, status, `${this.api.name}: ${method} ${route} returned ${response.status}, expected ${status}`);
     return response.payload;
   }
@@ -247,6 +264,26 @@ async function crossReleaseWrites(oldClient, newClient, expected, stage) {
   return writes;
 }
 
+async function deleteAccountWithPreviousRelease(previous, next, stage) {
+  const userName = `doomed${stage}x${Date.now()}`;
+  const byPrevious = new Client(previous);
+  await byPrevious.signIn(userName, true);
+  const byNext = new Client(next);
+  await byNext.signIn(userName, false);
+  await byPrevious.expect('POST', 'tasks', { title: `doomed by ${previous.name}` }, 201, { 'Idempotency-Key': crypto.randomUUID() });
+  await byNext.expect('POST', 'tasks', { title: `doomed by ${next.name}` }, 201, { 'Idempotency-Key': crypto.randomUUID() });
+  const owned = Number(psql(`SELECT count(*) FROM "TaskItems" t JOIN "AspNetUsers" u ON u."Id" = t."OwnerId" WHERE u."UserName" = '${userName}'`));
+  const response = await byPrevious.request('DELETE', 'users/me');
+  const left = orphans();
+  return {
+    deletedBy: previous.name,
+    status: response.status,
+    tasksBefore: owned,
+    orphans: left,
+    ok: response.status === 204 && owned === 2 && Object.values(left).every(count => count === 0),
+  };
+}
+
 async function main() {
   log({ step: 'publish', refs: options.refs });
   const releases = options.refs.map(publish);
@@ -282,18 +319,18 @@ async function main() {
   summary.stages.push({
     stage: 0,
     release: releases[0].ref,
-    migrations: psql('SELECT "MigrationId" FROM "__EFMigrationsHistory" ORDER BY 1').split('\n').slice(-1),
+    migrations: migrationHistory(),
     readiness: { [current.name]: await readiness(current) },
     reads: [compare(current.name, expected, expected)],
     ok: true,
   });
 
   for (let index = 1; index < releases.length; index += 1) {
-    const before = new Set(psql('SELECT "MigrationId" FROM "__EFMigrationsHistory"').split('\n'));
+    const before = new Set(migrationHistory());
     const started = Date.now();
     const next = await startApi(releases[index], index, pgPort);
     const startupMs = Date.now() - started;
-    const applied = psql('SELECT "MigrationId" FROM "__EFMigrationsHistory" ORDER BY 1').split('\n').filter(id => !before.has(id));
+    const applied = migrationHistory().filter(id => !before.has(id));
     const nextClient = new Client(next);
     await nextClient.signIn(userName, false);
     const stage = { stage: index, release: releases[index].ref, previous: current.release.ref, startupMs, applied };
@@ -301,13 +338,15 @@ async function main() {
       stage.readiness = { [current.name]: await readiness(current), [next.name]: await readiness(next) };
       stage.writes = await crossReleaseWrites(currentClient, nextClient, expected, index);
       stage.reads = [compare(current.name, await currentClient.readAll(), expected), compare(next.name, await nextClient.readAll(), expected)];
+      stage.accountDeletion = await deleteAccountWithPreviousRelease(current, next, index);
     } catch (error) {
       stage.error = error.message;
     }
     stage.ok = !stage.error
       && Object.values(stage.readiness ?? {}).every(result => result.status === 200)
       && stage.writes.every(write => write.ok)
-      && stage.reads.every(read => read.ok);
+      && stage.reads.every(read => read.ok)
+      && stage.accountDeletion.ok;
     summary.stages.push(stage);
     log({ step: 'stage', ...stage });
     stopApi(current);
