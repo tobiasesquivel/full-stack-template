@@ -40,6 +40,28 @@ public sealed class DeleteUserTests : IClassFixture<ApiFixture>
     }
 
     [Fact]
+    public async Task DeleteMe_LeavesNoRowOfTheAccountInAnyFeature()
+    {
+        TestSession alice = new(_fixture.CreateClient());
+        await alice.RegisterAsync(TestAccounts.UniqueName("alice"));
+        await alice.CreateTaskAsync("Sin clave");
+        SessionResponse keyed = await alice.SendAsync(
+            HttpMethod.Post,
+            "api/v1/tasks",
+            new { title = "Con clave" },
+            headers: new Dictionary<string, string> { ["Idempotency-Key"] = Guid.NewGuid().ToString() });
+        keyed.Payload?.Dispose();
+        Assert.Equal(HttpStatusCode.Created, keyed.Status);
+        Assert.Equal(new OwnedRows(1, 1, 1, 1, 2, 1), await _fixture.Services.OwnedRowsAsync(alice.AuthId));
+
+        SessionResponse deleted = await alice.SendAsync(HttpMethod.Delete, "api/v1/users/me");
+        deleted.Payload?.Dispose();
+
+        Assert.Equal(HttpStatusCode.NoContent, deleted.Status);
+        Assert.Equal(OwnedRows.None, await _fixture.Services.OwnedRowsAsync(alice.AuthId));
+    }
+
+    [Fact]
     public async Task DeleteMe_RemovesStoredIdempotencyKeys()
     {
         TestSession alice = new(_fixture.CreateClient());

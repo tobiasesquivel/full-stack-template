@@ -1,4 +1,8 @@
 using System.Net;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using TemplateApp.Features.Tasks.Domain;
+using TemplateApp.Infrastructure.Persistence;
 using TemplateApp.Tests.Support;
 using Xunit;
 
@@ -211,6 +215,23 @@ public sealed class CreateTaskTests : IClassFixture<ApiFixture>
         var measurement = Assert.Single(created.Values);
         Assert.Equal(1, measurement.Value);
         Assert.Empty(measurement.Tags);
+    }
+
+    [Fact]
+    public async Task Create_WithKey_WhenItFailsAfterTheTaskWasSaved_LeavesNeitherKeyNorTask()
+    {
+        HttpClient client = _fixture.CreateIsolatedClient(
+            services => services.ConfigureDbContext<AppDbContext>((_, options) => options.AddInterceptors(new FailAfterSaving<TaskItem>())),
+            out IServiceProvider services);
+        var alice = new TestSession(client);
+        await alice.RegisterAsync(TestAccounts.UniqueName("alice"));
+
+        var failed = await alice.SendAsync(HttpMethod.Post, "api/v1/tasks", new { title = "Comprar pan" }, headers: KeyHeader(Guid.NewGuid().ToString()));
+        failed.Payload?.Dispose();
+
+        Assert.Equal(HttpStatusCode.InternalServerError, failed.Status);
+        OwnedRows rows = await services.OwnedRowsAsync(alice.AuthId);
+        Assert.Equal((0L, 0L), (rows.Tasks, rows.IdempotencyKeys));
     }
 
     private const string ReplayedHeader = "Idempotent-Replayed";
