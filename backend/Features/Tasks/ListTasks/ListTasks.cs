@@ -1,6 +1,7 @@
 using ErrorOr;
 using Microsoft.EntityFrameworkCore;
 using TemplateApp.Features.Tasks.Persistence;
+using TemplateApp.Shared.Http;
 
 namespace TemplateApp.Features.Tasks.ListTasks;
 
@@ -15,14 +16,14 @@ internal sealed class ListTasks
 
     public async Task<ErrorOr<TaskListResponse>> ExecuteAsync(string callerId, string? cursor, int pageSize, CancellationToken ct)
     {
-        if (pageSize is < 1 or > 100)
-            return TaskErrors.InvalidPageSize;
+        if (!KeysetCursor.IsValidPageSize(pageSize))
+            return HttpErrors.InvalidPageSize;
 
         var owned = _db.TaskItems.Where(t => t.OwnerId == callerId);
         if (cursor is not null)
         {
-            if (!TaskCursor.TryDecode(cursor, out TaskCursor after))
-                return TaskErrors.InvalidCursor;
+            if (!KeysetCursor.TryDecode(cursor, out KeysetCursor after))
+                return HttpErrors.InvalidCursor;
 
             owned = owned.Where(t => EF.Functions.LessThan(
                 ValueTuple.Create(t.CreatedAt, t.Id),
@@ -41,6 +42,6 @@ internal sealed class ListTasks
             return new TaskListResponse(rows, null);
 
         rows.RemoveAt(pageSize);
-        return new TaskListResponse(rows, TaskCursor.Encode(rows[^1]));
+        return new TaskListResponse(rows, KeysetCursor.Encode(rows[^1].CreatedAt, rows[^1].Id));
     }
 }
