@@ -1,0 +1,19 @@
+<nav aria-label="Paginación" class="mt-4 flex flex-wrap items-center gap-3">
+  <button
+    type="button"
+    class="cursor-pointer rounded-lg border border-blue-700 bg-white px-4 py-2 text-blue-700 hover:enabled:border-blue-800 hover:enabled:bg-blue-50 hover:enabled:text-blue-800 focus-visible:outline-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+    [disabled]="!hasPrevious() || disabled()"
+    (click)="previous.emit()"
+  >
+    Anterior
+  </button>
+  <span role="status" class="text-sm/normal text-slate-600">Página {{ page() }}</span>
+  <button
+    type="button"
+    class="cursor-pointer rounded-lg border border-blue-700 bg-white px-4 py-2 text-blue-700 hover:enabled:border-blue-800 hover:enabled:bg-blue-50 hover:enabled:text-blue-800 focus-visible:outline-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+    [disabled]="!hasNext() || disabled()"
+    (click)="next.emit()"
+  >
+    Siguiente
+  </button>
+</nav>

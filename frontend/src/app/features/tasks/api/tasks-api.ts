@@ -1,6 +1,7 @@
 import { Service, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
+import type { CreateTaskRequest } from './create-task-request';
 import type { TaskListResponse } from './task-list-response';
 import type { TaskResponse } from './task-response';
 import type { UpdateTaskRequest } from './update-task-request';
@@ -17,13 +18,11 @@ export class TasksApi {
     return firstValueFrom(this.http.get<TaskListResponse>('/api/v1/tasks', { params }));
   }
 
-  create(title: string, idempotencyKey: string): Promise<TaskResponse> {
+  create(request: CreateTaskRequest, idempotencyKey: string): Promise<TaskResponse> {
     return firstValueFrom(
-      this.http.post<TaskResponse>(
-        '/api/v1/tasks',
-        { title },
-        { headers: { 'Idempotency-Key': idempotencyKey } },
-      ),
+      this.http.post<TaskResponse>('/api/v1/tasks', request, {
+        headers: { 'Idempotency-Key': idempotencyKey },
+      }),
     );
   }
 
