@@ -12,13 +12,15 @@ namespace Dune.Analyzers;
 public sealed class PersistenceOwnershipAnalyzer : DiagnosticAnalyzer
 {
     private const string InfrastructurePersistence = "backend/Infrastructure/Persistence/";
+    private const string TransactionHelper = InfrastructurePersistence + "CrossContextTransaction.cs";
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
         ImmutableArray.Create(
             DuneDiagnostics.DbContextOutsidePersistence,
             DuneDiagnostics.SecondDbContextInFeature,
             DuneDiagnostics.ExcludeFromMigrationsOutsideInfrastructure,
-            DuneDiagnostics.TransactionScopeOutsideHelper);
+            DuneDiagnostics.TransactionScopeOutsideHelper,
+            DuneDiagnostics.ConfigurationOfAnotherOwner);
 
     public override void Initialize(AnalysisContext context)
     {
@@ -55,7 +57,7 @@ public sealed class PersistenceOwnershipAnalyzer : DiagnosticAnalyzer
         ConcurrentDictionary<string, ConcurrentDictionary<string, Location>> contexts)
     {
         var type = (INamedTypeSymbol)context.Symbol;
-        if (!DuneSymbols.DerivesFromDbContext(type, context.Compilation))
+        if (type.IsAbstract || !DuneSymbols.DerivesFromDbContext(type, context.Compilation))
         {
             return;
         }
@@ -71,7 +73,7 @@ public sealed class PersistenceOwnershipAnalyzer : DiagnosticAnalyzer
             if (IsFeaturePersistence(path, out var feature))
             {
                 contexts.GetOrAdd(feature, _ => new ConcurrentDictionary<string, Location>(StringComparer.Ordinal))
-                    .TryAdd(type.Name, location);
+                    .TryAdd(type.ToDisplayString(), location);
             }
             else if (!IsInfrastructurePersistence(path))
             {
@@ -84,14 +86,25 @@ public sealed class PersistenceOwnershipAnalyzer : DiagnosticAnalyzer
     {
         var invocation = (IInvocationOperation)context.Operation;
         var method = invocation.TargetMethod;
-        if (!method.Name.Equals("ExcludeFromMigrations", StringComparison.Ordinal)
-            || !DuneSymbols.InNamespace(method.ContainingType.OriginalDefinition, "Microsoft.EntityFrameworkCore"))
+        if (!DuneSymbols.InNamespace(method.ContainingType.OriginalDefinition, "Microsoft.EntityFrameworkCore"))
         {
             return;
         }
 
         var path = DunePaths.Normalize(invocation.Syntax.SyntaxTree.FilePath);
-        if (IsChecked(path) && !IsInfrastructurePersistence(path))
+        if (!IsChecked(path))
+        {
+            return;
+        }
+
+        if (method.Name.Equals("ApplyConfigurationsFromAssembly", StringComparison.Ordinal)
+            || (method.Name.Equals("ApplyConfiguration", StringComparison.Ordinal) && !OwnsConfiguration(path, invocation)))
+        {
+            context.ReportDiagnostic(Diagnostic.Create(DuneDiagnostics.ConfigurationOfAnotherOwner, invocation.Syntax.GetLocation()));
+            return;
+        }
+
+        if (method.Name.Equals("ExcludeFromMigrations", StringComparison.Ordinal) && !IsInfrastructurePersistence(path))
         {
             context.ReportDiagnostic(Diagnostic.Create(
                 DuneDiagnostics.ExcludeFromMigrationsOutsideInfrastructure,
@@ -110,10 +123,26 @@ public sealed class PersistenceOwnershipAnalyzer : DiagnosticAnalyzer
         }
 
         var path = DunePaths.Normalize(creation.Syntax.SyntaxTree.FilePath);
-        if (IsChecked(path) && !IsInfrastructurePersistence(path))
+        if (IsChecked(path) && !path.EndsWith(TransactionHelper, StringComparison.Ordinal))
         {
             context.ReportDiagnostic(Diagnostic.Create(DuneDiagnostics.TransactionScopeOutsideHelper, creation.Syntax.GetLocation()));
         }
+    }
+
+    private static bool OwnsConfiguration(string path, IInvocationOperation invocation)
+    {
+        var configuration = invocation.Arguments.FirstOrDefault()?.Value is IConversionOperation conversion
+            ? conversion.Operand.Type
+            : invocation.Arguments.FirstOrDefault()?.Value.Type;
+        if (configuration is null)
+        {
+            return false;
+        }
+
+        var owner = DunePaths.TryGetFeature(path, out var feature)
+            ? "TemplateApp.Features." + feature + "."
+            : "TemplateApp.Infrastructure.";
+        return (DuneSymbols.NamespaceOf(configuration) + ".").StartsWith(owner, StringComparison.Ordinal);
     }
 
     private static bool IsChecked(string path) =>

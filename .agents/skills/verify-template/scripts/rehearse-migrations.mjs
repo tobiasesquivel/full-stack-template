@@ -14,7 +14,8 @@ const USAGE = [
   '  Each new release starts while the previous one still runs, like a rolling deploy.',
   '  Per stage: readiness of both releases, cross-release writes and reads, and every task',
   '  read through both releases must match what the rehearsal expects. The previous release',
-  '  then deletes an account that both releases wrote to, and no row of it may stay behind.',
+  '  then deletes an account that both releases wrote to: its account and profile must be gone',
+  '  and no task, profile, key or session may point to a missing account. Audit rows stay on purpose.',
 ].join('\n');
 
 function parseArgs(argv) {
@@ -273,14 +274,20 @@ async function deleteAccountWithPreviousRelease(previous, next, stage) {
   await byPrevious.expect('POST', 'tasks', { title: `doomed by ${previous.name}` }, 201, { 'Idempotency-Key': crypto.randomUUID() });
   await byNext.expect('POST', 'tasks', { title: `doomed by ${next.name}` }, 201, { 'Idempotency-Key': crypto.randomUUID() });
   const owned = Number(psql(`SELECT count(*) FROM "TaskItems" t JOIN "AspNetUsers" u ON u."Id" = t."OwnerId" WHERE u."UserName" = '${userName}'`));
+  const accountId = psql(`SELECT "Id" FROM "AspNetUsers" WHERE "UserName" = '${userName}'`);
   const response = await byPrevious.request('DELETE', 'users/me');
+  const [accounts, profiles] = psql(`
+    SELECT concat_ws(',',
+      (SELECT count(*) FROM "AspNetUsers" WHERE "Id" = '${accountId}'),
+      (SELECT count(*) FROM "UserProfiles" WHERE "AuthId" = '${accountId}'))`).split(',').map(Number);
   const left = orphans();
   return {
     deletedBy: previous.name,
     status: response.status,
     tasksBefore: owned,
+    remaining: { accounts, profiles },
     orphans: left,
-    ok: response.status === 204 && owned === 2 && Object.values(left).every(count => count === 0),
+    ok: response.status === 204 && owned === 2 && accountId !== '' && accounts === 0 && profiles === 0 && Object.values(left).every(count => count === 0),
   };
 }
 

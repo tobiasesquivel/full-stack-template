@@ -219,6 +219,121 @@ public sealed class PersistenceOwnershipAnalyzerTests
             Findings(diagnostics));
     }
 
+    [Fact]
+    public async Task TwoContextsWithTheSameNameInAFeatureAreTwoContexts()
+    {
+        var diagnostics = await AnalyzeAsync(
+            ("backend/Features/Users/Persistence/StoreContext.cs", """
+                using Microsoft.EntityFrameworkCore;
+                namespace TemplateApp.Features.Users.Persistence;
+                internal sealed class StoreContext : DbContext { }
+                """),
+            ("backend/Features/Users/Persistence/ReadStoreContext.cs", """
+                using Microsoft.EntityFrameworkCore;
+                namespace TemplateApp.Features.Users.Persistence.Read;
+                internal sealed class StoreContext : DbContext { }
+                """));
+
+        Assert.Equal(
+            new[]
+            {
+                "Más de un DbContext en una feature ReadStoreContext.cs:3",
+                "Más de un DbContext en una feature StoreContext.cs:3",
+            },
+            Findings(diagnostics));
+    }
+
+    [Fact]
+    public async Task AnAbstractBaseIsNotASecondContext()
+    {
+        var diagnostics = await AnalyzeAsync(
+            ("backend/Features/Users/Persistence/AuditedDbContext.cs", """
+                using Microsoft.EntityFrameworkCore;
+                namespace TemplateApp.Features.Users.Persistence;
+                internal abstract class AuditedDbContext : DbContext { }
+                """),
+            ("backend/Features/Users/Persistence/UsersDbContext.cs", """
+                namespace TemplateApp.Features.Users.Persistence;
+                internal sealed class UsersDbContext : AuditedDbContext { }
+                """));
+
+        Assert.Empty(Findings(diagnostics));
+    }
+
+    [Fact]
+    public async Task TransactionScopeElsewhereInInfrastructurePersistenceIsRejected()
+    {
+        var diagnostics = await AnalyzeAsync(
+            ("backend/Infrastructure/Persistence/IdempotencyKeys.cs", """
+                using System.Transactions;
+                namespace TemplateApp.Infrastructure.Persistence;
+                internal static class IdempotencyKeys
+                {
+                    public static TransactionScope Begin() => new TransactionScope(TransactionScopeAsyncFlowOption.Enabled);
+                }
+                """));
+
+        Assert.Equal(
+            new[] { "TransactionScope fuera de CrossContextTransaction IdempotencyKeys.cs:5" },
+            Findings(diagnostics));
+    }
+
+    [Fact]
+    public async Task AContextAppliesOnlyConfigurationsOfItsOwner()
+    {
+        var diagnostics = await AnalyzeAsync(
+            ("backend/Infrastructure/Persistence/IdempotencyKeyConfiguration.cs", """
+                using Microsoft.EntityFrameworkCore;
+                using Microsoft.EntityFrameworkCore.Metadata.Builders;
+                namespace TemplateApp.Infrastructure.Persistence;
+                public sealed class IdempotencyKeyConfiguration : IEntityTypeConfiguration<AuditEntry>
+                {
+                    public void Configure(EntityTypeBuilder<AuditEntry> builder) { }
+                }
+                """),
+            ("backend/Infrastructure/Persistence/PlatformDbContext.cs", """
+                using Microsoft.EntityFrameworkCore;
+                namespace TemplateApp.Infrastructure.Persistence;
+                internal sealed class PlatformDbContext : DbContext
+                {
+                    protected override void OnModelCreating(ModelBuilder modelBuilder) =>
+                        modelBuilder.ApplyConfiguration(new IdempotencyKeyConfiguration());
+                }
+                """),
+            ("backend/Features/Tasks/Persistence/TaskItemConfiguration.cs", """
+                using Microsoft.EntityFrameworkCore;
+                using Microsoft.EntityFrameworkCore.Metadata.Builders;
+                using TemplateApp.Infrastructure.Persistence;
+                namespace TemplateApp.Features.Tasks.Persistence;
+                internal sealed class TaskItemConfiguration : IEntityTypeConfiguration<AuditEntry>
+                {
+                    public void Configure(EntityTypeBuilder<AuditEntry> builder) { }
+                }
+                """),
+            ("backend/Features/Tasks/Persistence/TasksDbContext.cs", """
+                using Microsoft.EntityFrameworkCore;
+                using TemplateApp.Infrastructure.Persistence;
+                namespace TemplateApp.Features.Tasks.Persistence;
+                internal sealed class TasksDbContext : DbContext
+                {
+                    protected override void OnModelCreating(ModelBuilder modelBuilder)
+                    {
+                        modelBuilder.ApplyConfiguration(new TaskItemConfiguration());
+                        modelBuilder.ApplyConfiguration(new IdempotencyKeyConfiguration());
+                        modelBuilder.ApplyConfigurationsFromAssembly(typeof(TasksDbContext).Assembly);
+                    }
+                }
+                """));
+
+        Assert.Equal(
+            new[]
+            {
+                "Configuración de otro dueño TasksDbContext.cs:10",
+                "Configuración de otro dueño TasksDbContext.cs:9",
+            },
+            Findings(diagnostics));
+    }
+
     private static Task<ImmutableArray<Diagnostic>> AnalyzeAsync(params (string Path, string Source)[] files) =>
         AnalyzerHost.AnalyzeAsync(
             files.Append(("backend/Infrastructure/Persistence/AuditEntry.cs", AuditEntry)).ToList(),
