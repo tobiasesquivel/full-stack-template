@@ -155,8 +155,7 @@ public sealed class PerFeatureContextsTransitionTests : IClassFixture<ApiFixture
 
     private static async Task ExecuteAsync(string database, string sql)
     {
-        await using NpgsqlConnection connection = new(database);
-        await connection.OpenAsync();
+        await using NpgsqlConnection connection = await TestDatabases.OpenAsync(database);
         await using NpgsqlCommand command = new(sql, connection);
         command.Parameters.AddWithValue("owner", Owner);
         await command.ExecuteNonQueryAsync();
@@ -164,16 +163,14 @@ public sealed class PerFeatureContextsTransitionTests : IClassFixture<ApiFixture
 
     private static async Task<object?> ScalarAsync(string database, string sql)
     {
-        await using NpgsqlConnection connection = new(database);
-        await connection.OpenAsync();
+        await using NpgsqlConnection connection = await TestDatabases.OpenAsync(database);
         await using NpgsqlCommand command = new(sql, connection);
         return await command.ExecuteScalarAsync();
     }
 
     private static async Task<string[]> LinesAsync(string database, string sql)
     {
-        await using NpgsqlConnection connection = new(database);
-        await connection.OpenAsync();
+        await using NpgsqlConnection connection = await TestDatabases.OpenAsync(database);
         await using NpgsqlCommand command = new(sql, connection);
         await using NpgsqlDataReader reader = await command.ExecuteReaderAsync();
         List<string> lines = [];

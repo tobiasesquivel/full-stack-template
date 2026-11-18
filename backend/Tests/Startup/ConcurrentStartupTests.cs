@@ -82,8 +82,7 @@ public sealed class ConcurrentStartupTests : IAsyncLifetime
 
     private async Task DeleteRolesAsync()
     {
-        await using NpgsqlConnection connection = new(_connection);
-        await connection.OpenAsync();
+        await using NpgsqlConnection connection = await TestDatabases.OpenAsync(_connection);
         await using NpgsqlCommand delete = new("DELETE FROM \"AspNetRoleClaims\"; DELETE FROM \"AspNetRoles\";", connection);
         await delete.ExecuteNonQueryAsync();
     }

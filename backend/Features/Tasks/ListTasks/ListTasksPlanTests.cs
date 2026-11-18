@@ -86,8 +86,7 @@ public sealed class ListTasksPlanTests : IClassFixture<ApiFixture>
 
     private static async Task SeedAsync(string database, string callerId)
     {
-        await using NpgsqlConnection connection = new(database);
-        await connection.OpenAsync();
+        await using NpgsqlConnection connection = await TestDatabases.OpenAsync(database);
         await using NpgsqlCommand seed = new(
             """
             INSERT INTO "AspNetUsers" ("Id", "EmailConfirmed", "PhoneNumberConfirmed", "TwoFactorEnabled", "LockoutEnabled", "AccessFailedCount")

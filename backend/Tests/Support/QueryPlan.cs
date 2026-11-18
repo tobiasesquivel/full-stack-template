@@ -8,8 +8,7 @@ internal sealed record QueryPlan(IReadOnlyList<QueryPlanNode> Nodes, double Exec
 {
     public static async Task<QueryPlan> ExplainAnalyzeAsync(string connectionString, CapturedCommand command)
     {
-        await using NpgsqlConnection connection = new(connectionString);
-        await connection.OpenAsync();
+        await using NpgsqlConnection connection = await TestDatabases.OpenAsync(connectionString);
         await using NpgsqlCommand explain = new($"EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) {command.Text}", connection);
         foreach (NpgsqlParameter parameter in command.Parameters)
             explain.Parameters.Add(parameter.Clone());
