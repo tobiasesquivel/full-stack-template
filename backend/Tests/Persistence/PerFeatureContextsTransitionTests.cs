@@ -20,10 +20,11 @@ public sealed class PerFeatureContextsTransitionTests : IClassFixture<ApiFixture
     [
         ("auth", ["_InitialCreate", "_MoveAuthToSchema"]),
         ("users", ["_InitialCreate", "_MoveUsersToSchema"]),
-        ("tasks", ["_InitialCreate", "_MoveTasksToSchema"]),
+        ("tasks", ["_InitialCreate", "_MoveTasksToSchema", "_AddTaskProjectId"]),
         ("platform", ["_InitialCreate", "_MovePlatformToSchema"]),
         ("projects", ["_InitialCreate"]),
     ];
+    private static readonly string[] ColumnsAddedAfterTheMove = ["ProjectId"];
     private static readonly string[] DataTables =
         ["AspNetUsers", "AspNetUserRoles", "Sessions", "UserProfiles", "TaskItems", "IdempotencyKeys", "AuditEntries"];
     private static readonly string[] TablesBornInTheirFeatureSchema = ["projects.Projects"];
@@ -192,7 +193,7 @@ public sealed class PerFeatureContextsTransitionTests : IClassFixture<ApiFixture
     {
         Dictionary<string, string[]> rows = [];
         foreach (string table in DataTables)
-            rows[table] = await LinesAsync(database, $"SELECT row_to_json(t)::text FROM \"{table}\" t ORDER BY 1");
+            rows[table] = await LinesAsync(database, $"SELECT (to_jsonb(t) - '{{{string.Join(',', ColumnsAddedAfterTheMove)}}}'::text[])::text FROM \"{table}\" t ORDER BY 1");
         return rows;
     }
 
