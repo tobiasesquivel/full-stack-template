@@ -5,6 +5,8 @@ namespace TemplateApp.Features.Tasks.Access;
 
 internal sealed class AuthSessionClient
 {
+    private const string SessionInactiveCode = "Auth.SessionInactive";
+
     private readonly HttpClient _http;
 
     public AuthSessionClient(HttpClient http)
@@ -20,7 +22,10 @@ internal sealed class AuthSessionClient
         };
         using HttpResponseMessage response = await _http.SendRemoteAsync(request, ct, HttpStatusCode.OK, HttpStatusCode.NotFound);
         if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            await response.EnsureProblemCodeAsync(SessionInactiveCode, ct);
             return null;
+        }
 
         SessionCheckReply? reply = await response.Content.ReadFromJsonAsync<SessionCheckReply>(ct);
         return reply?.Permissions ?? throw new InvalidOperationException("Auth answered a session check without permissions.");

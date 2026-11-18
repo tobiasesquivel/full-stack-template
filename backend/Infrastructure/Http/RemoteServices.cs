@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json;
 using Microsoft.Extensions.Options;
 
 namespace TemplateApp.Infrastructure.Http;
@@ -51,6 +52,26 @@ public static class RemoteServices
             throw new RemoteServiceUnavailableException(Describe(client, request, answered));
 
         throw new InvalidOperationException(Describe(client, request, answered + ", outside its contract"));
+    }
+
+    public static async Task EnsureProblemCodeAsync(this HttpResponseMessage response, string code, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(response);
+
+        string? answered = null;
+        try
+        {
+            using JsonDocument body = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
+            if (body.RootElement.ValueKind == JsonValueKind.Object && body.RootElement.TryGetProperty("code", out JsonElement value))
+                answered = value.GetString();
+        }
+        catch (JsonException)
+        {
+        }
+
+        if (!string.Equals(answered, code, StringComparison.Ordinal))
+            throw new RemoteServiceUnavailableException(
+                $"{response.RequestMessage?.Method} {response.RequestMessage?.RequestUri?.AbsolutePath} answered {(int)response.StatusCode} with code {answered ?? "none"} instead of {code}: the release that answered may not have this route yet.");
     }
 
     private static string Describe(HttpClient client, HttpRequestMessage request, string outcome) =>

@@ -214,6 +214,12 @@ describe('check-structure', () => {
       /límite de despliegue: backend\/Hosts\/Tasks\/TemplateApp\.Tasks\.csproj compila \$\(BackendRoot\)\/Infrastructure/,
     ],
     [
+      'el monolito que vuelve a incluir Features/Tasks con un Compile Include',
+      'backend/TemplateApp.csproj',
+      monolithProject('<Compile Include="Features/Tasks/**/*.cs" Exclude="Features/Tasks/**/*Tests.cs" />'),
+      /límite de despliegue: backend\/TemplateApp\.csproj compila Features\/Tasks\/\*\*\/\*\.cs/,
+    ],
+    [
       'el monolito sin excluir Features/Tasks',
       'backend/TemplateApp.csproj',
       `<Project>${PLATFORM_REFERENCE}<ItemGroup><Compile Remove="Features/**/*Tests.cs" /><Compile Remove="Tests/**/*.cs" /></ItemGroup></Project>`,

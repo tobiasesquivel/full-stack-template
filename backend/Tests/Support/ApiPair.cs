@@ -19,7 +19,7 @@ public sealed class ApiPair : IDisposable
         string connectionString,
         IReadOnlyDictionary<string, string> settings,
         Action<IServiceCollection> configureServices,
-        Func<HttpRequestMessage, HttpMessageHandler?>? interceptRemote = null)
+        Func<HttpRequestMessage, HttpMessageHandler, HttpMessageHandler?>? interceptRemote = null)
     {
         _monolith = new MonolithFactory(connectionString, settings, services =>
         {
@@ -61,7 +61,7 @@ public sealed class ApiPair : IDisposable
         _tasks.Dispose();
     }
 
-    private void RouteRemoteCalls(IServiceCollection services, Func<HttpRequestMessage, HttpMessageHandler?>? interceptRemote) =>
+    private void RouteRemoteCalls(IServiceCollection services, Func<HttpRequestMessage, HttpMessageHandler, HttpMessageHandler?>? interceptRemote) =>
         services.ConfigureHttpClientDefaults(client => client.ConfigurePrimaryHttpMessageHandler(() =>
             new InterceptedRoutes(interceptRemote, new InMemoryRoutes(request => request.RequestUri!.Host switch
             {
@@ -101,11 +101,11 @@ public sealed class ApiPair : IDisposable
             ConfigureCommon(builder, connectionString, settings, configureServices);
     }
 
-    private sealed class InterceptedRoutes(Func<HttpRequestMessage, HttpMessageHandler?>? intercept, HttpMessageHandler inner) : DelegatingHandler(inner)
+    private sealed class InterceptedRoutes(Func<HttpRequestMessage, HttpMessageHandler, HttpMessageHandler?>? intercept, HttpMessageHandler inner) : DelegatingHandler(inner)
     {
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
-            HttpMessageHandler? replacement = intercept?.Invoke(request);
+            HttpMessageHandler? replacement = intercept?.Invoke(request, InnerHandler!);
             if (replacement is null)
                 return await base.SendAsync(request, cancellationToken);
 

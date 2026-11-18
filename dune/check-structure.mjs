@@ -152,6 +152,11 @@ async function checkDeploymentBoundary() {
       ...[...text.matchAll(/<DefaultItemExcludes>([^<]*)<\/DefaultItemExcludes>/g)].flatMap((match) => match[1].split(';')),
       ...msbuildValues(text, 'Compile', 'Remove'),
     ].map(normalizeItem);
+    for (const include of msbuildValues(text, 'Compile', 'Include').map(normalizeItem)) {
+      if (/(^|\/)Features\/Tasks(\/|$)/.test(include)) {
+        fail(`${DEPLOYMENT_RULE}: ${MONOLITH_PROJECT} compila ${include}; Tasks se compila solo en ${TASKS_HOST_PROJECT}`);
+      }
+    }
     if (!excludes.some((value) => value === 'Features/Tasks/**' || value.startsWith('Features/Tasks/**/'))) {
       fail(`${DEPLOYMENT_RULE}: ${MONOLITH_PROJECT} no excluye Features/Tasks/**; Tasks se compila solo en ${TASKS_HOST_PROJECT}`);
     }
