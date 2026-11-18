@@ -9,13 +9,15 @@ import { fileURLToPath } from 'node:url';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..');
 const USAGE = [
-  'Usage: node rehearse-migrations.mjs --run-id <id> --refs <ref0,ref1,...> [--bulk-tasks <n>]',
+  'Usage: node rehearse-migrations.mjs --run-id <id> --refs <ref0,ref1,...> [--bulk-tasks <n>] [--expect-fail <stage,...>]',
   '  Publishes the API of every git ref and deploys them in order against one PostgreSQL with data.',
   '  Each new release starts while the previous one still runs, like a rolling deploy.',
   '  Per stage: readiness of both releases, cross-release writes and reads, and every task',
   '  read through both releases must match what the rehearsal expects. The previous release',
   '  then deletes an account that both releases wrote to: its account and profile must be gone',
   '  and no task, profile, key or session may point to a missing account. Audit rows stay on purpose.',
+  '  --expect-fail names the stages (1 is the second ref) that must fail: a negative control passes',
+  '  only when its stage fails.',
 ].join('\n');
 
 function parseArgs(argv) {
@@ -30,10 +32,14 @@ function parseArgs(argv) {
     flags[name.slice(2)] = argv[(i += 1)];
   }
   assert.ok(flags['run-id'] && flags.refs, USAGE);
+  const refs = flags.refs.split(',').map(ref => ref.trim()).filter(Boolean);
+  const expectFail = (flags['expect-fail'] ?? '').split(',').filter(Boolean).map(Number);
+  assert.ok(expectFail.every(stage => Number.isInteger(stage) && stage >= 1 && stage < refs.length), `--expect-fail needs stages between 1 and ${refs.length - 1}\n${USAGE}`);
   return {
     runId: flags['run-id'],
-    refs: flags.refs.split(',').map(ref => ref.trim()).filter(Boolean),
+    refs,
     bulkTasks: Number(flags['bulk-tasks'] ?? 20000),
+    expectFail,
   };
 }
 
@@ -45,7 +51,7 @@ const postgresImage = /image:\s*(postgres:\S+)/.exec(readFileSync(path.join(REPO
 const container = `rehearse-${options.runId}`.replace(/[^a-zA-Z0-9_.-]/g, '-');
 const dbPassword = `Rehearse${crypto.randomUUID().replaceAll('-', '')}`;
 const userPassword = `Rehearse!${crypto.randomUUID()}Aa9`;
-const summary = { runId: options.runId, refs: options.refs, bulkTasks: options.bulkTasks, postgresImage, stages: [], result: 'FAIL' };
+const summary = { runId: options.runId, refs: options.refs, bulkTasks: options.bulkTasks, expectFail: options.expectFail, postgresImage, stages: [], result: 'FAIL' };
 const running = new Map();
 
 function log(event) {
@@ -69,14 +75,31 @@ function migrationHistory() {
   return schemas.flatMap(schema => psql(`SELECT '${schema}.' || "MigrationId" FROM "${schema}"."__EFMigrationsHistory" ORDER BY 1`).split('\n').filter(Boolean));
 }
 
+function table(name) {
+  const found = psql(`
+    SELECT format('%I.%I', n.nspname, c.relname)
+    FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE c.relkind = 'r' AND c.relname = '${name}'`).split('\n').filter(Boolean);
+  assert.equal(found.length, 1, `table ${name} lives in ${found.length} schemas: ${found.join(', ')}`);
+  return found[0];
+}
+
+function tables() {
+  return psql(`
+    SELECT n.nspname || '.' || c.relname
+    FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE c.relkind = 'r' AND n.nspname NOT IN ('pg_catalog', 'information_schema') AND c.relname <> '__EFMigrationsHistory'
+    ORDER BY n.nspname || '.' || c.relname COLLATE "C"`).split('\n').filter(Boolean);
+}
+
 function orphans() {
-  const missing = column => `NOT EXISTS (SELECT 1 FROM "AspNetUsers" u WHERE u."Id" = ${column})`;
+  const missing = column => `NOT EXISTS (SELECT 1 FROM ${table('AspNetUsers')} u WHERE u."Id" = ${column})`;
   const [tasks, profiles, keys, sessions] = psql(`
     SELECT concat_ws(',',
-      (SELECT count(*) FROM "TaskItems" t WHERE ${missing('t."OwnerId"')}),
-      (SELECT count(*) FROM "UserProfiles" p WHERE ${missing('p."AuthId"')}),
-      (SELECT count(*) FROM "IdempotencyKeys" k WHERE ${missing('k."OwnerId"')}),
-      (SELECT count(*) FROM "Sessions" s WHERE ${missing('s."UserId"')}))`).split(',').map(Number);
+      (SELECT count(*) FROM ${table('TaskItems')} t WHERE ${missing('t."OwnerId"')}),
+      (SELECT count(*) FROM ${table('UserProfiles')} p WHERE ${missing('p."AuthId"')}),
+      (SELECT count(*) FROM ${table('IdempotencyKeys')} k WHERE ${missing('k."OwnerId"')}),
+      (SELECT count(*) FROM ${table('Sessions')} s WHERE ${missing('s."UserId"')}))`).split(',').map(Number);
   return { tasks, profiles, keys, sessions };
 }
 
@@ -273,13 +296,13 @@ async function deleteAccountWithPreviousRelease(previous, next, stage) {
   await byNext.signIn(userName, false);
   await byPrevious.expect('POST', 'tasks', { title: `doomed by ${previous.name}` }, 201, { 'Idempotency-Key': crypto.randomUUID() });
   await byNext.expect('POST', 'tasks', { title: `doomed by ${next.name}` }, 201, { 'Idempotency-Key': crypto.randomUUID() });
-  const owned = Number(psql(`SELECT count(*) FROM "TaskItems" t JOIN "AspNetUsers" u ON u."Id" = t."OwnerId" WHERE u."UserName" = '${userName}'`));
-  const accountId = psql(`SELECT "Id" FROM "AspNetUsers" WHERE "UserName" = '${userName}'`);
+  const owned = Number(psql(`SELECT count(*) FROM ${table('TaskItems')} t JOIN ${table('AspNetUsers')} u ON u."Id" = t."OwnerId" WHERE u."UserName" = '${userName}'`));
+  const accountId = psql(`SELECT "Id" FROM ${table('AspNetUsers')} WHERE "UserName" = '${userName}'`);
   const response = await byPrevious.request('DELETE', 'users/me');
   const [accounts, profiles] = psql(`
     SELECT concat_ws(',',
-      (SELECT count(*) FROM "AspNetUsers" WHERE "Id" = '${accountId}'),
-      (SELECT count(*) FROM "UserProfiles" WHERE "AuthId" = '${accountId}'))`).split(',').map(Number);
+      (SELECT count(*) FROM ${table('AspNetUsers')} WHERE "Id" = '${accountId}'),
+      (SELECT count(*) FROM ${table('UserProfiles')} WHERE "AuthId" = '${accountId}'))`).split(',').map(Number);
   const left = orphans();
   return {
     deletedBy: previous.name,
@@ -309,17 +332,18 @@ async function main() {
     const created = await currentClient.expect('POST', 'tasks', { title: `seed ${i}` }, 201);
     if (i % 2 === 0) await currentClient.setCompleted(created.id, true);
   }
+  const taskItems = table('TaskItems');
   const bulk = psql(`
     DO $$
     DECLARE columns text;
     BEGIN
-      SELECT string_agg(quote_ident(column_name), ', ') INTO columns
-      FROM information_schema.columns WHERE table_name = 'TaskItems' AND column_name <> 'Id';
+      SELECT string_agg(quote_ident(attname), ', ' ORDER BY attnum) INTO columns
+      FROM pg_attribute WHERE attrelid = '${taskItems}'::regclass AND attnum > 0 AND NOT attisdropped AND attname <> 'Id';
       EXECUTE format(
-        'INSERT INTO "TaskItems" ("Id", %s) SELECT gen_random_uuid(), %s FROM "TaskItems", generate_series(1, %s)',
+        'INSERT INTO ${taskItems} ("Id", %s) SELECT gen_random_uuid(), %s FROM ${taskItems}, generate_series(1, %s)',
         columns, columns, ${Math.max(1, Math.ceil(options.bulkTasks / 10))});
     END $$;
-    SELECT count(*) FROM "TaskItems";`);
+    SELECT count(*) FROM ${taskItems};`);
   const expected = await currentClient.readAll();
   summary.seed = { tasks: expected.size, completed: [...expected.values()].filter(Boolean).length, rowsInTable: Number(bulk.split('\n').pop()) };
   log({ step: 'seed', ...summary.seed });
@@ -327,9 +351,12 @@ async function main() {
     stage: 0,
     release: releases[0].ref,
     migrations: migrationHistory(),
+    tables: tables(),
     readiness: { [current.name]: await readiness(current) },
     reads: [compare(current.name, expected, expected)],
+    expected: 'pass',
     ok: true,
+    passed: true,
   });
 
   for (let index = 1; index < releases.length; index += 1) {
@@ -340,7 +367,15 @@ async function main() {
     const applied = migrationHistory().filter(id => !before.has(id));
     const nextClient = new Client(next);
     await nextClient.signIn(userName, false);
-    const stage = { stage: index, release: releases[index].ref, previous: current.release.ref, startupMs, applied };
+    const stage = {
+      stage: index,
+      release: releases[index].ref,
+      previous: current.release.ref,
+      expected: options.expectFail.includes(index) ? 'fail' : 'pass',
+      startupMs,
+      applied,
+      tables: tables(),
+    };
     try {
       stage.readiness = { [current.name]: await readiness(current), [next.name]: await readiness(next) };
       stage.writes = await crossReleaseWrites(currentClient, nextClient, expected, index);
@@ -354,6 +389,7 @@ async function main() {
       && stage.writes.every(write => write.ok)
       && stage.reads.every(read => read.ok)
       && stage.accountDeletion.ok;
+    stage.passed = stage.ok === (stage.expected === 'pass');
     summary.stages.push(stage);
     log({ step: 'stage', ...stage });
     stopApi(current);
@@ -361,8 +397,12 @@ async function main() {
     currentClient = nextClient;
   }
 
-  summary.finalSchema = psql(`SELECT column_name FROM information_schema.columns WHERE table_name = 'TaskItems' ORDER BY ordinal_position`).split('\n');
-  summary.result = summary.stages.every(stage => stage.ok) ? 'PASS' : 'FAIL';
+  summary.finalTables = tables();
+  summary.finalSchema = psql(`
+    SELECT attname FROM pg_attribute
+    WHERE attrelid = '${table('TaskItems')}'::regclass AND attnum > 0 AND NOT attisdropped
+    ORDER BY attnum`).split('\n');
+  summary.result = summary.stages.every(stage => stage.passed) ? 'PASS' : 'FAIL';
 }
 
 try {
