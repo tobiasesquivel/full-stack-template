@@ -393,16 +393,23 @@ El paso 0.28 se agregó el 2026-10-17, a pedido de Tobi, con otro pendiente del 
 **Cambia**: `HasDefaultSchema` en cada contexto, migraciones con `EnsureSchema` y `RenameTable` de solo schema, connection string, DUNE0018 (regla 9: entrada en `decisions.tsv`, fixture válida y violación), `informe-vsa-deep-modules.md`.
 **Verifica**: ensayo con binarios (`rehearse-migrations.mjs`) donde el release anterior sigue andando después de mover las tablas; base limpia y base migrada con el mismo esquema; readiness en verde.
 
-**23. Extraer un servicio con gateway adelante.**
-**Concepto**: límite de despliegue y contrato remoto; el primer proceso propio.
-**Cambia**: gateway (YARP), `compose.yaml`, Dockerfiles, `ci.yml`.
-**Verifica**: `docker compose up --build --wait` + `smoke-api.mjs --compose` contra el nuevo despliegue; navegador completo; health de cada proceso.
+**23. Gateway delante del monolito.**
+**Concepto**: límite de despliegue; el primer proceso propio. Una fachada que recibe toda request de la API y la reparte (patrón Strangler Fig), antes de extraer nada.
+**Nota**: Tobi eligió el 2026-11-18, con la investigación ([paso-23-servicio-gateway.md](investigacion/paso-23-servicio-gateway.md)): YARP como gateway (regla 5), un ADR nuevo que permite un proyecto .NET por proceso ([ADR-0005](../adr/0005-gateway-y-procesos-propios.md)), y partir el paso en dos: este pone el gateway y el 23.2 extrae `Tasks`. Las demás decisiones son las recomendaciones de la investigación.
+**Cambia**: proyecto `gateway/` (YARP), `compose.yaml` (gateway, healthchecks), `frontend/nginx.conf`, Dockerfile del gateway, `ci.yml`, `smoke-api.mjs`, `check-structure.mjs` (gateway como única entrada).
+**Verifica**: `docker compose up --build --wait` + `smoke-api.mjs --compose` contra el nuevo despliegue; navegador completo; health de cada proceso; la traza cruza el gateway.
 
 **23.1. Segunda entidad con reglas propias y una lectura con otra forma.**
 **Concepto**: CQRS completo del lado de escritura y de lectura. Con `Task` sola, el comando casi no tiene reglas que proteger y la respuesta es una copia de la tabla, así que separar lectura y escritura no muestra su beneficio. Una entidad con reglas que siempre tienen que cumplirse (invariantes) muestra por qué el comando carga y protege la entidad, y una lectura que junta datos de varias features muestra por qué la consulta no la carga.
 **Nota**: Tobi lo pidió el 2026-11-17, durante el paso 20 ("dale si la tercera"). La entidad la elige la investigación del paso (regla 12); un candidato es `Projects`, un proyecto con estados (activo, archivado) y reglas que solo él protege, con una lectura "proyecto con sus contadores de tareas y el nombre del dueño". Va después del paso 22: con un `DbContext` por feature, esa lectura no puede unir tablas de otras features y tiene que pasar por sus `Contracts`.
 **Cambia**: feature nueva con Domain/Contracts/Persistence/Tests, migración, endpoints, frontend (regla 3: el contrato HTTP es nuevo), `smoke-api.mjs`.
 **Verifica**: un test por invariante, donde el comando que la rompe falla sin cambiar la base; la lectura no carga la entidad (test que lo afirma); smoke y navegador con la feature nueva.
+
+**23.2. Extraer `Tasks` a su propio proceso detrás del gateway.**
+**Concepto**: contrato remoto; una llamada entre features que cruza el límite pasa a ser HTTP.
+**Nota**: Tobi lo pidió el 2026-11-18, al partir el paso 23. Va después del 23.1, para que la lectura del 23.1 se escriba con las features en un proceso. Decisiones tomadas en el paso 23 con la investigación: `Tasks` sigue leyendo la cookie de sesión (claves de Data Protection compartidas) y le pregunta a Auth por HTTP si la sesión sigue activa y qué permisos hay; el contrato remoto lo escribe quien llama, con sus DTOs y un cliente HTTP tipado; `DeleteUser` borra primero las tareas por HTTP (operación idempotente) y después el perfil y la cuenta en una transacción local; los clientes llevan solo timeout (los reintentos son del paso 29); las tablas de `platform` quedan compartidas y las migra el monolito; los endpoints internos se protegen solo por red en este paso; proyectos separados con una librería compartida para `Infrastructure/` y `Shared/`.
+**Cambia**: backend (proyecto nuevo de `Tasks`, librería compartida, clientes HTTP, endpoints internos), Dune y `check-structure.mjs` (varios proyectos), `ApiFixture`, `compose.yaml`, rutas del gateway, `verify.mjs`, `ci.yml`, reglas de SLO, docs.
+**Verifica**: smoke de Compose y navegador completo contra los dos procesos; revocar una sesión corta el acceso a `Tasks` en la request siguiente; borrar la cuenta con `Tasks` caído no deja tareas huérfanas; health de cada proceso.
 
 ### Fase 8 — Asincronía, mensajería y consistencia (pasos 24-28)
 
@@ -439,8 +446,8 @@ El paso 0.28 se agregó el 2026-10-17, a pedido de Tobi, con otro pendiente del 
 
 ### Fase 9 — Integraciones externas (pasos 29-32)
 
-**29. Primer cliente HTTP saliente con resiliencia.**
-**Concepto**: timeouts en cascada, retry con backoff, circuit breaker, bulkhead; contra un servidor falso.
+**29. Resiliencia en los clientes HTTP salientes.**
+**Concepto**: timeouts en cascada, retry con backoff, circuit breaker, bulkhead; contra un servidor falso. Los primeros clientes HTTP llegan en el paso 23.2, solo con timeout.
 **Cambia**: el cliente en la feature que lo usa, la política de resiliencia en `Infrastructure/`, `Microsoft.Extensions.Http.Resilience`, tests con WireMock.
 **Verifica**: test con fallo transitorio que termina en éxito, y con fallo persistente que abre el circuito; prueba de que el timeout interno es menor que el externo.
 
