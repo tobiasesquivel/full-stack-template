@@ -45,6 +45,7 @@ try
     api.MapAuthEndpoints();
     api.MapUsersEndpoints();
     api.MapTasksEndpoints();
+    api.MapProjectsEndpoints();
     api.MapHealthEndpoints();
 
     await app.RunAsync();

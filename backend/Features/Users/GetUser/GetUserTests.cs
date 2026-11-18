@@ -33,7 +33,7 @@ public sealed class GetUserTests : IClassFixture<ApiFixture>
             Assert.Equal(name, profile.GetProperty("displayName").GetString());
             Assert.Equal("UTC", profile.GetProperty("timezone").GetString());
             string[] permissions = profile.GetProperty("permissions").EnumerateArray().Select(p => p.GetString()!).ToArray();
-            Assert.Equal(["Permissions.Tasks.Create"], permissions);
+            Assert.Equal(["Permissions.Tasks.Create", "Permissions.Projects.Create"], permissions);
         }
     }
 

@@ -46,7 +46,7 @@ internal static class TestAccounts
             Assert.Equal(userName, user.GetProperty("userName").GetString());
             Assert.Equal("UTC", user.GetProperty("timezone").GetString());
             string[] permissions = user.GetProperty("permissions").EnumerateArray().Select(p => p.GetString()!).ToArray();
-            Assert.Equal(["Permissions.Tasks.Create"], permissions);
+            Assert.Equal(["Permissions.Tasks.Create", "Permissions.Projects.Create"], permissions);
         }
 
         AssertSessionCookie(session);
@@ -125,6 +125,24 @@ internal static class TestAccounts
         Assert.NotNull(created.Payload);
         using (created.Payload)
             return created.Payload.RootElement.GetProperty("id").GetString()!;
+    }
+
+    public static async Task<string> CreateProjectAsync(this TestSession session, string name)
+    {
+        SessionResponse created = await session.SendAsync(HttpMethod.Post, "api/v1/projects", new { name });
+        Assert.Equal(HttpStatusCode.Created, created.Status);
+        Assert.NotNull(created.Payload);
+        using (created.Payload)
+            return created.Payload.RootElement.GetProperty("id").GetString()!;
+    }
+
+    public static async Task<JsonElement> ProjectAsync(this TestSession session, string id)
+    {
+        SessionResponse fetched = await session.SendAsync(HttpMethod.Get, $"api/v1/projects/{id}", csrf: false);
+        Assert.Equal(HttpStatusCode.OK, fetched.Status);
+        Assert.NotNull(fetched.Payload);
+        using (fetched.Payload)
+            return fetched.Payload.RootElement.Clone();
     }
 
     public static async Task<uint> TaskVersionAsync(this TestSession session, string id)

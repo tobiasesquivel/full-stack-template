@@ -1,3 +1,4 @@
+using TemplateApp.Features.Projects.Contracts;
 using TemplateApp.Features.Tasks.Contracts;
 using TemplateApp.Features.Users.Contracts;
 
@@ -18,6 +19,9 @@ internal static class RolePermissions
                 TaskPermissions.Read,
                 TaskPermissions.Update,
                 TaskPermissions.Delete,
+                ProjectPermissions.Create,
+                ProjectPermissions.Read,
+                ProjectPermissions.Update,
             ],
             AppRoles.Admin =>
             [
@@ -26,8 +30,10 @@ internal static class RolePermissions
                 TaskPermissions.Read,
                 TaskPermissions.Update,
                 TaskPermissions.Delete,
+                ProjectPermissions.Read,
+                ProjectPermissions.Update,
             ],
-            AppRoles.User => [TaskPermissions.Create],
+            AppRoles.User => [TaskPermissions.Create, ProjectPermissions.Create],
             _ => [],
         };
 }
