@@ -1,9 +1,9 @@
 using System.Diagnostics;
 using System.Globalization;
-using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using TemplateApp.Infrastructure.Http;
 using TemplateApp.Shared.Domain;
 
 namespace TemplateApp.Infrastructure.Persistence;
@@ -76,7 +76,7 @@ public sealed class AuditInterceptor : SaveChangesInterceptor
         if (http is null)
             return (SystemActor, null);
 
-        string? id = http.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        string? id = OnBehalfOf.UserOf(http);
         return string.IsNullOrWhiteSpace(id) ? (AnonymousActor, null) : (UserActor, id);
     }
 

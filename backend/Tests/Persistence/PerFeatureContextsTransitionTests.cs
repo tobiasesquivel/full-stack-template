@@ -88,6 +88,30 @@ public sealed class PerFeatureContextsTransitionTests : IClassFixture<ApiFixture
     }
 
     [Fact]
+    public async Task InheritedDatabase_WhenTasksStartsFirst_TasksWaitsForThePlatformTables_AndBothEndReady()
+    {
+        string database = await InheritedDatabaseAsync();
+        ApiPair api = _fixture.CreateIsolatedApi(
+            new Dictionary<string, string> { ["ConnectionStrings:DefaultConnection"] = database },
+            _ => { },
+            start: false);
+        using HttpClient tasks = api.CreateTasksClient();
+        using HttpClient monolith = api.CreateMonolithClient();
+
+        _ = api.Tasks.Services;
+        using (HttpResponseMessage waiting = await tasks.GetAsync("/api/v1/health/ready"))
+            Assert.Equal(HttpStatusCode.ServiceUnavailable, waiting.StatusCode);
+        Assert.Contains("tasks.TaskItems", await TablesAsync(database));
+        Assert.Contains("public.IdempotencyKeys", await TablesAsync(database));
+
+        _ = api.Monolith.Services;
+        await AssertReadyAsync(tasks);
+        await AssertReadyAsync(monolith);
+        Assert.Equal(TablesInTheirFeatureSchema, await TablesAsync(database));
+        await AssertBaselinedAndMovedAsync(database);
+    }
+
+    [Fact]
     public async Task EmptyDatabase_IsCreatedByTheContextsOfEachFeature_AndIsReady()
     {
         string database = await TestDatabases.CreateEmptyAsync(_postgres.ConnectionString);
@@ -121,12 +145,16 @@ public sealed class PerFeatureContextsTransitionTests : IClassFixture<ApiFixture
     public async Task RollingBackEveryMoveMigration_PutsEveryTableBackInPublic()
     {
         string database = await TestDatabases.CreateEmptyAsync(_postgres.ConnectionString);
-        using HttpClient client = StartedClient(database, out IServiceProvider services);
+        ApiPair api = _fixture.CreateIsolatedApi(new Dictionary<string, string> { ["ConnectionStrings:DefaultConnection"] = database }, _ => { });
+        using HttpClient client = api.CreateClient();
         await AssertReadyAsync(client);
 
-        using IServiceScope scope = services.CreateScope();
-        foreach (DbContext context in scope.ServiceProvider.MigratedContexts())
-            await context.GetService<IMigrator>().MigrateAsync(context.Database.GetMigrations().First());
+        foreach (IServiceProvider host in new[] { api.Monolith.Services, api.Tasks.Services })
+        {
+            using IServiceScope scope = host.CreateScope();
+            foreach (DbContext context in scope.ServiceProvider.ContextsThisHostMigrates())
+                await context.GetService<IMigrator>().MigrateAsync(context.Database.GetMigrations().First());
+        }
 
         Assert.Equal(
             TablesInTheirFeatureSchema

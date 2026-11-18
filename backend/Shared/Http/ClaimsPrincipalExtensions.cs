@@ -1,6 +1,6 @@
 using System.Security.Claims;
 
-namespace TemplateApp.Features.Auth.Contracts;
+namespace TemplateApp.Shared.Http;
 
 public static class ClaimsPrincipalExtensions
 {

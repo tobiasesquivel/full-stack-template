@@ -2,7 +2,6 @@ using Serilog;
 using TemplateApp.Features.Auth;
 using TemplateApp.Features.Health;
 using TemplateApp.Features.Projects;
-using TemplateApp.Features.Tasks;
 using TemplateApp.Features.Users;
 using TemplateApp.Infrastructure.DependencyInjection;
 using TemplateApp.Infrastructure.Http;
@@ -14,11 +13,10 @@ try
 {
     WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
-    builder.Services.AddBackendInfrastructure();
-    builder.Services.AddTemplateObservability(builder.Environment);
+    builder.Services.AddBackendInfrastructure(migratesPlatformSchema: true);
+    builder.Services.AddTemplateObservability(builder.Environment, "templateapp-api");
     builder.Services.AddAuthFeature();
     builder.Services.AddUsersFeature();
-    builder.Services.AddTasksFeature();
     builder.Services.AddProjectsFeature();
     builder.Services.AddHealthFeature();
     builder.Services.AddVersionedApi();
@@ -39,14 +37,17 @@ try
     app.UseAuthentication();
     app.UseRateLimiter();
     app.UseAuthorization();
-    app.UseAuthAntiforgery();
+    app.UseSessionAntiforgery();
 
     RouteGroupBuilder api = app.MapVersionedApi();
     api.MapAuthEndpoints();
     api.MapUsersEndpoints();
-    api.MapTasksEndpoints();
     api.MapProjectsEndpoints();
     api.MapHealthEndpoints();
+
+    app.MapInternalApi()
+        .MapAuthInternalEndpoints()
+        .MapProjectsInternalEndpoints();
 
     await app.RunAsync();
     return 0;

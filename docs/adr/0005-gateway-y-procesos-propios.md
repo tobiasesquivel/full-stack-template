@@ -24,3 +24,4 @@ La investigación está en [paso-23-servicio-gateway.md](../evolucion/investigac
 - Hay un salto de red más. El gateway reemplaza el `X-Forwarded-For` que manda nginx: la API sigue viendo la IP de un proxy, igual que antes (pendiente de forwarded headers en `progreso.md`).
 - El gateway tiene su propia telemetría (`templateapp-gateway`): una traza cruza los dos procesos.
 - Hasta el paso 23.2, todo el código de features sigue en un solo ensamblado y `internal` no separa una feature de otra (`conventions.md`).
+- Paso 23.2: la librería compartida es `backend/Platform/TemplateApp.Platform.csproj` y el host de Tasks es `backend/Hosts/Tasks/TemplateApp.Tasks.csproj`. Ningún `.cs` cambió de carpeta. La librería también lleva `AppDbContext` y sus migraciones viejas: los dos procesos corren el arranque de una base heredada, bajo el mismo lock ([investigación](../evolucion/investigacion/paso-23-2-extraer-tasks.md), sección 6).

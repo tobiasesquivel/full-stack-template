@@ -1,6 +1,6 @@
-namespace TemplateApp.Features.Tasks.Contracts;
+namespace TemplateApp.Features.Auth.Access;
 
-public static class TaskPermissions
+internal static class TaskPermissionNames
 {
     public const string Create = "Permissions.Tasks.Create";
     public const string Read = "Permissions.Tasks.Read";

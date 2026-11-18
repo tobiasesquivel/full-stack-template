@@ -33,7 +33,7 @@ docker compose up --build --wait
 
 El conjunto incluye PostgreSQL persistente, collector OpenTelemetry, Prometheus, API y frontend. El arranque aplica migraciones y seed idempotente. Un error de migración o configuración no es un arranque saludable. No borres el volumen para ocultar errores ni uses EnsureCreated.
 
-Con los puertos de partida, abre `http://localhost:8081` para el frontend. La API está en `http://localhost:8080/api/v1`, detrás del gateway. `web` hace proxy al servicio `gateway` (YARP, `gateway/`), que reenvía `/api/` al servicio `api`; `api` no publica puertos. `docker compose up --wait` espera los healthchecks de `api`, `gateway`, `db` y `prometheus`. `db` usa PostgreSQL 18 con volumen `pgdata` montado en `/var/lib/postgresql`. `api` guarda las claves de Data Protection en el volumen `dataprotection`, montado en `/var/lib/templateapp/data-protection-keys`: recrear el contenedor no cierra las sesiones. `otel` recibe OTLP en 4317 y 4318 y manda las métricas a `prometheus`, que las guarda 35 días y evalúa las alertas de SLO; su interfaz está en `http://localhost:9090`. Los SLOs, las alertas y sus runbooks están en [docs/operacion/slos.md](docs/operacion/slos.md). Si cambias puertos en `.env`, usa los valores configurados.
+Con los puertos de partida, abre `http://localhost:8081` para el frontend. La API está en `http://localhost:8080/api/v1`, detrás del gateway. `web` hace proxy al servicio `gateway` (YARP, `gateway/`), que reenvía `/api/v1/tasks` al servicio `tasks` y el resto de `/api/` al servicio `api`; ninguno de los dos publica puertos. `docker compose up --wait` espera los healthchecks de `api`, `tasks`, `gateway`, `db` y `prometheus`. `db` usa PostgreSQL 18 con volumen `pgdata` montado en `/var/lib/postgresql`. `api` y `tasks` comparten las claves de Data Protection en el volumen `dataprotection`, montado en `/var/lib/templateapp/data-protection-keys`: recrear el contenedor no cierra las sesiones. `otel` recibe OTLP en 4317 y 4318 y manda las métricas a `prometheus`, que las guarda 35 días y evalúa las alertas de SLO; su interfaz está en `http://localhost:9090`. Los SLOs, las alertas y sus runbooks están en [docs/operacion/slos.md](docs/operacion/slos.md). Si cambias puertos en `.env`, usa los valores configurados.
 
 Para detener contenedores conservando los datos, ejecuta el comando siguiente.
 
@@ -43,11 +43,15 @@ docker compose down
 
 ## Ejecutar con procesos locales
 
-Mantén PostgreSQL accesible y configura las variables de entorno anteriores. Desde la raíz, inicia la API en el puerto que usa el proxy Angular.
+Mantén PostgreSQL accesible y configura las variables de entorno anteriores. La API son dos procesos detrás del gateway: el monolito, el proceso de Tasks y el gateway, cada uno en su terminal desde la raíz. El monolito arranca primero, porque migra las tablas de `platform`. `Services__Tasks__BaseAddress` y `Services__Monolith__BaseAddress` dicen dónde está el otro proceso; `appsettings.json` ya trae `http://localhost:5111/` y `http://localhost:5110/`.
 
 ```sh
-dotnet run --project backend/TemplateApp.csproj --no-launch-profile --urls http://localhost:8080
+dotnet run --project backend/TemplateApp.csproj --no-launch-profile --urls http://localhost:5110
+dotnet run --project backend/Hosts/Tasks/TemplateApp.Tasks.csproj --no-launch-profile --urls http://localhost:5111
+ReverseProxy__Clusters__monolith__Destinations__api__Address=http://localhost:5110/ ReverseProxy__Clusters__tasks__Destinations__tasks__Address=http://localhost:5111/ dotnet run --project gateway/TemplateApp.Gateway.csproj --no-launch-profile --urls http://localhost:8080
 ```
+
+`verify-template` levanta los tres de la misma forma, con puertos libres.
 
 En otro terminal, desde `frontend`, instala las dependencias fijadas y sirve Angular con el proxy.
 
@@ -56,7 +60,7 @@ npm ci
 npm start -- --proxy-config proxy.conf.json
 ```
 
-Abre `http://localhost:4200`. Las peticiones `/api/v1` usan el proxy a la API local. No configures orígenes CORS abiertos para sustituir este diseño. Las cookies de sesión y de antiforgery son `Secure` siempre: piden HTTPS, salvo en `localhost` y `127.0.0.1`, que los navegadores tratan como origen seguro.
+Abre `http://localhost:4200`. Las peticiones `/api/v1` usan el proxy al gateway local, que reparte entre los dos procesos. No configures orígenes CORS abiertos para sustituir este diseño. Las cookies de sesión y de antiforgery son `Secure` siempre: piden HTTPS, salvo en `localhost` y `127.0.0.1`, que los navegadores tratan como origen seguro.
 
 ## Usar la aplicación
 

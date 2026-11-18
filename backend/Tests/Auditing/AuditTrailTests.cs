@@ -156,7 +156,7 @@ public sealed class AuditTrailTests : IClassFixture<ApiFixture>
         await alice.RegisterAsync(TestAccounts.UniqueName("alice"));
         string id = await alice.CreateTaskAsync("Comprar pan");
 
-        using (IServiceScope scope = _fixture.Services.CreateScope())
+        using (IServiceScope scope = _fixture.TasksServices.CreateScope())
         {
             TasksDbContext db = scope.ServiceProvider.GetRequiredService<TasksDbContext>();
             TaskItem item = await db.TaskItems.SingleAsync(t => t.Id == Guid.Parse(id));

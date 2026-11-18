@@ -109,7 +109,7 @@ async function querySlis() {
     assert.ok(value >= 0 && value <= 1, `${sli} es una proporción: ${value}`);
     report.slis[sli] = { labels: sample.metric, value };
   }
-  const raw = await prom('query', { query: 'sum by (job) (http_server_request_duration_seconds_count{job="templateapp-api"})' });
+  const raw = await prom('query', { query: 'sum by (job) (http_server_request_duration_seconds_count{job=~"templateapp-api|templateapp-tasks"})' });
   assert.ok(Number(raw.result[0]?.value[1]) > 0, 'La métrica cruda http_server_request_duration_seconds_count llega a Prometheus');
   report.slis.rawRequests = Number(raw.result[0].value[1]);
 }
@@ -156,7 +156,7 @@ async function slowButSuccessful(stop, count) {
     let requests;
     try {
       requests = Array.from({ length: 10 }, () => user.send('GET', 'tasks', undefined, 60_000).catch(error => error.name));
-      await sleep(3_000);
+      await sleep(1_500);
     } finally {
       compose('unpause', 'db');
     }
@@ -209,7 +209,7 @@ try {
   report.healthyRequests = healthy.sent;
   assert.deepEqual((await firing()).map(entry => entry.labels.alertname), [], 'Con tráfico sano no hay alertas de SLO');
 
-  const othersDuringLatency = await phase({ name: 'base congelada 3 s: requests 200 lentos', alert: 'ApiLatencyBudgetBurn', inject: slowButSuccessful });
+  const othersDuringLatency = await phase({ name: 'base congelada 1,5 s (menos que el timeout de 2 s entre procesos): requests 200 lentos', alert: 'ApiLatencyBudgetBurn', inject: slowButSuccessful });
   assert.ok(!othersDuringLatency.includes('ApiAvailabilityBudgetBurn'), 'Los requests lentos pero exitosos no gastan el presupuesto de disponibilidad');
   await phase({ name: 'base parada: 5xx', alert: 'ApiAvailabilityBudgetBurn', inject: databaseDown });
   report.result = 'PASS';

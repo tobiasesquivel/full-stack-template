@@ -1,6 +1,7 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0.401 AS build
 WORKDIR /src
 COPY ["TemplateApp.csproj", "./"]
+COPY ["Platform/TemplateApp.Platform.csproj", "Platform/"]
 RUN dotnet restore "TemplateApp.csproj"
 COPY . .
 RUN dotnet publish "TemplateApp.csproj" -c Release -o /app/publish --no-restore /p:UseAppHost=false

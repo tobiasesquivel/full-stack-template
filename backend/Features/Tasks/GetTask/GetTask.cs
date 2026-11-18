@@ -2,8 +2,7 @@ using System.Linq.Expressions;
 using ErrorOr;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Query;
-using TemplateApp.Features.Auth.Contracts;
-using TemplateApp.Features.Tasks.Contracts;
+using TemplateApp.Features.Tasks.Access;
 using TemplateApp.Features.Tasks.Domain;
 using TemplateApp.Features.Tasks.Persistence;
 using TemplateApp.Shared.Domain;
@@ -15,12 +14,12 @@ internal sealed class GetTask
     private static readonly Expression<Func<TaskItem, OwnedTask>> Read = ComposeRead((item, response) => new OwnedTask(item.OwnerId, response));
 
     private readonly TasksDbContext _db;
-    private readonly IAuthModule _auth;
+    private readonly TaskAccess _access;
 
-    public GetTask(TasksDbContext db, IAuthModule auth)
+    public GetTask(TasksDbContext db, TaskAccess access)
     {
         _db = db;
-        _auth = auth;
+        _access = access;
     }
 
     public async Task<ErrorOr<TaskResponse>> ExecuteAsync(string callerId, Guid id, CancellationToken ct)
@@ -29,7 +28,7 @@ internal sealed class GetTask
         if (task is null)
             return TaskErrors.NotFound(id);
 
-        if (!await _auth.CanAccessAsync(callerId, task, TaskPermissions.Read, ct))
+        if (!_access.CanAccess(callerId, task, TaskPermissions.Read))
             return TaskErrors.Forbidden;
 
         return task.Response;

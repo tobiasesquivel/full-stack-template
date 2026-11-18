@@ -98,6 +98,43 @@ public sealed class ApiRouteAnalyzerTests
     }
 
     [Fact]
+    public async Task InternalGroupIsAcceptedOnlyInInternalApi()
+    {
+        const string InternalGroup = """
+            using Microsoft.AspNetCore.Builder;
+            using Microsoft.AspNetCore.Routing;
+            namespace TemplateApp.Infrastructure.Http;
+            public static class InternalApi
+            {
+                public const string Prefix = "/internal/v1";
+                public static RouteGroupBuilder MapInternalApi(this IEndpointRouteBuilder app) => app.MapGroup(Prefix);
+            }
+            """;
+
+        var accepted = await AnalyzeAsync(("backend/Infrastructure/Http/InternalApi.cs", InternalGroup));
+        var rejected = await AnalyzeAsync(
+            ("backend/Features/Tasks/TasksFeature.cs", """
+                using Microsoft.AspNetCore.Builder;
+                using Microsoft.AspNetCore.Routing;
+                namespace TemplateApp.Features.Tasks;
+                public static class TasksFeature
+                {
+                    public static IEndpointRouteBuilder MapTasksEndpoints(this IEndpointRouteBuilder app)
+                    {
+                        app.MapGroup("/internal/v1");
+                        app.MapGroup("/internal/v1/tasks");
+                        return app;
+                    }
+                }
+                """),
+            ("backend/Infrastructure/Http/OtherApi.cs", InternalGroup.Replace("class InternalApi", "class OtherApi", System.StringComparison.Ordinal)),
+            ("backend/Infrastructure/Http/Sub/InternalApi.cs", InternalGroup.Replace("/internal/v1", "/internal/v2", System.StringComparison.Ordinal)));
+
+        Assert.Empty(accepted);
+        Assert.Equal(new[] { 7, 7, 8, 9 }, Lines(rejected));
+    }
+
+    [Fact]
     public async Task UnsafeRouteOnTheHostIsRejectedWhileGetIsAccepted()
     {
         var diagnostics = await AnalyzeAsync(

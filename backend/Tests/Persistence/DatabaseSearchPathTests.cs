@@ -23,31 +23,33 @@ public sealed class DatabaseSearchPathTests : IClassFixture<ApiFixture>
     [Fact]
     public async Task EveryContextSession_SearchesPublicAndEveryFeatureSchema()
     {
-        Assert.Equal(
-            Enumerable.Repeat(ExpectedSearchPath, 6),
-            await SessionSearchPathsAsync(_fixture.Services));
+        Assert.Equal(Enumerable.Repeat(ExpectedSearchPath, 5), await SessionSearchPathsAsync(_fixture.Services));
+        Assert.Equal(Enumerable.Repeat(ExpectedSearchPath, 3), await SessionSearchPathsAsync(_fixture.TasksServices));
     }
 
     [Fact]
     public async Task ASearchPathFromConfiguration_IsReplacedByTheCodeOne()
     {
         string configured = new NpgsqlConnectionStringBuilder(_postgres.ConnectionString) { SearchPath = "public" }.ConnectionString;
-        using HttpClient client = _fixture.CreateIsolatedClient(
+        ApiPair api = _fixture.CreateIsolatedApi(
             new Dictionary<string, string> { ["ConnectionStrings:DefaultConnection"] = configured },
-            TestDatabases.SkipInitialization,
-            out IServiceProvider services);
+            TestDatabases.SkipInitialization);
 
-        Assert.Equal(Enumerable.Repeat(ExpectedSearchPath, 6), await SessionSearchPathsAsync(services));
+        Assert.Equal(Enumerable.Repeat(ExpectedSearchPath, 5), await SessionSearchPathsAsync(api.Monolith.Services));
+        Assert.Equal(Enumerable.Repeat(ExpectedSearchPath, 3), await SessionSearchPathsAsync(api.Tasks.Services));
     }
 
     [Fact]
     public void TheSchemaOfEveryContext_IsInTheSearchPath()
     {
-        using IServiceScope scope = _fixture.Services.CreateScope();
+        foreach (IServiceProvider host in new[] { _fixture.Services, _fixture.TasksServices })
+        {
+            using IServiceScope scope = host.CreateScope();
 
-        Assert.All(
-            scope.ServiceProvider.MigratedContexts(),
-            context => Assert.Contains(context.Model.GetDefaultSchema(), ExpectedSearchPath.Split(',')));
+            Assert.All(
+                scope.ServiceProvider.MigratedContexts(),
+                context => Assert.Contains(context.Model.GetDefaultSchema(), ExpectedSearchPath.Split(',')));
+        }
     }
 
     private static async Task<string[]> SessionSearchPathsAsync(IServiceProvider services)

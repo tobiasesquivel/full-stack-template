@@ -12,7 +12,7 @@ public static class BackendInfrastructure
 {
     private static readonly TimeSpan HealthCheckTimeout = TimeSpan.FromSeconds(2);
 
-    public static IServiceCollection AddBackendInfrastructure(this IServiceCollection services)
+    public static IServiceCollection AddBackendInfrastructure(this IServiceCollection services, bool migratesPlatformSchema)
     {
         services.AddProblemDetails(options => options.CustomizeProblemDetails = context =>
             context.ProblemDetails.Extensions.TryAdd(
@@ -26,7 +26,7 @@ public static class BackendInfrastructure
         services.AddHttpContextAccessor();
         services.AddSingleton<AuditInterceptor>();
         services.AddLegacyDbContext();
-        services.AddMigratedDbContext<PlatformDbContext>(PlatformDbContext.Schema, adoptsLegacyTables: true);
+        services.AddMigratedDbContext<PlatformDbContext>(PlatformDbContext.Schema, adoptsLegacyTables: true, appliesMigrations: migratesPlatformSchema);
         services.AddScoped<IdempotencyKeys>();
 
         services.AddHostedService<DatabaseInitialization>();

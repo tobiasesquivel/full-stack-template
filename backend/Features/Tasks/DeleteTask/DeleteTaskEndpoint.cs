@@ -1,6 +1,5 @@
 using System.Security.Claims;
 using ErrorOr;
-using TemplateApp.Features.Auth.Contracts;
 using TemplateApp.Shared.Http;
 
 namespace TemplateApp.Features.Tasks.DeleteTask;

@@ -1,5 +1,7 @@
 using System.Security.Claims;
 
+using TemplateApp.Infrastructure.Http;
+
 namespace TemplateApp.Features.Auth.CloseSession;
 
 internal sealed class CloseSession
@@ -13,7 +15,7 @@ internal sealed class CloseSession
 
     public async Task ExecuteAsync(ClaimsPrincipal caller, CancellationToken ct)
     {
-        if (!SessionPrincipal.TryRead(caller, out _, out Guid sessionId))
+        if (!SessionCookie.TryRead(caller, out _, out Guid sessionId))
             return;
 
         await _sessions.CloseAsync(sessionId, ct);

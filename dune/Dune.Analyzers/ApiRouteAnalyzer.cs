@@ -12,6 +12,8 @@ namespace Dune.Analyzers;
 public sealed class ApiRouteAnalyzer : DiagnosticAnalyzer
 {
     private const string ApiPrefix = "/api";
+    private const string InternalPrefix = "/internal/v1";
+    private const string InternalApiFile = "backend/Infrastructure/Http/InternalApi.cs";
 
     private static readonly ImmutableHashSet<string> UnsafeMaps = ImmutableHashSet.Create(
         StringComparer.Ordinal,
@@ -69,7 +71,8 @@ public sealed class ApiRouteAnalyzer : DiagnosticAnalyzer
         if (method.Name.Equals("MapGroup", StringComparison.Ordinal))
         {
             var prefix = invocation.Arguments.FirstOrDefault(argument => argument.Parameter?.Ordinal == 1)?.Value;
-            if (prefix?.ConstantValue is { HasValue: true, Value: string text } && IsUnderApi(text))
+            if (prefix?.ConstantValue is { HasValue: true, Value: string text }
+                && (IsUnderApi(text) || IsInternalGroup(text, path)))
             {
                 return;
             }
@@ -125,6 +128,10 @@ public sealed class ApiRouteAnalyzer : DiagnosticAnalyzer
     private static bool IsUnderApi(string prefix) =>
         prefix.Equals(ApiPrefix, StringComparison.Ordinal)
         || prefix.StartsWith(ApiPrefix + "/", StringComparison.Ordinal);
+
+    private static bool IsInternalGroup(string prefix, string path) =>
+        prefix.Equals(InternalPrefix, StringComparison.Ordinal)
+        && path.EndsWith(InternalApiFile, StringComparison.Ordinal);
 
     private static void Report(OperationAnalysisContext context, IInvocationOperation invocation, string reason) =>
         context.ReportDiagnostic(Diagnostic.Create(

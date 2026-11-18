@@ -17,6 +17,9 @@ const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(SCRIPT_DIR, '..', '..', '..', '..');
 const SMOKE_SCRIPT = path.join(SCRIPT_DIR, 'smoke-api.mjs');
 const BACKEND_CSPROJ = path.join(REPO_ROOT, 'backend', 'TemplateApp.csproj');
+const TASKS_CSPROJ = path.join(REPO_ROOT, 'backend', 'Hosts', 'Tasks', 'TemplateApp.Tasks.csproj');
+const GATEWAY_CSPROJ = path.join(REPO_ROOT, 'gateway', 'TemplateApp.Gateway.csproj');
+const SOLUTION = path.join(REPO_ROOT, 'TemplateApp.slnx');
 const TESTS_CSPROJ = path.join(REPO_ROOT, 'backend', 'Tests', 'TemplateApp.Tests.csproj');
 const FRONTEND_DIR = path.join(REPO_ROOT, 'frontend');
 const FRONTEND_PKG = path.join(FRONTEND_DIR, 'package.json');
@@ -591,7 +594,7 @@ async function checkPrereqs(evidenceDir, timeouts) {
   const notes = [];
   const versions = { node: process.version, platform: `${process.platform}-${process.arch}` };
 
-  for (const file of [BACKEND_CSPROJ, TESTS_CSPROJ, FRONTEND_PKG, SMOKE_SCRIPT]) {
+  for (const file of [SOLUTION, BACKEND_CSPROJ, TASKS_CSPROJ, GATEWAY_CSPROJ, TESTS_CSPROJ, FRONTEND_PKG, SMOKE_SCRIPT]) {
     if (!(await pathExists(file))) {
       throw Object.assign(new Error(`required file missing: ${path.relative(REPO_ROOT, file)}`), {
         blocked: true,
@@ -942,7 +945,7 @@ async function launch(flags) {
     t0 = Date.now();
     const build = await runCommand({
       cmd: 'dotnet',
-      args: ['build', BACKEND_CSPROJ, '-c', 'Release'],
+      args: ['build', SOLUTION, '-c', 'Release'],
       cwd: REPO_ROOT,
       timeoutMs: timeouts.build,
       stdoutPath: path.join(evidenceDir, 'dotnet-build.stdout.log'),
@@ -1134,50 +1137,101 @@ async function launch(flags) {
 
     t0 = Date.now();
     const apiPort = wantApiPort === 0 ? await freePort() : wantApiPort;
+    const monolithPort = await freePort();
+    const tasksPort = await freePort();
     const apiBase = `http://127.0.0.1:${apiPort}/api/v1`;
     state.apiBase = apiBase;
     const connectionString = `Host=127.0.0.1;Port=${pgPort};Database=${DEFAULT_DB_NAME};Username=postgres;Password=${pgPassword}`;
     addSecret(connectionString);
-    const apiStdout = path.join(evidenceDir, 'api.stdout.log');
-    const apiStderr = path.join(evidenceDir, 'api.stderr.log');
-    const apiTracked = await spawnTracked({
-      cmd: 'dotnet',
-      args: ['run', '--project', BACKEND_CSPROJ, '-c', 'Release', '--no-build', '--no-launch-profile'],
-      cwd: REPO_ROOT,
-      env: {
-        ASPNETCORE_ENVIRONMENT: 'Development',
-        ASPNETCORE_URLS: `http://127.0.0.1:${apiPort}`,
-        ConnectionStrings__DefaultConnection: connectionString,
-        DOTNET_NOLOGO: '1',
+    const processes = [
+      {
+        name: 'api',
+        project: BACKEND_CSPROJ,
+        readyUrl: `http://127.0.0.1:${monolithPort}/api/v1/health/ready`,
+        readyBody: 'ready',
+        env: {
+          ASPNETCORE_ENVIRONMENT: 'Development',
+          ASPNETCORE_URLS: `http://127.0.0.1:${monolithPort}`,
+          ConnectionStrings__DefaultConnection: connectionString,
+          Services__Tasks__BaseAddress: `http://127.0.0.1:${tasksPort}/`,
+        },
       },
-      stdoutPath: apiStdout,
-      stderrPath: apiStderr,
-    });
-    state.children.set('api', apiTracked);
-    const apiDetail = {
-      command: apiTracked.command,
-      cwd: REPO_ROOT,
-      pid: apiTracked.pid ?? null,
-      apiBase,
-      stdoutPath: apiStdout,
-      stderrPath: apiStderr,
-    };
+      {
+        name: 'tasks',
+        project: TASKS_CSPROJ,
+        readyUrl: `http://127.0.0.1:${tasksPort}/api/v1/health/ready`,
+        readyBody: 'ready',
+        env: {
+          ASPNETCORE_ENVIRONMENT: 'Development',
+          ASPNETCORE_URLS: `http://127.0.0.1:${tasksPort}`,
+          ConnectionStrings__DefaultConnection: connectionString,
+          Services__Monolith__BaseAddress: `http://127.0.0.1:${monolithPort}/`,
+        },
+      },
+      {
+        name: 'gateway',
+        project: GATEWAY_CSPROJ,
+        readyUrl: `http://127.0.0.1:${apiPort}/health/ready`,
+        readyBody: null,
+        env: {
+          ASPNETCORE_ENVIRONMENT: 'Development',
+          ASPNETCORE_URLS: `http://127.0.0.1:${apiPort}`,
+          ReverseProxy__Clusters__monolith__Destinations__api__Address: `http://127.0.0.1:${monolithPort}/`,
+          ReverseProxy__Clusters__tasks__Destinations__tasks__Address: `http://127.0.0.1:${tasksPort}/`,
+        },
+      },
+    ];
+    const apiDetail = { apiBase, processes: [] };
     try {
-      await failFastSpawn(apiTracked, 'dotnet run');
+      for (const spec of processes) {
+        const stdoutPath = path.join(evidenceDir, `${spec.name}.stdout.log`);
+        const stderrPath = path.join(evidenceDir, `${spec.name}.stderr.log`);
+        const tracked = await spawnTracked({
+          cmd: 'dotnet',
+          args: ['run', '--project', spec.project, '-c', 'Release', '--no-build', '--no-launch-profile'],
+          cwd: REPO_ROOT,
+          env: { ...spec.env, DOTNET_NOLOGO: '1' },
+          stdoutPath,
+          stderrPath,
+        });
+        state.children.set(spec.name, tracked);
+        apiDetail.processes.push({
+          name: spec.name,
+          command: tracked.command,
+          pid: tracked.pid ?? null,
+          readyUrl: spec.readyUrl,
+          stdoutPath,
+          stderrPath,
+        });
+        await failFastSpawn(tracked, `dotnet run ${spec.name}`);
+        await waitFor({
+          timeoutMs: timeouts.apiReady,
+          intervalMs: 1000,
+          label: `${spec.name} readiness at ${spec.readyUrl}`,
+          check: async () => {
+            const early = trackedStartProblem(tracked);
+            if (early) {
+              throw new Error(`dotnet run ${spec.name} failed to start during readiness wait: ${early}`);
+            }
+            if (!childAlive(tracked.child)) {
+              throw new Error(
+                `dotnet run ${spec.name} exited during startup (exit ${tracked.exitCode}, signal ${tracked.signal}); see ${spec.name}.stdout.log / ${spec.name}.stderr.log`,
+              );
+            }
+            try {
+              const res = await httpGet(spec.readyUrl, { timeoutMs: 5000 });
+              return res.status === 200 && (spec.readyBody === null || healthBodySays(res.body, spec.readyBody)) ? true : null;
+            } catch {
+              return null;
+            }
+          },
+        });
+      }
       await waitFor({
         timeoutMs: timeouts.apiReady,
         intervalMs: 1000,
-        label: `API readiness at ${apiBase}/health/ready`,
+        label: `API readiness through the gateway at ${apiBase}/health/ready`,
         check: async () => {
-          const early = trackedStartProblem(apiTracked);
-          if (early) {
-            throw new Error(`dotnet run failed to start during readiness wait: ${early}`);
-          }
-          if (!childAlive(apiTracked.child)) {
-            throw new Error(
-              `dotnet run exited during startup (exit ${apiTracked.exitCode}, signal ${apiTracked.signal}); see api.stdout.log / api.stderr.log`,
-            );
-          }
           try {
             const res = await httpGet(`${apiBase}/health/ready`, { timeoutMs: 5000 });
             return res.status === 200 && healthBodySays(res.body, 'ready') ? true : null;
@@ -1340,7 +1394,10 @@ async function launch(flags) {
       image: pgImage,
       control: { host: '127.0.0.1', port: 0, nonceFile: 'control-nonce.txt' },
       children: {
-        api: { pid: apiTracked.pid ?? null, startedAt: apiTracked.startedAt },
+        ...Object.fromEntries(['api', 'tasks', 'gateway'].map((name) => {
+          const tracked = state.children.get(name);
+          return [name, { pid: tracked.pid ?? null, startedAt: tracked.startedAt }];
+        })),
         frontend: { pid: frontTracked.pid ?? null, startedAt: frontTracked.startedAt },
       },
       versions: prereqInfo.versions,
@@ -1363,7 +1420,10 @@ async function launch(flags) {
             apiBase,
             frontUrl,
             children: {
-              api: { pid: apiTracked.pid ?? null, alive: childAlive(apiTracked.child) },
+              ...Object.fromEntries(['api', 'tasks', 'gateway'].map((name) => {
+                const tracked = state.children.get(name);
+                return [name, { pid: tracked.pid ?? null, alive: childAlive(tracked.child) }];
+              })),
               frontend: { pid: frontTracked.pid ?? null, alive: childAlive(frontTracked.child) },
             },
           }),

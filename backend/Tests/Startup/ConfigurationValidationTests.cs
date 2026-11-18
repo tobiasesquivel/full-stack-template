@@ -21,6 +21,9 @@ public sealed class ConfigurationValidationTests : IDisposable
     [InlineData("DataProtection__KeysDirectory", "relative/keys", "DataProtection:KeysDirectory must be an absolute path.")]
     [InlineData("OTEL_EXPORTER_OTLP_ENDPOINT", "collector:4318", "Otel:Endpoint (or OTEL_EXPORTER_OTLP_ENDPOINT) must be an absolute http or https URL.")]
     [InlineData("Otel__Endpoint", "localhost:4318", "Otel:Endpoint (or OTEL_EXPORTER_OTLP_ENDPOINT) must be an absolute http or https URL.")]
+    [InlineData("Services__Tasks__BaseAddress", null, "Services:Tasks:BaseAddress must be an absolute http or https URL.")]
+    [InlineData("Services__Tasks__BaseAddress", "tasks:8080", "Services:Tasks:BaseAddress must be an absolute http or https URL.")]
+    [InlineData("Services__Tasks__Timeout", "00:01:00", "Services:Tasks:Timeout must be greater than zero and at most 30 seconds.")]
     public async Task Api_WithAnInvalidSetting_ExitsBeforeTouchingTheDatabase_NamingTheSetting(string variable, string? value, string expected)
     {
         (int exitCode, string output) = await RunApiAsync(variable, value);
@@ -42,9 +45,23 @@ public sealed class ConfigurationValidationTests : IDisposable
         Assert.Contains("NpgsqlException", output, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData(null, "Services:Monolith:BaseAddress must be an absolute http or https URL.")]
+    [InlineData("ftp://monolith/", "Services:Monolith:BaseAddress must be an absolute http or https URL.")]
+    public async Task Tasks_WithoutAValidMonolithAddress_ExitsBeforeTouchingTheDatabase_NamingTheSetting(string? value, string expected)
+    {
+        (int exitCode, string output) = await RunApiAsync("Services__Monolith__BaseAddress", value, "TemplateApp.Tasks.dll");
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains("OptionsValidationException: ", output, StringComparison.Ordinal);
+        Assert.Contains(expected, output, StringComparison.Ordinal);
+        Assert.Contains(StartupFailure, output, StringComparison.Ordinal);
+        Assert.DoesNotContain("NpgsqlException", output, StringComparison.Ordinal);
+    }
+
     public void Dispose() => Directory.Delete(_contentRoot, recursive: true);
 
-    private async Task<(int ExitCode, string Output)> RunApiAsync(string variable, string? value)
+    private async Task<(int ExitCode, string Output)> RunApiAsync(string variable, string? value, string assembly = "TemplateApp.dll")
     {
         ProcessStartInfo start = new(Environment.GetEnvironmentVariable("DOTNET_HOST_PATH") ?? "dotnet")
         {
@@ -52,11 +69,13 @@ public sealed class ConfigurationValidationTests : IDisposable
             RedirectStandardOutput = true,
             RedirectStandardError = true,
         };
-        start.ArgumentList.Add(Path.Combine(AppContext.BaseDirectory, "TemplateApp.dll"));
+        start.ArgumentList.Add(Path.Combine(AppContext.BaseDirectory, assembly));
         start.Environment["ASPNETCORE_ENVIRONMENT"] = "Testing";
         start.Environment["ConnectionStrings__DefaultConnection"] = UnreachableDatabase;
         start.Environment["Session__AbsoluteExpirationDays"] = "7";
         start.Environment["Session__IdleTimeoutMinutes"] = "30";
+        start.Environment["Services__Tasks__BaseAddress"] = "http://tasks.invalid/";
+        start.Environment["Services__Monolith__BaseAddress"] = "http://monolith.invalid/";
         start.Environment.Remove("OTEL_EXPORTER_OTLP_ENDPOINT");
         if (value is null)
             start.Environment.Remove(variable);

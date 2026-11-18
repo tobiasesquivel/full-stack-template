@@ -25,6 +25,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\TemplateApp.csproj" />
+    <ProjectReference Include="..\Hosts\Tasks\TemplateApp.Tasks.csproj" />
   </ItemGroup>
 
   <ItemGroup>

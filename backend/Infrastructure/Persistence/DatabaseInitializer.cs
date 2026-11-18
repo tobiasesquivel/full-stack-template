@@ -17,7 +17,7 @@ public static class DatabaseInitializer
         using IServiceScope scope = rootServices.CreateScope();
         IServiceProvider services = scope.ServiceProvider;
         AppDbContext legacy = services.GetRequiredService<AppDbContext>();
-        IReadOnlyList<DbContext> contexts = services.MigratedContexts();
+        IReadOnlyList<DbContext> contexts = services.ContextsThisHostMigrates();
 
         await using NpgsqlConnection lockConnection = new(legacy.Database.GetConnectionString());
         await lockConnection.OpenAsync(ct);

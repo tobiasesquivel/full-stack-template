@@ -242,3 +242,48 @@ tests:
         exp_samples:
           - labels: '{job="templateapp-api"}'
             value: 0
+
+  - name: una caida del proceso de Tasks pagina con su propio job
+    interval: 1m
+    input_series:
+      - series: 'http_server_request_duration_seconds_count{job="templateapp-api", http_route="/api/v{version:apiVersion}/projects/", http_response_status_code="200"}'
+        values: '0+60x90'
+      - series: 'http_server_request_duration_seconds_count{job="templateapp-tasks", http_route="/api/v{version:apiVersion}/tasks/", http_response_status_code="200"}'
+        values: '0+60x60 3600x30'
+      - series: 'http_server_request_duration_seconds_count{job="templateapp-tasks", http_route="/api/v{version:apiVersion}/tasks/", http_response_status_code="503"}'
+        values: '0x60 0+60x30'
+    alert_rule_test:
+      - eval_time: 70m
+        alertname: ApiAvailabilityBudgetBurn
+        exp_alerts:
+          - exp_labels:
+              job: templateapp-tasks
+              severity: page
+            exp_annotations:
+              summary: La API responde 5xx tan seguido que gasta el presupuesto de disponibilidad de 30 días en horas
+              runbook_url: https://github.com/tobiasesquivel/full-stack-template/blob/main/docs/operacion/runbooks/ApiAvailabilityBudgetBurn.md
+          - exp_labels:
+              job: templateapp-tasks
+              severity: ticket
+            exp_annotations:
+              summary: La API responde 5xx más seguido de lo que permite el presupuesto de disponibilidad de 30 días
+              runbook_url: https://github.com/tobiasesquivel/full-stack-template/blob/main/docs/operacion/runbooks/ApiAvailabilityBudgetBurn.md
+
+  - name: las llamadas internas entre procesos no cuentan contra el SLO
+    interval: 1m
+    input_series:
+      - series: 'http_server_request_duration_seconds_count{job="templateapp-api", http_route="/api/v{version:apiVersion}/projects/", http_response_status_code="200"}'
+        values: '0+60x90'
+      - series: 'http_server_request_duration_seconds_count{job="templateapp-api", http_route="/internal/v1/session-checks", http_response_status_code="500"}'
+        values: '0+60x90'
+      - series: 'http_server_request_duration_seconds_bucket{job="templateapp-api", http_route="/api/v{version:apiVersion}/projects/", http_response_status_code="200", le="0.5"}'
+        values: '0+60x90'
+      - series: 'http_server_request_duration_seconds_bucket{job="templateapp-api", http_route="/internal/v1/session-checks", http_response_status_code="500", le="0.5"}'
+        values: '0x90'
+    alert_rule_test:
+      - eval_time: 90m
+        alertname: ApiAvailabilityBudgetBurn
+        exp_alerts: []
+      - eval_time: 90m
+        alertname: ApiLatencyBudgetBurn
+        exp_alerts: []

@@ -17,7 +17,8 @@ public static class ObservabilityExtensions
 
     public static IServiceCollection AddTemplateObservability(
         this IServiceCollection services,
-        IHostEnvironment environment)
+        IHostEnvironment environment,
+        string serviceName)
     {
         services.AddOptionsWithValidateOnStart<TelemetryOptions, TelemetryOptionsValidator>()
             .BindConfiguration(TelemetryOptions.Section)
@@ -39,7 +40,7 @@ public static class ObservabilityExtensions
 
         services.AddOpenTelemetry()
             .ConfigureResource(resource => resource
-                .AddService("templateapp-api", serviceVersion: "1.0.0")
+                .AddService(serviceName, serviceVersion: "1.0.0")
                 .AddAttributes(new Dictionary<string, object>
                 {
                     ["deployment.environment.name"] = environment.EnvironmentName,

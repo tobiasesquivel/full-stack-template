@@ -32,6 +32,7 @@ internal static class AuthFeature
         services.AddScoped<RegisterUser.RegisterUser>();
         services.AddScoped<OpenSession.OpenSession>();
         services.AddScoped<CloseSession.CloseSession>();
+        services.AddScoped<CheckSession.CheckSession>();
 
         return services;
     }
@@ -63,24 +64,15 @@ internal static class AuthFeature
         services.AddOptionsWithValidateOnStart<SessionOptions, SessionOptionsValidator>()
             .BindConfiguration(SessionOptions.Section);
 
-        services.AddAuthentication(SessionHttpPolicy.Scheme)
-            .AddCookie(SessionHttpPolicy.Scheme);
-        services.AddOptions<CookieAuthenticationOptions>(SessionHttpPolicy.Scheme)
+        services.AddSessionCookie();
+        services.AddOptions<CookieAuthenticationOptions>(SessionCookie.Scheme)
             .Configure<IOptions<SessionOptions>>((cookie, session) => SessionHttpPolicy.ConfigureCookie(cookie, session.Value));
-
-        services.AddAuthorization();
 
         return services;
     }
 
     private static IServiceCollection AddAuthHttpPolicy(this IServiceCollection services)
     {
-        services.AddAntiforgery(options =>
-        {
-            options.HeaderName = "X-XSRF-TOKEN";
-            options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
-        });
-
         services.AddOptionsWithValidateOnStart<AuthRateLimitOptions, AuthRateLimitOptionsValidator>()
             .BindConfiguration(AuthRateLimitOptions.Section);
         services.AddOptions<RateLimiterOptions>()
@@ -92,9 +84,6 @@ internal static class AuthFeature
         return services;
     }
 
-    public static IApplicationBuilder UseAuthAntiforgery(this IApplicationBuilder app) =>
-        app.Use(SessionHttpPolicy.RequireAntiforgeryAsync);
-
     public static RouteGroupBuilder MapAuthEndpoints(this RouteGroupBuilder api)
     {
         RouteGroupBuilder auth = api.MapGroup("/auth");
@@ -105,5 +94,12 @@ internal static class AuthFeature
         CloseSession.CloseSessionEndpoint.Map(auth);
 
         return api;
+    }
+
+    public static RouteGroupBuilder MapAuthInternalEndpoints(this RouteGroupBuilder internalApi)
+    {
+        CheckSession.CheckSessionEndpoint.Map(internalApi);
+
+        return internalApi;
     }
 }

@@ -13,6 +13,11 @@ public static class HttpErrors
         code: "Http.Unexpected",
         description: "An unexpected error occurred.");
 
+    public static readonly Error ServiceUnavailable = Error.Custom(
+        type: 503,
+        code: "Http.ServiceUnavailable",
+        description: "A service this request needs is unavailable. Try again later.");
+
     public static readonly Error IdempotencyKeyInvalid = Error.Custom(
         type: 400,
         code: "Idempotency.KeyInvalid",

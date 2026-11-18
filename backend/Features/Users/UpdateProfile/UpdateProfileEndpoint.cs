@@ -1,6 +1,5 @@
 using System.Security.Claims;
 using ErrorOr;
-using TemplateApp.Features.Auth.Contracts;
 using TemplateApp.Features.Users.Contracts;
 using TemplateApp.Shared.Http;
 
