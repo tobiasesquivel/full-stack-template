@@ -21,12 +21,12 @@ El código actual todavía no cumple todas estas reglas. La Fase 0 del [plan](ev
 - `Persistence/` contiene los mappings de EF.
 - `<Feature>Feature.cs` registra la DI y las rutas de la feature. `Program.cs` lista las features de forma explícita.
 - Lo que nombra una feature va a esa feature. `Infrastructure/` y `Shared/` no nombran ninguna feature.
-- Una feature solo usa el `Contracts/` de otra. Users depende de `Auth.Contracts`; Auth no depende de Users por dentro. DUNE0004 lo hace cumplir: mira el tipo nombrado y también el tipo de cada expresión, así que `var` no lo esquiva.
+- Una feature solo usa el `Contracts/` de otra. Users depende de `Auth.Contracts`; Auth no depende de Users por dentro. DUNE0004 lo hace cumplir: mira el tipo nombrado, el tipo de cada operación (cada resultado, aunque no se guarde en una variable), y el tipo que declara cada miembro usado y su firma (también métodos, propiedades y operadores de extensión, y los que el compilador busca solo, como `GetEnumerator`, `Deconstruct` o `GetAwaiter`). Así ni `var` ni una llamada encadenada lo esquivan. Un tipo en una subcarpeta de `Contracts/` es interior. No ve un `Add` o un `GetEnumerator` de extensión que solo usa una expresión de colección (`[x]`, `[.. x]`), porque Roslyn no expone esos métodos.
 - Entre features, una entidad guarda solo el Id de la otra, sin propiedad de navegación. Si necesita un dato de la otra feature, lo pide a su contrato.
 
 ## Nombres y estilo
 
-- El namespace coincide con la ruta, bajo `TemplateApp`. Namespaces file-scoped, nullable e implicit usings.
+- El namespace coincide con la ruta, bajo `TemplateApp`. DUNE0005 lo hace cumplir para todo tipo de primer nivel: clase, struct, record, `record struct`, interface, enum y delegate. Namespaces file-scoped, nullable e implicit usings.
 - Sufijos con significado único: `*Request`, `*Response`, `*Validator`, `*Endpoint`, `*Tests`, `*Feature`. No se usan `*Endpoints` en features, ni `*Module` salvo la puerta `I<Feature>Module` en `Contracts/` y su implementación `<Feature>Module` en la raíz. DUNE0008 lo hace cumplir.
 - Requests y responses son records. La validación de entrada usa FluentValidation. Los mappings de EF usan Fluent API, fuera de `Domain`.
 - En el frontend, los modelos usan los mismos nombres que el backend: `*Request` y `*Response`. Cada uno va en su archivo: `task-response.ts` / `TaskResponse`.
