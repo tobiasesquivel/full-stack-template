@@ -57,7 +57,7 @@ describe('ProjectRow', () => {
     expect(text()).toContain('Hogar');
     expect(text()).toContain('Activo');
     expect(text()).toContain('Dueño: ana');
-    expect(text()).toContain('3 tareas, 1 completadas');
+    expect(text().replace(/\s+/g, ' ')).toContain('3 tareas, 1 completada');
   });
 
   it('offers Archivar on an active project and Restaurar on an archived one', async () => {

@@ -36,7 +36,9 @@
   </span>
   <span class="text-sm/normal text-slate-600">Dueño: {{ project().ownerName }}</span>
   <span class="text-sm/normal text-slate-600">
-    {{ project().taskCount }} tareas, {{ project().completedTaskCount }} completadas
+    {{ project().taskCount }} {{ project().taskCount === 1 ? 'tarea' : 'tareas' }},
+    {{ project().completedTaskCount }}
+    {{ project().completedTaskCount === 1 ? 'completada' : 'completadas' }}
   </span>
   @if (project().isArchived) {
     <span class="w-full text-sm/normal text-slate-600">
