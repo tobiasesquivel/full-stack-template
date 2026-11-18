@@ -368,27 +368,37 @@ async function checkNoNestedGit() {
 const GATEWAY_RULE = 'gateway como única entrada';
 const PUBLISHED_SERVICES = new Set(['gateway', 'web', 'db', 'otel', 'prometheus']);
 
-function composeServices(text) {
-  const services = new Map();
+function composePublishers(text) {
+  const publishes = new Map();
   let inServices = false;
-  let current = null;
+  let service = null;
+  let inPorts = false;
   for (const line of text.split(/\r?\n/)) {
+    if (!line.trim() || line.trimStart().startsWith('#')) continue;
     if (/^\S/.test(line)) {
       inServices = /^services:\s*$/.test(line);
-      current = null;
+      service = null;
       continue;
     }
     if (!inServices) continue;
-    const service = /^  ([A-Za-z0-9_.-]+):\s*$/.exec(line);
-    if (service) {
-      current = new Set();
-      services.set(service[1], current);
+    const serviceMatch = /^ {2}(["']?)([A-Za-z0-9_.-]+)\1:\s*$/.exec(line);
+    if (serviceMatch) {
+      service = serviceMatch[2];
+      publishes.set(service, false);
+      inPorts = false;
       continue;
     }
-    const key = /^    ([A-Za-z0-9_-]+):/.exec(line);
-    if (current && key) current.add(key[1]);
+    if (!service) continue;
+    const key = /^ {4}(["']?)([A-Za-z0-9_-]+)\1:\s*(.*)$/.exec(line);
+    if (key) {
+      inPorts = key[2] === 'ports';
+      const inline = key[3].trim();
+      if (inPorts && inline && !/^\[\s*\]$/.test(inline)) publishes.set(service, true);
+      continue;
+    }
+    if (inPorts && /^ {5,}-/.test(line)) publishes.set(service, true);
   }
-  return services;
+  return publishes;
 }
 
 async function checkGatewayIsTheOnlyEntrance() {
@@ -396,12 +406,12 @@ async function checkGatewayIsTheOnlyEntrance() {
   if (!(await exists(composeFile))) {
     fail(`${GATEWAY_RULE}: falta compose.yaml`);
   } else {
-    const services = composeServices(await readText(composeFile));
-    if (!services.get('gateway')?.has('ports')) {
+    const publishers = composePublishers(await readText(composeFile));
+    if (!publishers.get('gateway')) {
       fail(`${GATEWAY_RULE}: compose.yaml necesita el servicio gateway con el puerto publicado de la API`);
     }
-    for (const [name, keys] of services) {
-      if (!PUBLISHED_SERVICES.has(name) && keys.has('ports')) {
+    for (const [name, publishes] of publishers) {
+      if (!PUBLISHED_SERVICES.has(name) && publishes) {
         fail(`${GATEWAY_RULE}: el servicio ${name} de compose.yaml publica puertos; un proceso de la API se alcanza solo por el gateway`);
       }
     }

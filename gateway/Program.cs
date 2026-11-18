@@ -10,6 +10,7 @@ try
 
     builder.Services.AddGatewayObservability(builder.Configuration, builder.Environment);
     builder.Services.AddGatewaySecurityHeaders();
+    builder.Services.AddGatewayProblemDetails();
     builder.Services.AddReverseProxy().LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
     builder.Services.AddHealthChecks().AddCheck<ProxyConfigHealthCheck>("proxy-config", tags: [GatewayHealth.ReadyTag]);
 
@@ -17,6 +18,8 @@ try
 
     app.UseSecurityHeaders();
     app.UseSerilogRequestLogging(options => options.Logger = app.Services.GetRequiredService<Serilog.ILogger>());
+    app.UseExceptionHandler();
+    app.UseStatusCodePages();
 
     app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false });
     app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = GatewayHealth.IsReadyCheck });

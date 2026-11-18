@@ -288,6 +288,9 @@ if (process.argv.includes('--compose')) {
   try {
     const unavailable = await waitGatewayUnavailable();
     assertSecurityHeaders(unavailable, 'gateway 503 con la API caída');
+    assert.match(unavailable.headers.get('content-type') ?? '', /application\/problem\+json/,
+      'El 503 del gateway es ProblemDetails');
+    assert.equal((await unavailable.json()).code, 'Http.ServiceUnavailable', 'El 503 del gateway lleva su code');
     const gatewayReady = await fetch(new URL('/health/ready', base), { signal: AbortSignal.timeout(3000) });
     assert.equal(gatewayReady.status, 200, 'El gateway sigue listo aunque la API esté caída');
   } finally {

@@ -7,10 +7,11 @@ internal sealed class ProxyConfigHealthCheck(IProxyStateLookup proxyState) : IHe
 {
     public Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken = default)
     {
-        bool hasRoutes = proxyState.GetRoutes().Any();
-        bool everyClusterHasDestinations = proxyState.GetClusters().All(cluster => !cluster.Destinations.IsEmpty);
+        var routes = proxyState.GetRoutes().ToList();
+        bool everyRouteReachesDestinations = routes.Count > 0
+            && routes.All(route => route.Cluster is { } cluster && !cluster.Destinations.IsEmpty);
 
-        return Task.FromResult(hasRoutes && everyClusterHasDestinations
+        return Task.FromResult(everyRouteReachesDestinations
             ? HealthCheckResult.Healthy()
             : HealthCheckResult.Unhealthy());
     }

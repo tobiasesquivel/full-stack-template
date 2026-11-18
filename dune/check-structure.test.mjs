@@ -310,6 +310,18 @@ describe('check-structure', () => {
     });
   }
 
+  it('acepta la API con una lista de puertos vacía', async () => {
+    const repo = await makeRepo();
+    try {
+      await seedValid(repo);
+      await repo.write('compose.yaml', VALID_COMPOSE.replace('      context: ./backend\n', '      context: ./backend\n    ports: []\n'));
+      const result = await runGate(repo.dir);
+      assert.equal(result.code, 0, result.output);
+    } finally {
+      await repo.cleanup();
+    }
+  });
+
   for (const [name, rel, content, message] of [
     [
       'la API con puerto publicado',
@@ -322,6 +334,24 @@ describe('check-structure', () => {
       'compose.yaml',
       VALID_COMPOSE.replace('  web:\n', '  tasks:\n    ports:\n      - "8082:8080"\n  web:\n'),
       /el servicio tasks de compose\.yaml publica puertos/,
+    ],
+    [
+      'la API con la clave "ports" entre comillas',
+      'compose.yaml',
+      VALID_COMPOSE.replace('      context: ./backend\n', '      context: ./backend\n    "ports":\n      - "8080:8080"\n'),
+      /el servicio api de compose\.yaml publica puertos/,
+    ],
+    [
+      'la API con puertos en forma de lista en línea',
+      'compose.yaml',
+      VALID_COMPOSE.replace('      context: ./backend\n', '      context: ./backend\n    ports: ["8080:8080"]\n'),
+      /el servicio api de compose\.yaml publica puertos/,
+    ],
+    [
+      'el gateway con una lista de puertos vacía',
+      'compose.yaml',
+      VALID_COMPOSE.replace('    ports:\n      - "${API_PORT:-8080}:8080"\n', '    ports: []\n'),
+      /necesita el servicio gateway con el puerto publicado/,
     ],
     [
       'el gateway sin puerto publicado',
