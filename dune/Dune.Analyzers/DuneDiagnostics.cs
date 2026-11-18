@@ -101,7 +101,7 @@ internal static class DuneDiagnostics
         category: "Dune",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
-        description: "La cookie de sesión viaja sola, así que toda escritura pasa por el middleware de antiforgery, que cubre solo /api. Cada grupo del host empieza con /api, las rutas de escritura se mapean solo en el grupo de su feature y cada slice recibe ese grupo.");
+        description: "La cookie de sesión viaja sola, así que toda escritura pasa por el middleware de antiforgery, que cubre solo /api. Cada grupo del host empieza con /api, las rutas de escritura se mapean solo en el grupo de su feature y cada slice recibe ese grupo. La única excepción es el grupo /internal/v1 de Infrastructure/Http/InternalApi.cs: lo llaman otros procesos sin cookie y el gateway no lo publica.");
 
     public static readonly DiagnosticDescriptor VersionedApi = new(
         id: "DUNE0012",

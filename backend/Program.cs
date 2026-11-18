@@ -14,8 +14,8 @@ try
 {
     WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
-    builder.Services.AddBackendInfrastructure();
-    builder.Services.AddTemplateObservability(builder.Environment);
+    builder.Services.AddBackendInfrastructure(migratesPlatformSchema: true);
+    builder.Services.AddTemplateObservability(builder.Environment, "templateapp-api");
     builder.Services.AddAuthFeature();
     builder.Services.AddUsersFeature();
     builder.Services.AddTasksFeature();

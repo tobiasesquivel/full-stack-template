@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Diagnostics;
+using TemplateApp.Infrastructure.Http;
 using TemplateApp.Shared.Http;
 
 namespace TemplateApp.Infrastructure.Middlewares;
@@ -10,7 +11,9 @@ public class GlobalExceptionHandler : IExceptionHandler
         Exception exception,
         CancellationToken cancellationToken)
     {
-        await ApiResults.Problem(HttpErrors.Unexpected).ExecuteAsync(httpContext);
+        await ApiResults.Problem(exception is RemoteServiceUnavailableException
+            ? HttpErrors.ServiceUnavailable
+            : HttpErrors.Unexpected).ExecuteAsync(httpContext);
         return true;
     }
 }

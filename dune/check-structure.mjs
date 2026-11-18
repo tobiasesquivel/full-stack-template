@@ -254,10 +254,12 @@ async function checkRateLimitExemptionOnlyInHealth() {
   for (const file of await productSources()) {
     if (!file.endsWith('.cs')) continue;
     const rel = toPosix(file);
-    if (rel.startsWith('backend/Features/Health/')) continue;
+    if (rel.startsWith('backend/Features/Health/') || rel === 'backend/Infrastructure/Http/InternalApi.cs') continue;
     if (exemption.test(await readText(file))) hits.push(rel);
   }
-  if (hits.length > 0) fail(`limiter global: DisableRateLimiting solo en backend/Features/Health: ${hits.join(', ')}`);
+  if (hits.length > 0) {
+    fail(`limiter global: DisableRateLimiting solo en backend/Features/Health y backend/Infrastructure/Http/InternalApi.cs: ${hits.join(', ')}`);
+  }
 }
 
 function coversCSharp(section) {

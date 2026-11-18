@@ -12,7 +12,8 @@ public static class ContextRegistration
     public static IServiceCollection AddMigratedDbContext<TContext>(
         this IServiceCollection services,
         string schema,
-        bool adoptsLegacyTables)
+        bool adoptsLegacyTables,
+        bool appliesMigrations = true)
         where TContext : DbContext
     {
         services.AddDbContext<TContext>((provider, options) => options
@@ -20,7 +21,7 @@ public static class ContextRegistration
                 ConnectionString(provider),
                 npgsql => npgsql.MigrationsHistoryTable(HistoryTable, schema))
             .AddInterceptors(provider.GetRequiredService<AuditInterceptor>()));
-        services.AddSingleton(new MigratedContext(typeof(TContext), adoptsLegacyTables));
+        services.AddSingleton(new MigratedContext(typeof(TContext), adoptsLegacyTables, appliesMigrations));
         return services;
     }
 
@@ -39,9 +40,15 @@ public static class ContextRegistration
             .Select(migrated => (DbContext)services.GetRequiredService(migrated.ContextType))
             .ToList();
 
+    public static IReadOnlyList<DbContext> ContextsThisHostMigrates(this IServiceProvider services) =>
+        services.GetServices<MigratedContext>()
+            .Where(migrated => migrated.AppliesMigrations)
+            .Select(migrated => (DbContext)services.GetRequiredService(migrated.ContextType))
+            .ToList();
+
     public static IReadOnlyList<DbContext> ContextsThatAdoptLegacyTables(this IServiceProvider services) =>
         services.GetServices<MigratedContext>()
-            .Where(migrated => migrated.AdoptsLegacyTables)
+            .Where(migrated => migrated.AdoptsLegacyTables && migrated.AppliesMigrations)
             .Select(migrated => (DbContext)services.GetRequiredService(migrated.ContextType))
             .ToList();
 }
