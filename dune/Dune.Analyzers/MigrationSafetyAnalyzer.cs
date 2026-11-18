@@ -15,6 +15,7 @@ public sealed class MigrationSafetyAnalyzer : DiagnosticAnalyzer
     private const string LastMigrationBeforeRule = "20261117132830";
     private const string ContractPrefix = "Contract";
     private const string MovePrefix = "Move";
+    private const string DefaultSchema = "public";
     private const string ConcurrentIndexAnnotation = "Npgsql:CreatedConcurrently";
 
     private static readonly ImmutableHashSet<string> Drops = ImmutableHashSet.Create(
@@ -42,7 +43,8 @@ public sealed class MigrationSafetyAnalyzer : DiagnosticAnalyzer
             DuneDiagnostics.MigrationTypeChange,
             DuneDiagnostics.MigrationMoveOutsideMove,
             DuneDiagnostics.MigrationMoveMixed,
-            DuneDiagnostics.MigrationMoveWithoutWayBack);
+            DuneDiagnostics.MigrationMoveWithoutWayBack,
+            DuneDiagnostics.MigrationMoveWithoutSchema);
 
     public override void Initialize(AnalysisContext context)
     {
@@ -71,13 +73,8 @@ public sealed class MigrationSafetyAnalyzer : DiagnosticAnalyzer
         IReadOnlyList<IInvocationOperation> down)
     {
         var isContract = migration.StartsWith(ContractPrefix, StringComparison.Ordinal);
-        var isMove = migration.StartsWith(MovePrefix, StringComparison.Ordinal);
-        var createdTables = new HashSet<string>(
-            up.Where(operation => operation.TargetMethod.Name == "CreateTable")
-                .Select(operation => Argument(operation, "name") as string)
-                .Where(name => name is not null)
-                .Select(name => name!),
-            StringComparer.Ordinal);
+        var isMove = IsMoveMigration(migration);
+        var createdTables = NamesOf(up, "CreateTable");
 
         foreach (var operation in up)
         {
@@ -89,12 +86,22 @@ public sealed class MigrationSafetyAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        foreach (var operation in down.Where(operation => operation.TargetMethod.Name == "RenameTable" && !IsSchemaMove(operation)))
+        var moves = up.Where(IsSchemaMove).ToList();
+        var ensured = NamesOf(up, "EnsureSchema");
+
+        foreach (var operation in down)
         {
-            ReportIfAny(context, DuneDiagnostics.MigrationMoveWithoutWayBack, operation, migration);
+            if (operation.TargetMethod.Name != "RenameTable")
+            {
+                ReportIfAny(context, DuneDiagnostics.MigrationMoveMixed, operation, migration);
+            }
+            else if (!moves.Any(move => Reverses(operation, move)))
+            {
+                ReportIfAny(context, DuneDiagnostics.MigrationMoveWithoutWayBack, operation, migration);
+            }
         }
 
-        foreach (var move in up.Where(IsSchemaMove))
+        foreach (var move in moves)
         {
             var table = Argument(move, "name") as string;
             var schema = Argument(move, "newSchema") as string;
@@ -105,8 +112,31 @@ public sealed class MigrationSafetyAnalyzer : DiagnosticAnalyzer
             {
                 ReportIfAny(context, DuneDiagnostics.MigrationMoveWithoutWayBack, move, migration);
             }
+
+            if (schema != DefaultSchema && !ensured.Contains(schema!))
+            {
+                ReportIfAny(context, DuneDiagnostics.MigrationMoveWithoutSchema, move, migration);
+            }
         }
     }
+
+    private static HashSet<string> NamesOf(IReadOnlyList<IInvocationOperation> operations, string method) =>
+        new(
+            operations.Where(operation => operation.TargetMethod.Name == method)
+                .Select(operation => Argument(operation, "name") as string)
+                .Where(name => name is not null)
+                .Select(name => name!),
+            StringComparer.Ordinal);
+
+    private static bool IsMoveMigration(string migration) =>
+        migration.StartsWith(MovePrefix, StringComparison.Ordinal)
+        && (migration.Length == MovePrefix.Length || char.IsUpper(migration[MovePrefix.Length]));
+
+    private static bool Reverses(IInvocationOperation back, IInvocationOperation move) =>
+        IsSchemaMove(back)
+        && Argument(back, "name") as string == Argument(move, "name") as string
+        && Argument(back, "schema") as string == Argument(move, "newSchema") as string
+        && Argument(back, "newSchema") as string == (Argument(move, "schema") as string ?? DefaultSchema);
 
     private static void ReportIfAny(SymbolAnalysisContext context, DiagnosticDescriptor? rule, IInvocationOperation operation, string migration)
     {

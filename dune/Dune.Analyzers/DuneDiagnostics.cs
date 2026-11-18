@@ -260,11 +260,20 @@ internal static class DuneDiagnostics
     public static readonly DiagnosticDescriptor MigrationMoveWithoutWayBack = new(
         id: "DUNE0018",
         title: "Migración Move sin vuelta en el Down",
-        messageFormat: "'{0}' usa {1} en una migración Move sin volver la tabla a su schema: el Down de una migración Move lleva RenameTable con newSchema",
+        messageFormat: "'{0}' usa {1} en una migración Move sin volver la tabla a su schema: el Down de una migración Move solo lleva, por cada tabla, RenameTable con newSchema igual al schema de origen (public si el Up no lo nombra)",
         category: "Dune",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
         description: "El Down que genera la CLI para un cambio de schema omite newSchema y no mueve nada: solo borra la fila del historial. Se completa a mano con el schema de origen.");
+
+    public static readonly DiagnosticDescriptor MigrationMoveWithoutSchema = new(
+        id: "DUNE0018",
+        title: "Migración Move sin su schema",
+        messageFormat: "'{0}' usa {1} para mover una tabla a un schema que su Up no crea: una migración Move lleva EnsureSchema de cada schema de destino",
+        category: "Dune",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "ALTER TABLE ... SET SCHEMA falla si el schema no existe. La CLI genera EnsureSchema para cada schema nuevo del modelo; una migración Move escrita o editada a mano puede perderlo.");
 
     public static readonly DiagnosticDescriptor ReadSliceWrites = new(
         id: "DUNE0019",
