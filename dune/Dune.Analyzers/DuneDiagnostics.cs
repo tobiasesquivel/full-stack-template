@@ -357,4 +357,12 @@ internal static class DuneDiagnostics
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
         description: "Aplicar la configuración de otra tabla es mapearla y migrarla: el contexto se vuelve dueño de una tabla ajena. ApplyConfigurationsFromAssembly trae las configuraciones de todas las features.");
+    public static readonly DiagnosticDescriptor RemoteCallInTransaction = new(
+        id: "DUNE0022",
+        title: "Llamada remota dentro de una transacción entre contextos",
+        messageFormat: "'{0}' llama por HTTP a otro proceso ({1}) dentro de CrossContextTransaction.Begin(): la request no se suma a la transacción y nada lo avisa; hacé la llamada remota antes de abrir la transacción, como DeleteUser",
+        category: "Dune",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "Un TransactionScope abarca solo las conexiones a la base de este proceso. Si la transacción se revierte, lo que hizo el otro proceso queda hecho; mientras la request espera, la transacción mantiene abiertas la conexión y sus candados. Cuenta como llamada remota una invocación sobre HttpClient o HttpMessageInvoker, sobre un cliente tipado (un tipo con un HttpClient en su constructor) o un método de extensión de HttpClient como SendRemoteAsync. Límite: mira solo el método que abre la transacción. No ve a través de un filtro de endpoint: IdempotencyFilter abre el scope y la slice corre adentro.");
 }
