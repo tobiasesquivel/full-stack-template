@@ -1,5 +1,12 @@
 using System.Net;
 using System.Text.Json;
+using ErrorOr;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using TemplateApp.Features.Projects.Domain;
+using TemplateApp.Features.Projects.Persistence;
+using TemplateApp.Features.Tasks.Persistence;
+using TemplateApp.Features.Users.Persistence;
 using TemplateApp.Tests.Support;
 using Xunit;
 
@@ -48,6 +55,48 @@ public sealed class ListProjectsTests : IClassFixture<ApiFixture>
             var badSize = await alice.SendAsync(HttpMethod.Get, $"api/v1/projects?pageSize={pageSize}", csrf: false);
             Assert.True(ProblemAssert.Problem(badSize, HttpStatusCode.BadRequest, "Validation.Failed").GetProperty("errors").TryGetProperty("PageSize", out _));
         }
+    }
+
+    [Fact]
+    public async Task List_ComposesAPageOfFive_WithOneQueryPerFeature_AndTracksNoProject()
+    {
+        CapturedCommands commands = new();
+        HttpClient client = _fixture.CreateIsolatedClient(
+            services =>
+            {
+                services.ConfigureDbContext<ProjectsDbContext>(options => options.AddInterceptors(commands));
+                services.ConfigureDbContext<TasksDbContext>(options => options.AddInterceptors(commands));
+                services.ConfigureDbContext<UsersDbContext>(options => options.AddInterceptors(commands));
+            },
+            out IServiceProvider services);
+        var alice = new TestSession(client);
+        string aliceName = TestAccounts.UniqueName("alice");
+        await alice.RegisterAsync(aliceName);
+        Dictionary<Guid, int> tasksPerProject = [];
+        for (int i = 1; i <= 5; i++)
+        {
+            string projectId = await alice.CreateProjectAsync($"Proyecto {i}");
+            for (int t = 0; t < i; t++)
+                await alice.CreateTaskAsync("Tarea", projectId);
+            tasksPerProject[Guid.Parse(projectId)] = i;
+        }
+
+        using IServiceScope scope = services.CreateScope();
+        commands.Reset();
+        ErrorOr<ProjectListResponse> page = await scope.ServiceProvider.GetRequiredService<ListProjects>()
+            .ExecuteAsync(alice.AuthId, cursor: null, pageSize: 5, TestContext.Current.CancellationToken);
+
+        Assert.False(page.IsError);
+        Assert.Equal(5, page.Value.Items.Count);
+        Assert.All(page.Value.Items, item =>
+        {
+            Assert.Equal(tasksPerProject[item.Id], item.TaskCount);
+            Assert.Equal(aliceName, item.OwnerName);
+        });
+        Assert.Single(commands.Reading("Projects"));
+        Assert.Single(commands.Reading("TaskItems"));
+        Assert.Single(commands.Reading("UserProfiles"));
+        Assert.Empty(scope.ServiceProvider.GetRequiredService<ProjectsDbContext>().ChangeTracker.Entries<Project>());
     }
 
     private static async Task<(string[] Names, string? NextCursor)> PageAsync(TestSession session, string route)

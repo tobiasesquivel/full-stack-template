@@ -20,5 +20,6 @@ internal static class DatabaseRows
             await services.CountAsync($"""SELECT count(*) AS "Value" FROM "Sessions" WHERE "UserId" = {authId}"""),
             await services.CountAsync($"""SELECT count(*) AS "Value" FROM "UserProfiles" WHERE "AuthId" = {authId}"""),
             await services.CountAsync($"""SELECT count(*) AS "Value" FROM "TaskItems" WHERE "OwnerId" = {authId}"""),
+            await services.CountAsync($"""SELECT count(*) AS "Value" FROM "Projects" WHERE "OwnerId" = {authId}"""),
             await services.CountAsync($"""SELECT count(*) AS "Value" FROM "IdempotencyKeys" WHERE "OwnerId" = {authId}"""));
 }

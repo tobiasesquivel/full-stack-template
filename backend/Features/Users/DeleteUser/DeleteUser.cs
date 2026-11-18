@@ -2,6 +2,7 @@ using System.Transactions;
 using ErrorOr;
 using Microsoft.EntityFrameworkCore;
 using TemplateApp.Features.Auth.Contracts;
+using TemplateApp.Features.Projects.Contracts;
 using TemplateApp.Features.Tasks.Contracts;
 using TemplateApp.Features.Users.Contracts;
 using TemplateApp.Features.Users.Domain;
@@ -15,13 +16,15 @@ internal sealed class DeleteUser
     private readonly UsersDbContext _db;
     private readonly IAuthModule _auth;
     private readonly ITasksModule _tasks;
+    private readonly IProjectsModule _projects;
     private readonly IdempotencyKeys _keys;
 
-    public DeleteUser(UsersDbContext db, IAuthModule auth, ITasksModule tasks, IdempotencyKeys keys)
+    public DeleteUser(UsersDbContext db, IAuthModule auth, ITasksModule tasks, IProjectsModule projects, IdempotencyKeys keys)
     {
         _db = db;
         _auth = auth;
         _tasks = tasks;
+        _projects = projects;
         _keys = keys;
     }
 
@@ -38,6 +41,7 @@ internal sealed class DeleteUser
             return UserErrors.Forbidden;
 
         await _tasks.DeleteOwnedTasksAsync(authId, ct);
+        await _projects.DeleteOwnedProjectsAsync(authId, ct);
         await _keys.ForgetOwnerAsync(authId, ct);
         _db.UserProfiles.Remove(profile);
         await _db.SaveChangesAsync(ct);

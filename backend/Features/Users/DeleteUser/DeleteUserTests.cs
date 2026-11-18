@@ -45,6 +45,7 @@ public sealed class DeleteUserTests : IClassFixture<ApiFixture>
         TestSession alice = new(_fixture.CreateClient());
         await alice.RegisterAsync(TestAccounts.UniqueName("alice"));
         await alice.CreateTaskAsync("Sin clave");
+        await alice.CreateProjectAsync("Mudanza");
         SessionResponse keyed = await alice.SendAsync(
             HttpMethod.Post,
             "api/v1/tasks",
@@ -52,7 +53,7 @@ public sealed class DeleteUserTests : IClassFixture<ApiFixture>
             headers: new Dictionary<string, string> { ["Idempotency-Key"] = Guid.NewGuid().ToString() });
         keyed.Payload?.Dispose();
         Assert.Equal(HttpStatusCode.Created, keyed.Status);
-        Assert.Equal(new OwnedRows(1, 1, 1, 1, 2, 1), await _fixture.Services.OwnedRowsAsync(alice.AuthId));
+        Assert.Equal(new OwnedRows(1, 1, 1, 1, 2, 1, 1), await _fixture.Services.OwnedRowsAsync(alice.AuthId));
 
         SessionResponse deleted = await alice.SendAsync(HttpMethod.Delete, "api/v1/users/me");
         deleted.Payload?.Dispose();

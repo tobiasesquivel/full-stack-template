@@ -127,6 +127,15 @@ internal static class TestAccounts
             return created.Payload.RootElement.GetProperty("id").GetString()!;
     }
 
+    public static async Task<string> CreateTaskAsync(this TestSession session, string title, string projectId)
+    {
+        SessionResponse created = await session.SendAsync(HttpMethod.Post, "api/v1/tasks", new { title, projectId });
+        Assert.Equal(HttpStatusCode.Created, created.Status);
+        Assert.NotNull(created.Payload);
+        using (created.Payload)
+            return created.Payload.RootElement.GetProperty("id").GetString()!;
+    }
+
     public static async Task<string> CreateProjectAsync(this TestSession session, string name)
     {
         SessionResponse created = await session.SendAsync(HttpMethod.Post, "api/v1/projects", new { name });
