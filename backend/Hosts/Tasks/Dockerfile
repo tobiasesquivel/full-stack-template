@@ -1,0 +1,17 @@
+FROM mcr.microsoft.com/dotnet/sdk:10.0.401 AS build
+WORKDIR /src
+COPY ["Hosts/Tasks/TemplateApp.Tasks.csproj", "Hosts/Tasks/"]
+COPY ["Platform/TemplateApp.Platform.csproj", "Platform/"]
+RUN dotnet restore "Hosts/Tasks/TemplateApp.Tasks.csproj"
+COPY . .
+RUN dotnet publish "Hosts/Tasks/TemplateApp.Tasks.csproj" -c Release -o /app/publish --no-restore /p:UseAppHost=false
+
+FROM mcr.microsoft.com/dotnet/aspnet:10.0.12
+WORKDIR /app
+ENV DataProtection__KeysDirectory=/var/lib/templateapp/data-protection-keys
+RUN mkdir -p "$DataProtection__KeysDirectory" && chown app:app "$DataProtection__KeysDirectory"
+USER $APP_UID
+COPY --from=build --chown=app:app /app/publish .
+ENV ASPNETCORE_URLS=http://+:8080
+EXPOSE 8080
+ENTRYPOINT ["dotnet", "TemplateApp.Tasks.dll"]

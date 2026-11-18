@@ -30,6 +30,10 @@ const XSRF_COOKIE = 'XSRF-TOKEN';
 
 class ApiClient {
   cookies = new Map();
+
+  cookieHeader() {
+    return [...this.cookies.values()].map(cookie => `${cookie.name}=${cookie.value}`).join('; ');
+  }
   lastText = '';
 
   async request(method, route, body, { expected = 200, csrf = true, headers: extra = {} } = {}) {
@@ -156,6 +160,21 @@ function composeServices() {
   const output = result.stdout.trim();
   const services = output.startsWith('[') ? JSON.parse(output) : output.split('\n').filter(Boolean).map(line => JSON.parse(line));
   return new Map(services.map(service => [service.Service, service]));
+}
+
+async function waitTasksStatus(client, status) {
+  const deadline = Date.now() + 60000;
+  while (Date.now() < deadline) {
+    try {
+      const response = await fetch(new URL('tasks', base), {
+        headers: { accept: 'application/json', cookie: client.cookieHeader() },
+        signal: AbortSignal.timeout(5000),
+      });
+      if (response.status === status) return response;
+    } catch {}
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+  throw new Error(`GET tasks no respondió ${status} en 60 segundos`);
 }
 
 async function waitGatewayUnavailable() {
@@ -300,11 +319,34 @@ assert.equal((await alice.request('GET', `tasks/${created.id}`)).payload.title, 
 
 if (process.argv.includes('--compose')) {
   const services = composeServices();
-  for (const service of ['db', 'prometheus', 'api', 'gateway']) {
+  for (const service of ['db', 'prometheus', 'api', 'tasks', 'gateway']) {
     assert.equal(services.get(service)?.Health, 'healthy', `${service} responde su healthcheck`);
   }
-  assert.ok(!(services.get('api').Publishers ?? []).some(publisher => publisher.PublishedPort),
-    'La API no publica puertos: todo entra por el gateway');
+  for (const service of ['api', 'tasks']) {
+    assert.ok(!(services.get(service).Publishers ?? []).some(publisher => publisher.PublishedPort),
+      `${service} no publica puertos: todo entra por el gateway`);
+  }
+  const internalThroughGateway = await fetch(new URL(`/internal/v1/task-counts?projectId=${crypto.randomUUID()}`, base),
+    { signal: AbortSignal.timeout(5000) });
+  assert.equal(internalThroughGateway.status, 404, 'El gateway no publica los endpoints internos');
+  evidence.push({ scenario: 'internal through gateway', status: internalThroughGateway.status });
+  compose('stop', 'tasks');
+  try {
+    const tasksDown = await waitTasksStatus(alice, 503);
+    assertSecurityHeaders(tasksDown, 'gateway 503 con Tasks caído');
+    assert.equal((await tasksDown.json()).code, 'Http.ServiceUnavailable', 'Con Tasks caído, su ruta responde 503 con code');
+    await alice.request('GET', 'users/me');
+    const projectsWithoutCounts = await alice.request('GET', 'projects', undefined, { expected: 503 });
+    assert.equal(projectsWithoutCounts.payload.code, 'Http.ServiceUnavailable',
+      'Sin Tasks, la lista de proyectos falla entera en vez de mostrar contadores falsos');
+    const deleteWithoutTasks = await alice.request('DELETE', 'users/me', undefined, { expected: 503 });
+    assert.equal(deleteWithoutTasks.payload.code, 'Http.ServiceUnavailable');
+    await alice.request('GET', 'users/me');
+    evidence.push({ scenario: 'tasks down', tasks: 503, usersMe: 200, projects: 503, deleteAccount: 503 });
+  } finally {
+    compose('start', 'tasks');
+    await waitTasksStatus(alice, 200);
+  }
   compose('stop', 'api');
   try {
     const unavailable = await waitGatewayUnavailable();
@@ -328,8 +370,9 @@ if (process.argv.includes('--compose')) {
     compose('start', 'db');
     await waitReady();
   }
-  compose('up', '--detach', '--no-deps', '--force-recreate', 'api');
+  compose('up', '--detach', '--no-deps', '--force-recreate', 'api', 'tasks');
   await waitReady();
+  await waitTasksStatus(alice, 200);
   assert.equal((await alice.request('GET', `tasks/${created.id}`)).payload.title, 'Estado final',
     'Los datos y la sesión deben sobrevivir a reiniciar la DB y a recrear el contenedor de la API');
 }
@@ -340,6 +383,8 @@ const revoked = alice.onlySession();
 await alice.request('POST', 'auth/logout', undefined, { expected: 204 });
 const revokedSession = await revoked.request('GET', 'users/me', undefined, { expected: 401 });
 assert.equal(revokedSession.payload.code, 'Auth.SessionRequired');
+const revokedTasks = await revoked.request('GET', 'tasks', undefined, { expected: 401 });
+assert.equal(revokedTasks.payload.code, 'Auth.SessionRequired', 'Revocar la sesión corta también el proceso de Tasks');
 await alice.request('GET', 'users/me', undefined, { expected: 401 });
 await alice.open(aliceName);
 await alice.request('DELETE', 'users/me', undefined, { expected: 204 });
