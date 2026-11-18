@@ -23,6 +23,7 @@ El código actual todavía no cumple todas estas reglas. La Fase 0 del [plan](ev
 - Lo que nombra una feature va a esa feature. `Infrastructure/` y `Shared/` no nombran ninguna feature.
 - Una feature solo usa el `Contracts/` de otra. Users depende de `Auth.Contracts`; Auth no depende de Users por dentro. DUNE0004 lo hace cumplir: mira el tipo nombrado, el tipo de cada operación (cada resultado, aunque no se guarde en una variable), y el tipo que declara cada miembro usado y su firma (también métodos, propiedades y operadores de extensión, y los que el compilador busca solo, como `GetEnumerator`, `Deconstruct` o `GetAwaiter`). Así ni `var` ni una llamada encadenada lo esquivan. Un tipo en una subcarpeta de `Contracts/` es interior. No ve un `Add` o un `GetEnumerator` de extensión que solo usa una expresión de colección (`[x]`, `[.. x]`), porque Roslyn no expone esos métodos.
 - Entre features, una entidad guarda solo el Id de la otra, sin propiedad de navegación. Si necesita un dato de la otra feature, lo pide a su contrato.
+- El gateway (`gateway/`) solo reparte requests: rutas y destinos en `appsettings.json`, sin código de features ni referencias a otro proyecto. Toda request a la API entra por él: en `compose.yaml` solo publican puertos `gateway`, `web` y la infraestructura (`db`, `otel`, `prometheus`), y `frontend/nginx.conf` reenvía solo a `http://gateway:`. `check-structure.mjs` lo hace cumplir ("gateway como única entrada"). Un proceso nuevo de la API entra como destino del gateway, nunca con su propio puerto publicado.
 
 ## Nombres y estilo
 

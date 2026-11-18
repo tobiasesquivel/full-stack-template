@@ -365,6 +365,74 @@ async function checkNoNestedGit() {
   if (offenders.length > 0) fail(`git anidado: ${offenders.join(', ')}`);
 }
 
+const GATEWAY_RULE = 'gateway como única entrada';
+const PUBLISHED_SERVICES = new Set(['gateway', 'web', 'db', 'otel', 'prometheus']);
+
+function composePublishers(text) {
+  const publishes = new Map();
+  let inServices = false;
+  let service = null;
+  let inPorts = false;
+  for (const line of text.split(/\r?\n/)) {
+    if (!line.trim() || line.trimStart().startsWith('#')) continue;
+    if (/^\S/.test(line)) {
+      inServices = /^services:\s*$/.test(line);
+      service = null;
+      continue;
+    }
+    if (!inServices) continue;
+    const serviceMatch = /^ {2}(["']?)([A-Za-z0-9_.-]+)\1:\s*$/.exec(line);
+    if (serviceMatch) {
+      service = serviceMatch[2];
+      publishes.set(service, false);
+      inPorts = false;
+      continue;
+    }
+    if (!service) continue;
+    const key = /^ {4}(["']?)([A-Za-z0-9_-]+)\1:\s*(.*)$/.exec(line);
+    if (key) {
+      inPorts = key[2] === 'ports';
+      const inline = key[3].trim();
+      if (inPorts && inline && !/^\[\s*\]$/.test(inline)) publishes.set(service, true);
+      continue;
+    }
+    if (inPorts && /^ {5,}-/.test(line)) publishes.set(service, true);
+  }
+  return publishes;
+}
+
+async function checkGatewayIsTheOnlyEntrance() {
+  const composeFile = path.join(root, 'compose.yaml');
+  if (!(await exists(composeFile))) {
+    fail(`${GATEWAY_RULE}: falta compose.yaml`);
+  } else {
+    const publishers = composePublishers(await readText(composeFile));
+    if (!publishers.get('gateway')) {
+      fail(`${GATEWAY_RULE}: compose.yaml necesita el servicio gateway con el puerto publicado de la API`);
+    }
+    for (const [name, publishes] of publishers) {
+      if (!PUBLISHED_SERVICES.has(name) && publishes) {
+        fail(`${GATEWAY_RULE}: el servicio ${name} de compose.yaml publica puertos; un proceso de la API se alcanza solo por el gateway`);
+      }
+    }
+  }
+  const nginx = path.join(root, 'frontend', 'nginx.conf');
+  if (!(await exists(nginx))) {
+    fail(`${GATEWAY_RULE}: falta frontend/nginx.conf`);
+  } else {
+    const targets = [...(await readText(nginx)).matchAll(/proxy_pass\s+([^;\s]+)/g)].map((match) => match[1]);
+    if (targets.length === 0 || targets.some((target) => !target.startsWith('http://gateway:'))) {
+      fail(`${GATEWAY_RULE}: frontend/nginx.conf reenvía a ${targets.join(', ') || 'nada'}; tiene que reenviar solo a http://gateway:`);
+    }
+  }
+  const project = path.join(root, 'gateway', 'TemplateApp.Gateway.csproj');
+  if (!(await exists(project))) {
+    fail(`${GATEWAY_RULE}: falta gateway/TemplateApp.Gateway.csproj`);
+  } else if (/<ProjectReference\b/.test(await readText(project))) {
+    fail(`${GATEWAY_RULE}: gateway/TemplateApp.Gateway.csproj referencia otro proyecto; el gateway reparte requests y no compila código de features`);
+  }
+}
+
 await checkSlicesHaveTests();
 await checkProductExcludesTests();
 await checkInternalsOnlyForTests();
@@ -375,6 +443,7 @@ await checkEditorconfigSeverities();
 await checkNoToggleAlias();
 await checkTrackedArtifacts();
 await checkNoNestedGit();
+await checkGatewayIsTheOnlyEntrance();
 
 if (failures.length > 0) {
   console.error('check-structure: FAIL');

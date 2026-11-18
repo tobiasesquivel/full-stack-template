@@ -171,21 +171,13 @@ jobs:
         run: mkdir -p otel-export && chmod 777 otel-export
       - name: Validar compose
         run: docker compose config
-      - name: Levantar stack
-        run: docker compose up --build --detach
-      - name: Esperar API lista
+      - name: Levantar stack y esperar cada healthcheck
         run: |
-          for i in $(seq 1 60); do
-            if curl -fsS http://localhost:8080/api/v1/health/ready >/dev/null; then
-              echo "API lista (intento $i)"
-              exit 0
-            fi
-            sleep 5
-          done
-          echo "La API no alcanzó readiness tras 300s"
-          docker compose ps
-          docker compose logs api db otel prometheus
-          exit 1
+          if ! docker compose up --build --wait --wait-timeout 300; then
+            docker compose ps
+            docker compose logs gateway api db otel prometheus
+            exit 1
+          fi
       - name: Smoke runtime (API, DB down, persistencia, OTEL)
         run: node .agents/skills/verify-template/scripts/smoke-api.mjs --compose
         env:
@@ -197,7 +189,7 @@ jobs:
           PROMETHEUS_URL: http://localhost:9090/
       - name: Logs del stack si falla
         if: failure()
-        run: docker compose logs api db otel prometheus
+        run: docker compose logs gateway api db otel prometheus
       - name: Apagar stack
         if: always()
         run: docker compose down --timeout 30 --volumes

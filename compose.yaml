@@ -67,6 +67,34 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel:4318
     volumes:
       - dataprotection:/var/lib/templateapp/data-protection-keys
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /api/v1/health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 && head -n 1 <&3 | grep -q ' 200 '"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
+
+  gateway:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_started
+      otel:
+        condition: service_started
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      ReverseProxy__Clusters__monolith__Destinations__api__Address: http://api:8080/
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel:4318
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 && head -n 1 <&3 | grep -q ' 200 '"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
     ports:
       - "${API_PORT:-8080}:8080"
 
@@ -76,7 +104,7 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     depends_on:
-      api:
+      gateway:
         condition: service_started
     ports:
       - "${WEB_PORT:-8081}:8080"
