@@ -48,13 +48,19 @@ function toPosix(target) {
   return path.relative(root, target).replaceAll(path.sep, '/');
 }
 
+const MONOLITH_PROJECT = 'backend/TemplateApp.csproj';
+const PLATFORM_PROJECT = 'backend/Platform/TemplateApp.Platform.csproj';
+const TASKS_HOST_PROJECT = 'backend/Hosts/Tasks/TemplateApp.Tasks.csproj';
+
 async function productSources() {
   const all = [];
   await collectFiles(path.join(backend, 'Features'), all);
   await collectFiles(path.join(backend, 'Shared'), all);
   await collectFiles(path.join(backend, 'Infrastructure'), all);
-  const product = path.join(backend, 'TemplateApp.csproj');
-  if (await exists(product)) all.push(product);
+  await collectFiles(path.join(backend, 'Hosts'), all);
+  for (const project of [MONOLITH_PROJECT, PLATFORM_PROJECT]) {
+    if (await exists(path.join(root, project))) all.push(path.join(root, project));
+  }
   if (await exists(path.join(backend, 'Program.cs'))) all.push(path.join(backend, 'Program.cs'));
   return all
     .filter((file) => file.endsWith('.cs') || file.endsWith('.csproj'))
@@ -102,6 +108,68 @@ async function checkSlicesHaveTests() {
         fail(`slice ${feature}/${slice} sin ${slice}Tests.cs`);
       }
     }
+  }
+}
+
+const DEPLOYMENT_RULE = 'límite de despliegue';
+const TASKS_HOST_FEATURES = new Set(['Tasks', 'Health']);
+
+function msbuildValues(text, element, attribute) {
+  const pattern = new RegExp(String.raw`<${element}\b[^>]*?\b${attribute}\s*=\s*["']([^"']+)["']`, 'g');
+  return [...text.matchAll(pattern)].flatMap((match) => match[1].split(';')).map(normalizeItem).filter(Boolean);
+}
+
+function normalizeItem(value) {
+  return value.trim().replaceAll('\\', '/');
+}
+
+function resolveReference(project, reference) {
+  return path.posix.normalize(path.posix.join(path.posix.dirname(project), reference));
+}
+
+function checkOnlyReferencesPlatform(project, text) {
+  for (const reference of msbuildValues(text, 'ProjectReference', 'Include')) {
+    const target = resolveReference(project, reference);
+    if (target !== PLATFORM_PROJECT) {
+      fail(`${DEPLOYMENT_RULE}: ${project} referencia ${target}; el monolito y el host de Tasks solo referencian ${PLATFORM_PROJECT}`);
+    }
+  }
+}
+
+function tasksHostCompiles(include) {
+  const rooted = /^(?:\$\(BackendRoot\)|\.\.\/\.\.)\/(.*)$/.exec(include);
+  if (rooted === null) return !include.includes('..') && !include.includes('$(');
+  const feature = /^Features\/([^/]+)\//.exec(rooted[1]);
+  return feature !== null && TASKS_HOST_FEATURES.has(feature[1]);
+}
+
+async function checkDeploymentBoundary() {
+  const monolith = path.join(root, MONOLITH_PROJECT);
+  if (await exists(monolith)) {
+    const text = await readText(monolith);
+    checkOnlyReferencesPlatform(MONOLITH_PROJECT, text);
+    const excludes = [
+      ...[...text.matchAll(/<DefaultItemExcludes>([^<]*)<\/DefaultItemExcludes>/g)].flatMap((match) => match[1].split(';')),
+      ...msbuildValues(text, 'Compile', 'Remove'),
+    ].map(normalizeItem);
+    if (!excludes.some((value) => value === 'Features/Tasks/**' || value.startsWith('Features/Tasks/**/'))) {
+      fail(`${DEPLOYMENT_RULE}: ${MONOLITH_PROJECT} no excluye Features/Tasks/**; Tasks se compila solo en ${TASKS_HOST_PROJECT}`);
+    }
+  }
+  const host = path.join(root, TASKS_HOST_PROJECT);
+  if (!(await exists(host))) {
+    fail(`${DEPLOYMENT_RULE}: falta ${TASKS_HOST_PROJECT}`);
+    return;
+  }
+  const text = await readText(host);
+  checkOnlyReferencesPlatform(TASKS_HOST_PROJECT, text);
+  for (const include of msbuildValues(text, 'Compile', 'Include')) {
+    if (!tasksHostCompiles(include)) {
+      fail(`${DEPLOYMENT_RULE}: ${TASKS_HOST_PROJECT} compila ${include}; el host de Tasks compila solo sus archivos, Features/Tasks y Features/Health, y el resto llega por ${PLATFORM_PROJECT}`);
+    }
+  }
+  if (!msbuildValues(text, 'Compile', 'Remove').some((value) => value.endsWith('Features/**/*Tests.cs'))) {
+    fail('TemplateApp.Tasks.csproj no excluye tests del producto: falta Compile Remove "Features/**/*Tests.cs"');
   }
 }
 
@@ -437,6 +505,7 @@ async function checkGatewayIsTheOnlyEntrance() {
 
 await checkSlicesHaveTests();
 await checkProductExcludesTests();
+await checkDeploymentBoundary();
 await checkInternalsOnlyForTests();
 await checkNoBus();
 await checkNoCrossRequestCache();
