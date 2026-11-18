@@ -17,6 +17,7 @@ namespace TemplateApp.Infrastructure.Persistence.Migrations.Platform
         {
 #pragma warning disable 612, 618
             modelBuilder
+                .HasDefaultSchema("platform")
                 .HasAnnotation("ProductVersion", "10.0.12")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
@@ -69,7 +70,7 @@ namespace TemplateApp.Infrastructure.Persistence.Migrations.Platform
 
                     b.HasIndex("OccurredAt");
 
-                    b.ToTable("AuditEntries", (string)null);
+                    b.ToTable("AuditEntries", "platform");
                 });
 
             modelBuilder.Entity("TemplateApp.Infrastructure.Persistence.IdempotencyKey", b =>
@@ -104,7 +105,7 @@ namespace TemplateApp.Infrastructure.Persistence.Migrations.Platform
 
                     b.HasIndex("CreatedAt");
 
-                    b.ToTable("IdempotencyKeys", (string)null);
+                    b.ToTable("IdempotencyKeys", "platform");
                 });
 #pragma warning restore 612, 618
         }

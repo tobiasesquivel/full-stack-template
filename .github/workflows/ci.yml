@@ -165,6 +165,8 @@ jobs:
           node-version: 26.7.0
       - name: Tests del control del export OTEL
         run: node --test .agents/skills/verify-template/scripts/check-otel-export.test.mjs
+      - name: Tests del veredicto del ensayo de migraciones
+        run: node --test .agents/skills/verify-template/scripts/rehearsal-verdict.test.mjs
       - name: Preparar export OTEL
         run: mkdir -p otel-export && chmod 777 otel-export
       - name: Validar compose

@@ -192,7 +192,7 @@ internal static class DuneDiagnostics
         category: "Dune",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
-        description: "Un rename rompe el código que todavía corre durante un despliegue por tandas. EF genera RenameColumn también cuando se borra una columna y se agrega otra del mismo tipo.");
+        description: "Un rename rompe el código que todavía corre durante un despliegue por tandas. EF genera RenameColumn también cuando se borra una columna y se agrega otra del mismo tipo. Un RenameTable que solo cambia el schema no es un rename: va en una migración Move.");
 
     public static readonly DiagnosticDescriptor MigrationDropOutsideContract = new(
         id: "DUNE0018",
@@ -238,6 +238,42 @@ internal static class DuneDiagnostics
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
         description: "PostgreSQL reescribe la tabla con ACCESS EXCLUSIVE y el código del release anterior espera el tipo viejo. Un cambio de tipo es una columna nueva, un backfill y un Contract.");
+
+    public static readonly DiagnosticDescriptor MigrationMoveOutsideMove = new(
+        id: "DUNE0018",
+        title: "Cambio de schema fuera de una migración Move",
+        messageFormat: "'{0}' usa {1} para mover una tabla de schema: un cambio de schema va solo en una migración cuyo nombre empieza con Move, en un release posterior al que agregó el schema nuevo al Search Path",
+        category: "Dune",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "El release anterior nombra las tablas sin schema y las encuentra por search_path. Mover una tabla es seguro solo si ese release ya tenía el schema nuevo en su Search Path; la migración Move hace eso y nada más.");
+
+    public static readonly DiagnosticDescriptor MigrationMoveMixed = new(
+        id: "DUNE0018",
+        title: "Migración Move con otras operaciones",
+        messageFormat: "'{0}' es una migración Move y usa {1}: una migración Move solo crea schemas (EnsureSchema) y mueve tablas sin renombrarlas (RenameTable con newSchema)",
+        category: "Dune",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "Cada migración hace una sola cosa: lo que agrega o cambia va en otra migración, de otro release.");
+
+    public static readonly DiagnosticDescriptor MigrationMoveWithoutWayBack = new(
+        id: "DUNE0018",
+        title: "Migración Move sin vuelta en el Down",
+        messageFormat: "'{0}' usa {1} en una migración Move sin volver la tabla a su schema: el Down de una migración Move solo lleva, por cada tabla, RenameTable con newSchema igual al schema de origen (public si el Up no lo nombra)",
+        category: "Dune",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "El Down que genera la CLI para un cambio de schema omite newSchema y no mueve nada: solo borra la fila del historial. Se completa a mano con el schema de origen.");
+
+    public static readonly DiagnosticDescriptor MigrationMoveWithoutSchema = new(
+        id: "DUNE0018",
+        title: "Migración Move sin su schema",
+        messageFormat: "'{0}' usa {1} para mover una tabla a un schema que su Up no crea: una migración Move lleva EnsureSchema de cada schema de destino",
+        category: "Dune",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "ALTER TABLE ... SET SCHEMA falla si el schema no existe. La CLI genera EnsureSchema para cada schema nuevo del modelo; una migración Move escrita o editada a mano puede perderlo.");
 
     public static readonly DiagnosticDescriptor ReadSliceWrites = new(
         id: "DUNE0019",

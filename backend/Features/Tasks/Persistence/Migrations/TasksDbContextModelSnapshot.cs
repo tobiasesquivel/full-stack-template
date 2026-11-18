@@ -17,6 +17,7 @@ namespace TemplateApp.Features.Tasks.Persistence.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
+                .HasDefaultSchema("tasks")
                 .HasAnnotation("ProductVersion", "10.0.12")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
@@ -57,7 +58,7 @@ namespace TemplateApp.Features.Tasks.Persistence.Migrations
 
                     b.HasIndex("OwnerId", "CreatedAt", "Id");
 
-                    b.ToTable("TaskItems", (string)null);
+                    b.ToTable("TaskItems", "tasks");
                 });
 
             modelBuilder.Entity("TemplateApp.Infrastructure.Persistence.AuditEntry", b =>
@@ -107,7 +108,7 @@ namespace TemplateApp.Features.Tasks.Persistence.Migrations
 
                     b.HasIndex("OccurredAt");
 
-                    b.ToTable("AuditEntries", null, t =>
+                    b.ToTable("AuditEntries", "platform", t =>
                         {
                             t.ExcludeFromMigrations();
                         });

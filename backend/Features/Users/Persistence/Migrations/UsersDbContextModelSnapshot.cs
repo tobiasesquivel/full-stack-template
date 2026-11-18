@@ -17,6 +17,7 @@ namespace TemplateApp.Features.Users.Persistence.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
+                .HasDefaultSchema("users")
                 .HasAnnotation("ProductVersion", "10.0.12")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
@@ -42,7 +43,7 @@ namespace TemplateApp.Features.Users.Persistence.Migrations
 
                     b.HasKey("AuthId");
 
-                    b.ToTable("UserProfiles", (string)null);
+                    b.ToTable("UserProfiles", "users");
                 });
 
             modelBuilder.Entity("TemplateApp.Infrastructure.Persistence.AuditEntry", b =>
@@ -92,7 +93,7 @@ namespace TemplateApp.Features.Users.Persistence.Migrations
 
                     b.HasIndex("OccurredAt");
 
-                    b.ToTable("AuditEntries", null, t =>
+                    b.ToTable("AuditEntries", "platform", t =>
                         {
                             t.ExcludeFromMigrations();
                         });

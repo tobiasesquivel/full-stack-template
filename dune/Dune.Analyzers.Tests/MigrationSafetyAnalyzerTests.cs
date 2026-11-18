@@ -10,6 +10,7 @@ namespace Dune.Analyzers.Tests;
 public sealed class MigrationSafetyAnalyzerTests
 {
     private const string Folder = "backend/Infrastructure/Persistence/Migrations/";
+    private const string TasksFolder = "backend/Features/Tasks/Persistence/Migrations/";
 
     [Fact]
     public async Task ExpandMigrationsContractMigrationsAndMigrationsBeforeTheRuleAreAccepted()
@@ -201,6 +202,290 @@ public sealed class MigrationSafetyAnalyzerTests
             Reported(diagnostics));
     }
 
+    [Fact]
+    public async Task AMoveMigrationThatOnlyChangesTheSchemaAndMovesItBackInDownIsAccepted()
+    {
+        var diagnostics = await AnalyzeAsync(
+            (TasksFolder + "20261118200000_MoveTasksToSchema.cs", """
+                using Microsoft.EntityFrameworkCore.Migrations;
+                namespace TemplateApp.Features.Tasks.Persistence.Migrations;
+                [Migration("20261118200000_MoveTasksToSchema")]
+                public partial class MoveTasksToSchema : Migration
+                {
+                    protected override void Up(MigrationBuilder migrationBuilder)
+                    {
+                        migrationBuilder.EnsureSchema(name: "tasks");
+                        migrationBuilder.RenameTable(name: "TaskItems", newName: "TaskItems", newSchema: "tasks");
+                        migrationBuilder.RenameTable(name: "Labels", newSchema: "tasks");
+                    }
+
+                    protected override void Down(MigrationBuilder migrationBuilder)
+                    {
+                        migrationBuilder.RenameTable(name: "TaskItems", schema: "tasks", newName: "TaskItems", newSchema: "public");
+                        migrationBuilder.RenameTable(name: "Labels", schema: "tasks", newSchema: "public");
+                    }
+                }
+                """));
+
+        Assert.Empty(diagnostics.Where(diagnostic => diagnostic.Id == "DUNE0018"));
+    }
+
+    [Fact]
+    public async Task ASchemaMoveOutsideAMoveMigrationOrAMoveMigrationThatDoesMoreOrHasNoWayBackIsReported()
+    {
+        var diagnostics = await AnalyzeAsync(
+            (TasksFolder + "20261118200001_MoveTasksAndRename.cs", """
+                using Microsoft.EntityFrameworkCore.Migrations;
+                namespace TemplateApp.Features.Tasks.Persistence.Migrations;
+                [Migration("20261118200001_MoveTasksAndRename")]
+                public partial class MoveTasksAndRename : Migration
+                {
+                    protected override void Up(MigrationBuilder migrationBuilder)
+                    {
+                        migrationBuilder.EnsureSchema(name: "tasks");
+                        migrationBuilder.RenameTable(name: "TaskItems", newName: "Tasks", newSchema: "tasks");
+                    }
+
+                    protected override void Down(MigrationBuilder migrationBuilder)
+                    {
+                        migrationBuilder.RenameTable(name: "Tasks", schema: "tasks", newName: "Tasks", newSchema: "public");
+                    }
+                }
+                """),
+            (TasksFolder + "20261118200002_MoveTasksAndAddLabel.cs", """
+                using Microsoft.EntityFrameworkCore.Migrations;
+                namespace TemplateApp.Features.Tasks.Persistence.Migrations;
+                [Migration("20261118200002_MoveTasksAndAddLabel")]
+                public partial class MoveTasksAndAddLabel : Migration
+                {
+                    protected override void Up(MigrationBuilder migrationBuilder)
+                    {
+                        migrationBuilder.EnsureSchema(name: "tasks");
+                        migrationBuilder.RenameTable(name: "TaskItems", newName: "TaskItems", newSchema: "tasks");
+                        migrationBuilder.AddColumn<string>(name: "Label", table: "TaskItems", schema: "tasks", nullable: true);
+                    }
+
+                    protected override void Down(MigrationBuilder migrationBuilder)
+                    {
+                        migrationBuilder.RenameTable(name: "TaskItems", schema: "tasks", newName: "TaskItems", newSchema: "public");
+                    }
+                }
+                """),
+            (TasksFolder + "20261118200003_ContractTasksSchema.cs", """
+                using Microsoft.EntityFrameworkCore.Migrations;
+                namespace TemplateApp.Features.Tasks.Persistence.Migrations;
+                [Migration("20261118200003_ContractTasksSchema")]
+                public partial class ContractTasksSchema : Migration
+                {
+                    protected override void Up(MigrationBuilder migrationBuilder)
+                    {
+                        migrationBuilder.RenameTable(name: "TaskItems", newName: "TaskItems", newSchema: "tasks");
+                    }
+
+                    protected override void Down(MigrationBuilder migrationBuilder)
+                    {
+                    }
+                }
+                """),
+            (TasksFolder + "20261118200004_TasksSchema.cs", """
+                using Microsoft.EntityFrameworkCore.Migrations;
+                namespace TemplateApp.Features.Tasks.Persistence.Migrations;
+                [Migration("20261118200004_TasksSchema")]
+                public partial class TasksSchema : Migration
+                {
+                    protected override void Up(MigrationBuilder migrationBuilder)
+                    {
+                        migrationBuilder.EnsureSchema(name: "tasks");
+                        migrationBuilder.RenameTable(name: "TaskItems", newName: "TaskItems", newSchema: "tasks");
+                    }
+
+                    protected override void Down(MigrationBuilder migrationBuilder)
+                    {
+                        migrationBuilder.RenameTable(name: "TaskItems", schema: "tasks", newName: "TaskItems", newSchema: "public");
+                    }
+                }
+                """),
+            (TasksFolder + "20261118200005_MoveTasksWithGeneratedDown.cs", """
+                using Microsoft.EntityFrameworkCore.Migrations;
+                namespace TemplateApp.Features.Tasks.Persistence.Migrations;
+                [Migration("20261118200005_MoveTasksWithGeneratedDown")]
+                public partial class MoveTasksWithGeneratedDown : Migration
+                {
+                    protected override void Up(MigrationBuilder migrationBuilder)
+                    {
+                        migrationBuilder.EnsureSchema(name: "tasks");
+                        migrationBuilder.RenameTable(name: "TaskItems", newName: "TaskItems", newSchema: "tasks");
+                    }
+
+                    protected override void Down(MigrationBuilder migrationBuilder)
+                    {
+                        migrationBuilder.RenameTable(name: "TaskItems", schema: "tasks", newName: "TaskItems");
+                    }
+                }
+                """),
+            (TasksFolder + "20261118200006_MoveTasksWithoutDown.cs", """
+                using Microsoft.EntityFrameworkCore.Migrations;
+                namespace TemplateApp.Features.Tasks.Persistence.Migrations;
+                [Migration("20261118200006_MoveTasksWithoutDown")]
+                public partial class MoveTasksWithoutDown : Migration
+                {
+                    protected override void Up(MigrationBuilder migrationBuilder)
+                    {
+                        migrationBuilder.EnsureSchema(name: "tasks");
+                        migrationBuilder.RenameTable(name: "TaskItems", newName: "TaskItems", newSchema: "tasks");
+                    }
+
+                    protected override void Down(MigrationBuilder migrationBuilder)
+                    {
+                    }
+                }
+                """));
+
+        Assert.Equal(
+            new[]
+            {
+                ("20261118200001_MoveTasksAndRename.cs", 9, "RenameTable", "Migración que renombra"),
+                ("20261118200001_MoveTasksAndRename.cs", 14, "RenameTable", "Migración Move sin vuelta en el Down"),
+                ("20261118200002_MoveTasksAndAddLabel.cs", 10, "AddColumn", "Migración Move con otras operaciones"),
+                ("20261118200003_ContractTasksSchema.cs", 8, "RenameTable", "Cambio de schema fuera de una migración Move"),
+                ("20261118200004_TasksSchema.cs", 9, "RenameTable", "Cambio de schema fuera de una migración Move"),
+                ("20261118200005_MoveTasksWithGeneratedDown.cs", 14, "RenameTable", "Migración Move sin vuelta en el Down"),
+                ("20261118200006_MoveTasksWithoutDown.cs", 9, "RenameTable", "Migración Move sin vuelta en el Down"),
+            },
+            ReportedWithTitle(diagnostics));
+    }
+
+    [Fact]
+    public async Task AMigrationWhoseNameOnlyStartsWithTheLettersMoveAndAMoveFromAnExplicitSchemaThatReturnsThereAreAccepted()
+    {
+        var diagnostics = await AnalyzeAsync(
+            (TasksFolder + "20261118200010_MovedAtTaskItems.cs", """
+                using Microsoft.EntityFrameworkCore.Migrations;
+                namespace TemplateApp.Features.Tasks.Persistence.Migrations;
+                [Migration("20261118200010_MovedAtTaskItems")]
+                public partial class MovedAtTaskItems : Migration
+                {
+                    protected override void Up(MigrationBuilder migrationBuilder)
+                    {
+                        migrationBuilder.AddColumn<string>(name: "MovedAt", table: "TaskItems", nullable: true);
+                    }
+
+                    protected override void Down(MigrationBuilder migrationBuilder)
+                    {
+                    }
+                }
+                """),
+            (TasksFolder + "20261118200011_MoveTasksFromLegacy.cs", """
+                using Microsoft.EntityFrameworkCore.Migrations;
+                namespace TemplateApp.Features.Tasks.Persistence.Migrations;
+                [Migration("20261118200011_MoveTasksFromLegacy")]
+                public partial class MoveTasksFromLegacy : Migration
+                {
+                    protected override void Up(MigrationBuilder migrationBuilder)
+                    {
+                        migrationBuilder.EnsureSchema(name: "tasks");
+                        migrationBuilder.RenameTable(name: "TaskItems", schema: "legacy", newName: "TaskItems", newSchema: "tasks");
+                    }
+
+                    protected override void Down(MigrationBuilder migrationBuilder)
+                    {
+                        migrationBuilder.RenameTable(name: "TaskItems", schema: "tasks", newName: "TaskItems", newSchema: "legacy");
+                    }
+                }
+                """));
+
+        Assert.Empty(diagnostics.Where(diagnostic => diagnostic.Id == "DUNE0018"));
+    }
+
+    [Fact]
+    public async Task AMoveWhoseDownSendsTheTableElsewhereOrDoesMoreOrWhoseUpDoesNotEnsureTheSchemaIsReported()
+    {
+        var diagnostics = await AnalyzeAsync(
+            (TasksFolder + "20261118200012_MoveTasksBackToUsers.cs", """
+                using Microsoft.EntityFrameworkCore.Migrations;
+                namespace TemplateApp.Features.Tasks.Persistence.Migrations;
+                [Migration("20261118200012_MoveTasksBackToUsers")]
+                public partial class MoveTasksBackToUsers : Migration
+                {
+                    protected override void Up(MigrationBuilder migrationBuilder)
+                    {
+                        migrationBuilder.EnsureSchema(name: "tasks");
+                        migrationBuilder.RenameTable(name: "TaskItems", newName: "TaskItems", newSchema: "tasks");
+                    }
+
+                    protected override void Down(MigrationBuilder migrationBuilder)
+                    {
+                        migrationBuilder.RenameTable(name: "TaskItems", schema: "tasks", newName: "TaskItems", newSchema: "users");
+                    }
+                }
+                """),
+            (TasksFolder + "20261118200013_MoveTasksFromLegacyBackToPublic.cs", """
+                using Microsoft.EntityFrameworkCore.Migrations;
+                namespace TemplateApp.Features.Tasks.Persistence.Migrations;
+                [Migration("20261118200013_MoveTasksFromLegacyBackToPublic")]
+                public partial class MoveTasksFromLegacyBackToPublic : Migration
+                {
+                    protected override void Up(MigrationBuilder migrationBuilder)
+                    {
+                        migrationBuilder.EnsureSchema(name: "tasks");
+                        migrationBuilder.RenameTable(name: "TaskItems", schema: "legacy", newName: "TaskItems", newSchema: "tasks");
+                    }
+
+                    protected override void Down(MigrationBuilder migrationBuilder)
+                    {
+                        migrationBuilder.RenameTable(name: "TaskItems", schema: "tasks", newName: "TaskItems", newSchema: "public");
+                    }
+                }
+                """),
+            (TasksFolder + "20261118200014_MoveTasksBackAndDrop.cs", """
+                using Microsoft.EntityFrameworkCore.Migrations;
+                namespace TemplateApp.Features.Tasks.Persistence.Migrations;
+                [Migration("20261118200014_MoveTasksBackAndDrop")]
+                public partial class MoveTasksBackAndDrop : Migration
+                {
+                    protected override void Up(MigrationBuilder migrationBuilder)
+                    {
+                        migrationBuilder.EnsureSchema(name: "tasks");
+                        migrationBuilder.RenameTable(name: "TaskItems", newName: "TaskItems", newSchema: "tasks");
+                    }
+
+                    protected override void Down(MigrationBuilder migrationBuilder)
+                    {
+                        migrationBuilder.RenameTable(name: "TaskItems", schema: "tasks", newName: "TaskItems", newSchema: "public");
+                        migrationBuilder.DropTable(name: "TaskItems");
+                    }
+                }
+                """),
+            (TasksFolder + "20261118200015_MoveTasksWithoutSchema.cs", """
+                using Microsoft.EntityFrameworkCore.Migrations;
+                namespace TemplateApp.Features.Tasks.Persistence.Migrations;
+                [Migration("20261118200015_MoveTasksWithoutSchema")]
+                public partial class MoveTasksWithoutSchema : Migration
+                {
+                    protected override void Up(MigrationBuilder migrationBuilder)
+                    {
+                        migrationBuilder.EnsureSchema(name: "users");
+                        migrationBuilder.RenameTable(name: "TaskItems", newName: "TaskItems", newSchema: "tasks");
+                    }
+
+                    protected override void Down(MigrationBuilder migrationBuilder)
+                    {
+                        migrationBuilder.RenameTable(name: "TaskItems", schema: "tasks", newName: "TaskItems", newSchema: "public");
+                    }
+                }
+                """));
+
+        Assert.Equal(
+            new[]
+            {
+                ("20261118200012_MoveTasksBackToUsers.cs", 14, "RenameTable", "Migración Move sin vuelta en el Down"),
+                ("20261118200013_MoveTasksFromLegacyBackToPublic.cs", 14, "RenameTable", "Migración Move sin vuelta en el Down"),
+                ("20261118200014_MoveTasksBackAndDrop.cs", 15, "DropTable", "Migración Move con otras operaciones"),
+                ("20261118200015_MoveTasksWithoutSchema.cs", 9, "RenameTable", "Migración Move sin su schema"),
+            },
+            ReportedWithTitle(diagnostics));
+    }
+
     private static Task<ImmutableArray<Diagnostic>> AnalyzeAsync(params (string Path, string Source)[] files) =>
         AnalyzerHost.AnalyzeAsync(new List<(string, string)>(files), AnalyzerHost.Only<MigrationSafetyAnalyzer>());
 
@@ -211,6 +496,18 @@ public sealed class MigrationSafetyAnalyzerTests
                 System.IO.Path.GetFileName(diagnostic.Location.SourceTree!.FilePath),
                 diagnostic.Location.GetLineSpan().StartLinePosition.Line + 1,
                 diagnostic.Properties["operation"]!))
+            .OrderBy(location => location.Item1, System.StringComparer.Ordinal)
+            .ThenBy(location => location.Item2)
+            .ToArray();
+
+    private static (string File, int Line, string Operation, string Title)[] ReportedWithTitle(ImmutableArray<Diagnostic> diagnostics) =>
+        diagnostics
+            .Where(diagnostic => diagnostic.Id == "DUNE0018")
+            .Select(diagnostic => (
+                System.IO.Path.GetFileName(diagnostic.Location.SourceTree!.FilePath),
+                diagnostic.Location.GetLineSpan().StartLinePosition.Line + 1,
+                diagnostic.Properties["operation"]!,
+                diagnostic.Descriptor.Title.ToString(System.Globalization.CultureInfo.InvariantCulture)))
             .OrderBy(location => location.Item1, System.StringComparer.Ordinal)
             .ThenBy(location => location.Item2)
             .ToArray();

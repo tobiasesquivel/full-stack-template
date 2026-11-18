@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Data.Common;
+using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Npgsql;
 
@@ -12,7 +13,7 @@ internal sealed class CapturedCommands : DbCommandInterceptor
     public void Reset() => _commands.Clear();
 
     public IReadOnlyList<CapturedCommand> Reading(string table) =>
-        _commands.Where(command => command.Text.Contains($"FROM \"{table}\"", StringComparison.Ordinal)).ToList();
+        _commands.Where(command => Regex.IsMatch(command.Text, $"FROM (\\w+\\.)?\"{Regex.Escape(table)}\"")).ToList();
 
     public override ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(
         DbCommand command,

@@ -8,7 +8,7 @@ internal static class UsersFeature
 {
     public static IServiceCollection AddUsersFeature(this IServiceCollection services)
     {
-        services.AddMigratedDbContext<UsersDbContext>("users");
+        services.AddMigratedDbContext<UsersDbContext>(UsersDbContext.Schema);
         services.AddScoped<IUsersModule, UsersModule>();
         services.AddScoped<GetUser.GetUser>();
         services.AddScoped<UpdateProfile.UpdateProfile>();

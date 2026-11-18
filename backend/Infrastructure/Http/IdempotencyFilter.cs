@@ -46,7 +46,7 @@ public sealed class IdempotencyFilter<TRequest> : IEndpointFilter
         {
             int inserted = await db.Database.ExecuteSqlAsync(
                 $"""
-                INSERT INTO "IdempotencyKeys" ("OwnerId", "Key", "Fingerprint", "CreatedAt")
+                INSERT INTO platform."IdempotencyKeys" ("OwnerId", "Key", "Fingerprint", "CreatedAt")
                 VALUES ({owner}, {key}, {fingerprint}, {_clock.GetUtcNow()})
                 ON CONFLICT ("OwnerId", "Key") DO NOTHING
                 """,

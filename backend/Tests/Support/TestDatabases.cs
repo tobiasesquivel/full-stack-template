@@ -23,6 +23,13 @@ public static class TestDatabases
         return new NpgsqlConnectionStringBuilder(server) { Database = name }.ConnectionString;
     }
 
+    public static async Task<NpgsqlConnection> OpenAsync(string database)
+    {
+        NpgsqlConnection connection = new(DatabaseSearchPath.Apply(database));
+        await connection.OpenAsync();
+        return connection;
+    }
+
     public static string WithWrongPassword(string server) =>
         new NpgsqlConnectionStringBuilder(server) { Password = "wrong-password" }.ConnectionString;
 

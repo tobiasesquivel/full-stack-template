@@ -14,7 +14,7 @@ public static class ContextRegistration
     {
         services.AddDbContext<TContext>((provider, options) => options
             .UseNpgsql(
-                provider.GetRequiredService<IOptions<DatabaseOptions>>().Value.DefaultConnection,
+                ConnectionString(provider),
                 npgsql => npgsql.MigrationsHistoryTable(HistoryTable, schema))
             .AddInterceptors(provider.GetRequiredService<AuditInterceptor>()));
         services.AddSingleton(new MigratedContext(typeof(TContext)));
@@ -24,9 +24,12 @@ public static class ContextRegistration
     internal static IServiceCollection AddLegacyDbContext(this IServiceCollection services) =>
         services.AddDbContext<AppDbContext>((provider, options) => options
             .UseNpgsql(
-                provider.GetRequiredService<IOptions<DatabaseOptions>>().Value.DefaultConnection,
+                ConnectionString(provider),
                 npgsql => npgsql.MigrationsHistoryTable(HistoryTable, LegacySchema))
             .ConfigureWarnings(warnings => warnings.Ignore(RelationalEventId.PendingModelChangesWarning)));
+
+    private static string ConnectionString(IServiceProvider provider) =>
+        DatabaseSearchPath.Apply(provider.GetRequiredService<IOptions<DatabaseOptions>>().Value.DefaultConnection);
 
     public static IReadOnlyList<DbContext> MigratedContexts(this IServiceProvider services) =>
         services.GetServices<MigratedContext>()

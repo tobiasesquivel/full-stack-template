@@ -118,24 +118,21 @@ public sealed class TaskCompletionMigrationTests : IClassFixture<ApiFixture>
 
     private static async Task ExecuteAsync(string database, string sql)
     {
-        await using NpgsqlConnection connection = new(database);
-        await connection.OpenAsync();
+        await using NpgsqlConnection connection = await TestDatabases.OpenAsync(database);
         await using NpgsqlCommand command = WithParameters(new NpgsqlCommand(sql, connection));
         await command.ExecuteNonQueryAsync();
     }
 
     private static async Task<long> ScalarAsync(string database, string sql)
     {
-        await using NpgsqlConnection connection = new(database);
-        await connection.OpenAsync();
+        await using NpgsqlConnection connection = await TestDatabases.OpenAsync(database);
         await using NpgsqlCommand command = new(sql, connection);
         return (long)(await command.ExecuteScalarAsync())!;
     }
 
     private static async Task<(string, DateTimeOffset?)[]> CompletionsAsync(string database)
     {
-        await using NpgsqlConnection connection = new(database);
-        await connection.OpenAsync();
+        await using NpgsqlConnection connection = await TestDatabases.OpenAsync(database);
         await using NpgsqlCommand command = new("""SELECT "Title", "CompletedAt" FROM "TaskItems" ORDER BY "Title" """, connection);
         await using NpgsqlDataReader reader = await command.ExecuteReaderAsync();
         List<(string, DateTimeOffset?)> rows = [];
