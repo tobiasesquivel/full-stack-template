@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using TemplateApp.Features.Tasks.Domain;
@@ -232,6 +233,72 @@ public sealed class CreateTaskTests : IClassFixture<ApiFixture>
         Assert.Equal(HttpStatusCode.InternalServerError, failed.Status);
         OwnedRows rows = await services.OwnedRowsAsync(alice.AuthId);
         Assert.Equal((0L, 0L), (rows.Tasks, rows.IdempotencyKeys));
+    }
+
+    [Fact]
+    public async Task Create_InAnOwnActiveProject_Returns201_WithItsProjectId()
+    {
+        var alice = new TestSession(_fixture.CreateClient());
+        await alice.RegisterAsync(TestAccounts.UniqueName("alice"));
+        string projectId = await alice.CreateProjectAsync("Mudanza");
+
+        string id = await alice.CreateTaskAsync("Embalar", projectId);
+
+        var fetched = await alice.SendAsync(HttpMethod.Get, $"api/v1/tasks/{id}", csrf: false);
+        Assert.Equal(HttpStatusCode.OK, fetched.Status);
+        Assert.NotNull(fetched.Payload);
+        using (fetched.Payload)
+            Assert.Equal(projectId, fetched.Payload.RootElement.GetProperty("projectId").GetString());
+    }
+
+    [Fact]
+    public async Task Create_WithoutProject_ReturnsANullProjectId()
+    {
+        var alice = new TestSession(_fixture.CreateClient());
+        await alice.RegisterAsync(TestAccounts.UniqueName("alice"));
+
+        var created = await alice.SendAsync(HttpMethod.Post, "api/v1/tasks", new { title = "Suelta" });
+
+        Assert.Equal(HttpStatusCode.Created, created.Status);
+        Assert.NotNull(created.Payload);
+        using (created.Payload)
+            Assert.Equal(JsonValueKind.Null, created.Payload.RootElement.GetProperty("projectId").ValueKind);
+    }
+
+    [Fact]
+    public async Task Create_InAForeignOrMissingProject_Returns400ProjectId_AndStoresNoTask()
+    {
+        var alice = new TestSession(_fixture.CreateClient());
+        await alice.RegisterAsync(TestAccounts.UniqueName("alice"));
+        var bob = new TestSession(_fixture.CreateClient());
+        await bob.RegisterAsync(TestAccounts.UniqueName("bob"));
+        string foreign = await bob.CreateProjectAsync("Ajeno");
+
+        foreach (string projectId in new[] { foreign, Guid.NewGuid().ToString() })
+        {
+            var rejected = await alice.SendAsync(HttpMethod.Post, "api/v1/tasks", new { title = "Embalar", projectId });
+            JsonElement problem = ProblemAssert.Problem(rejected, HttpStatusCode.BadRequest, "Validation.Failed");
+            Assert.True(problem.GetProperty("errors").TryGetProperty("ProjectId", out _));
+        }
+
+        Assert.Equal(0, (await _fixture.Services.OwnedRowsAsync(alice.AuthId)).Tasks);
+    }
+
+    [Fact]
+    public async Task Create_InAnArchivedProject_Returns409ProjectArchived_AndStoresNoTask()
+    {
+        var alice = new TestSession(_fixture.CreateClient());
+        await alice.RegisterAsync(TestAccounts.UniqueName("alice"));
+        string projectId = await alice.CreateProjectAsync("Mudanza");
+        uint version = (await alice.ProjectAsync(projectId)).GetProperty("version").GetUInt32();
+        var archived = await alice.SendAsync(HttpMethod.Put, $"api/v1/projects/{projectId}", new { name = "Mudanza", isArchived = true, version });
+        archived.Payload?.Dispose();
+        Assert.Equal(HttpStatusCode.OK, archived.Status);
+
+        var rejected = await alice.SendAsync(HttpMethod.Post, "api/v1/tasks", new { title = "Embalar", projectId });
+
+        ProblemAssert.Problem(rejected, HttpStatusCode.Conflict, "Task.ProjectArchived");
+        Assert.Equal(0, (await _fixture.Services.OwnedRowsAsync(alice.AuthId)).Tasks);
     }
 
     private const string ReplayedHeader = "Idempotent-Replayed";

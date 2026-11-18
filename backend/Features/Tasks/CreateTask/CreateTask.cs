@@ -1,5 +1,6 @@
 using ErrorOr;
 using TemplateApp.Features.Auth.Contracts;
+using TemplateApp.Features.Projects.Contracts;
 using TemplateApp.Features.Tasks.Contracts;
 using TemplateApp.Features.Tasks.Domain;
 using TemplateApp.Features.Tasks.Persistence;
@@ -15,11 +16,13 @@ internal sealed class CreateTask
     private readonly IAuthModule _auth;
     private readonly TimeProvider _clock;
     private readonly TaskMetrics _metrics;
+    private readonly IProjectsModule _projects;
 
-    public CreateTask(TasksDbContext db, IAuthModule auth, TimeProvider clock, TaskMetrics metrics)
+    public CreateTask(TasksDbContext db, IAuthModule auth, TimeProvider clock, TaskMetrics metrics, IProjectsModule projects)
     {
         _db = db;
         _auth = auth;
+        _projects = projects;
         _clock = clock;
         _metrics = metrics;
     }
@@ -33,11 +36,22 @@ internal sealed class CreateTask
         if (!await _auth.HasPermissionAsync(callerId, TaskPermissions.Create, ct))
             return TaskErrors.Forbidden;
 
+        if (request.ProjectId is Guid projectId)
+        {
+            ProjectAssignmentInfo? project = await _projects.FindAssignableProjectAsync(callerId, projectId, ct);
+            if (project is null)
+                return TaskErrors.ProjectNotAssignable;
+
+            if (project.IsArchived)
+                return TaskErrors.ProjectArchived;
+        }
+
         var item = new TaskItem
         {
             Id = Guid.NewGuid(),
             OwnerId = callerId,
             Title = TaskItem.NormalizeTitle(request.Title),
+            ProjectId = request.ProjectId,
             CreatedAt = _clock.GetUtcNow(),
         };
 

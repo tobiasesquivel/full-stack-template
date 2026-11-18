@@ -28,7 +28,12 @@ internal sealed class TaskItemConfiguration : IEntityTypeConfiguration<TaskItem>
         builder.Property(t => t.Version)
             .IsRowVersion();
 
+        builder.Property(t => t.ProjectId);
+
         builder.HasIndex(t => new { t.OwnerId, t.CreatedAt, t.Id });
+
+        builder.HasIndex(t => t.ProjectId)
+            .IsCreatedConcurrently();
 
         builder.ToTable("TaskItems");
     }

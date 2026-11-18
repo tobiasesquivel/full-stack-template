@@ -17,12 +17,20 @@ El registro de quién cambió qué entidad y cuándo, sin datos personales.
 _Avoid_: log, historial de valores, event sourcing.
 
 **Propietario (owner)**:
-El usuario al que pertenece una tarea o un perfil.
+El usuario al que pertenece una tarea, un proyecto o un perfil.
 _Avoid_: autor, asignado, usuario dueño.
 
 **Tarea (TaskItem)**:
 Una actividad personal con título y estado de completitud que pertenece a un propietario.
 _Avoid_: ticket, trabajo, recurso como sinónimo de tarea.
+
+**Proyecto (Project)**:
+Una agrupación de tareas con nombre, que pertenece a un propietario. Su nombre es único entre los proyectos del mismo propietario, sin distinguir mayúsculas. Está activo o archivado. Una tarea puede pertenecer a un proyecto, y solo se crea en un proyecto propio y activo.
+_Avoid_: carpeta, lista, categoría, etiqueta como sinónimo de proyecto.
+
+**Proyecto archivado**:
+Un proyecto que salió de uso sin borrarse. Conserva sus tareas y sus contadores, no acepta tareas nuevas y no cambia de nombre hasta que se restaura.
+_Avoid_: borrado, cerrado, inactivo.
 
 **Permiso**:
 Una capacidad nombrada para una acción sobre una clase de recursos. Puede permitir actuar sobre recursos ajenos.

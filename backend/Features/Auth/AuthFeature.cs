@@ -17,7 +17,7 @@ internal static class AuthFeature
 
     public static IServiceCollection AddAuthFeature(this IServiceCollection services)
     {
-        services.AddMigratedDbContext<AuthDbContext>(AuthDbContext.Schema);
+        services.AddMigratedDbContext<AuthDbContext>(AuthDbContext.Schema, adoptsLegacyTables: true);
         services.AddAuthIdentity();
         services.AddAuthSession();
         services.AddAuthHttpPolicy();

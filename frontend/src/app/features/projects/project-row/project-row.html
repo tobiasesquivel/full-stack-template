@@ -1,0 +1,64 @@
+@if (editing()) {
+  <div class="w-full max-w-sm">
+    <input
+      type="text"
+      class="w-full rounded-lg border border-slate-400 bg-white px-3 py-2 focus:border-blue-600 focus-visible:outline-blue-700"
+      [id]="'edit-project-' + project().id"
+      [formField]="editForm.name"
+      [attr.aria-describedby]="showNameError() ? 'edit-project-error-' + project().id : null"
+      aria-label="Nuevo nombre del proyecto"
+    />
+    @if (showNameError()) {
+      <p class="text-red-800" [id]="'edit-project-error-' + project().id">
+        El nombre es obligatorio (máximo 100 caracteres).
+      </p>
+    }
+  </div>
+  <button
+    type="button"
+    class="cursor-pointer rounded-lg border border-blue-700 bg-white px-4 py-2 text-blue-700 hover:enabled:border-blue-800 hover:enabled:bg-blue-50 hover:enabled:text-blue-800 focus-visible:outline-blue-700 disabled:cursor-not-allowed disabled:opacity-60 max-xs:flex-auto"
+    [disabled]="busy()"
+    (click)="save()"
+  >
+    Guardar
+  </button>
+  <button
+    type="button"
+    class="cursor-pointer rounded-lg border border-blue-700 bg-white px-4 py-2 text-blue-700 hover:enabled:border-blue-800 hover:enabled:bg-blue-50 hover:enabled:text-blue-800 focus-visible:outline-blue-700 disabled:cursor-not-allowed disabled:opacity-60 max-xs:flex-auto"
+    (click)="editCancelled.emit()"
+  >
+    Cancelar
+  </button>
+} @else {
+  <span class="flex-[1_1_12rem] font-semibold wrap-anywhere">{{ project().name }}</span>
+  <span class="text-sm/normal text-slate-600">
+    {{ project().isArchived ? 'Archivado' : 'Activo' }}
+  </span>
+  <span class="text-sm/normal text-slate-600">Dueño: {{ project().ownerName }}</span>
+  <span class="text-sm/normal text-slate-600">
+    {{ project().taskCount }} {{ project().taskCount === 1 ? 'tarea' : 'tareas' }},
+    {{ project().completedTaskCount }}
+    {{ project().completedTaskCount === 1 ? 'completada' : 'completadas' }}
+  </span>
+  @if (project().isArchived) {
+    <span class="w-full text-sm/normal text-slate-600">
+      Restaura el proyecto para cambiar su nombre.
+    </span>
+  }
+  <button
+    type="button"
+    class="cursor-pointer rounded-lg border border-blue-700 bg-white px-4 py-2 text-blue-700 hover:enabled:border-blue-800 hover:enabled:bg-blue-50 hover:enabled:text-blue-800 focus-visible:outline-blue-700 disabled:cursor-not-allowed disabled:opacity-60 max-xs:flex-auto"
+    [disabled]="busy() || project().isArchived"
+    (click)="editStarted.emit()"
+  >
+    Editar
+  </button>
+  <button
+    type="button"
+    class="cursor-pointer rounded-lg border border-blue-700 bg-white px-4 py-2 text-blue-700 hover:enabled:border-blue-800 hover:enabled:bg-blue-50 hover:enabled:text-blue-800 focus-visible:outline-blue-700 disabled:cursor-not-allowed disabled:opacity-60 max-xs:flex-auto"
+    [disabled]="busy()"
+    (click)="archiveChanged.emit(!project().isArchived)"
+  >
+    {{ project().isArchived ? 'Restaurar' : 'Archivar' }}
+  </button>
+}

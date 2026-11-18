@@ -5,4 +5,5 @@ export interface TaskResponse {
   createdAt: string;
   updatedAt: string | null;
   version: number;
+  projectId: string | null;
 }

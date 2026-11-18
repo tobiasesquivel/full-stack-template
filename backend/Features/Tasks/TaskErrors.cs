@@ -16,11 +16,11 @@ internal static class TaskErrors
         code: "Task.Conflict",
         description: "The task was changed by another request.");
 
-    public static readonly Error InvalidCursor = Error.Validation(
-        code: "Cursor",
-        description: "Cursor is invalid.");
+    public static readonly Error ProjectNotAssignable = Error.Validation(
+        code: "ProjectId",
+        description: "ProjectId must be one of your projects.");
 
-    public static readonly Error InvalidPageSize = Error.Validation(
-        code: "PageSize",
-        description: "PageSize must be between 1 and 100.");
+    public static readonly Error ProjectArchived = Error.Conflict(
+        code: "Task.ProjectArchived",
+        description: "A task cannot be added to an archived project.");
 }

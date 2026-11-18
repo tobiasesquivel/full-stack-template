@@ -41,6 +41,18 @@ internal sealed class UsersModule : IUsersModule
         return profile is null ? null : Describe(profile);
     }
 
+    public async Task<IReadOnlyDictionary<string, string>> FindDisplayNamesAsync(IReadOnlyCollection<string> authIds, CancellationToken ct)
+    {
+        if (authIds.Count == 0)
+            return new Dictionary<string, string>(StringComparer.Ordinal);
+
+        string[] ids = [.. authIds];
+        return await _db.UserProfiles
+            .Where(p => ids.Contains(p.AuthId))
+            .Select(p => new { p.AuthId, p.DisplayName })
+            .ToDictionaryAsync(p => p.AuthId, p => p.DisplayName, StringComparer.Ordinal, ct);
+    }
+
     public static UserProfileDetails Describe(UserProfile profile) =>
         new(profile.DisplayName, profile.Timezone);
 }

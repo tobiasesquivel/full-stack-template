@@ -9,7 +9,10 @@ public static class ContextRegistration
     public const string LegacySchema = "public";
     public const string HistoryTable = "__EFMigrationsHistory";
 
-    public static IServiceCollection AddMigratedDbContext<TContext>(this IServiceCollection services, string schema)
+    public static IServiceCollection AddMigratedDbContext<TContext>(
+        this IServiceCollection services,
+        string schema,
+        bool adoptsLegacyTables)
         where TContext : DbContext
     {
         services.AddDbContext<TContext>((provider, options) => options
@@ -17,7 +20,7 @@ public static class ContextRegistration
                 ConnectionString(provider),
                 npgsql => npgsql.MigrationsHistoryTable(HistoryTable, schema))
             .AddInterceptors(provider.GetRequiredService<AuditInterceptor>()));
-        services.AddSingleton(new MigratedContext(typeof(TContext)));
+        services.AddSingleton(new MigratedContext(typeof(TContext), adoptsLegacyTables));
         return services;
     }
 
@@ -33,6 +36,12 @@ public static class ContextRegistration
 
     public static IReadOnlyList<DbContext> MigratedContexts(this IServiceProvider services) =>
         services.GetServices<MigratedContext>()
+            .Select(migrated => (DbContext)services.GetRequiredService(migrated.ContextType))
+            .ToList();
+
+    public static IReadOnlyList<DbContext> ContextsThatAdoptLegacyTables(this IServiceProvider services) =>
+        services.GetServices<MigratedContext>()
+            .Where(migrated => migrated.AdoptsLegacyTables)
             .Select(migrated => (DbContext)services.GetRequiredService(migrated.ContextType))
             .ToList();
 }

@@ -1,3 +1,3 @@
 namespace TemplateApp.Infrastructure.Persistence;
 
-public sealed record MigratedContext(Type ContextType);
+public sealed record MigratedContext(Type ContextType, bool AdoptsLegacyTables);

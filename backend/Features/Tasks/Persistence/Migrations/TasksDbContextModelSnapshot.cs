@@ -40,6 +40,9 @@ namespace TemplateApp.Features.Tasks.Persistence.Migrations
                         .HasMaxLength(450)
                         .HasColumnType("character varying(450)");
 
+                    b.Property<Guid?>("ProjectId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -55,6 +58,9 @@ namespace TemplateApp.Features.Tasks.Persistence.Migrations
                         .HasColumnName("xmin");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ProjectId")
+                        .HasAnnotation("Npgsql:CreatedConcurrently", true);
 
                     b.HasIndex("OwnerId", "CreatedAt", "Id");
 

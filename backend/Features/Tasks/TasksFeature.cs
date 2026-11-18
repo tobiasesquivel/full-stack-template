@@ -8,7 +8,7 @@ internal static class TasksFeature
 {
     public static IServiceCollection AddTasksFeature(this IServiceCollection services)
     {
-        services.AddMigratedDbContext<TasksDbContext>(TasksDbContext.Schema);
+        services.AddMigratedDbContext<TasksDbContext>(TasksDbContext.Schema, adoptsLegacyTables: true);
         services.AddSingleton<TaskMetrics>();
         services.AddScoped<ITasksModule, TasksModule>();
         services.AddScoped<CreateTask.CreateTask>();

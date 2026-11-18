@@ -9,7 +9,7 @@ namespace TemplateApp.Tests.Persistence;
 
 public sealed class DatabaseSearchPathTests : IClassFixture<ApiFixture>
 {
-    private const string ExpectedSearchPath = "public,auth,users,tasks,platform";
+    private const string ExpectedSearchPath = "public,auth,users,tasks,platform,projects";
 
     private readonly ApiFixture _fixture;
     private readonly PostgresFixture _postgres;
@@ -24,7 +24,7 @@ public sealed class DatabaseSearchPathTests : IClassFixture<ApiFixture>
     public async Task EveryContextSession_SearchesPublicAndEveryFeatureSchema()
     {
         Assert.Equal(
-            Enumerable.Repeat(ExpectedSearchPath, 5),
+            Enumerable.Repeat(ExpectedSearchPath, 6),
             await SessionSearchPathsAsync(_fixture.Services));
     }
 
@@ -37,7 +37,7 @@ public sealed class DatabaseSearchPathTests : IClassFixture<ApiFixture>
             TestDatabases.SkipInitialization,
             out IServiceProvider services);
 
-        Assert.Equal(Enumerable.Repeat(ExpectedSearchPath, 5), await SessionSearchPathsAsync(services));
+        Assert.Equal(Enumerable.Repeat(ExpectedSearchPath, 6), await SessionSearchPathsAsync(services));
     }
 
     [Fact]

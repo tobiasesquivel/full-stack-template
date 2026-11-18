@@ -1,6 +1,8 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using Testcontainers.PostgreSql;
@@ -17,6 +19,7 @@ public sealed class ConcurrentStartupTests : IAsyncLifetime
     private const int Rounds = 5;
 
     private PostgreSqlContainer? _postgres;
+    private string _server = string.Empty;
     private string _connection = string.Empty;
     private WebApplicationFactory<Program>? _factory;
 
@@ -38,6 +41,7 @@ public sealed class ConcurrentStartupTests : IAsyncLifetime
             server = _postgres.GetConnectionString();
         }
 
+        _server = server;
         _connection = await TestDatabases.CreateEmptyAsync(server);
         _factory = ApiFixture.CreateFactory(_connection);
         _ = _factory.Services;
@@ -78,6 +82,31 @@ public sealed class ConcurrentStartupTests : IAsyncLifetime
             await Task.WhenAll(initializers);
             await AssertEachRoleHasExactlyItsPermissionsAsync(services);
         }
+    }
+
+    [Fact]
+    public async Task Initializers_RunningTogether_OnEmptyDatabase_ApplyEveryMigration()
+    {
+        string empty = await TestDatabases.CreateEmptyAsync(_server);
+        using WebApplicationFactory<Program> factory = _factory!.WithWebHostBuilder(builder => builder
+            .UseSetting("ConnectionStrings:DefaultConnection", empty)
+            .ConfigureTestServices(TestDatabases.SkipInitialization));
+        IServiceProvider services = factory.Services;
+
+        TaskCompletionSource start = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        Task[] initializers = Enumerable.Range(0, Instances)
+            .Select(_ => Task.Run(async () =>
+            {
+                await start.Task;
+                await DatabaseInitializer.InitializeAsync(services);
+            }))
+            .ToArray();
+        start.SetResult();
+        await Task.WhenAll(initializers);
+
+        using IServiceScope scope = services.CreateScope();
+        foreach (DbContext context in scope.ServiceProvider.MigratedContexts())
+            Assert.Empty(await context.Database.GetPendingMigrationsAsync());
     }
 
     private async Task DeleteRolesAsync()

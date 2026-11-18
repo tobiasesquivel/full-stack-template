@@ -10,15 +10,18 @@ import {
 } from '@angular/core';
 import { FormField, FormRoot, form, maxLength, required } from '@angular/forms/signals';
 import { TasksApi } from '../api/tasks-api';
+import { ProjectsApi, type ProjectResponse } from '../../projects';
 import { describeHttpError } from '../../../core/http-error';
 import type { TaskResponse } from '../api/task-response';
 import { TaskPager } from '../task-pager/task-pager';
 import { TaskRow } from '../task-row/task-row';
 import { TaskDeleteDialog } from '../task-delete-dialog/task-delete-dialog';
 import { taskConflictMessage } from './task-conflict';
+import { taskProjectErrorMessage } from './task-project-error';
 import { type CreateAttempt, nextCreateAttempt } from './create-attempt';
 
 const PAGE_SIZE = 10;
+const PROJECT_OPTIONS_PAGE_SIZE = 100;
 
 @Component({
   selector: 'app-tasks',
@@ -28,8 +31,11 @@ const PAGE_SIZE = 10;
 })
 export class Tasks {
   private readonly tasksApi = inject(TasksApi);
+  private readonly projectsApi = inject(ProjectsApi);
 
   protected readonly items = signal<TaskResponse[]>([]);
+  protected readonly projects = signal<ProjectResponse[]>([]);
+  protected readonly projectsError = signal<string | null>(null);
   private readonly cursors = signal<(string | null)[]>([null]);
   private readonly nextCursor = signal<string | null>(null);
   protected readonly page = computed(() => this.cursors().length);
@@ -45,7 +51,7 @@ export class Tasks {
   private deleteTrigger: HTMLButtonElement | null = null;
   private readonly injector = inject(Injector);
   private readonly tasksHeading = viewChild<ElementRef<HTMLElement>>('tasksHeading');
-  private readonly newTask = signal({ title: '' });
+  private readonly newTask = signal({ title: '', projectId: '' });
   private lastAttempt: CreateAttempt | null = null;
   protected readonly createForm = form(
     this.newTask,
@@ -58,6 +64,16 @@ export class Tasks {
 
   constructor() {
     void this.load();
+    void this.loadProjects();
+  }
+
+  private async loadProjects(): Promise<void> {
+    try {
+      const result = await this.projectsApi.list(null, PROJECT_OPTIONS_PAGE_SIZE);
+      this.projects.set(result.items.filter((project) => !project.isArchived));
+    } catch (err) {
+      this.projectsError.set(describeHttpError(err));
+    }
   }
 
   protected async load(): Promise<void> {
@@ -94,15 +110,18 @@ export class Tasks {
   private async create(): Promise<undefined> {
     this.createError.set(null);
     try {
-      const attempt = nextCreateAttempt(this.lastAttempt, this.newTask().title.trim());
+      const attempt = nextCreateAttempt(this.lastAttempt, {
+        title: this.newTask().title.trim(),
+        projectId: this.newTask().projectId || null,
+      });
       this.lastAttempt = attempt;
-      await this.tasksApi.create(attempt.title, attempt.key);
+      await this.tasksApi.create(attempt.request, attempt.key);
       this.lastAttempt = null;
-      this.createForm().reset({ title: '' });
+      this.createForm().reset({ title: '', projectId: '' });
       this.cursors.set([null]);
       await this.load();
     } catch (err) {
-      this.createError.set(describeHttpError(err));
+      this.createError.set(taskProjectErrorMessage(err) ?? describeHttpError(err));
     }
     return undefined;
   }

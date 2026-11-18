@@ -7,4 +7,6 @@ public interface IUsersModule
     Task<ErrorOr<UserProfileDetails>> CreateProfileAsync(string authId, string displayName, CancellationToken ct);
 
     Task<UserProfileDetails?> FindProfileAsync(string authId, CancellationToken ct);
+
+    Task<IReadOnlyDictionary<string, string>> FindDisplayNamesAsync(IReadOnlyCollection<string> authIds, CancellationToken ct);
 }
