@@ -21,6 +21,16 @@ public sealed class ApiFixture : IAsyncLifetime
 
     public IServiceProvider TasksServices => _api!.Tasks.Services;
 
+    public HttpClient CreateMonolithClient() => _api!.CreateMonolithClient();
+
+    public HttpClient CreateTasksClient() => _api!.CreateTasksClient();
+
+    public ApiPair CreateIsolatedApi(RemoteFault fault) =>
+        CreateIsolatedApi(new Dictionary<string, string>(), _ => { }, fault.Intercept);
+
+    public ApiPair CreateIsolatedApi(IReadOnlyDictionary<string, string> settings, RemoteFault fault) =>
+        CreateIsolatedApi(settings, _ => { }, fault.Intercept);
+
     public HttpClient CreateIsolatedClient(out IServiceProvider services) =>
         CreateIsolatedClient(new Dictionary<string, string>(), out services);
 

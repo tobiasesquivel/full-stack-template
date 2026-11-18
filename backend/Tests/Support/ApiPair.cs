@@ -45,6 +45,10 @@ public sealed class ApiPair : IDisposable
             BaseAddress = new Uri("http://localhost"),
         };
 
+    public HttpClient CreateMonolithClient() => new(new InMemoryRoutes(_ => _monolith.Server)) { BaseAddress = new Uri("http://localhost") };
+
+    public HttpClient CreateTasksClient() => new(new InMemoryRoutes(_ => _tasks.Server)) { BaseAddress = new Uri("http://localhost") };
+
     public void Start()
     {
         _ = _monolith.Services;
