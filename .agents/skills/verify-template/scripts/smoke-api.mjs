@@ -150,6 +150,26 @@ function compose(...args) {
   assert.equal(result.status, 0, `docker compose ${args.join(' ')} debe terminar con éxito`);
 }
 
+function composeServices() {
+  const result = spawnSync('docker', ['compose', 'ps', '--format', 'json'], { encoding: 'utf8', shell: false });
+  assert.equal(result.status, 0, 'docker compose ps debe terminar con éxito');
+  const output = result.stdout.trim();
+  const services = output.startsWith('[') ? JSON.parse(output) : output.split('\n').filter(Boolean).map(line => JSON.parse(line));
+  return new Map(services.map(service => [service.Service, service]));
+}
+
+async function waitGatewayUnavailable() {
+  const deadline = Date.now() + 30000;
+  while (Date.now() < deadline) {
+    try {
+      const response = await fetch(new URL('health/live', base), { signal: AbortSignal.timeout(3000) });
+      if (response.status === 503) return response;
+    } catch {}
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+  throw new Error('El gateway no respondió 503 en 30 segundos con la API caída');
+}
+
 const suffix = crypto.randomUUID().replaceAll('-', '').slice(0, 16);
 const alice = new ApiClient();
 const bob = new ApiClient();
@@ -258,6 +278,22 @@ assert.equal((await alice.request('GET', `tasks/${created.id}`)).payload.title, 
   'Cerrar otra sesión del mismo usuario no corta esta');
 
 if (process.argv.includes('--compose')) {
+  const services = composeServices();
+  for (const service of ['db', 'prometheus', 'api', 'gateway']) {
+    assert.equal(services.get(service)?.Health, 'healthy', `${service} responde su healthcheck`);
+  }
+  assert.ok(!(services.get('api').Publishers ?? []).some(publisher => publisher.PublishedPort),
+    'La API no publica puertos: todo entra por el gateway');
+  compose('stop', 'api');
+  try {
+    const unavailable = await waitGatewayUnavailable();
+    assertSecurityHeaders(unavailable, 'gateway 503 con la API caída');
+    const gatewayReady = await fetch(new URL('/health/ready', base), { signal: AbortSignal.timeout(3000) });
+    assert.equal(gatewayReady.status, 200, 'El gateway sigue listo aunque la API esté caída');
+  } finally {
+    compose('start', 'api');
+    await waitReady();
+  }
   compose('stop', 'db');
   try {
     await anonymous.request('GET', 'health/live');
