@@ -83,7 +83,7 @@ public sealed class GetProjectTests : IClassFixture<ApiFixture>
 
         Assert.False(read.IsError);
         Assert.Equal(1, read.Value.TaskCount);
-        Assert.Single(commands.Reading("Projects"));
+        Assert.DoesNotContain("\"NormalizedName\"", Assert.Single(commands.Reading("Projects")).Text, StringComparison.Ordinal);
         Assert.Single(commands.Reading("TaskItems"));
         Assert.Single(commands.Reading("UserProfiles"));
         Assert.Empty(scope.ServiceProvider.GetRequiredService<ProjectsDbContext>().ChangeTracker.Entries<Project>());

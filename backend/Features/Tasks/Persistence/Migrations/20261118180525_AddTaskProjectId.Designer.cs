@@ -62,9 +62,6 @@ namespace TemplateApp.Features.Tasks.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ProjectId")
-                        .HasAnnotation("Npgsql:CreatedConcurrently", true);
-
                     b.HasIndex("OwnerId", "CreatedAt", "Id");
 
                     b.ToTable("TaskItems", "tasks");

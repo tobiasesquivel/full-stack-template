@@ -135,7 +135,7 @@ test('restoring a project enables its rename, and the new name is saved', async 
   await row(HOME).getByRole('button', { name: 'Editar' }).click();
   await editField().fill('Casa e2e');
   const renamed = response(page, 'PUT', '/api/v1/projects/', 200);
-  await row(HOME).getByRole('button', { name: 'Guardar' }).click();
+  await rows().filter({ has: editField() }).getByRole('button', { name: 'Guardar' }).click();
   expect(await (await renamed).json()).toMatchObject({ name: 'Casa e2e' });
   await expect(editField()).toHaveCount(0);
   await expect(rows().filter({ hasText: 'Casa e2e' })).toBeVisible();

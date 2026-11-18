@@ -93,7 +93,7 @@ public sealed class ListProjectsTests : IClassFixture<ApiFixture>
             Assert.Equal(tasksPerProject[item.Id], item.TaskCount);
             Assert.Equal(aliceName, item.OwnerName);
         });
-        Assert.Single(commands.Reading("Projects"));
+        Assert.DoesNotContain("\"NormalizedName\"", Assert.Single(commands.Reading("Projects")).Text, StringComparison.Ordinal);
         Assert.Single(commands.Reading("TaskItems"));
         Assert.Single(commands.Reading("UserProfiles"));
         Assert.Empty(scope.ServiceProvider.GetRequiredService<ProjectsDbContext>().ChangeTracker.Entries<Project>());
