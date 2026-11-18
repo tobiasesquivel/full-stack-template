@@ -21,7 +21,7 @@ public sealed class ConcurrentStartupTests : IAsyncLifetime
     private PostgreSqlContainer? _postgres;
     private string _server = string.Empty;
     private string _connection = string.Empty;
-    private WebApplicationFactory<Program>? _factory;
+    private WebApplicationFactory<MonolithHost>? _factory;
 
     public async ValueTask InitializeAsync()
     {
@@ -88,7 +88,7 @@ public sealed class ConcurrentStartupTests : IAsyncLifetime
     public async Task Initializers_RunningTogether_OnEmptyDatabase_ApplyEveryMigration()
     {
         string empty = await TestDatabases.CreateEmptyAsync(_server);
-        using WebApplicationFactory<Program> factory = _factory!.WithWebHostBuilder(builder => builder
+        using WebApplicationFactory<MonolithHost> factory = _factory!.WithWebHostBuilder(builder => builder
             .UseSetting("ConnectionStrings:DefaultConnection", empty)
             .ConfigureTestServices(TestDatabases.SkipInitialization));
         IServiceProvider services = factory.Services;

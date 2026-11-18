@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using TemplateApp.Features.Auth.Contracts;
 using TemplateApp.Features.Auth.Persistence;
-using TemplateApp.Features.Tasks.Contracts;
+using TemplateApp.Features.Auth.Access;
 using TemplateApp.Tests.Support;
 using Xunit;
 
@@ -63,11 +63,11 @@ public sealed class PermissionMemoTests : IClassFixture<ApiFixture>
         using (IServiceScope request = services.CreateScope())
         {
             IAuthModule auth = request.ServiceProvider.GetRequiredService<IAuthModule>();
-            Assert.False(await auth.HasPermissionAsync(bob.AuthId, TaskPermissions.Read, CancellationToken.None));
+            Assert.False(await auth.HasPermissionAsync(bob.AuthId, TaskPermissionNames.Read, CancellationToken.None));
 
             await _fixture.SetRoleAsync(bobName, "Admin", member: true);
 
-            Assert.False(await auth.HasPermissionAsync(bob.AuthId, TaskPermissions.Read, CancellationToken.None));
+            Assert.False(await auth.HasPermissionAsync(bob.AuthId, TaskPermissionNames.Read, CancellationToken.None));
         }
 
         Assert.Equal(new[] { true, true }, await ProbeAsync(bob, bob.AuthId, checks: 2));

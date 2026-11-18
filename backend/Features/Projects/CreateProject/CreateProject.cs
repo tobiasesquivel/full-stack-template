@@ -49,6 +49,6 @@ internal sealed class CreateProject
             return ProjectErrors.NameTaken;
         }
 
-        return await _responses.ComposeAsync(ProjectRows.From(project), ct);
+        return await _responses.ComposeNewAsync(ProjectRows.From(project), ct);
     }
 }

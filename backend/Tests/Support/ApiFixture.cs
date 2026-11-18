@@ -1,6 +1,4 @@
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
@@ -9,20 +7,19 @@ namespace TemplateApp.Tests.Support;
 public sealed class ApiFixture : IAsyncLifetime
 {
     private readonly string _connectionString;
-    private WebApplicationFactory<Program>? _factory;
-    private readonly List<WebApplicationFactory<Program>> _isolatedFactories = new();
+    private ApiPair? _api;
+    private readonly List<ApiPair> _isolated = new();
 
     public ApiFixture(PostgresFixture postgres)
     {
         _connectionString = postgres.ConnectionString;
     }
 
-    public HttpClient CreateClient() => _factory!.CreateClient(new WebApplicationFactoryClientOptions
-    {
-        AllowAutoRedirect = false,
-    });
+    public HttpClient CreateClient() => _api!.CreateClient();
 
-    public IServiceProvider Services => _factory!.Services;
+    public IServiceProvider Services => _api!.Monolith.Services;
+
+    public IServiceProvider TasksServices => _api!.Tasks.Services;
 
     public HttpClient CreateIsolatedClient(out IServiceProvider services) =>
         CreateIsolatedClient(new Dictionary<string, string>(), out services);
@@ -38,48 +35,43 @@ public sealed class ApiFixture : IAsyncLifetime
         Action<IServiceCollection> configureServices,
         out IServiceProvider services)
     {
-        WebApplicationFactory<Program> isolated = new TestApiFactory(_connectionString, settings, configureServices);
+        ApiPair isolated = CreateIsolatedApi(settings, configureServices);
+        services = isolated.Monolith.Services;
+        return isolated.CreateClient();
+    }
 
-        _isolatedFactories.Add(isolated);
-        services = isolated.Services;
-        return isolated.CreateClient(new WebApplicationFactoryClientOptions
-        {
-            AllowAutoRedirect = false,
-        });
+    public HttpClient CreateIsolatedTasksClient(Action<IServiceCollection> configureServices, out IServiceProvider tasksServices)
+    {
+        ApiPair isolated = CreateIsolatedApi(new Dictionary<string, string>(), configureServices);
+        tasksServices = isolated.Tasks.Services;
+        return isolated.CreateClient();
+    }
+
+    public ApiPair CreateIsolatedApi(
+        IReadOnlyDictionary<string, string> settings,
+        Action<IServiceCollection> configureServices,
+        Func<HttpRequestMessage, HttpMessageHandler?>? interceptRemote = null)
+    {
+        ApiPair isolated = new(_connectionString, settings, configureServices, interceptRemote);
+        _isolated.Add(isolated);
+        isolated.Start();
+        return isolated;
     }
 
     public ValueTask InitializeAsync()
     {
-        _factory = CreateFactory(_connectionString);
-        _ = _factory.Services;
+        _api = new ApiPair(_connectionString, new Dictionary<string, string>(), _ => { });
+        _api.Start();
         return ValueTask.CompletedTask;
     }
 
-    public static WebApplicationFactory<Program> CreateFactory(string connectionString) =>
-        new TestApiFactory(connectionString, new Dictionary<string, string>(), _ => { });
-
-    private sealed class TestApiFactory(
-        string connectionString,
-        IReadOnlyDictionary<string, string> settings,
-        Action<IServiceCollection> configureServices) : WebApplicationFactory<Program>
-    {
-        protected override void ConfigureWebHost(IWebHostBuilder builder)
-        {
-            builder.UseEnvironment("Testing");
-
-            builder.UseSetting("ConnectionStrings:DefaultConnection", connectionString);
-            builder.UseSetting("Session:AbsoluteExpirationDays", "7");
-            builder.UseSetting("Session:IdleTimeoutMinutes", "30");
-            foreach ((string key, string value) in settings)
-                builder.UseSetting(key, value);
-            builder.ConfigureTestServices(configureServices);
-        }
-    }
+    public static WebApplicationFactory<MonolithHost> CreateFactory(string connectionString) =>
+        new ApiPair.MonolithFactory(connectionString, new Dictionary<string, string>(), _ => { });
 
     public ValueTask DisposeAsync()
     {
-        _factory?.Dispose();
-        foreach (WebApplicationFactory<Program> isolated in _isolatedFactories)
+        _api?.Dispose();
+        foreach (ApiPair isolated in _isolated)
             isolated.Dispose();
 
         return ValueTask.CompletedTask;

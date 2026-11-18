@@ -36,7 +36,7 @@ public sealed class NamingAnalyzer : DiagnosticAnalyzer
                 || !DunePaths.IsBackendFile(path)
                 || DunePaths.IsMigration(path)
                 || DunePaths.IsTestsFile(path)
-                || path.EndsWith("backend/Program.cs", System.StringComparison.Ordinal))
+                || IsHostProgram(path))
             {
                 continue;
             }
@@ -147,4 +147,21 @@ public sealed class NamingAnalyzer : DiagnosticAnalyzer
             declaration,
             name,
             expected));
+
+    private static bool IsHostProgram(string path)
+    {
+        if (path.EndsWith("backend/Program.cs", System.StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        var marker = path.IndexOf("backend/Hosts/", System.StringComparison.Ordinal);
+        if (marker < 0)
+        {
+            return false;
+        }
+
+        var segments = path.Substring(marker + "backend/Hosts/".Length).Split('/');
+        return segments.Length == 2 && segments[1].Equals("Program.cs", System.StringComparison.Ordinal);
+    }
 }

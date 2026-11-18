@@ -201,7 +201,7 @@ public sealed class CreateTaskTests : IClassFixture<ApiFixture>
         var alice = new TestSession(_fixture.CreateClient());
         await alice.RegisterAsync(TestAccounts.UniqueName("alice"));
         var key = KeyHeader(Guid.NewGuid().ToString());
-        using var created = new RecordedMeasurements(_fixture.Services, "TemplateApp.Tasks", "templateapp.tasks.created");
+        using var created = new RecordedMeasurements(_fixture.TasksServices, "TemplateApp.Tasks", "templateapp.tasks.created");
 
         var first = await alice.SendAsync(HttpMethod.Post, "api/v1/tasks", new { title = "Comprar pan" }, headers: key);
         var replay = await alice.SendAsync(HttpMethod.Post, "api/v1/tasks", new { title = "Comprar pan" }, headers: key);
@@ -221,7 +221,7 @@ public sealed class CreateTaskTests : IClassFixture<ApiFixture>
     [Fact]
     public async Task Create_WithKey_WhenItFailsAfterTheTaskWasSaved_LeavesNeitherKeyNorTask()
     {
-        HttpClient client = _fixture.CreateIsolatedClient(
+        HttpClient client = _fixture.CreateIsolatedTasksClient(
             services => services.ConfigureDbContext<TasksDbContext>((_, options) => options.AddInterceptors(new FailAfterSaving<TaskItem>())),
             out IServiceProvider services);
         var alice = new TestSession(client);

@@ -7,5 +7,10 @@ public static class InternalApi
     public static RouteGroupBuilder MapInternalApi(this IEndpointRouteBuilder app) =>
         app.MapGroup(Prefix)
             .DisableRateLimiting()
-            .ExcludeFromDescription();
+            .ExcludeFromDescription()
+            .AddEndpointFilter((context, next) =>
+            {
+                OnBehalfOf.Accept(context.HttpContext);
+                return next(context);
+            });
 }

@@ -1,7 +1,5 @@
 using ErrorOr;
-using TemplateApp.Features.Auth.Contracts;
-using TemplateApp.Features.Projects.Contracts;
-using TemplateApp.Features.Tasks.Contracts;
+using TemplateApp.Features.Tasks.Access;
 using TemplateApp.Features.Tasks.Domain;
 using TemplateApp.Features.Tasks.Persistence;
 using TemplateApp.Shared.Http;
@@ -13,15 +11,15 @@ internal sealed class CreateTask
     private static readonly CreateTaskRequestValidator Validator = new();
 
     private readonly TasksDbContext _db;
-    private readonly IAuthModule _auth;
+    private readonly TaskAccess _access;
     private readonly TimeProvider _clock;
     private readonly TaskMetrics _metrics;
-    private readonly IProjectsModule _projects;
+    private readonly ProjectsClient _projects;
 
-    public CreateTask(TasksDbContext db, IAuthModule auth, TimeProvider clock, TaskMetrics metrics, IProjectsModule projects)
+    public CreateTask(TasksDbContext db, TaskAccess access, TimeProvider clock, TaskMetrics metrics, ProjectsClient projects)
     {
         _db = db;
-        _auth = auth;
+        _access = access;
         _projects = projects;
         _clock = clock;
         _metrics = metrics;
@@ -33,12 +31,12 @@ internal sealed class CreateTask
         if (!validation.IsValid)
             return ValidationErrors.From(validation);
 
-        if (!await _auth.HasPermissionAsync(callerId, TaskPermissions.Create, ct))
+        if (!_access.HasPermission(TaskPermissions.Create))
             return TaskErrors.Forbidden;
 
         if (request.ProjectId is Guid projectId)
         {
-            ProjectAssignmentInfo? project = await _projects.FindAssignableProjectAsync(callerId, projectId, ct);
+            ProjectAssignment? project = await _projects.FindAssignableAsync(callerId, projectId, ct);
             if (project is null)
                 return TaskErrors.ProjectNotAssignable;
 

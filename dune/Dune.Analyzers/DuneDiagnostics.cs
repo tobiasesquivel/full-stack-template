@@ -47,7 +47,7 @@ internal static class DuneDiagnostics
         category: "Dune",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
-        description: "El namespace de todo tipo de primer nivel (clase, struct, record, record struct, interface, enum y delegate) coincide con la ruta relativa de la feature.");
+        description: "El namespace de todo tipo de primer nivel (clase, struct, record, record struct, interface, enum y delegate) coincide con la ruta relativa de la feature. Solo el Program.cs de cada host (backend/Program.cs y backend/Hosts/<Host>/Program.cs) queda en el namespace global.");
 
     public static readonly DiagnosticDescriptor DbSetShadow = new(
         id: "DUNE0006",

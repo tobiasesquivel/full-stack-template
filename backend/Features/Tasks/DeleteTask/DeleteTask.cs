@@ -1,7 +1,6 @@
 using ErrorOr;
 using Microsoft.EntityFrameworkCore;
-using TemplateApp.Features.Auth.Contracts;
-using TemplateApp.Features.Tasks.Contracts;
+using TemplateApp.Features.Tasks.Access;
 using TemplateApp.Features.Tasks.Persistence;
 
 namespace TemplateApp.Features.Tasks.DeleteTask;
@@ -9,12 +8,12 @@ namespace TemplateApp.Features.Tasks.DeleteTask;
 internal sealed class DeleteTask
 {
     private readonly TasksDbContext _db;
-    private readonly IAuthModule _auth;
+    private readonly TaskAccess _access;
 
-    public DeleteTask(TasksDbContext db, IAuthModule auth)
+    public DeleteTask(TasksDbContext db, TaskAccess access)
     {
         _db = db;
-        _auth = auth;
+        _access = access;
     }
 
     public async Task<ErrorOr<Success>> ExecuteAsync(string callerId, Guid id, CancellationToken ct)
@@ -23,7 +22,7 @@ internal sealed class DeleteTask
         if (item is null)
             return TaskErrors.NotFound(id);
 
-        if (!await _auth.CanAccessAsync(callerId, item, TaskPermissions.Delete, ct))
+        if (!_access.CanAccess(callerId, item, TaskPermissions.Delete))
             return TaskErrors.Forbidden;
 
         _db.TaskItems.Remove(item);

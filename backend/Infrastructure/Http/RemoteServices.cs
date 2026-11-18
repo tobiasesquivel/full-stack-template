@@ -10,13 +10,15 @@ public static class RemoteServices
     {
         services.AddOptionsWithValidateOnStart<RemoteServiceOptions, RemoteServiceOptionsValidator>(service)
             .BindConfiguration($"{RemoteServiceOptions.Section}:{service}");
+        services.AddTransient<OnBehalfOf.ForwardingHandler>();
 
         return services.AddHttpClient<TClient>((provider, client) =>
-        {
-            RemoteServiceOptions remote = provider.GetRequiredService<IOptionsMonitor<RemoteServiceOptions>>().Get(service);
-            client.BaseAddress = remote.BaseAddress;
-            client.Timeout = remote.Timeout;
-        });
+            {
+                RemoteServiceOptions remote = provider.GetRequiredService<IOptionsMonitor<RemoteServiceOptions>>().Get(service);
+                client.BaseAddress = remote.BaseAddress;
+                client.Timeout = remote.Timeout;
+            })
+            .AddHttpMessageHandler<OnBehalfOf.ForwardingHandler>();
     }
 
     public static async Task<HttpResponseMessage> SendRemoteAsync(

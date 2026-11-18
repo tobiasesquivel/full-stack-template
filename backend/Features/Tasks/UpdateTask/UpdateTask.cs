@@ -1,7 +1,6 @@
 using ErrorOr;
 using Microsoft.EntityFrameworkCore;
-using TemplateApp.Features.Auth.Contracts;
-using TemplateApp.Features.Tasks.Contracts;
+using TemplateApp.Features.Tasks.Access;
 using TemplateApp.Features.Tasks.Domain;
 using TemplateApp.Features.Tasks.Persistence;
 using TemplateApp.Shared.Http;
@@ -13,14 +12,14 @@ internal sealed class UpdateTask
     private static readonly UpdateTaskRequestValidator Validator = new();
 
     private readonly TasksDbContext _db;
-    private readonly IAuthModule _auth;
+    private readonly TaskAccess _access;
     private readonly TimeProvider _clock;
     private readonly TaskMetrics _metrics;
 
-    public UpdateTask(TasksDbContext db, IAuthModule auth, TimeProvider clock, TaskMetrics metrics)
+    public UpdateTask(TasksDbContext db, TaskAccess access, TimeProvider clock, TaskMetrics metrics)
     {
         _db = db;
-        _auth = auth;
+        _access = access;
         _clock = clock;
         _metrics = metrics;
     }
@@ -35,7 +34,7 @@ internal sealed class UpdateTask
         if (item is null)
             return TaskErrors.NotFound(id);
 
-        if (!await _auth.CanAccessAsync(callerId, item, TaskPermissions.Update, ct))
+        if (!_access.CanAccess(callerId, item, TaskPermissions.Update))
             return TaskErrors.Forbidden;
 
         string title = TaskItem.NormalizeTitle(request.Title);

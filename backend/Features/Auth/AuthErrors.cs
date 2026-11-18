@@ -25,6 +25,10 @@ internal static class AuthErrors
         code: "Auth.AccountNotFound",
         description: "Account not found.");
 
+    public static readonly Error SessionInactive = Error.NotFound(
+        code: "Auth.SessionInactive",
+        description: "The session does not exist, expired or belongs to another user.");
+
     public static readonly Error InvalidUserName = Error.Validation(
         code: "UserName",
         description: "UserName must be between 1 and 100 characters.");

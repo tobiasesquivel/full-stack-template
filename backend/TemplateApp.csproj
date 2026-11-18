@@ -5,7 +5,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>templateapp-backend-dev</UserSecretsId>
-    <DefaultItemExcludes>$(DefaultItemExcludes);Tests/**;Platform/**;Hosts/**;Infrastructure/**;Shared/**</DefaultItemExcludes>
+    <DefaultItemExcludes>$(DefaultItemExcludes);Tests/**;Platform/**;Hosts/**;Infrastructure/**;Shared/**;Features/Tasks/**</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>

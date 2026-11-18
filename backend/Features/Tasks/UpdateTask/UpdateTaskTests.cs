@@ -62,7 +62,7 @@ public sealed class UpdateTaskTests : IClassFixture<ApiFixture>
     public async Task Update_RecordsTimeToComplete_OnlyWhenTheTaskBecomesCompleted()
     {
         var clock = new FakeTimeProvider(DateTimeOffset.FromUnixTimeSeconds(DateTimeOffset.UtcNow.ToUnixTimeSeconds()));
-        var client = _fixture.CreateIsolatedClient(services => services.AddSingleton<TimeProvider>(clock), out IServiceProvider services);
+        var client = _fixture.CreateIsolatedTasksClient(services => services.AddSingleton<TimeProvider>(clock), out IServiceProvider services);
         var alice = new TestSession(client);
         await alice.RegisterAsync(TestAccounts.UniqueName("alice"));
         string id = await alice.CreateTaskAsync("Comprar pan");

@@ -121,12 +121,16 @@ public sealed class PerFeatureContextsTransitionTests : IClassFixture<ApiFixture
     public async Task RollingBackEveryMoveMigration_PutsEveryTableBackInPublic()
     {
         string database = await TestDatabases.CreateEmptyAsync(_postgres.ConnectionString);
-        using HttpClient client = StartedClient(database, out IServiceProvider services);
+        ApiPair api = _fixture.CreateIsolatedApi(new Dictionary<string, string> { ["ConnectionStrings:DefaultConnection"] = database }, _ => { });
+        using HttpClient client = api.CreateClient();
         await AssertReadyAsync(client);
 
-        using IServiceScope scope = services.CreateScope();
-        foreach (DbContext context in scope.ServiceProvider.MigratedContexts())
-            await context.GetService<IMigrator>().MigrateAsync(context.Database.GetMigrations().First());
+        foreach (IServiceProvider host in new[] { api.Monolith.Services, api.Tasks.Services })
+        {
+            using IServiceScope scope = host.CreateScope();
+            foreach (DbContext context in scope.ServiceProvider.ContextsThisHostMigrates())
+                await context.GetService<IMigrator>().MigrateAsync(context.Database.GetMigrations().First());
+        }
 
         Assert.Equal(
             TablesInTheirFeatureSchema

@@ -32,6 +32,7 @@ internal static class AuthFeature
         services.AddScoped<RegisterUser.RegisterUser>();
         services.AddScoped<OpenSession.OpenSession>();
         services.AddScoped<CloseSession.CloseSession>();
+        services.AddScoped<CheckSession.CheckSession>();
 
         return services;
     }
@@ -93,5 +94,12 @@ internal static class AuthFeature
         CloseSession.CloseSessionEndpoint.Map(auth);
 
         return api;
+    }
+
+    public static RouteGroupBuilder MapAuthInternalEndpoints(this RouteGroupBuilder internalApi)
+    {
+        CheckSession.CheckSessionEndpoint.Map(internalApi);
+
+        return internalApi;
     }
 }

@@ -72,7 +72,7 @@ public sealed class GetTaskTests : IClassFixture<ApiFixture>
     public async Task Read_IsOneQuery_And_LeavesNoTaskTracked()
     {
         CapturedCommands commands = new();
-        HttpClient client = _fixture.CreateIsolatedClient(
+        HttpClient client = _fixture.CreateIsolatedTasksClient(
             services => services.ConfigureDbContext<TasksDbContext>(options => options.AddInterceptors(commands)),
             out IServiceProvider services);
         var alice = new TestSession(client);
