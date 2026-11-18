@@ -6,6 +6,7 @@ import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { stageVerdict } from './rehearsal-verdict.mjs';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..');
 const USAGE = [
@@ -17,7 +18,8 @@ const USAGE = [
   '  then deletes an account that both releases wrote to: its account and profile must be gone',
   '  and no task, profile, key or session may point to a missing account. Audit rows stay on purpose.',
   '  --expect-fail names the stages (1 is the second ref) that must fail: a negative control passes',
-  '  only when its stage fails.',
+  '  only when the previous release fails and the new release passes every check of that stage.',
+  '  Each check is recorded with the release it failed on. A release that does not start fails its stage and ends the rehearsal.',
 ].join('\n');
 
 function parseArgs(argv) {
@@ -212,6 +214,8 @@ class Client {
       headers,
       body: body === undefined ? undefined : JSON.stringify(body),
       signal: AbortSignal.timeout(15000),
+    }).catch(error => {
+      throw this.failure(`${method} ${route}: ${error.message}`);
     });
     for (const raw of response.headers.getSetCookie()) {
       const [pair] = raw.split(';');
@@ -226,8 +230,12 @@ class Client {
 
   async expect(method, route, body, status, extraHeaders) {
     const response = await this.request(method, route, body, extraHeaders);
-    assert.equal(response.status, status, `${this.api.name}: ${method} ${route} returned ${response.status}, expected ${status}`);
+    if (response.status !== status) throw this.failure(`${method} ${route} returned ${response.status}, expected ${status}`);
     return response.payload;
+  }
+
+  failure(message) {
+    return Object.assign(new Error(`${this.api.name}: ${message}`), { api: this.api.name });
   }
 
   async signIn(userName, register) {
@@ -255,7 +263,7 @@ class Client {
   async setCompleted(id, completed) {
     const task = await this.expect('GET', `tasks/${id}`, undefined, 200);
     const updated = await this.expect('PUT', `tasks/${id}`, { title: task.title, isCompleted: completed, version: task.version }, 200);
-    assert.equal(updated.isCompleted, completed, `${this.api.name}: PUT tasks/${id} answered isCompleted=${updated.isCompleted}`);
+    if (updated.isCompleted !== completed) throw this.failure(`PUT tasks/${id} answered isCompleted=${updated.isCompleted}`);
   }
 }
 
@@ -271,21 +279,18 @@ function compare(label, actual, expected) {
   return { label, tasks: actual.size, completed, wrong, extra, ok: wrong === 0 && extra === 0 && actual.size === expected.size };
 }
 
-async function crossReleaseWrites(oldClient, newClient, expected, stage) {
-  const writes = [];
-  for (const [writer, reader] of [[oldClient, newClient], [newClient, oldClient]]) {
-    const created = await writer.expect('POST', 'tasks', { title: `stage ${stage} by ${writer.api.name}` }, 201);
-    expected.set(created.id, false);
-    await writer.setCompleted(created.id, true);
-    expected.set(created.id, true);
-    const seen = await reader.expect('GET', `tasks/${created.id}`, undefined, 200);
-    writes.push({ writer: writer.api.name, reader: reader.api.name, action: 'complete', readerSees: seen.isCompleted, ok: seen.isCompleted === true });
-    await reader.setCompleted(created.id, false);
-    expected.set(created.id, false);
-    const back = await writer.expect('GET', `tasks/${created.id}`, undefined, 200);
-    writes.push({ writer: reader.api.name, reader: writer.api.name, action: 'reopen', readerSees: back.isCompleted, ok: back.isCompleted === false });
-  }
-  return writes;
+async function writeAndRead(writer, reader, expected, stage) {
+  const created = await writer.expect('POST', 'tasks', { title: `stage ${stage} by ${writer.api.name}` }, 201);
+  expected.set(created.id, false);
+  await writer.setCompleted(created.id, true);
+  expected.set(created.id, true);
+  const seen = await reader.expect('GET', `tasks/${created.id}`, undefined, 200);
+  if (seen.isCompleted !== true) throw reader.failure(`GET tasks/${created.id} answered isCompleted=${seen.isCompleted} after ${writer.api.name} completed it`);
+  await reader.setCompleted(created.id, false);
+  expected.set(created.id, false);
+  const back = await writer.expect('GET', `tasks/${created.id}`, undefined, 200);
+  if (back.isCompleted !== false) throw writer.failure(`GET tasks/${created.id} answered isCompleted=${back.isCompleted} after ${reader.api.name} reopened it`);
+  return { task: created.id, ok: true };
 }
 
 async function deleteAccountWithPreviousRelease(previous, next, stage) {
@@ -361,40 +366,59 @@ async function main() {
 
   for (let index = 1; index < releases.length; index += 1) {
     const before = new Set(migrationHistory());
-    const started = Date.now();
-    const next = await startApi(releases[index], index, pgPort);
-    const startupMs = Date.now() - started;
-    const applied = migrationHistory().filter(id => !before.has(id));
-    const nextClient = new Client(next);
-    await nextClient.signIn(userName, false);
+    const previousClient = currentClient;
+    const roles = { [current.name]: 'previous' };
     const stage = {
       stage: index,
       release: releases[index].ref,
       previous: current.release.ref,
       expected: options.expectFail.includes(index) ? 'fail' : 'pass',
-      startupMs,
-      applied,
-      tables: tables(),
+      checks: [],
     };
-    try {
-      stage.readiness = { [current.name]: await readiness(current), [next.name]: await readiness(next) };
-      stage.writes = await crossReleaseWrites(currentClient, nextClient, expected, index);
-      stage.reads = [compare(current.name, await currentClient.readAll(), expected), compare(next.name, await nextClient.readAll(), expected)];
-      stage.accountDeletion = await deleteAccountWithPreviousRelease(current, next, index);
-    } catch (error) {
-      stage.error = error.message;
+    const attempt = async (name, release, action) => {
+      try {
+        const detail = await action();
+        stage.checks.push({ name, release, ok: detail?.ok ?? true, detail });
+        return detail;
+      } catch (error) {
+        stage.checks.push({ name, release: roles[error.api] ?? release, ok: false, error: error.message });
+        return undefined;
+      }
+    };
+
+    let next;
+    const started = Date.now();
+    await attempt('start', 'next', async () => {
+      next = await startApi(releases[index], index, pgPort);
+      return { ok: true, api: next.name };
+    });
+    stage.startupMs = Date.now() - started;
+    stage.applied = migrationHistory().filter(id => !before.has(id));
+    stage.tables = tables();
+    if (next) {
+      roles[next.name] = 'next';
+      const nextClient = new Client(next);
+      await attempt('signIn', 'next', () => nextClient.signIn(userName, false));
+      for (const [client, role] of [[previousClient, 'previous'], [nextClient, 'next']]) {
+        await attempt('readiness', role, async () => {
+          const result = await readiness(client.api);
+          return { ...result, ok: result.status === 200 };
+        });
+      }
+      await attempt('write with previous, read with next', 'rehearsal', () => writeAndRead(previousClient, nextClient, expected, index));
+      await attempt('write with next, read with previous', 'rehearsal', () => writeAndRead(nextClient, previousClient, expected, index));
+      for (const [client, role] of [[previousClient, 'previous'], [nextClient, 'next']]) {
+        await attempt('reads', role, async () => compare(client.api.name, await client.readAll(), expected));
+      }
+      await attempt('accountDeletion', 'rehearsal', () => deleteAccountWithPreviousRelease(current, next, index));
+      currentClient = nextClient;
     }
-    stage.ok = !stage.error
-      && Object.values(stage.readiness ?? {}).every(result => result.status === 200)
-      && stage.writes.every(write => write.ok)
-      && stage.reads.every(read => read.ok)
-      && stage.accountDeletion.ok;
-    stage.passed = stage.ok === (stage.expected === 'pass');
+    Object.assign(stage, stageVerdict(stage.expected, stage.checks));
     summary.stages.push(stage);
     log({ step: 'stage', ...stage });
+    if (!next) break;
     stopApi(current);
     current = next;
-    currentClient = nextClient;
   }
 
   summary.finalTables = tables();
@@ -402,7 +426,7 @@ async function main() {
     SELECT attname FROM pg_attribute
     WHERE attrelid = '${table('TaskItems')}'::regclass AND attnum > 0 AND NOT attisdropped
     ORDER BY attnum`).split('\n');
-  summary.result = summary.stages.every(stage => stage.passed) ? 'PASS' : 'FAIL';
+  summary.result = summary.stages.length === releases.length && summary.stages.every(stage => stage.passed) ? 'PASS' : 'FAIL';
 }
 
 try {
