@@ -21,7 +21,7 @@ public static class DatabaseInitializer
 
         await using NpgsqlConnection lockConnection = new(legacy.Database.GetConnectionString());
         await lockConnection.OpenAsync(ct);
-        await AcquireLockAsync(lockConnection, services.GetRequiredService<TimeProvider>(), ct);
+        await AcquireLockAsync(lockConnection, ct);
         try
         {
             if (await IsLegacyDatabaseAsync(lockConnection, ct))
@@ -44,11 +44,11 @@ public static class DatabaseInitializer
         }
     }
 
-    private static async Task AcquireLockAsync(NpgsqlConnection connection, TimeProvider clock, CancellationToken ct)
+    private static async Task AcquireLockAsync(NpgsqlConnection connection, CancellationToken ct)
     {
         await using NpgsqlCommand tryAcquire = LockCommand(new NpgsqlCommand("SELECT pg_try_advisory_lock(@key)", connection));
         while (await tryAcquire.ExecuteScalarAsync(ct) is not true)
-            await Task.Delay(LockRetryDelay, clock, ct);
+            await Task.Delay(LockRetryDelay, ct);
     }
 
     private static async Task<bool> IsLegacyDatabaseAsync(NpgsqlConnection connection, CancellationToken ct)
