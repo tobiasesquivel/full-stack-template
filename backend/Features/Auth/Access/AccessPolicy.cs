@@ -1,7 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using TemplateApp.Features.Auth.Contracts;
+using TemplateApp.Features.Auth.Persistence;
 using TemplateApp.Shared.Domain;
 
 namespace TemplateApp.Features.Auth.Access;

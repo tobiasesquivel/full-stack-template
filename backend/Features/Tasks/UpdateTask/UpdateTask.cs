@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using TemplateApp.Features.Auth.Contracts;
 using TemplateApp.Features.Tasks.Contracts;
 using TemplateApp.Features.Tasks.Domain;
-using TemplateApp.Infrastructure.Persistence;
+using TemplateApp.Features.Tasks.Persistence;
 using TemplateApp.Shared.Http;
 
 namespace TemplateApp.Features.Tasks.UpdateTask;
@@ -12,12 +12,12 @@ internal sealed class UpdateTask
 {
     private static readonly UpdateTaskRequestValidator Validator = new();
 
-    private readonly AppDbContext _db;
+    private readonly TasksDbContext _db;
     private readonly IAuthModule _auth;
     private readonly TimeProvider _clock;
     private readonly TaskMetrics _metrics;
 
-    public UpdateTask(AppDbContext db, IAuthModule auth, TimeProvider clock, TaskMetrics metrics)
+    public UpdateTask(TasksDbContext db, IAuthModule auth, TimeProvider clock, TaskMetrics metrics)
     {
         _db = db;
         _auth = auth;

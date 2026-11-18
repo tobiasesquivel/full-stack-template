@@ -451,34 +451,6 @@ namespace TemplateApp.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasConstraintName("FK_Sessions_AspNetUsers_UserId");
                 });
-
-            modelBuilder.Entity("TemplateApp.Features.Tasks.Domain.TaskItem", b =>
-                {
-                    b.HasOne("TemplateApp.Features.Users.Domain.UserProfile", null)
-                        .WithMany()
-                        .HasForeignKey("OwnerId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("TemplateApp.Features.Users.Domain.UserProfile", b =>
-                {
-                    b.HasOne("TemplateApp.Features.Auth.Contracts.AppIdentityUser", null)
-                        .WithOne()
-                        .HasForeignKey("TemplateApp.Features.Users.Domain.UserProfile", "AuthId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("FK_UserProfiles_AspNetUsers_AuthId");
-                });
-
-            modelBuilder.Entity("TemplateApp.Infrastructure.Persistence.IdempotencyKey", b =>
-                {
-                    b.HasOne("TemplateApp.Features.Users.Domain.UserProfile", null)
-                        .WithMany()
-                        .HasForeignKey("OwnerId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
 #pragma warning restore 612, 618
         }
     }

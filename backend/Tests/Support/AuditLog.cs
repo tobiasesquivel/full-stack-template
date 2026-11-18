@@ -9,7 +9,7 @@ internal static class AuditLog
     public static async Task<List<AuditRow>> AuditEntriesAsync(this IServiceProvider services, string entityId)
     {
         using IServiceScope scope = services.CreateScope();
-        AppDbContext db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        PlatformDbContext db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
         return await db.Database
             .SqlQuery<AuditRow>($"""
                 SELECT "Id", "OccurredAt", "ActorKind", "ActorId", "EntityType", "EntityId", "Operation",
@@ -24,7 +24,7 @@ internal static class AuditLog
     public static async Task<List<AuditRow>> AuditEntriesByActorAsync(this IServiceProvider services, string actorId)
     {
         using IServiceScope scope = services.CreateScope();
-        AppDbContext db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        PlatformDbContext db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
         return await db.Database
             .SqlQuery<AuditRow>($"""
                 SELECT "Id", "OccurredAt", "ActorKind", "ActorId", "EntityType", "EntityId", "Operation",
@@ -39,7 +39,7 @@ internal static class AuditLog
     public static async Task<string> AuditDumpAsync(this IServiceProvider services, string actorId, params string[] entityIds)
     {
         using IServiceScope scope = services.CreateScope();
-        AppDbContext db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        PlatformDbContext db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
         List<string> rows = await db.Database
             .SqlQuery<string>($"""
                 SELECT row_to_json(a)::text AS "Value"

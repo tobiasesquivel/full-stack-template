@@ -146,7 +146,7 @@ internal static class DuneDiagnostics
         category: "Dune",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
-        description: "Contracts/ es lo único que ve otra feature, y cada clase de tipo se reconoce por su nombre: una sola puerta I<Feature>Module, datos con un sufijo de la lista cerrada (Details, Summary, Info), responses HTTP, constantes y métodos de extensión. AppIdentityUser es la única excepción hasta el paso 22.");
+        description: "Contracts/ es lo único que ve otra feature, y cada clase de tipo se reconoce por su nombre: una sola puerta I<Feature>Module, datos con un sufijo de la lista cerrada (Details, Summary, Info), responses HTTP, constantes y métodos de extensión. Desde el paso 22 no hay excepciones: AppIdentityUser vive en Auth/Persistence.");
 
     public static readonly DiagnosticDescriptor ContractDoorSignature = new(
         id: "DUNE0015",
@@ -275,4 +275,50 @@ internal static class DuneDiagnostics
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
         description: "Dentro de backend/Features, public y Contracts/ son lo mismo en las dos direcciones: un tipo de Contracts/ es public.");
+
+    public static readonly DiagnosticDescriptor DbContextOutsidePersistence = new(
+        id: "DUNE0021",
+        title: "DbContext fuera de Persistence",
+        messageFormat: "'{0}' deriva de DbContext y vive fuera de Features/<Feature>/Persistence/ y de Infrastructure/Persistence/",
+        category: "Dune",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "Propiedad de datos: cada feature mapea sus tablas en su propio DbContext, dentro de su Persistence/. Infrastructure/Persistence guarda solo PlatformDbContext y el AppDbContext viejo, dueño de las migraciones anteriores al paso 22.");
+
+    public static readonly DiagnosticDescriptor SecondDbContextInFeature = new(
+        id: "DUNE0021",
+        title: "Más de un DbContext en una feature",
+        messageFormat: "La feature {0} tiene {1} tipos que derivan de DbContext ({2}): una feature tiene a lo sumo uno",
+        category: "Dune",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "Un DbContext por feature: sus tablas, su carpeta de migraciones y su historial. Un segundo contexto parte la propiedad de los datos dentro de la feature.",
+        customTags: WellKnownDiagnosticTags.CompilationEnd);
+
+    public static readonly DiagnosticDescriptor ExcludeFromMigrationsOutsideInfrastructure = new(
+        id: "DUNE0021",
+        title: "ExcludeFromMigrations fuera de Infrastructure/Persistence",
+        messageFormat: "ExcludeFromMigrations se usa fuera de Infrastructure/Persistence: una feature no mapea una tabla que es de otro contexto",
+        category: "Dune",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "Mapear una tabla sin migrarla es leer o escribir la tabla de otro contexto. La única tabla compartida es AuditEntries, y la mapea MapSharedAuditEntries de Infrastructure/Persistence para que la fila de auditoría viaje en el mismo SaveChanges.");
+
+    public static readonly DiagnosticDescriptor TransactionScopeOutsideHelper = new(
+        id: "DUNE0021",
+        title: "TransactionScope fuera de CrossContextTransaction",
+        messageFormat: "new TransactionScope fuera de Infrastructure/Persistence/CrossContextTransaction.cs: una escritura entre contextos abre su transacción con CrossContextTransaction.Begin()",
+        category: "Dune",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "Un TransactionScope sin configurar usa Serializable. CrossContextTransaction fija ReadCommitted y el flujo async; es el único lugar que crea uno.");
+
+    public static readonly DiagnosticDescriptor ConfigurationOfAnotherOwner = new(
+        id: "DUNE0021",
+        title: "Configuración de otro dueño",
+        messageFormat: "El contexto aplica una configuración que no es de su dueño, o todas las del ensamblado: cada contexto aplica con ApplyConfiguration solo las configuraciones de su feature (o de Infrastructure, para PlatformDbContext)",
+        category: "Dune",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "Aplicar la configuración de otra tabla es mapearla y migrarla: el contexto se vuelve dueño de una tabla ajena. ApplyConfigurationsFromAssembly trae las configuraciones de todas las features.");
 }

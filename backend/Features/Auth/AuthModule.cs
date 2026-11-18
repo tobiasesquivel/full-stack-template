@@ -2,6 +2,7 @@ using ErrorOr;
 using Microsoft.AspNetCore.Identity;
 using TemplateApp.Features.Auth.Access;
 using TemplateApp.Features.Auth.Contracts;
+using TemplateApp.Features.Auth.Persistence;
 using TemplateApp.Shared.Domain;
 
 namespace TemplateApp.Features.Auth;

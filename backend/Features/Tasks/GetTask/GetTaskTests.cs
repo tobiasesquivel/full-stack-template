@@ -3,7 +3,7 @@ using ErrorOr;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using TemplateApp.Features.Tasks.Domain;
-using TemplateApp.Infrastructure.Persistence;
+using TemplateApp.Features.Tasks.Persistence;
 using TemplateApp.Tests.Support;
 using Xunit;
 
@@ -73,7 +73,7 @@ public sealed class GetTaskTests : IClassFixture<ApiFixture>
     {
         CapturedCommands commands = new();
         HttpClient client = _fixture.CreateIsolatedClient(
-            services => services.ConfigureDbContext<AppDbContext>(options => options.AddInterceptors(commands)),
+            services => services.ConfigureDbContext<TasksDbContext>(options => options.AddInterceptors(commands)),
             out IServiceProvider services);
         var alice = new TestSession(client);
         await alice.RegisterAsync(TestAccounts.UniqueName("alice"));
@@ -87,7 +87,7 @@ public sealed class GetTaskTests : IClassFixture<ApiFixture>
         Assert.False(read.IsError);
         Assert.Equal("Sin rastreo", read.Value.Title);
         Assert.Single(commands.Reading("TaskItems"));
-        Assert.Empty(scope.ServiceProvider.GetRequiredService<AppDbContext>().ChangeTracker.Entries<TaskItem>());
+        Assert.Empty(scope.ServiceProvider.GetRequiredService<TasksDbContext>().ChangeTracker.Entries<TaskItem>());
     }
 
     private static async Task PutAsync(TestSession session, string id, string title, bool isCompleted)

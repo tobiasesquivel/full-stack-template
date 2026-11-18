@@ -3,7 +3,7 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
-using TemplateApp.Infrastructure.Persistence;
+using TemplateApp.Features.Tasks.Persistence;
 using TemplateApp.Tests.Support;
 using Xunit;
 
@@ -34,7 +34,7 @@ public sealed class ListTasksPlanTests : IClassFixture<ApiFixture>
         CapturedCommands commands = new();
         HttpClient client = _fixture.CreateIsolatedClient(
             new Dictionary<string, string> { ["ConnectionStrings:DefaultConnection"] = database },
-            services => services.ConfigureDbContext<AppDbContext>(options => options.AddInterceptors(commands)),
+            services => services.ConfigureDbContext<TasksDbContext>(options => options.AddInterceptors(commands)),
             out _);
         TestSession alice = new(client);
         await alice.RegisterAsync(TestAccounts.UniqueName("alice"));

@@ -2,15 +2,15 @@ using ErrorOr;
 using Microsoft.EntityFrameworkCore;
 using TemplateApp.Features.Users.Contracts;
 using TemplateApp.Features.Users.Domain;
-using TemplateApp.Infrastructure.Persistence;
+using TemplateApp.Features.Users.Persistence;
 
 namespace TemplateApp.Features.Users;
 
 internal sealed class UsersModule : IUsersModule
 {
-    private readonly AppDbContext _db;
+    private readonly UsersDbContext _db;
 
-    public UsersModule(AppDbContext db)
+    public UsersModule(UsersDbContext db)
     {
         _db = db;
     }

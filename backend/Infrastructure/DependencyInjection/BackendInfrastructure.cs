@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Microsoft.AspNetCore.DataProtection.Repositories;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using TemplateApp.Infrastructure.Middlewares;
 using TemplateApp.Infrastructure.Persistence;
@@ -26,9 +25,9 @@ public static class BackendInfrastructure
             .BindConfiguration(DatabaseOptions.Section);
         services.AddHttpContextAccessor();
         services.AddSingleton<AuditInterceptor>();
-        services.AddDbContext<AppDbContext>((provider, options) => options
-            .UseNpgsql(provider.GetRequiredService<IOptions<DatabaseOptions>>().Value.DefaultConnection)
-            .AddInterceptors(provider.GetRequiredService<AuditInterceptor>()));
+        services.AddLegacyDbContext();
+        services.AddMigratedDbContext<PlatformDbContext>("platform");
+        services.AddScoped<IdempotencyKeys>();
 
         services.AddHostedService<DatabaseInitialization>();
         services.AddHealthChecks()

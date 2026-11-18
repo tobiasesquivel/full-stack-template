@@ -1,7 +1,10 @@
 using System.Net;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using TemplateApp.Features.Auth.Contracts;
+using TemplateApp.Features.Auth.Persistence;
+using TemplateApp.Features.Users.Domain;
+using TemplateApp.Features.Users.Persistence;
 using TemplateApp.Tests.Support;
 using Xunit;
 
@@ -65,5 +68,26 @@ public sealed class RegisterUserTests : IClassFixture<ApiFixture>
 
         TestSession retry = new(_fixture.CreateClient());
         await retry.RegisterAsync(name);
+    }
+
+    [Fact]
+    public async Task Register_WhenItFailsAfterTheProfileWasSaved_LeavesNoAccountAndNoProfile()
+    {
+        HttpClient client = _fixture.CreateIsolatedClient(
+            services => services.ConfigureDbContext<UsersDbContext>((_, options) => options.AddInterceptors(new FailAfterSaving<UserProfile>())),
+            out IServiceProvider services);
+        TestSession carol = new(client);
+        await carol.CsrfAsync();
+        string name = TestAccounts.UniqueName("carol");
+
+        SessionResponse failed = await carol.SendAsync(
+            HttpMethod.Post,
+            "api/v1/auth/register",
+            new { userName = name, email = $"{name}@example.test", password = $"Smoke!{Guid.NewGuid():N}Aa9", displayName = name });
+        failed.Payload?.Dispose();
+
+        Assert.Equal(HttpStatusCode.InternalServerError, failed.Status);
+        Assert.Equal(0L, await services.CountAsync($"""SELECT count(*) AS "Value" FROM "AspNetUsers" WHERE "UserName" = {name}"""));
+        Assert.Equal(0L, await services.CountAsync($"""SELECT count(*) AS "Value" FROM "UserProfiles" WHERE "DisplayName" = {name}"""));
     }
 }

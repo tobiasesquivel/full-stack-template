@@ -1,4 +1,6 @@
 using TemplateApp.Features.Users.Contracts;
+using TemplateApp.Features.Users.Persistence;
+using TemplateApp.Infrastructure.Persistence;
 
 namespace TemplateApp.Features.Users;
 
@@ -6,6 +8,7 @@ internal static class UsersFeature
 {
     public static IServiceCollection AddUsersFeature(this IServiceCollection services)
     {
+        services.AddMigratedDbContext<UsersDbContext>("users");
         services.AddScoped<IUsersModule, UsersModule>();
         services.AddScoped<GetUser.GetUser>();
         services.AddScoped<UpdateProfile.UpdateProfile>();

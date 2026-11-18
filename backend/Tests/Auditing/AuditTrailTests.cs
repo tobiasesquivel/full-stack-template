@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
 using TemplateApp.Features.Tasks.Domain;
-using TemplateApp.Infrastructure.Persistence;
+using TemplateApp.Features.Tasks.Persistence;
 using TemplateApp.Tests.Support;
 using Xunit;
 
@@ -129,7 +129,7 @@ public sealed class AuditTrailTests : IClassFixture<ApiFixture>
     }
 
     [Fact]
-    public async Task AccountDeletion_RecordsTheProfile_ButNotTheCascadedTasks()
+    public async Task AccountDeletion_RecordsTheProfileAndEachOfItsTasks()
     {
         var alice = new TestSession(_fixture.CreateClient());
         await alice.RegisterAsync(TestAccounts.UniqueName("alice"));
@@ -144,7 +144,9 @@ public sealed class AuditTrailTests : IClassFixture<ApiFixture>
             [("Added", "anonymous", null), ("Deleted", "user", alice.AuthId)],
             profileRows.Select(r => (r.Operation, r.ActorKind, r.ActorId)));
         List<AuditRow> taskRows = await _fixture.Services.AuditEntriesAsync(id);
-        Assert.Equal(["Added"], taskRows.Select(r => r.Operation));
+        Assert.Equal(
+            [("Added", "user", alice.AuthId), ("Deleted", "user", alice.AuthId)],
+            taskRows.Select(r => (r.Operation, r.ActorKind, r.ActorId)));
     }
 
     [Fact]
@@ -156,7 +158,7 @@ public sealed class AuditTrailTests : IClassFixture<ApiFixture>
 
         using (IServiceScope scope = _fixture.Services.CreateScope())
         {
-            AppDbContext db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            TasksDbContext db = scope.ServiceProvider.GetRequiredService<TasksDbContext>();
             TaskItem item = await db.TaskItems.SingleAsync(t => t.Id == Guid.Parse(id));
             item.Title = "Comprar pan integral";
             await db.SaveChangesAsync();

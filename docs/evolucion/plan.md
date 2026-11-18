@@ -385,6 +385,13 @@ El paso 0.28 se agregó el 2026-10-17, a pedido de Tobi, con otro pendiente del 
 **Concepto**: propiedad de datos; el contexto dios impide extraer módulos.
 **Cambia**: `Infrastructure/Persistence` hacia `Features/*/Persistence`, migraciones por contexto, arranque, tests.
 **Verifica**: suite completa con dos contextos; smoke con base limpia y migrada; readiness en verde. **Paso de alto riesgo**: la migración de esquema es irreversible en producción, ensayala primero en el paso 19.
+**Nota**: Tobi eligió el 2026-11-18, con la investigación ([paso-22-dbcontext-por-feature.md](investigacion/paso-22-dbcontext-por-feature.md)): un contexto por feature más `PlatformDbContext` para `IdempotencyKeys` y `AuditEntries`; tablas en `public` en este paso; borrar las FKs entre features y que `DeleteUser` borre en código por contrato, en dos tandas (primero el borrado en código, después las FKs); `TransactionScope` con un helper que fija `ReadCommitted`; el `AppDbContext` viejo queda sin tablas como dueño de sus migraciones; regla nueva DUNE0021. "Dos contextos" quiere decir más de uno: quedan cuatro.
+
+**22.1. Un schema por feature.**
+**Concepto**: aislamiento lógico de los datos en la base; cada módulo tiene su schema (`auth`, `users`, `tasks`, `platform`).
+**Nota**: Tobi lo pidió el 2026-11-18, durante el paso 22 ("prefiero hacer el schema por feature porque lo propone milan"). Va en un paso propio porque mover una tabla de schema rompe al release anterior: primero la connection string suma `Search Path`, después se mueven las tablas. El paso 22 ya deja cada tabla de historial en su lugar final.
+**Cambia**: `HasDefaultSchema` en cada contexto, migraciones con `EnsureSchema` y `RenameTable` de solo schema, connection string, DUNE0018 (regla 9: entrada en `decisions.tsv`, fixture válida y violación), `informe-vsa-deep-modules.md`.
+**Verifica**: ensayo con binarios (`rehearse-migrations.mjs`) donde el release anterior sigue andando después de mover las tablas; base limpia y base migrada con el mismo esquema; readiness en verde.
 
 **23. Extraer un servicio con gateway adelante.**
 **Concepto**: límite de despliegue y contrato remoto; el primer proceso propio.
