@@ -1,6 +1,7 @@
 using Serilog;
 using TemplateApp.Features.Auth;
 using TemplateApp.Features.Health;
+using TemplateApp.Features.Projects;
 using TemplateApp.Features.Tasks;
 using TemplateApp.Features.Users;
 using TemplateApp.Infrastructure.DependencyInjection;
@@ -18,6 +19,7 @@ try
     builder.Services.AddAuthFeature();
     builder.Services.AddUsersFeature();
     builder.Services.AddTasksFeature();
+    builder.Services.AddProjectsFeature();
     builder.Services.AddHealthFeature();
     builder.Services.AddVersionedApi();
     builder.Services.AddApiRateLimiting();

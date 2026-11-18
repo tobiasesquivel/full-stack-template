@@ -4,6 +4,8 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
+using TemplateApp.Features.Projects.Domain;
+using TemplateApp.Features.Projects.Persistence;
 using TemplateApp.Infrastructure.Persistence;
 using TemplateApp.Tests.Support;
 using Xunit;
@@ -14,10 +16,17 @@ public sealed class PerFeatureContextsTransitionTests : IClassFixture<ApiFixture
 {
     private const string MainRelease = "20261117144432_ContractTaskIsCompleted";
     private const string Owner = "owner-transition";
-    private static readonly (string Schema, string Move)[] ContextMigrations =
-        [("auth", "_MoveAuthToSchema"), ("users", "_MoveUsersToSchema"), ("tasks", "_MoveTasksToSchema"), ("platform", "_MovePlatformToSchema")];
+    private static readonly (string Schema, string[] Migrations)[] ContextMigrations =
+    [
+        ("auth", ["_InitialCreate", "_MoveAuthToSchema"]),
+        ("users", ["_InitialCreate", "_MoveUsersToSchema"]),
+        ("tasks", ["_InitialCreate", "_MoveTasksToSchema"]),
+        ("platform", ["_InitialCreate", "_MovePlatformToSchema"]),
+        ("projects", ["_InitialCreate"]),
+    ];
     private static readonly string[] DataTables =
         ["AspNetUsers", "AspNetUserRoles", "Sessions", "UserProfiles", "TaskItems", "IdempotencyKeys", "AuditEntries"];
+    private static readonly string[] TablesBornInTheirFeatureSchema = ["projects.Projects"];
     private static readonly string[] TablesInTheirFeatureSchema =
     [
         "auth.AspNetRoleClaims",
@@ -30,6 +39,7 @@ public sealed class PerFeatureContextsTransitionTests : IClassFixture<ApiFixture
         "auth.Sessions",
         "platform.AuditEntries",
         "platform.IdempotencyKeys",
+        "projects.Projects",
         "tasks.TaskItems",
         "users.UserProfiles",
     ];
@@ -65,7 +75,7 @@ public sealed class PerFeatureContextsTransitionTests : IClassFixture<ApiFixture
             """);
         Dictionary<string, string[]> before = await RowsAsync(database);
 
-        using HttpClient client = StartedClient(database);
+        using HttpClient client = StartedClient(database, out IServiceProvider services);
 
         await AssertReadyAsync(client);
         Dictionary<string, string[]> after = await RowsAsync(database);
@@ -73,6 +83,7 @@ public sealed class PerFeatureContextsTransitionTests : IClassFixture<ApiFixture
             Assert.Equal(before[table], after[table]);
         await AssertBaselinedAndMovedAsync(database);
         Assert.Contains(MainRelease, await HistoryAsync(database, "public"));
+        await AssertAProjectCanBeCreatedAsync(services);
     }
 
     [Fact]
@@ -117,7 +128,9 @@ public sealed class PerFeatureContextsTransitionTests : IClassFixture<ApiFixture
             await context.GetService<IMigrator>().MigrateAsync(context.Database.GetMigrations().First());
 
         Assert.Equal(
-            TablesInTheirFeatureSchema.Select(table => $"public.{table[(table.IndexOf('.', StringComparison.Ordinal) + 1)..]}").Order(StringComparer.Ordinal),
+            TablesInTheirFeatureSchema
+                .Select(table => TablesBornInTheirFeatureSchema.Contains(table) ? table : $"public.{table[(table.IndexOf('.', StringComparison.Ordinal) + 1)..]}")
+                .Order(StringComparer.Ordinal),
             await TablesAsync(database));
     }
 
@@ -140,6 +153,15 @@ public sealed class PerFeatureContextsTransitionTests : IClassFixture<ApiFixture
             new Dictionary<string, string> { ["ConnectionStrings:DefaultConnection"] = database },
             out services);
 
+    private static async Task AssertAProjectCanBeCreatedAsync(IServiceProvider services)
+    {
+        using IServiceScope scope = services.CreateScope();
+        ProjectsDbContext db = scope.ServiceProvider.GetRequiredService<ProjectsDbContext>();
+        db.Projects.Add(Project.Create(Owner, "Transition", DateTimeOffset.UtcNow));
+        await db.SaveChangesAsync();
+        Assert.Equal(1, await db.Projects.CountAsync(p => p.OwnerId == Owner));
+    }
+
     private static async Task AssertReadyAsync(HttpClient client)
     {
         using HttpResponseMessage ready = await client.GetAsync("/api/v1/health/ready");
@@ -148,12 +170,12 @@ public sealed class PerFeatureContextsTransitionTests : IClassFixture<ApiFixture
 
     private static async Task AssertBaselinedAndMovedAsync(string database)
     {
-        foreach ((string schema, string move) in ContextMigrations)
+        foreach ((string schema, string[] migrations) in ContextMigrations)
         {
             string[] history = await HistoryAsync(database, schema);
-            Assert.Equal(2, history.Length);
-            Assert.EndsWith("_InitialCreate", history[0], StringComparison.Ordinal);
-            Assert.EndsWith(move, history[1], StringComparison.Ordinal);
+            Assert.Equal(migrations.Length, history.Length);
+            for (int i = 0; i < migrations.Length; i++)
+                Assert.EndsWith(migrations[i], history[i], StringComparison.Ordinal);
         }
     }
 
