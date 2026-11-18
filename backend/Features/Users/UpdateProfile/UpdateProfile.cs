@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using TemplateApp.Features.Auth.Contracts;
 using TemplateApp.Features.Users.Contracts;
 using TemplateApp.Features.Users.Domain;
-using TemplateApp.Infrastructure.Persistence;
+using TemplateApp.Features.Users.Persistence;
 using TemplateApp.Shared.Http;
 
 namespace TemplateApp.Features.Users.UpdateProfile;
@@ -12,10 +12,10 @@ internal sealed class UpdateProfile
 {
     private static readonly UpdateProfileRequestValidator Validator = new();
 
-    private readonly AppDbContext _db;
+    private readonly UsersDbContext _db;
     private readonly IAuthModule _auth;
 
-    public UpdateProfile(AppDbContext db, IAuthModule auth)
+    public UpdateProfile(UsersDbContext db, IAuthModule auth)
     {
         _db = db;
         _auth = auth;

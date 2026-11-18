@@ -2,7 +2,7 @@ using System.Net;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using TemplateApp.Features.Tasks.Domain;
-using TemplateApp.Infrastructure.Persistence;
+using TemplateApp.Features.Tasks.Persistence;
 using TemplateApp.Tests.Support;
 using Xunit;
 
@@ -221,7 +221,7 @@ public sealed class CreateTaskTests : IClassFixture<ApiFixture>
     public async Task Create_WithKey_WhenItFailsAfterTheTaskWasSaved_LeavesNeitherKeyNorTask()
     {
         HttpClient client = _fixture.CreateIsolatedClient(
-            services => services.ConfigureDbContext<AppDbContext>((_, options) => options.AddInterceptors(new FailAfterSaving<TaskItem>())),
+            services => services.ConfigureDbContext<TasksDbContext>((_, options) => options.AddInterceptors(new FailAfterSaving<TaskItem>())),
             out IServiceProvider services);
         var alice = new TestSession(client);
         await alice.RegisterAsync(TestAccounts.UniqueName("alice"));

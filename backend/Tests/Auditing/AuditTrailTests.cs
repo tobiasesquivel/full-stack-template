@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
 using TemplateApp.Features.Tasks.Domain;
-using TemplateApp.Infrastructure.Persistence;
+using TemplateApp.Features.Tasks.Persistence;
 using TemplateApp.Tests.Support;
 using Xunit;
 
@@ -158,7 +158,7 @@ public sealed class AuditTrailTests : IClassFixture<ApiFixture>
 
         using (IServiceScope scope = _fixture.Services.CreateScope())
         {
-            AppDbContext db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            TasksDbContext db = scope.ServiceProvider.GetRequiredService<TasksDbContext>();
             TaskItem item = await db.TaskItems.SingleAsync(t => t.Id == Guid.Parse(id));
             item.Title = "Comprar pan integral";
             await db.SaveChangesAsync();

@@ -1,4 +1,6 @@
 using TemplateApp.Features.Tasks.Contracts;
+using TemplateApp.Features.Tasks.Persistence;
+using TemplateApp.Infrastructure.Persistence;
 
 namespace TemplateApp.Features.Tasks;
 
@@ -6,6 +8,7 @@ internal static class TasksFeature
 {
     public static IServiceCollection AddTasksFeature(this IServiceCollection services)
     {
+        services.AddMigratedDbContext<TasksDbContext>("tasks");
         services.AddSingleton<TaskMetrics>();
         services.AddScoped<ITasksModule, TasksModule>();
         services.AddScoped<CreateTask.CreateTask>();

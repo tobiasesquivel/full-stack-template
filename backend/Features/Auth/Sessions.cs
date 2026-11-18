@@ -1,17 +1,17 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using TemplateApp.Features.Auth.Domain;
-using TemplateApp.Infrastructure.Persistence;
+using TemplateApp.Features.Auth.Persistence;
 
 namespace TemplateApp.Features.Auth;
 
 internal sealed class Sessions
 {
-    private readonly AppDbContext _db;
+    private readonly AuthDbContext _db;
     private readonly SessionOptions _options;
     private readonly TimeProvider _clock;
 
-    public Sessions(AppDbContext db, IOptions<SessionOptions> options, TimeProvider clock)
+    public Sessions(AuthDbContext db, IOptions<SessionOptions> options, TimeProvider clock)
     {
         _db = db;
         _options = options.Value;

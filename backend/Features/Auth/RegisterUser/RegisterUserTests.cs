@@ -2,9 +2,9 @@ using System.Net;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using TemplateApp.Features.Auth.Contracts;
+using TemplateApp.Features.Auth.Persistence;
 using TemplateApp.Features.Users.Domain;
-using TemplateApp.Infrastructure.Persistence;
+using TemplateApp.Features.Users.Persistence;
 using TemplateApp.Tests.Support;
 using Xunit;
 
@@ -74,7 +74,7 @@ public sealed class RegisterUserTests : IClassFixture<ApiFixture>
     public async Task Register_WhenItFailsAfterTheProfileWasSaved_LeavesNoAccountAndNoProfile()
     {
         HttpClient client = _fixture.CreateIsolatedClient(
-            services => services.ConfigureDbContext<AppDbContext>((_, options) => options.AddInterceptors(new FailAfterSaving<UserProfile>())),
+            services => services.ConfigureDbContext<UsersDbContext>((_, options) => options.AddInterceptors(new FailAfterSaving<UserProfile>())),
             out IServiceProvider services);
         TestSession carol = new(client);
         await carol.CsrfAsync();

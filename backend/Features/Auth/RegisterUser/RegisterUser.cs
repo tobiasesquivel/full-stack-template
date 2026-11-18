@@ -1,8 +1,10 @@
+using System.Transactions;
 using ErrorOr;
 using Microsoft.AspNetCore.Identity;
 using TemplateApp.Features.Auth.Access;
 using TemplateApp.Features.Auth.Contracts;
 using TemplateApp.Features.Auth.Domain;
+using TemplateApp.Features.Auth.Persistence;
 using TemplateApp.Features.Users.Contracts;
 using TemplateApp.Infrastructure.Persistence;
 
@@ -11,14 +13,14 @@ namespace TemplateApp.Features.Auth.RegisterUser;
 internal sealed class RegisterUser
 {
     private readonly UserManager<AppIdentityUser> _users;
-    private readonly AppDbContext _db;
+    private readonly AuthDbContext _db;
     private readonly Sessions _sessions;
     private readonly AuthModule _accounts;
     private readonly IUsersModule _profiles;
 
     public RegisterUser(
         UserManager<AppIdentityUser> users,
-        AppDbContext db,
+        AuthDbContext db,
         Sessions sessions,
         AuthModule accounts,
         IUsersModule profiles)
@@ -42,7 +44,21 @@ internal sealed class RegisterUser
         if (request.Password.Length is < 6 or > 128)
             return AuthErrors.InvalidPassword;
 
-        await using var tx = await _db.Database.BeginTransactionAsync(ct);
+        ErrorOr<CreatedAccount> created = await CreateAccountAsync(request, userName, email, ct);
+        if (created.IsError)
+            return created.Errors;
+
+        UserAccountDetails account = await _accounts.DescribeAsync(created.Value.Identity, ct);
+        return (UserResponse.From(account, created.Value.Profile), created.Value.Session);
+    }
+
+    private async Task<ErrorOr<CreatedAccount>> CreateAccountAsync(
+        RegisterUserRequest request,
+        string userName,
+        string email,
+        CancellationToken ct)
+    {
+        using TransactionScope transaction = CrossContextTransaction.Begin();
 
         AppIdentityUser identity = new() { UserName = userName, Email = email };
 
@@ -60,10 +76,9 @@ internal sealed class RegisterUser
 
         Session session = _sessions.Open(identity.Id);
         await _db.SaveChangesAsync(ct);
-        await tx.CommitAsync(ct);
+        transaction.Complete();
 
-        UserAccountDetails account = await _accounts.DescribeAsync(identity, ct);
-        return (UserResponse.From(account, profile.Value), session);
+        return new CreatedAccount(identity, profile.Value, session);
     }
 
     private static List<Error> MapIdentityErrors(IdentityResult result)
@@ -85,4 +100,6 @@ internal sealed class RegisterUser
 
         return errors;
     }
+
+    private sealed record CreatedAccount(AppIdentityUser Identity, UserProfileDetails Profile, Session Session);
 }

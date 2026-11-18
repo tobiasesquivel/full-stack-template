@@ -4,9 +4,9 @@ namespace TemplateApp.Infrastructure.Persistence;
 
 internal sealed class IdempotencyKeys
 {
-    private readonly AppDbContext _db;
+    private readonly PlatformDbContext _db;
 
-    public IdempotencyKeys(AppDbContext db)
+    public IdempotencyKeys(PlatformDbContext db)
     {
         _db = db;
     }

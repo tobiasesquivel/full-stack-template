@@ -64,7 +64,7 @@ public sealed class TaskCompletionMigrationTests : IClassFixture<ApiFixture>
             VALUES (gen_random_uuid(), @owner, 'completed by the new release', @completedByNewRelease, @created);
             """);
 
-        await migrator.MigrateAsync();
+        await DatabaseInitializer.InitializeAsync(services);
 
         Assert.Equal(0L, await ScalarAsync(database, """
             SELECT count(*) FROM information_schema.columns WHERE table_name = 'TaskItems' AND column_name = 'IsCompleted'

@@ -3,7 +3,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using TemplateApp.Features.Auth.Contracts;
+using TemplateApp.Features.Auth.Persistence;
 using TemplateApp.Infrastructure.Persistence;
 using Xunit;
 
@@ -98,14 +98,14 @@ internal static class TestAccounts
     public static async Task<int> SqlAsync(this ApiFixture fixture, FormattableString sql)
     {
         using IServiceScope scope = fixture.Services.CreateScope();
-        AppDbContext db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        PlatformDbContext db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
         return await db.Database.ExecuteSqlAsync(sql);
     }
 
     public static async Task<List<DateTimeOffset>> LastSeenAsync(this ApiFixture fixture, string authId)
     {
         using IServiceScope scope = fixture.Services.CreateScope();
-        AppDbContext db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        PlatformDbContext db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
         return await db.Database
             .SqlQuery<DateTimeOffset>($"SELECT \"LastSeenAt\" AS \"Value\" FROM \"Sessions\" WHERE \"UserId\" = {authId}")
             .ToListAsync();
@@ -114,7 +114,7 @@ internal static class TestAccounts
     public static async Task<int> IdempotencyKeyCountAsync(this ApiFixture fixture, string authId)
     {
         using IServiceScope scope = fixture.Services.CreateScope();
-        AppDbContext db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        PlatformDbContext db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
         return await db.IdempotencyKeys.CountAsync(k => k.OwnerId == authId);
     }
 

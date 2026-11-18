@@ -1,14 +1,14 @@
 using Microsoft.EntityFrameworkCore;
 using TemplateApp.Features.Tasks.Contracts;
-using TemplateApp.Infrastructure.Persistence;
+using TemplateApp.Features.Tasks.Persistence;
 
 namespace TemplateApp.Features.Tasks;
 
 internal sealed class TasksModule : ITasksModule
 {
-    private readonly AppDbContext _db;
+    private readonly TasksDbContext _db;
 
-    public TasksModule(AppDbContext db)
+    public TasksModule(TasksDbContext db)
     {
         _db = db;
     }

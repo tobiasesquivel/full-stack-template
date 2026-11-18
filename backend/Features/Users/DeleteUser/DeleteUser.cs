@@ -1,22 +1,23 @@
+using System.Transactions;
 using ErrorOr;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Storage;
 using TemplateApp.Features.Auth.Contracts;
 using TemplateApp.Features.Tasks.Contracts;
 using TemplateApp.Features.Users.Contracts;
 using TemplateApp.Features.Users.Domain;
+using TemplateApp.Features.Users.Persistence;
 using TemplateApp.Infrastructure.Persistence;
 
 namespace TemplateApp.Features.Users.DeleteUser;
 
 internal sealed class DeleteUser
 {
-    private readonly AppDbContext _db;
+    private readonly UsersDbContext _db;
     private readonly IAuthModule _auth;
     private readonly ITasksModule _tasks;
     private readonly IdempotencyKeys _keys;
 
-    public DeleteUser(AppDbContext db, IAuthModule auth, ITasksModule tasks, IdempotencyKeys keys)
+    public DeleteUser(UsersDbContext db, IAuthModule auth, ITasksModule tasks, IdempotencyKeys keys)
     {
         _db = db;
         _auth = auth;
@@ -26,7 +27,7 @@ internal sealed class DeleteUser
 
     public async Task<ErrorOr<Success>> ExecuteAsync(string callerId, string authId, CancellationToken ct)
     {
-        await using IDbContextTransaction transaction = await _db.Database.BeginTransactionAsync(ct);
+        using TransactionScope transaction = CrossContextTransaction.Begin();
 
         UserProfile? profile = await _db.UserProfiles
             .SingleOrDefaultAsync(p => p.AuthId == authId, ct);
@@ -45,7 +46,7 @@ internal sealed class DeleteUser
         if (deleted.IsError)
             return deleted.FirstError.Type == ErrorType.NotFound ? UserErrors.NotFound(authId) : deleted;
 
-        await transaction.CommitAsync(ct);
+        transaction.Complete();
         return deleted;
     }
 }

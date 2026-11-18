@@ -9,7 +9,7 @@ internal static class DatabaseRows
     public static async Task<long> CountAsync(this IServiceProvider services, FormattableString sql)
     {
         using IServiceScope scope = services.CreateScope();
-        AppDbContext db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        PlatformDbContext db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
         return await db.Database.SqlQuery<long>(sql).SingleAsync();
     }
 

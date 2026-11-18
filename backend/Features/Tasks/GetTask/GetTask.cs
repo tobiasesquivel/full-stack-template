@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore.Query;
 using TemplateApp.Features.Auth.Contracts;
 using TemplateApp.Features.Tasks.Contracts;
 using TemplateApp.Features.Tasks.Domain;
-using TemplateApp.Infrastructure.Persistence;
+using TemplateApp.Features.Tasks.Persistence;
 using TemplateApp.Shared.Domain;
 
 namespace TemplateApp.Features.Tasks.GetTask;
@@ -14,10 +14,10 @@ internal sealed class GetTask
 {
     private static readonly Expression<Func<TaskItem, OwnedTask>> Read = ComposeRead((item, response) => new OwnedTask(item.OwnerId, response));
 
-    private readonly AppDbContext _db;
+    private readonly TasksDbContext _db;
     private readonly IAuthModule _auth;
 
-    public GetTask(AppDbContext db, IAuthModule auth)
+    public GetTask(TasksDbContext db, IAuthModule auth)
     {
         _db = db;
         _auth = auth;

@@ -2,7 +2,7 @@ using ErrorOr;
 using TemplateApp.Features.Auth.Contracts;
 using TemplateApp.Features.Tasks.Contracts;
 using TemplateApp.Features.Tasks.Domain;
-using TemplateApp.Infrastructure.Persistence;
+using TemplateApp.Features.Tasks.Persistence;
 using TemplateApp.Shared.Http;
 
 namespace TemplateApp.Features.Tasks.CreateTask;
@@ -11,12 +11,12 @@ internal sealed class CreateTask
 {
     private static readonly CreateTaskRequestValidator Validator = new();
 
-    private readonly AppDbContext _db;
+    private readonly TasksDbContext _db;
     private readonly IAuthModule _auth;
     private readonly TimeProvider _clock;
     private readonly TaskMetrics _metrics;
 
-    public CreateTask(AppDbContext db, IAuthModule auth, TimeProvider clock, TaskMetrics metrics)
+    public CreateTask(TasksDbContext db, IAuthModule auth, TimeProvider clock, TaskMetrics metrics)
     {
         _db = db;
         _auth = auth;

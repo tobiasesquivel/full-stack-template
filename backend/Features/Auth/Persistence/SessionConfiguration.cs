@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using TemplateApp.Features.Auth.Contracts;
 using TemplateApp.Features.Auth.Domain;
 
 namespace TemplateApp.Features.Auth.Persistence;

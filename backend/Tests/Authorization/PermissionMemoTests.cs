@@ -3,8 +3,8 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using TemplateApp.Features.Auth.Contracts;
+using TemplateApp.Features.Auth.Persistence;
 using TemplateApp.Features.Tasks.Contracts;
-using TemplateApp.Infrastructure.Persistence;
 using TemplateApp.Tests.Support;
 using Xunit;
 
@@ -80,7 +80,7 @@ public sealed class PermissionMemoTests : IClassFixture<ApiFixture>
     private static void AddProbe(IServiceCollection services, IdentityCommandCounter counter)
     {
         services.AddSingleton<IStartupFilter, PermissionProbe>();
-        services.ConfigureDbContext<AppDbContext>(options => options.AddInterceptors(counter));
+        services.ConfigureDbContext<AuthDbContext>(options => options.AddInterceptors(counter));
     }
 
     private static async Task<bool[]> ProbeAsync(TestSession session, string userId, int checks)

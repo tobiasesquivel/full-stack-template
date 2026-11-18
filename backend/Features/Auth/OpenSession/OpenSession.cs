@@ -2,15 +2,15 @@ using ErrorOr;
 using Microsoft.AspNetCore.Identity;
 using TemplateApp.Features.Auth.Contracts;
 using TemplateApp.Features.Auth.Domain;
+using TemplateApp.Features.Auth.Persistence;
 using TemplateApp.Features.Users.Contracts;
-using TemplateApp.Infrastructure.Persistence;
 
 namespace TemplateApp.Features.Auth.OpenSession;
 
 internal sealed class OpenSession
 {
     private readonly UserManager<AppIdentityUser> _users;
-    private readonly AppDbContext _db;
+    private readonly AuthDbContext _db;
     private readonly Sessions _sessions;
     private readonly AuthModule _accounts;
     private readonly IUsersModule _profiles;
@@ -18,7 +18,7 @@ internal sealed class OpenSession
 
     public OpenSession(
         UserManager<AppIdentityUser> users,
-        AppDbContext db,
+        AuthDbContext db,
         Sessions sessions,
         AuthModule accounts,
         IUsersModule profiles,

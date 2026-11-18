@@ -2,9 +2,9 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Transactions;
 using Microsoft.AspNetCore.Http.Json;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Primitives;
 using TemplateApp.Infrastructure.Persistence;
@@ -38,54 +38,53 @@ public sealed class IdempotencyFilter<TRequest> : IEndpointFilter
 
         string owner = OwnerOf(http.User);
         byte[] fingerprint = Fingerprint(http.Request, context.Arguments.OfType<TRequest>().Single());
-        AppDbContext db = http.RequestServices.GetRequiredService<AppDbContext>();
+        PlatformDbContext db = http.RequestServices.GetRequiredService<PlatformDbContext>();
         CancellationToken ct = http.RequestAborted;
 
-        await using IDbContextTransaction transaction = await db.Database.BeginTransactionAsync(ct);
-        int inserted = await db.Database.ExecuteSqlAsync(
-            $"""
-            INSERT INTO "IdempotencyKeys" ("OwnerId", "Key", "Fingerprint", "CreatedAt")
-            VALUES ({owner}, {key}, {fingerprint}, {_clock.GetUtcNow()})
-            ON CONFLICT ("OwnerId", "Key") DO NOTHING
-            """,
-            ct);
-
-        if (inserted == 0)
-            return await ReplayAsync(db, http, owner, key, fingerprint, ct);
-
-        object? result = await next(context);
-        if (result is not IResult handled)
-            throw new InvalidOperationException("WithIdempotency needs a handler that returns IResult.");
-
-        byte[] body = await RenderAsync(handled, http);
-        HttpResponse response = http.Response;
-        int status = response.StatusCode;
-        if (status is >= 200 and <= 299)
+        byte[] body;
+        using (TransactionScope transaction = CrossContextTransaction.Begin())
         {
-            string? location = response.Headers.Location;
-            string? contentType = response.ContentType;
-            await db.IdempotencyKeys
-                .Where(k => k.OwnerId == owner && k.Key == key)
-                .ExecuteUpdateAsync(
-                    set => set
-                        .SetProperty(k => k.StatusCode, status)
-                        .SetProperty(k => k.Location, location)
-                        .SetProperty(k => k.ContentType, contentType)
-                        .SetProperty(k => k.Body, body),
-                    ct);
-            await transaction.CommitAsync(ct);
-        }
-        else
-        {
-            await transaction.RollbackAsync(ct);
+            int inserted = await db.Database.ExecuteSqlAsync(
+                $"""
+                INSERT INTO "IdempotencyKeys" ("OwnerId", "Key", "Fingerprint", "CreatedAt")
+                VALUES ({owner}, {key}, {fingerprint}, {_clock.GetUtcNow()})
+                ON CONFLICT ("OwnerId", "Key") DO NOTHING
+                """,
+                ct);
+
+            if (inserted == 0)
+                return await ReplayAsync(db, http, owner, key, fingerprint, ct);
+
+            object? result = await next(context);
+            if (result is not IResult handled)
+                throw new InvalidOperationException("WithIdempotency needs a handler that returns IResult.");
+
+            body = await RenderAsync(handled, http);
+            HttpResponse rendered = http.Response;
+            int status = rendered.StatusCode;
+            if (status is >= 200 and <= 299)
+            {
+                string? location = rendered.Headers.Location;
+                string? contentType = rendered.ContentType;
+                await db.IdempotencyKeys
+                    .Where(k => k.OwnerId == owner && k.Key == key)
+                    .ExecuteUpdateAsync(
+                        set => set
+                            .SetProperty(k => k.StatusCode, status)
+                            .SetProperty(k => k.Location, location)
+                            .SetProperty(k => k.ContentType, contentType)
+                            .SetProperty(k => k.Body, body),
+                        ct);
+                transaction.Complete();
+            }
         }
 
-        await response.Body.WriteAsync(body, ct);
+        await http.Response.Body.WriteAsync(body, ct);
         return Results.Empty;
     }
 
     private static async Task<object?> ReplayAsync(
-        AppDbContext db,
+        PlatformDbContext db,
         HttpContext http,
         string owner,
         Guid key,

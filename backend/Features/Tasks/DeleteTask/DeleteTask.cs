@@ -2,16 +2,16 @@ using ErrorOr;
 using Microsoft.EntityFrameworkCore;
 using TemplateApp.Features.Auth.Contracts;
 using TemplateApp.Features.Tasks.Contracts;
-using TemplateApp.Infrastructure.Persistence;
+using TemplateApp.Features.Tasks.Persistence;
 
 namespace TemplateApp.Features.Tasks.DeleteTask;
 
 internal sealed class DeleteTask
 {
-    private readonly AppDbContext _db;
+    private readonly TasksDbContext _db;
     private readonly IAuthModule _auth;
 
-    public DeleteTask(AppDbContext db, IAuthModule auth)
+    public DeleteTask(TasksDbContext db, IAuthModule auth)
     {
         _db = db;
         _auth = auth;

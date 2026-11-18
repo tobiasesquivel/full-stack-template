@@ -1,14 +1,14 @@
 using ErrorOr;
 using Microsoft.EntityFrameworkCore;
-using TemplateApp.Infrastructure.Persistence;
+using TemplateApp.Features.Tasks.Persistence;
 
 namespace TemplateApp.Features.Tasks.ListTasks;
 
 internal sealed class ListTasks
 {
-    private readonly AppDbContext _db;
+    private readonly TasksDbContext _db;
 
-    public ListTasks(AppDbContext db)
+    public ListTasks(TasksDbContext db)
     {
         _db = db;
     }

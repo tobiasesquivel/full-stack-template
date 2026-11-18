@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
 using TemplateApp.Features.Auth.Access;
 using TemplateApp.Features.Auth.Contracts;
+using TemplateApp.Features.Auth.Persistence;
 using TemplateApp.Infrastructure.Http;
 using TemplateApp.Infrastructure.Persistence;
 
@@ -16,6 +17,7 @@ internal static class AuthFeature
 
     public static IServiceCollection AddAuthFeature(this IServiceCollection services)
     {
+        services.AddMigratedDbContext<AuthDbContext>("auth");
         services.AddAuthIdentity();
         services.AddAuthSession();
         services.AddAuthHttpPolicy();
@@ -50,7 +52,7 @@ internal static class AuthFeature
                 options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
             })
             .AddRoles<IdentityRole>()
-            .AddEntityFrameworkStores<AppDbContext>()
+            .AddEntityFrameworkStores<AuthDbContext>()
             .AddDefaultTokenProviders();
 
         return services;
