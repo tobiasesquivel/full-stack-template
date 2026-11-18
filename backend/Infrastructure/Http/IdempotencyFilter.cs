@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -36,7 +35,7 @@ public sealed class IdempotencyFilter<TRequest> : IEndpointFilter
         if (!TryParseKey(header, out Guid key))
             return ApiResults.Problem(HttpErrors.IdempotencyKeyInvalid);
 
-        string owner = OwnerOf(http.User);
+        string owner = http.User.GetCallerId();
         byte[] fingerprint = Fingerprint(http.Request, context.Arguments.OfType<TRequest>().Single());
         PlatformDbContext db = http.RequestServices.GetRequiredService<PlatformDbContext>();
         CancellationToken ct = http.RequestAborted;
@@ -135,15 +134,6 @@ public sealed class IdempotencyFilter<TRequest> : IEndpointFilter
             raw = raw[1..^1];
 
         return Guid.TryParseExact(raw, "D", out key);
-    }
-
-    private static string OwnerOf(ClaimsPrincipal user)
-    {
-        string? id = user.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (string.IsNullOrWhiteSpace(id))
-            throw new InvalidOperationException("The session is missing the caller id claim.");
-
-        return id;
     }
 
     private byte[] Fingerprint(HttpRequest request, TRequest payload)

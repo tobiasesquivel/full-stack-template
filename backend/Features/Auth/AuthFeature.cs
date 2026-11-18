@@ -63,24 +63,15 @@ internal static class AuthFeature
         services.AddOptionsWithValidateOnStart<SessionOptions, SessionOptionsValidator>()
             .BindConfiguration(SessionOptions.Section);
 
-        services.AddAuthentication(SessionHttpPolicy.Scheme)
-            .AddCookie(SessionHttpPolicy.Scheme);
-        services.AddOptions<CookieAuthenticationOptions>(SessionHttpPolicy.Scheme)
+        services.AddSessionCookie();
+        services.AddOptions<CookieAuthenticationOptions>(SessionCookie.Scheme)
             .Configure<IOptions<SessionOptions>>((cookie, session) => SessionHttpPolicy.ConfigureCookie(cookie, session.Value));
-
-        services.AddAuthorization();
 
         return services;
     }
 
     private static IServiceCollection AddAuthHttpPolicy(this IServiceCollection services)
     {
-        services.AddAntiforgery(options =>
-        {
-            options.HeaderName = "X-XSRF-TOKEN";
-            options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
-        });
-
         services.AddOptionsWithValidateOnStart<AuthRateLimitOptions, AuthRateLimitOptionsValidator>()
             .BindConfiguration(AuthRateLimitOptions.Section);
         services.AddOptions<RateLimiterOptions>()
@@ -91,9 +82,6 @@ internal static class AuthFeature
 
         return services;
     }
-
-    public static IApplicationBuilder UseAuthAntiforgery(this IApplicationBuilder app) =>
-        app.Use(SessionHttpPolicy.RequireAntiforgeryAsync);
 
     public static RouteGroupBuilder MapAuthEndpoints(this RouteGroupBuilder api)
     {

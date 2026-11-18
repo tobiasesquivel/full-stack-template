@@ -39,7 +39,7 @@ try
     app.UseAuthentication();
     app.UseRateLimiter();
     app.UseAuthorization();
-    app.UseAuthAntiforgery();
+    app.UseSessionAntiforgery();
 
     RouteGroupBuilder api = app.MapVersionedApi();
     api.MapAuthEndpoints();
