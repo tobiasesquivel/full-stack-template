@@ -94,9 +94,12 @@ export class Tasks {
   private async create(): Promise<undefined> {
     this.createError.set(null);
     try {
-      const attempt = nextCreateAttempt(this.lastAttempt, this.newTask().title.trim());
+      const attempt = nextCreateAttempt(this.lastAttempt, {
+        title: this.newTask().title.trim(),
+        projectId: null,
+      });
       this.lastAttempt = attempt;
-      await this.tasksApi.create(attempt.title, attempt.key);
+      await this.tasksApi.create(attempt.request, attempt.key);
       this.lastAttempt = null;
       this.createForm().reset({ title: '' });
       this.cursors.set([null]);

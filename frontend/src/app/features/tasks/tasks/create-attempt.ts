@@ -1,11 +1,20 @@
+import type { CreateTaskRequest } from '../api/create-task-request';
+
 export interface CreateAttempt {
-  readonly title: string;
+  readonly request: CreateTaskRequest;
   readonly key: string;
 }
 
-export function nextCreateAttempt(last: CreateAttempt | null, title: string): CreateAttempt {
-  if (last !== null && last.title === title) {
+export function nextCreateAttempt(
+  last: CreateAttempt | null,
+  request: CreateTaskRequest,
+): CreateAttempt {
+  if (
+    last !== null &&
+    last.request.title === request.title &&
+    last.request.projectId === request.projectId
+  ) {
     return last;
   }
-  return { title, key: crypto.randomUUID() };
+  return { request, key: crypto.randomUUID() };
 }
