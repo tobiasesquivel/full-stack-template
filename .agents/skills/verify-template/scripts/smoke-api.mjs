@@ -77,7 +77,7 @@ class ApiClient {
       throw new Error(`${method} ${route} devolvió una respuesta no JSON con status ${response.status}`);
     }
     const observed = {};
-    for (const key of ['id', 'title', 'isCompleted', 'nextCursor', 'displayName', 'timezone', 'authId', 'status', 'code']) {
+    for (const key of ['id', 'title', 'name', 'isCompleted', 'isArchived', 'projectId', 'taskCount', 'ownerName', 'nextCursor', 'displayName', 'timezone', 'authId', 'status', 'code']) {
       if (payload && Object.hasOwn(payload, key)) observed[key] = payload[key];
     }
     if (Array.isArray(payload?.items)) {
@@ -205,7 +205,7 @@ assert.equal(writeWithoutCsrf.payload.code, 'Auth.AntiforgeryFailed', 'Toda escr
 const profile = (await alice.request('GET', 'users/me')).payload;
 assert.equal(profile.authId, aliceUser.authId);
 assert.equal(profile.displayName, aliceName);
-assert.deepEqual([...profile.permissions].sort(), ['Permissions.Tasks.Create']);
+assert.deepEqual([...profile.permissions].sort(), ['Permissions.Projects.Create', 'Permissions.Tasks.Create']);
 const changedProfile = (await alice.request('PUT', 'users/me', {
   displayName: 'Perfil de smoke', timezone: 'America/Argentina/Buenos_Aires',
 })).payload;
@@ -263,6 +263,27 @@ await alice.request('PUT', `tasks/${created.id}`, { title: 'Estado final', isCom
 const staleTask = await alice.request('PUT', `tasks/${created.id}`, { title: 'Primera tarea', isCompleted: false, version: created.version }, { expected: 409 });
 assert.equal(staleTask.payload.code, 'Task.Conflict');
 assert.equal((await alice.request('GET', `tasks/${created.id}`)).payload.isCompleted, true);
+
+const project = (await alice.request('POST', 'projects', { name: '  Mudanza  ' }, { expected: 201 })).payload;
+assert.equal(project.name, 'Mudanza');
+assert.equal(project.isArchived, false);
+const sameName = await alice.request('POST', 'projects', { name: 'MUDANZA' }, { expected: 409 });
+assert.equal(sameName.payload.code, 'Project.NameTaken', 'El nombre de proyecto es único por dueño');
+const projectTask = (await alice.request('POST', 'tasks', { title: 'Embalar', projectId: project.id }, { expected: 201 })).payload;
+assert.equal(projectTask.projectId, project.id);
+const counted = (await alice.request('GET', `projects/${project.id}`)).payload;
+assert.equal(counted.taskCount, 1, 'El detalle cuenta las tareas del proyecto');
+assert.equal(counted.ownerName, 'Perfil de smoke', 'El detalle trae el nombre del dueño desde Users');
+const foreignProject = await bob.request('GET', `projects/${project.id}`, undefined, { expected: 403 });
+assert.equal(foreignProject.payload.code, 'Project.Forbidden');
+const archivedProject = (await alice.request('PUT', `projects/${project.id}`, { name: 'Mudanza', isArchived: true, version: counted.version })).payload;
+assert.equal(archivedProject.isArchived, true);
+const renameArchived = await alice.request('PUT', `projects/${project.id}`, { name: 'Otra', isArchived: true, version: archivedProject.version }, { expected: 409 });
+assert.equal(renameArchived.payload.code, 'Project.Archived', 'Un proyecto archivado no cambia de nombre');
+const taskInArchived = await alice.request('POST', 'tasks', { title: 'Tarde', projectId: project.id }, { expected: 409 });
+assert.equal(taskInArchived.payload.code, 'Task.ProjectArchived', 'No se crean tareas en un proyecto archivado');
+assert.equal((await alice.request('GET', `projects/${project.id}`)).payload.name, 'Mudanza');
+assert.deepEqual((await alice.request('GET', 'projects')).payload.items.map(item => item.id), [project.id]);
 
 const reloaded = alice.onlySession();
 assert.equal((await reloaded.request('GET', 'users/me')).payload.authId, aliceUser.authId,
