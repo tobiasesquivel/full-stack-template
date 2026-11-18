@@ -40,6 +40,16 @@ public sealed class DatabaseSearchPathTests : IClassFixture<ApiFixture>
         Assert.Equal(Enumerable.Repeat(ExpectedSearchPath, 5), await SessionSearchPathsAsync(services));
     }
 
+    [Fact]
+    public void TheSchemaOfEveryContext_IsInTheSearchPath()
+    {
+        using IServiceScope scope = _fixture.Services.CreateScope();
+
+        Assert.All(
+            scope.ServiceProvider.MigratedContexts(),
+            context => Assert.Contains(context.Model.GetDefaultSchema(), ExpectedSearchPath.Split(',')));
+    }
+
     private static async Task<string[]> SessionSearchPathsAsync(IServiceProvider services)
     {
         using IServiceScope scope = services.CreateScope();

@@ -6,6 +6,8 @@ namespace TemplateApp.Features.Users.Persistence;
 
 internal sealed class UsersDbContext : DbContext
 {
+    public const string Schema = "users";
+
     public UsersDbContext(DbContextOptions<UsersDbContext> options) : base(options)
     {
     }
@@ -14,6 +16,7 @@ internal sealed class UsersDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.HasDefaultSchema(Schema);
         modelBuilder.ApplyConfiguration(new UserProfileConfiguration());
         modelBuilder.MapSharedAuditEntries();
     }

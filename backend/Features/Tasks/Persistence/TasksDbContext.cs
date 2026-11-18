@@ -6,6 +6,8 @@ namespace TemplateApp.Features.Tasks.Persistence;
 
 internal sealed class TasksDbContext : DbContext
 {
+    public const string Schema = "tasks";
+
     public TasksDbContext(DbContextOptions<TasksDbContext> options) : base(options)
     {
     }
@@ -14,6 +16,7 @@ internal sealed class TasksDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.HasDefaultSchema(Schema);
         modelBuilder.ApplyConfiguration(new TaskItemConfiguration());
         modelBuilder.MapSharedAuditEntries();
     }

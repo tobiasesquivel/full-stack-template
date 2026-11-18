@@ -26,7 +26,7 @@ public static class BackendInfrastructure
         services.AddHttpContextAccessor();
         services.AddSingleton<AuditInterceptor>();
         services.AddLegacyDbContext();
-        services.AddMigratedDbContext<PlatformDbContext>("platform");
+        services.AddMigratedDbContext<PlatformDbContext>(PlatformDbContext.Schema);
         services.AddScoped<IdempotencyKeys>();
 
         services.AddHostedService<DatabaseInitialization>();

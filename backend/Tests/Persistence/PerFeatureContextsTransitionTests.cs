@@ -14,9 +14,25 @@ public sealed class PerFeatureContextsTransitionTests : IClassFixture<ApiFixture
 {
     private const string MainRelease = "20261117144432_ContractTaskIsCompleted";
     private const string Owner = "owner-transition";
-    private static readonly string[] ContextSchemas = ["auth", "users", "tasks", "platform"];
+    private static readonly (string Schema, string Move)[] ContextMigrations =
+        [("auth", "_MoveAuthToSchema"), ("users", "_MoveUsersToSchema"), ("tasks", "_MoveTasksToSchema"), ("platform", "_MovePlatformToSchema")];
     private static readonly string[] DataTables =
         ["AspNetUsers", "AspNetUserRoles", "Sessions", "UserProfiles", "TaskItems", "IdempotencyKeys", "AuditEntries"];
+    private static readonly string[] TablesInTheirFeatureSchema =
+    [
+        "auth.AspNetRoleClaims",
+        "auth.AspNetRoles",
+        "auth.AspNetUserClaims",
+        "auth.AspNetUserLogins",
+        "auth.AspNetUserRoles",
+        "auth.AspNetUserTokens",
+        "auth.AspNetUsers",
+        "auth.Sessions",
+        "platform.AuditEntries",
+        "platform.IdempotencyKeys",
+        "tasks.TaskItems",
+        "users.UserProfiles",
+    ];
 
     private readonly ApiFixture _fixture;
     private readonly PostgresFixture _postgres;
@@ -55,8 +71,7 @@ public sealed class PerFeatureContextsTransitionTests : IClassFixture<ApiFixture
         Dictionary<string, string[]> after = await RowsAsync(database);
         foreach (string table in DataTables)
             Assert.Equal(before[table], after[table]);
-        foreach (string schema in ContextSchemas)
-            Assert.EndsWith("_InitialCreate", Assert.Single(await HistoryAsync(database, schema)), StringComparison.Ordinal);
+        await AssertBaselinedAndMovedAsync(database);
         Assert.Contains(MainRelease, await HistoryAsync(database, "public"));
     }
 
@@ -69,12 +84,11 @@ public sealed class PerFeatureContextsTransitionTests : IClassFixture<ApiFixture
 
         await AssertReadyAsync(client);
         Assert.Empty(await HistoryAsync(database, "public"));
-        foreach (string schema in ContextSchemas)
-            Assert.EndsWith("_InitialCreate", Assert.Single(await HistoryAsync(database, schema)), StringComparison.Ordinal);
+        await AssertBaselinedAndMovedAsync(database);
     }
 
     [Fact]
-    public async Task InheritedAndEmptyDatabases_EndWithTheSameSchema()
+    public async Task InheritedAndEmptyDatabases_EndWithTheSameSchema_AndEveryTableInItsFeatureSchema()
     {
         string inherited = await InheritedDatabaseAsync();
         string empty = await TestDatabases.CreateEmptyAsync(_postgres.ConnectionString);
@@ -86,7 +100,25 @@ public sealed class PerFeatureContextsTransitionTests : IClassFixture<ApiFixture
             await AssertReadyAsync(second);
         }
 
+        Assert.Equal(TablesInTheirFeatureSchema, await TablesAsync(empty));
+        Assert.Equal(TablesInTheirFeatureSchema, await TablesAsync(inherited));
         Assert.Equal(await SchemaAsync(empty), await SchemaAsync(inherited));
+    }
+
+    [Fact]
+    public async Task RollingBackEveryMoveMigration_PutsEveryTableBackInPublic()
+    {
+        string database = await TestDatabases.CreateEmptyAsync(_postgres.ConnectionString);
+        using HttpClient client = StartedClient(database, out IServiceProvider services);
+        await AssertReadyAsync(client);
+
+        using IServiceScope scope = services.CreateScope();
+        foreach (DbContext context in scope.ServiceProvider.MigratedContexts())
+            await context.GetService<IMigrator>().MigrateAsync(context.Database.GetMigrations().First());
+
+        Assert.Equal(
+            TablesInTheirFeatureSchema.Select(table => $"public.{table[(table.IndexOf('.', StringComparison.Ordinal) + 1)..]}").Order(StringComparer.Ordinal),
+            await TablesAsync(database));
     }
 
     private async Task<string> InheritedDatabaseAsync()
@@ -101,15 +133,28 @@ public sealed class PerFeatureContextsTransitionTests : IClassFixture<ApiFixture
         return database;
     }
 
-    private HttpClient StartedClient(string database) =>
+    private HttpClient StartedClient(string database) => StartedClient(database, out _);
+
+    private HttpClient StartedClient(string database, out IServiceProvider services) =>
         _fixture.CreateIsolatedClient(
             new Dictionary<string, string> { ["ConnectionStrings:DefaultConnection"] = database },
-            out _);
+            out services);
 
     private static async Task AssertReadyAsync(HttpClient client)
     {
         using HttpResponseMessage ready = await client.GetAsync("/api/v1/health/ready");
         Assert.Equal(HttpStatusCode.OK, ready.StatusCode);
+    }
+
+    private static async Task AssertBaselinedAndMovedAsync(string database)
+    {
+        foreach ((string schema, string move) in ContextMigrations)
+        {
+            string[] history = await HistoryAsync(database, schema);
+            Assert.Equal(2, history.Length);
+            Assert.EndsWith("_InitialCreate", history[0], StringComparison.Ordinal);
+            Assert.EndsWith(move, history[1], StringComparison.Ordinal);
+        }
     }
 
     private static async Task<string[]> HistoryAsync(string database, string schema)
@@ -139,10 +184,11 @@ public sealed class PerFeatureContextsTransitionTests : IClassFixture<ApiFixture
             ORDER BY 1
             """),
         .. await LinesAsync(database, """
-            SELECT concat_ws(' | ', 'constraint', c.conrelid::regclass::text, c.conname, c.contype, pg_get_constraintdef(c.oid))
+            SELECT concat_ws(' | ', 'constraint', n.nspname || '.' || r.relname, c.conname, c.contype, pg_get_constraintdef(c.oid))
             FROM pg_constraint c
             JOIN pg_namespace n ON n.oid = c.connamespace
-            WHERE n.nspname NOT IN ('pg_catalog', 'information_schema') AND strpos(c.conrelid::regclass::text, '__EFMigrationsHistory') = 0
+            JOIN pg_class r ON r.oid = c.conrelid
+            WHERE n.nspname NOT IN ('pg_catalog', 'information_schema') AND r.relname <> '__EFMigrationsHistory'
             ORDER BY 1
             """),
         .. await LinesAsync(database, """
@@ -152,6 +198,15 @@ public sealed class PerFeatureContextsTransitionTests : IClassFixture<ApiFixture
             ORDER BY 1
             """),
     ];
+
+    private static Task<string[]> TablesAsync(string database) =>
+        LinesAsync(database, """
+            SELECT n.nspname || '.' || c.relname
+            FROM pg_class c
+            JOIN pg_namespace n ON n.oid = c.relnamespace
+            WHERE c.relkind = 'r' AND n.nspname NOT IN ('pg_catalog', 'information_schema') AND c.relname <> '__EFMigrationsHistory'
+            ORDER BY n.nspname || '.' || c.relname COLLATE "C"
+            """);
 
     private static async Task ExecuteAsync(string database, string sql)
     {
