@@ -8,6 +8,7 @@ namespace TemplateApp.Infrastructure.Persistence;
 public static class DatabaseInitializer
 {
     private const long InitializationLockKey = 7_164_253_001;
+    private static readonly TimeSpan LockRetryDelay = TimeSpan.FromMilliseconds(200);
 
     public static async Task InitializeAsync(IServiceProvider rootServices, CancellationToken ct = default)
     {
@@ -20,8 +21,7 @@ public static class DatabaseInitializer
 
         await using NpgsqlConnection lockConnection = new(legacy.Database.GetConnectionString());
         await lockConnection.OpenAsync(ct);
-        await using NpgsqlCommand acquire = LockCommand(new NpgsqlCommand("SELECT pg_advisory_lock(@key)", lockConnection));
-        await acquire.ExecuteNonQueryAsync(ct);
+        await AcquireLockAsync(lockConnection, services.GetRequiredService<TimeProvider>(), ct);
         try
         {
             if (await IsLegacyDatabaseAsync(lockConnection, ct))
@@ -42,6 +42,13 @@ public static class DatabaseInitializer
             await using NpgsqlCommand release = LockCommand(new NpgsqlCommand("SELECT pg_advisory_unlock(@key)", lockConnection));
             await release.ExecuteNonQueryAsync(CancellationToken.None);
         }
+    }
+
+    private static async Task AcquireLockAsync(NpgsqlConnection connection, TimeProvider clock, CancellationToken ct)
+    {
+        await using NpgsqlCommand tryAcquire = LockCommand(new NpgsqlCommand("SELECT pg_try_advisory_lock(@key)", connection));
+        while (await tryAcquire.ExecuteScalarAsync(ct) is not true)
+            await Task.Delay(LockRetryDelay, clock, ct);
     }
 
     private static async Task<bool> IsLegacyDatabaseAsync(NpgsqlConnection connection, CancellationToken ct)
