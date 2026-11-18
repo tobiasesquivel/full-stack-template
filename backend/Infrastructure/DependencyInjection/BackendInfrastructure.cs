@@ -29,6 +29,7 @@ public static class BackendInfrastructure
         services.AddDbContext<AppDbContext>((provider, options) => options
             .UseNpgsql(provider.GetRequiredService<IOptions<DatabaseOptions>>().Value.DefaultConnection)
             .AddInterceptors(provider.GetRequiredService<AuditInterceptor>()));
+        services.AddScoped<IdempotencyKeys>();
 
         services.AddHostedService<DatabaseInitialization>();
         services.AddHealthChecks()

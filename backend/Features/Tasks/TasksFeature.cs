@@ -1,3 +1,5 @@
+using TemplateApp.Features.Tasks.Contracts;
+
 namespace TemplateApp.Features.Tasks;
 
 internal static class TasksFeature
@@ -5,6 +7,7 @@ internal static class TasksFeature
     public static IServiceCollection AddTasksFeature(this IServiceCollection services)
     {
         services.AddSingleton<TaskMetrics>();
+        services.AddScoped<ITasksModule, TasksModule>();
         services.AddScoped<CreateTask.CreateTask>();
         services.AddScoped<ListTasks.ListTasks>();
         services.AddScoped<GetTask.GetTask>();
