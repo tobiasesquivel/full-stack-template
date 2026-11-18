@@ -22,30 +22,7 @@ internal class AppDbContext : IdentityDbContext<AppIdentityUser>
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
-        ConfigureCrossFeatureRelationships(modelBuilder);
 
         base.OnModelCreating(modelBuilder);
-    }
-
-    private static void ConfigureCrossFeatureRelationships(ModelBuilder modelBuilder)
-    {
-        modelBuilder.Entity<UserProfile>()
-            .HasOne<AppIdentityUser>()
-            .WithOne()
-            .HasForeignKey<UserProfile>(u => u.AuthId)
-            .HasConstraintName("FK_UserProfiles_AspNetUsers_AuthId")
-            .OnDelete(DeleteBehavior.Cascade);
-
-        modelBuilder.Entity<TaskItem>()
-            .HasOne<UserProfile>()
-            .WithMany()
-            .HasForeignKey(t => t.OwnerId)
-            .OnDelete(DeleteBehavior.Cascade);
-
-        modelBuilder.Entity<IdempotencyKey>()
-            .HasOne<UserProfile>()
-            .WithMany()
-            .HasForeignKey(k => k.OwnerId)
-            .OnDelete(DeleteBehavior.Cascade);
     }
 }
