@@ -60,11 +60,13 @@ public sealed class ApiFixture : IAsyncLifetime
     public ApiPair CreateIsolatedApi(
         IReadOnlyDictionary<string, string> settings,
         Action<IServiceCollection> configureServices,
-        Func<HttpRequestMessage, HttpMessageHandler?>? interceptRemote = null)
+        Func<HttpRequestMessage, HttpMessageHandler?>? interceptRemote = null,
+        bool start = true)
     {
         ApiPair isolated = new(_connectionString, settings, configureServices, interceptRemote);
         _isolated.Add(isolated);
-        isolated.Start();
+        if (start)
+            isolated.Start();
         return isolated;
     }
 

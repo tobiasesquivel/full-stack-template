@@ -88,6 +88,30 @@ public sealed class PerFeatureContextsTransitionTests : IClassFixture<ApiFixture
     }
 
     [Fact]
+    public async Task InheritedDatabase_WhenTasksStartsFirst_TasksWaitsForThePlatformTables_AndBothEndReady()
+    {
+        string database = await InheritedDatabaseAsync();
+        ApiPair api = _fixture.CreateIsolatedApi(
+            new Dictionary<string, string> { ["ConnectionStrings:DefaultConnection"] = database },
+            _ => { },
+            start: false);
+        using HttpClient tasks = api.CreateTasksClient();
+        using HttpClient monolith = api.CreateMonolithClient();
+
+        _ = api.Tasks.Services;
+        using (HttpResponseMessage waiting = await tasks.GetAsync("/api/v1/health/ready"))
+            Assert.Equal(HttpStatusCode.ServiceUnavailable, waiting.StatusCode);
+        Assert.Contains("tasks.TaskItems", await TablesAsync(database));
+        Assert.Contains("public.IdempotencyKeys", await TablesAsync(database));
+
+        _ = api.Monolith.Services;
+        await AssertReadyAsync(tasks);
+        await AssertReadyAsync(monolith);
+        Assert.Equal(TablesInTheirFeatureSchema, await TablesAsync(database));
+        await AssertBaselinedAndMovedAsync(database);
+    }
+
+    [Fact]
     public async Task EmptyDatabase_IsCreatedByTheContextsOfEachFeature_AndIsReady()
     {
         string database = await TestDatabases.CreateEmptyAsync(_postgres.ConnectionString);
