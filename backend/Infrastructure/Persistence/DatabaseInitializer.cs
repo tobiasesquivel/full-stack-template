@@ -27,7 +27,7 @@ public static class DatabaseInitializer
             if (await IsLegacyDatabaseAsync(lockConnection, ct))
             {
                 await legacy.Database.MigrateAsync(ct);
-                foreach (DbContext context in contexts)
+                foreach (DbContext context in services.ContextsThatAdoptLegacyTables())
                     await BaselineAsync(context, lockConnection, ct);
             }
 
