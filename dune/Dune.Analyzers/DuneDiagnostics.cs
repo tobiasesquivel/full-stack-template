@@ -275,4 +275,41 @@ internal static class DuneDiagnostics
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
         description: "Dentro de backend/Features, public y Contracts/ son lo mismo en las dos direcciones: un tipo de Contracts/ es public.");
+
+    public static readonly DiagnosticDescriptor DbContextOutsidePersistence = new(
+        id: "DUNE0021",
+        title: "DbContext fuera de Persistence",
+        messageFormat: "'{0}' deriva de DbContext y vive fuera de Features/<Feature>/Persistence/ y de Infrastructure/Persistence/",
+        category: "Dune",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "Propiedad de datos: cada feature mapea sus tablas en su propio DbContext, dentro de su Persistence/. Infrastructure/Persistence guarda solo PlatformDbContext y el AppDbContext viejo, dueño de las migraciones anteriores al paso 22.");
+
+    public static readonly DiagnosticDescriptor SecondDbContextInFeature = new(
+        id: "DUNE0021",
+        title: "Más de un DbContext en una feature",
+        messageFormat: "La feature {0} tiene {1} tipos que derivan de DbContext ({2}): una feature tiene a lo sumo uno",
+        category: "Dune",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "Un DbContext por feature: sus tablas, su carpeta de migraciones y su historial. Un segundo contexto parte la propiedad de los datos dentro de la feature.",
+        customTags: WellKnownDiagnosticTags.CompilationEnd);
+
+    public static readonly DiagnosticDescriptor ExcludeFromMigrationsOutsideInfrastructure = new(
+        id: "DUNE0021",
+        title: "ExcludeFromMigrations fuera de Infrastructure/Persistence",
+        messageFormat: "ExcludeFromMigrations se usa fuera de Infrastructure/Persistence: una feature no mapea una tabla que es de otro contexto",
+        category: "Dune",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "Mapear una tabla sin migrarla es leer o escribir la tabla de otro contexto. La única tabla compartida es AuditEntries, y la mapea MapSharedAuditEntries de Infrastructure/Persistence para que la fila de auditoría viaje en el mismo SaveChanges.");
+
+    public static readonly DiagnosticDescriptor TransactionScopeOutsideHelper = new(
+        id: "DUNE0021",
+        title: "TransactionScope fuera de CrossContextTransaction",
+        messageFormat: "new TransactionScope fuera de Infrastructure/Persistence: una escritura entre contextos abre su transacción con CrossContextTransaction.Begin()",
+        category: "Dune",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "Un TransactionScope sin configurar usa Serializable. CrossContextTransaction fija ReadCommitted y el flujo async; es el único lugar que crea uno.");
 }

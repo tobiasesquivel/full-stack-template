@@ -14,7 +14,6 @@ public sealed class ContractsAnalyzer : DiagnosticAnalyzer
 {
     private const string FeaturesNamespace = "TemplateApp.Features.";
     private const string ContractsSegment = ".Contracts";
-    private const string IdentityException = "TemplateApp.Features.Auth.Contracts.AppIdentityUser";
 
     private static readonly string[] DataSuffixes = { "Details", "Summary", "Info" };
     private static readonly string[] ConstantSuffixes = { "Permissions", "EndpointNames" };
@@ -60,11 +59,6 @@ public sealed class ContractsAnalyzer : DiagnosticAnalyzer
 
         var path = DunePaths.Normalize(location.SourceTree?.FilePath);
         if (DunePaths.IsMigration(path) || DunePaths.IsTestsFile(path) || !TryGetContractsFeature(type, out var feature))
-        {
-            return;
-        }
-
-        if (type.ToDisplayString().Equals(IdentityException, StringComparison.Ordinal))
         {
             return;
         }

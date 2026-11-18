@@ -58,7 +58,8 @@ internal static class AnalyzerHost
             new ErrorCatalogAnalyzer(),
             new ContractsAnalyzer(),
             new IdempotentPostAnalyzer(),
-            new PublicSurfaceAnalyzer());
+            new PublicSurfaceAnalyzer(),
+            new PersistenceOwnershipAnalyzer());
 
     public static Func<ImmutableArray<DiagnosticAnalyzer>> Only<T>()
         where T : DiagnosticAnalyzer, new() =>

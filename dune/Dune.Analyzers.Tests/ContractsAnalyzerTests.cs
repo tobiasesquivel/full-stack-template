@@ -53,10 +53,6 @@ public sealed class ContractsAnalyzerTests
                     public static string GetCallerId(this string user) => user;
                 }
                 """),
-            ("backend/Features/Auth/Contracts/AppIdentityUser.cs", """
-                namespace TemplateApp.Features.Auth.Contracts;
-                public sealed class AppIdentityUser { }
-                """),
             ("backend/Features/Auth/AuthModule.cs", """
                 using System.Threading;
                 using System.Threading.Tasks;
@@ -149,6 +145,10 @@ public sealed class ContractsAnalyzerTests
                 namespace TemplateApp.Features.Auth.Contracts;
                 public sealed class SessionUser { }
                 """),
+            ("backend/Features/Auth/Contracts/AppIdentityUser.cs", """
+                namespace TemplateApp.Features.Auth.Contracts;
+                public sealed class AppIdentityUser : Microsoft.AspNetCore.Identity.IdentityUser { }
+                """),
             ("backend/Features/Tasks/Contracts/TaskPermissions.cs", """
                 namespace TemplateApp.Features.Tasks.Contracts;
                 public static class TaskPermissions
@@ -158,7 +158,7 @@ public sealed class ContractsAnalyzerTests
                 """));
 
         Assert.Equal(
-            new[] { "IAccessPolicy.cs:2", "SessionUser.cs:2", "TaskPermissions.cs:2", "TaskState.cs:2", "UserProfileSnapshot.cs:2" },
+            new[] { "AppIdentityUser.cs:2", "IAccessPolicy.cs:2", "SessionUser.cs:2", "TaskPermissions.cs:2", "TaskState.cs:2", "UserProfileSnapshot.cs:2" },
             Locations(diagnostics, compilationEnd: false));
     }
 
