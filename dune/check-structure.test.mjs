@@ -24,6 +24,36 @@ async function makeRepo() {
   return { dir, write, git, cleanup: () => rm(dir, { recursive: true, force: true }) };
 }
 
+const VALID_COMPOSE = [
+  'services:',
+  '  db:',
+  '    image: postgres:18',
+  '    ports:',
+  '      - "5432:5432"',
+  '  api:',
+  '    build:',
+  '      context: ./backend',
+  '    healthcheck:',
+  '      test: ["CMD", "bash", "-c", "true"]',
+  '  gateway:',
+  '    build:',
+  '      context: ./gateway',
+  '    ports:',
+  '      - "${API_PORT:-8080}:8080"',
+  '  web:',
+  '    ports:',
+  '      - "8081:8080"',
+  'volumes:',
+  '  pgdata:',
+  '',
+].join('\n');
+
+const VALID_NGINX = 'location /api/v1/ {\n  proxy_pass http://gateway:8080;\n}\n';
+
+const VALID_GATEWAY_PROJECT = '<Project Sdk="Microsoft.NET.Sdk.Web"><ItemGroup>'
+  + '<PackageReference Include="Yarp.ReverseProxy" Version="2.3.0" />'
+  + '</ItemGroup></Project>';
+
 async function seedValid(repo) {
   for (const feature of ['Auth', 'Users', 'Tasks', 'Health']) {
     await repo.write(`backend/Features/${feature}/${feature}Feature.cs`, ' ');
@@ -44,6 +74,9 @@ async function seedValid(repo) {
       + '<Compile Include="..\\Features\\**\\*Tests.cs" />'
       + '</ItemGroup></Project>',
   );
+  await repo.write('compose.yaml', VALID_COMPOSE);
+  await repo.write('frontend/nginx.conf', VALID_NGINX);
+  await repo.write('gateway/TemplateApp.Gateway.csproj', VALID_GATEWAY_PROJECT);
   await repo.git(['init']);
   await repo.git(['add', '.']);
 }
@@ -271,6 +304,53 @@ describe('check-structure', () => {
         const result = await runGate(repo.dir);
         assert.equal(result.code, 1);
         assert.match(result.output, /limiter global: DisableRateLimiting solo en backend\/Features\/Health/);
+      } finally {
+        await repo.cleanup();
+      }
+    });
+  }
+
+  for (const [name, rel, content, message] of [
+    [
+      'la API con puerto publicado',
+      'compose.yaml',
+      VALID_COMPOSE.replace('      context: ./backend\n', '      context: ./backend\n    ports:\n      - "8080:8080"\n'),
+      /el servicio api de compose\.yaml publica puertos/,
+    ],
+    [
+      'un servicio nuevo de la API con puerto publicado',
+      'compose.yaml',
+      VALID_COMPOSE.replace('  web:\n', '  tasks:\n    ports:\n      - "8082:8080"\n  web:\n'),
+      /el servicio tasks de compose\.yaml publica puertos/,
+    ],
+    [
+      'el gateway sin puerto publicado',
+      'compose.yaml',
+      VALID_COMPOSE.replace('    ports:\n      - "${API_PORT:-8080}:8080"\n', ''),
+      /necesita el servicio gateway con el puerto publicado/,
+    ],
+    [
+      'nginx que reenvía directo a la API',
+      'frontend/nginx.conf',
+      'location /api/v1/ {\n  proxy_pass http://api:8080;\n}\n',
+      /frontend\/nginx\.conf reenvía a http:\/\/api:8080/,
+    ],
+    [
+      'un gateway que referencia el backend',
+      'gateway/TemplateApp.Gateway.csproj',
+      '<Project><ItemGroup><ProjectReference Include="../backend/TemplateApp.csproj" /></ItemGroup></Project>',
+      /el gateway reparte requests y no compila código de features/,
+    ],
+  ]) {
+    it(`rechaza ${name}`, async () => {
+      const repo = await makeRepo();
+      try {
+        await seedValid(repo);
+        await repo.write(rel, content);
+        const result = await runGate(repo.dir);
+        assert.equal(result.code, 1, result.output);
+        assert.match(result.output, /gateway como única entrada/);
+        assert.match(result.output, message);
       } finally {
         await repo.cleanup();
       }
