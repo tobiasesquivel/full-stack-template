@@ -10,6 +10,8 @@ internal sealed class TaskItemConfiguration : IEntityTypeConfiguration<TaskItem>
     {
         builder.HasKey(t => t.Id);
 
+        builder.Ignore(t => t.DomainEvents);
+
         builder.Property(t => t.OwnerId)
             .IsRequired()
             .HasMaxLength(450);

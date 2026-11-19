@@ -160,12 +160,12 @@ public sealed class AuditTrailTests : IClassFixture<ApiFixture>
         {
             TasksDbContext db = scope.ServiceProvider.GetRequiredService<TasksDbContext>();
             TaskItem item = await db.TaskItems.SingleAsync(t => t.Id == Guid.Parse(id));
-            item.Title = "Comprar pan integral";
+            item.Update("Comprar pan integral", isCompleted: false, DateTimeOffset.UtcNow);
             await db.SaveChangesAsync();
         }
 
         AuditRow system = (await _fixture.Services.AuditEntriesAsync(id)).Last();
-        Assert.Equal(("Modified", "system", null, "Title"), (system.Operation, system.ActorKind, system.ActorId, system.ChangedProperties));
+        Assert.Equal(("Modified", "system", null, "Title,UpdatedAt"), (system.Operation, system.ActorKind, system.ActorId, system.ChangedProperties));
     }
 
     private static Dictionary<string, string> KeyHeader(Guid key) => new() { ["Idempotency-Key"] = key.ToString() };

@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
 using TemplateApp.Features.Tasks.Access;
+using TemplateApp.Features.Tasks.Domain.Events;
 using TemplateApp.Features.Tasks.Persistence;
 using TemplateApp.Infrastructure.Http;
+using TemplateApp.Infrastructure.Messaging;
 using TemplateApp.Infrastructure.Persistence;
 
 namespace TemplateApp.Features.Tasks;
@@ -13,6 +15,11 @@ internal static class TasksFeature
     public static IServiceCollection AddTasksFeature(this IServiceCollection services)
     {
         services.AddMigratedDbContext<TasksDbContext>(TasksDbContext.Schema, adoptsLegacyTables: true);
+        services.AddOutbox<TasksDbContext>();
+        services.AddOutboxEvent<TaskCreated>("tasks.task-created", version: 1);
+        services.AddOutboxEvent<TaskCompleted>("tasks.task-completed", version: 1);
+        services.AddOutboxEvent<TaskReopened>("tasks.task-reopened", version: 1);
+        services.AddOutboxEvent<TaskDeleted>("tasks.task-deleted", version: 1);
         services.AddSessionCookie();
         services.AddOptions<CookieAuthenticationOptions>(SessionCookie.Scheme)
             .Configure(cookie => cookie.Events.OnValidatePrincipal = RemoteSession.ValidatePrincipalAsync);

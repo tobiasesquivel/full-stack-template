@@ -334,6 +334,68 @@ public sealed class PersistenceOwnershipAnalyzerTests
             Findings(diagnostics));
     }
 
+    [Fact]
+    public async Task AFeatureContextMapsItsOutboxAndInboxOnlyThroughTheInfrastructureHelpers()
+    {
+        var diagnostics = await AnalyzeAsync(
+            ("backend/Infrastructure/Messaging/OutboxMessageConfiguration.cs", """
+                using Microsoft.EntityFrameworkCore;
+                using Microsoft.EntityFrameworkCore.Metadata.Builders;
+                using TemplateApp.Infrastructure.Persistence;
+                namespace TemplateApp.Infrastructure.Messaging;
+                public sealed class OutboxMessageConfiguration : IEntityTypeConfiguration<AuditEntry>
+                {
+                    public void Configure(EntityTypeBuilder<AuditEntry> builder) => builder.ToTable("OutboxMessages");
+                }
+                """),
+            ("backend/Infrastructure/Messaging/InboxMessageConfiguration.cs", """
+                using Microsoft.EntityFrameworkCore;
+                using Microsoft.EntityFrameworkCore.Metadata.Builders;
+                using TemplateApp.Infrastructure.Persistence;
+                namespace TemplateApp.Infrastructure.Messaging;
+                public sealed class InboxMessageConfiguration : IEntityTypeConfiguration<AuditEntry>
+                {
+                    public void Configure(EntityTypeBuilder<AuditEntry> builder) => builder.ToTable("InboxMessages");
+                }
+                """),
+            ("backend/Infrastructure/Messaging/MessagingTables.cs", """
+                using Microsoft.EntityFrameworkCore;
+                namespace TemplateApp.Infrastructure.Messaging;
+                public static class MessagingTables
+                {
+                    public static ModelBuilder MapOutbox(this ModelBuilder modelBuilder) =>
+                        modelBuilder.ApplyConfiguration(new OutboxMessageConfiguration());
+
+                    public static ModelBuilder MapInbox(this ModelBuilder modelBuilder) =>
+                        modelBuilder.ApplyConfiguration(new InboxMessageConfiguration());
+                }
+                """),
+            ("backend/Features/Tasks/Persistence/TasksDbContext.cs", """
+                using Microsoft.EntityFrameworkCore;
+                using TemplateApp.Infrastructure.Messaging;
+                namespace TemplateApp.Features.Tasks.Persistence;
+                internal sealed class TasksDbContext : DbContext
+                {
+                    protected override void OnModelCreating(ModelBuilder modelBuilder) =>
+                        modelBuilder.MapOutbox().MapInbox();
+                }
+                """),
+            ("backend/Features/Projects/Persistence/ProjectsDbContext.cs", """
+                using Microsoft.EntityFrameworkCore;
+                using TemplateApp.Infrastructure.Messaging;
+                namespace TemplateApp.Features.Projects.Persistence;
+                internal sealed class ProjectsDbContext : DbContext
+                {
+                    protected override void OnModelCreating(ModelBuilder modelBuilder) =>
+                        modelBuilder.ApplyConfiguration(new OutboxMessageConfiguration());
+                }
+                """));
+
+        Assert.Equal(
+            new[] { "Configuración de otro dueño ProjectsDbContext.cs:7" },
+            Findings(diagnostics));
+    }
+
     private static Task<ImmutableArray<Diagnostic>> AnalyzeAsync(params (string Path, string Source)[] files) =>
         AnalyzerHost.AnalyzeAsync(
             files.Append(("backend/Infrastructure/Persistence/AuditEntry.cs", AuditEntry)).ToList(),

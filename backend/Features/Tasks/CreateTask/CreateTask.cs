@@ -44,14 +44,7 @@ internal sealed class CreateTask
                 return TaskErrors.ProjectArchived;
         }
 
-        var item = new TaskItem
-        {
-            Id = Guid.NewGuid(),
-            OwnerId = callerId,
-            Title = TaskItem.NormalizeTitle(request.Title),
-            ProjectId = request.ProjectId,
-            CreatedAt = _clock.GetUtcNow(),
-        };
+        var item = TaskItem.Create(callerId, TaskItem.NormalizeTitle(request.Title), request.ProjectId, _clock.GetUtcNow());
 
         _db.TaskItems.Add(item);
         await _db.SaveChangesAsync(ct);

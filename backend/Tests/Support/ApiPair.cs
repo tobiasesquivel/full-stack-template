@@ -78,6 +78,7 @@ public sealed class ApiPair : IDisposable
         builder.UseSetting("Session:IdleTimeoutMinutes", "30");
         builder.UseSetting("Services:Tasks:BaseAddress", $"http://{TasksAuthority}/");
         builder.UseSetting("Services:Monolith:BaseAddress", $"http://{MonolithAuthority}/");
+        builder.UseSetting("Outbox:RelayEnabled", "false");
         foreach ((string key, string value) in settings)
             builder.UseSetting(key, value);
         builder.ConfigureTestServices(configureServices);

@@ -7,6 +7,7 @@ using OpenTelemetry.Trace;
 using Serilog;
 using Serilog.Events;
 using Serilog.Sinks.OpenTelemetry;
+using TemplateApp.Infrastructure.Messaging;
 
 namespace TemplateApp.Infrastructure.Observability;
 
@@ -48,7 +49,7 @@ public static class ObservabilityExtensions
             .WithTracing(tracing => tracing
                 .AddAspNetCoreInstrumentation()
                 .AddHttpClientInstrumentation()
-                .AddSource("Npgsql", "TemplateApp.Api")
+                .AddSource("Npgsql", "TemplateApp.Api", OutboxTracing.SourceName)
                 .AddOtlpExporter(TracesExporter, configure: null))
             .WithMetrics(metrics => metrics
                 .AddAspNetCoreInstrumentation()

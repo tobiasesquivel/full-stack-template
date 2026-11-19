@@ -183,7 +183,7 @@ internal static class DuneDiagnostics
         category: "Dune",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
-        description: "ExecuteUpdate y ExecuteDelete no pasan por el ChangeTracker, entonces AuditInterceptor no los ve. Una entidad que implementa IAuditable se cambia solo con SaveChanges; las demás (Session, IdempotencyKey) pueden usar escrituras masivas.");
+        description: "ExecuteUpdate y ExecuteDelete no pasan por el ChangeTracker, entonces AuditInterceptor no los ve y no dejan fila en AuditEntries. Desde el paso 24 tampoco dejan evento: OutboxInterceptor solo convierte en filas del outbox los eventos de las entidades del ChangeTracker. Una entidad que implementa IAuditable se cambia solo con SaveChanges; las demás (Session, IdempotencyKey, OutboxMessage) pueden usar escrituras masivas.");
 
     public static readonly DiagnosticDescriptor MigrationRename = new(
         id: "DUNE0018",
@@ -338,7 +338,7 @@ internal static class DuneDiagnostics
         category: "Dune",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
-        description: "Mapear una tabla sin migrarla es leer o escribir la tabla de otro contexto. La única tabla compartida es AuditEntries, y la mapea MapSharedAuditEntries de Infrastructure/Persistence para que la fila de auditoría viaje en el mismo SaveChanges.");
+        description: "Mapear una tabla sin migrarla es leer o escribir la tabla de otro contexto. La única tabla compartida es AuditEntries, y la mapea MapSharedAuditEntries de Infrastructure/Persistence para que la fila de auditoría viaje en el mismo SaveChanges. OutboxMessages e InboxMessages no son compartidas: MapOutbox() y MapInbox() las crean en el schema de cada contexto que las llama, y ese contexto las migra.");
 
     public static readonly DiagnosticDescriptor TransactionScopeOutsideHelper = new(
         id: "DUNE0021",
@@ -356,7 +356,7 @@ internal static class DuneDiagnostics
         category: "Dune",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
-        description: "Aplicar la configuración de otra tabla es mapearla y migrarla: el contexto se vuelve dueño de una tabla ajena. ApplyConfigurationsFromAssembly trae las configuraciones de todas las features.");
+        description: "Aplicar la configuración de otra tabla es mapearla y migrarla: el contexto se vuelve dueño de una tabla ajena. ApplyConfigurationsFromAssembly trae las configuraciones de todas las features. Excepción: un contexto de feature aplica configuraciones de Infrastructure solo a través de sus helpers (MapSharedAuditEntries, MapOutbox, MapInbox), porque el ApplyConfiguration se escribe en Infrastructure. MapOutbox y MapInbox dejan sus tablas en el schema de la feature y las migra ella; una feature no escribe ApplyConfiguration de una configuración de Infrastructure.");
     public static readonly DiagnosticDescriptor RemoteCallInTransaction = new(
         id: "DUNE0022",
         title: "Llamada remota dentro de una transacción entre contextos",
@@ -365,4 +365,13 @@ internal static class DuneDiagnostics
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
         description: "Un TransactionScope abarca solo las conexiones a la base de este proceso. Si la transacción se revierte, lo que hizo el otro proceso queda hecho; mientras la request espera, la transacción mantiene abiertas la conexión y sus candados. Cuenta como llamada remota una invocación sobre HttpClient o HttpMessageInvoker, sobre un cliente tipado (un tipo con un HttpClient en su constructor) o un método de extensión de HttpClient como SendRemoteAsync. Límite: mira solo el método que abre la transacción. No ve a través de un filtro de endpoint: IdempotencyFilter abre el scope y la slice corre adentro.");
+
+    public static readonly DiagnosticDescriptor EventHandlerCalledDirectly = new(
+        id: "DUNE0023",
+        title: "Consumidor de eventos llamado directo",
+        messageFormat: "'{0}' llama al consumidor de eventos '{1}' fuera de OutboxRelay: su efecto puede correr antes de que se confirme el cambio; anotá el evento en la entidad y dejá que el relay lo entregue",
+        category: "Dune",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "Un IEventHandler<T> solo lo llama OutboxRelay (backend/Infrastructure/Messaging/OutboxRelay.cs), que entrega filas ya confirmadas del outbox. Llamarlo desde otro lugar, por ejemplo después de SaveChangesAsync o en un interceptor, publica antes del commit: dentro de un TransactionScope, SaveChanges no confirma. Cuenta como llamada la invocación de un método de un tipo que implementa IEventHandler<T> (también un parámetro genérico restringido a él) y la creación de ese tipo con new. Los tests quedan fuera. Límite: no ve una llamada por reflexión ni por un delegado guardado, como EventHandlerRegistration.Dispatch.");
 }
