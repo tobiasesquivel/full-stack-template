@@ -13,6 +13,7 @@ public static class MessagingRegistration
     {
         services.AddOptionsWithValidateOnStart<MessagingOptions, MessagingOptionsValidator>()
             .BindConfiguration(MessagingOptions.Section);
+        IntegrationEventNaming.Install();
         services.AddWolverine(ExtensionDiscovery.ManualOnly, options => options.ApplicationAssembly = typeof(MessagingRegistration).Assembly);
         services.AddSingleton<IWolverineExtension, MessagingExtension>();
         services.TryAddScoped<IntegrationEventPublisher>();
