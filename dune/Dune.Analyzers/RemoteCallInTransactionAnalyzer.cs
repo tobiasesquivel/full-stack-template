@@ -11,7 +11,6 @@ namespace Dune.Analyzers;
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class RemoteCallInTransactionAnalyzer : DiagnosticAnalyzer
 {
-    private const string HttpNamespace = "System.Net.Http";
     private const string TransactionType = "CrossContextTransaction";
     private const string TransactionNamespace = "TemplateApp.Infrastructure.Persistence";
 
@@ -50,7 +49,7 @@ public sealed class RemoteCallInTransactionAnalyzer : DiagnosticAnalyzer
     private static ITypeSymbol? RemoteReceiver(IInvocationOperation invocation)
     {
         var method = invocation.TargetMethod;
-        if (method.IsExtensionMethod && method.Parameters.Length > 0 && IsHttpInvoker(method.Parameters[0].Type))
+        if (method.IsExtensionMethod && method.Parameters.Length > 0 && DuneSymbols.IsHttpInvoker(method.Parameters[0].Type))
         {
             return method.Parameters[0].Type;
         }
@@ -61,27 +60,8 @@ public sealed class RemoteCallInTransactionAnalyzer : DiagnosticAnalyzer
             return null;
         }
 
-        return IsHttpInvoker(receiver) || IsTypedClient(receiver) ? receiver : null;
+        return DuneSymbols.IsHttpInvoker(receiver) || DuneSymbols.IsTypedClient(receiver) ? receiver : null;
     }
-
-    private static bool IsHttpInvoker(ITypeSymbol type)
-    {
-        for (ITypeSymbol? current = type; current is not null; current = current.BaseType)
-        {
-            if (current.Name.Equals("HttpMessageInvoker", StringComparison.Ordinal)
-                && DuneSymbols.NamespaceOf(current).Equals(HttpNamespace, StringComparison.Ordinal))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private static bool IsTypedClient(ITypeSymbol type) =>
-        type is INamedTypeSymbol named
-        && named.InstanceConstructors.Any(constructor =>
-            constructor.Parameters.Any(parameter => IsHttpInvoker(parameter.Type)));
 
     private static bool InsideTransaction(SyntaxNode call, SemanticModel model)
     {

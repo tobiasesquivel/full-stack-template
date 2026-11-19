@@ -374,4 +374,14 @@ internal static class DuneDiagnostics
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
         description: "Un IEventHandler<T> solo lo llama OutboxRelay (backend/Infrastructure/Messaging/OutboxRelay.cs), que entrega filas ya confirmadas del outbox. Llamarlo desde otro lugar, por ejemplo después de SaveChangesAsync o en un interceptor, publica antes del commit: dentro de un TransactionScope, SaveChanges no confirma. Cuenta como llamada la invocación de un método de un tipo que implementa IEventHandler<T> (también un parámetro genérico restringido a él) y la creación de ese tipo con new. Los tests quedan fuera. Límite: no ve una llamada por reflexión ni por un delegado guardado, como EventHandlerRegistration.Dispatch.");
+
+    public static readonly DiagnosticDescriptor ReadSliceCallsRemote = new(
+        id: "DUNE0024",
+        title: "Lectura que llama a otro proceso",
+        messageFormat: "'{0}' es una slice de lectura (su endpoint solo mapea GET) y llama por HTTP a otro proceso por {1}: una lectura no llama a otro proceso; leé su proyección local alimentada por eventos",
+        category: "Dune",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "Paso 24.1: una lectura que necesita datos de una feature de otro proceso lee su proyección local, que se pone al día con los eventos de ese proceso; no lo llama en cada request. Cuenta como lectura una slice cuyo endpoint solo mapea GET, como DUNE0019. Cuenta como cliente remoto HttpClient, HttpMessageInvoker o un cliente tipado (un tipo con un HttpClient en su constructor), como DUNE0022. La dependencia se sigue por los constructores de un tipo de la slice y de los tipos de su misma feature, por ejemplo ListProjects -> ProjectResponses -> TaskCountsClient. Los tests quedan fuera. Límite: no ve un cliente pedido con IServiceProvider ni uno detrás de una interfaz, por ejemplo un contrato de otra feature o de otro ensamblado.",
+        customTags: WellKnownDiagnosticTags.CompilationEnd);
 }
