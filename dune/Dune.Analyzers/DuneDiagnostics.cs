@@ -183,7 +183,7 @@ internal static class DuneDiagnostics
         category: "Dune",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
-        description: "ExecuteUpdate y ExecuteDelete no pasan por el ChangeTracker, entonces AuditInterceptor no los ve. Una entidad que implementa IAuditable se cambia solo con SaveChanges; las demás (Session, IdempotencyKey) pueden usar escrituras masivas.");
+        description: "ExecuteUpdate y ExecuteDelete no pasan por el ChangeTracker, entonces AuditInterceptor no los ve y no dejan fila en AuditEntries. Desde el paso 24 tampoco dejan evento: OutboxInterceptor solo convierte en filas del outbox los eventos de las entidades del ChangeTracker. Una entidad que implementa IAuditable se cambia solo con SaveChanges; las demás (Session, IdempotencyKey, OutboxMessage) pueden usar escrituras masivas.");
 
     public static readonly DiagnosticDescriptor MigrationRename = new(
         id: "DUNE0018",
@@ -338,7 +338,7 @@ internal static class DuneDiagnostics
         category: "Dune",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
-        description: "Mapear una tabla sin migrarla es leer o escribir la tabla de otro contexto. La única tabla compartida es AuditEntries, y la mapea MapSharedAuditEntries de Infrastructure/Persistence para que la fila de auditoría viaje en el mismo SaveChanges.");
+        description: "Mapear una tabla sin migrarla es leer o escribir la tabla de otro contexto. La única tabla compartida es AuditEntries, y la mapea MapSharedAuditEntries de Infrastructure/Persistence para que la fila de auditoría viaje en el mismo SaveChanges. OutboxMessages e InboxMessages no son compartidas: MapOutbox() y MapInbox() las crean en el schema de cada contexto que las llama, y ese contexto las migra.");
 
     public static readonly DiagnosticDescriptor TransactionScopeOutsideHelper = new(
         id: "DUNE0021",
@@ -356,7 +356,7 @@ internal static class DuneDiagnostics
         category: "Dune",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
-        description: "Aplicar la configuración de otra tabla es mapearla y migrarla: el contexto se vuelve dueño de una tabla ajena. ApplyConfigurationsFromAssembly trae las configuraciones de todas las features.");
+        description: "Aplicar la configuración de otra tabla es mapearla y migrarla: el contexto se vuelve dueño de una tabla ajena. ApplyConfigurationsFromAssembly trae las configuraciones de todas las features. Excepción: un contexto de feature aplica configuraciones de Infrastructure solo a través de sus helpers (MapSharedAuditEntries, MapOutbox, MapInbox), porque el ApplyConfiguration se escribe en Infrastructure. MapOutbox y MapInbox dejan sus tablas en el schema de la feature y las migra ella; una feature no escribe ApplyConfiguration de una configuración de Infrastructure.");
     public static readonly DiagnosticDescriptor RemoteCallInTransaction = new(
         id: "DUNE0022",
         title: "Llamada remota dentro de una transacción entre contextos",
