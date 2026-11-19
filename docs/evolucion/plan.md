@@ -419,6 +419,7 @@ El paso 0.28 se agregó el 2026-10-17, a pedido de Tobi, con otro pendiente del 
 **Concepto**: atomicidad entre estado y evento; el error clásico es publicar antes de confirmar.
 **Cambia**: `Features/Tasks` (eventos), tabla de outbox, `Infrastructure/Persistence`, migración, tests.
 **Verifica**: test donde el relay falla y el evento queda pendiente sin perder el cambio de estado; duplicado entregado dos veces y consumido una sola vez.
+**Nota**: la investigación es [paso-24-outbox-transaccional.md](investigacion/paso-24-outbox-transaccional.md). Se hizo en modo autónomo y sin herramientas nuevas: EF Core, Npgsql, `BackgroundService`, `System.Text.Json` y OpenTelemetry ya estaban. `TaskItem` anota sus eventos, un interceptor de EF los guarda en `tasks."OutboxMessages"` en el mismo `SaveChanges`, y un relay casero los entrega dentro del proceso con `FOR UPDATE SKIP LOCKED`, reintentos y un inbox por consumidor. No hay consumidor de producción hasta el 24.1, y el evento de cuenta borrada, que cruza de proceso, queda para el paso 25. Las elecciones están en `docs/decisions.tsv`. Regla nueva: DUNE0023 (solo `OutboxRelay` llama a un consumidor de eventos).
 
 **24.1. Modelo de lectura alimentado por eventos.**
 **Concepto**: proyección con consistencia eventual: la lectura vive en su propia tabla y se pone al día después de la escritura, a partir de los eventos del paso 24.
