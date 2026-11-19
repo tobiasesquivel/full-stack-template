@@ -16,10 +16,12 @@ public sealed class GetProjectTests : IClassFixture<ApiFixture>, IDisposable
 {
     private readonly ApiFixture _fixture;
     private readonly string _server;
+    private readonly Uri _broker;
     private readonly List<IsolatedApi> _apis = [];
 
-    public GetProjectTests(ApiFixture fixture, PostgresFixture postgres)
+    public GetProjectTests(ApiFixture fixture, PostgresFixture postgres, RabbitMqFixture broker)
     {
+        _broker = broker.Uri;
         _fixture = fixture;
         _server = postgres.ConnectionString;
     }
@@ -158,7 +160,7 @@ public sealed class GetProjectTests : IClassFixture<ApiFixture>, IDisposable
 
     private async Task<IsolatedApi> StartAsync()
     {
-        IsolatedApi api = await IsolatedApi.StartAsync(_server);
+        IsolatedApi api = await IsolatedApi.StartAsync(_server, _broker);
         _apis.Add(api);
         return api;
     }

@@ -17,6 +17,21 @@ services:
       retries: 10
       start_period: 10s
 
+  rabbitmq:
+    image: rabbitmq:4.4.1-management
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-templateapp}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?Define RABBITMQ_PASSWORD en .env}
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_port_connectivity"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+
   otel:
     image: otel/opentelemetry-collector-contrib:0.162.0
     restart: unless-stopped
@@ -58,12 +73,15 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
       otel:
         condition: service_started
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__DefaultConnection: Host=db;Port=5432;Database=${POSTGRES_DB:-templateapp};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:?Define POSTGRES_PASSWORD en .env}
+      Messaging__RabbitMqUri: amqp://${RABBITMQ_USER:-templateapp}:${RABBITMQ_PASSWORD:?Define RABBITMQ_PASSWORD en .env}@rabbitmq:5672/
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel:4318
       Services__Tasks__BaseAddress: http://tasks:8080/
     volumes:
@@ -142,5 +160,6 @@ services:
 
 volumes:
   pgdata:
+  rabbitmq-data:
   dataprotection:
   prometheus-data:

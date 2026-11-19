@@ -33,7 +33,7 @@ public sealed class GetReadinessTests : IClassFixture<ApiFixture>
         Assert.Equal("ready", body.RootElement.GetProperty("status").GetString());
         Assert.True(body.RootElement.TryGetProperty("timestamp", out _));
         Assert.Equal(
-            new Dictionary<string, string> { ["database"] = "healthy", ["migrations"] = "healthy" },
+            new Dictionary<string, string> { ["database"] = "healthy", ["migrations"] = "healthy", ["broker"] = "healthy", ["broker-listeners"] = "healthy" },
             Checks(body));
     }
 
@@ -69,7 +69,7 @@ public sealed class GetReadinessTests : IClassFixture<ApiFixture>
         using JsonDocument body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         Assert.Equal("not-ready", body.RootElement.GetProperty("status").GetString());
         Assert.Equal(
-            new Dictionary<string, string> { ["database"] = "healthy", ["migrations"] = "unhealthy" },
+            new Dictionary<string, string> { ["database"] = "healthy", ["migrations"] = "unhealthy", ["broker"] = "healthy", ["broker-listeners"] = "healthy" },
             Checks(body));
     }
 

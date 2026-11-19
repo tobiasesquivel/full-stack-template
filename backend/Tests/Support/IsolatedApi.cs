@@ -9,14 +9,17 @@ namespace TemplateApp.Tests.Support;
 
 internal sealed class IsolatedApi : IDisposable
 {
-    private IsolatedApi(string database, ApiPair pair, FakeTimeProvider clock)
+    private IsolatedApi(string database, string prefix, ApiPair pair, FakeTimeProvider clock)
     {
         Database = database;
+        Prefix = prefix;
         Pair = pair;
         Clock = clock;
     }
 
     public string Database { get; }
+
+    public string Prefix { get; }
 
     public ApiPair Pair { get; }
 
@@ -26,19 +29,33 @@ internal sealed class IsolatedApi : IDisposable
 
     public static async Task<IsolatedApi> StartAsync(
         string server,
+        Uri broker,
         Action<IServiceCollection>? configure = null,
         Func<HttpRequestMessage, HttpMessageHandler, HttpMessageHandler?>? interceptRemote = null) =>
-        StartOn(new NpgsqlConnectionStringBuilder(await TestDatabases.CreateEmptyAsync(server)) { Pooling = false }.ConnectionString, configure, interceptRemote);
+        StartOn(
+            new NpgsqlConnectionStringBuilder(await TestDatabases.CreateEmptyAsync(server)) { Pooling = false }.ConnectionString,
+            broker,
+            NewPrefix(),
+            configure,
+            interceptRemote);
+
+    public static string NewPrefix() => $"t{Guid.NewGuid():N}"[..13];
 
     public static IsolatedApi StartOn(
         string database,
+        Uri broker,
+        string prefix,
         Action<IServiceCollection>? configure = null,
         Func<HttpRequestMessage, HttpMessageHandler, HttpMessageHandler?>? interceptRemote = null)
     {
         FakeTimeProvider clock = new(DateTimeOffset.FromUnixTimeSeconds(DateTimeOffset.UtcNow.ToUnixTimeSeconds()));
         ApiPair pair = new(
             database,
-            new Dictionary<string, string>(),
+            new Dictionary<string, string>
+            {
+                [ApiPair.BrokerSetting] = broker.ToString(),
+                ["Messaging:Prefix"] = prefix,
+            },
             services =>
             {
                 services.AddSingleton<TimeProvider>(clock);
@@ -46,7 +63,7 @@ internal sealed class IsolatedApi : IDisposable
             },
             interceptRemote);
         pair.Start();
-        return new IsolatedApi(database, pair, clock);
+        return new IsolatedApi(database, prefix, pair, clock);
     }
 
     public async Task<TestSession> SignUpAsync(string name)

@@ -27,6 +27,8 @@
     <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.19.0" />
     <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.19.0" />
     <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" Version="1.19.0" />
+    <PackageReference Include="WolverineFx.HealthChecks" Version="6.64.2" />
+    <PackageReference Include="WolverineFx.RabbitMQ" Version="6.64.2" />
   </ItemGroup>
 
   <ItemGroup>

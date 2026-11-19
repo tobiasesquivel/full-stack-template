@@ -5,6 +5,7 @@ using TemplateApp.Features.Projects;
 using TemplateApp.Features.Users;
 using TemplateApp.Infrastructure.DependencyInjection;
 using TemplateApp.Infrastructure.Http;
+using TemplateApp.Infrastructure.Messaging;
 using TemplateApp.Infrastructure.Observability;
 
 Log.Logger = ObservabilityExtensions.ConfigureBootstrapLogger(new LoggerConfiguration()).CreateLogger();
@@ -15,6 +16,7 @@ try
 
     builder.Services.AddBackendInfrastructure(migratesPlatformSchema: true);
     builder.Services.AddTemplateObservability(builder.Environment, "templateapp-api");
+    builder.Services.AddMessaging();
     builder.Services.AddAuthFeature();
     builder.Services.AddUsersFeature();
     builder.Services.AddProjectsFeature();

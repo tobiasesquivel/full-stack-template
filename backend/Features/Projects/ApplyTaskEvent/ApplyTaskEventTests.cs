@@ -14,10 +14,12 @@ namespace TemplateApp.Features.Projects.ApplyTaskEvent;
 public sealed class ApplyTaskEventTests : IDisposable
 {
     private readonly string _server;
+    private readonly Uri _broker;
     private readonly List<IsolatedApi> _apis = [];
 
-    public ApplyTaskEventTests(PostgresFixture postgres)
+    public ApplyTaskEventTests(PostgresFixture postgres, RabbitMqFixture broker)
     {
+        _broker = broker.Uri;
         _server = postgres.ConnectionString;
     }
 
@@ -213,7 +215,7 @@ public sealed class ApplyTaskEventTests : IDisposable
         Action<IServiceCollection>? configure = null,
         Func<HttpRequestMessage, HttpMessageHandler, HttpMessageHandler?>? interceptRemote = null)
     {
-        IsolatedApi api = await IsolatedApi.StartAsync(_server, configure, interceptRemote);
+        IsolatedApi api = await IsolatedApi.StartAsync(_server, _broker, configure, interceptRemote);
         _apis.Add(api);
         return api;
     }

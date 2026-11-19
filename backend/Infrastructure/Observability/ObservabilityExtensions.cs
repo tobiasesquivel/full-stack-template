@@ -49,13 +49,13 @@ public static class ObservabilityExtensions
             .WithTracing(tracing => tracing
                 .AddAspNetCoreInstrumentation()
                 .AddHttpClientInstrumentation()
-                .AddSource("Npgsql", "TemplateApp.Api", OutboxTracing.SourceName)
+                .AddSource("Npgsql", "TemplateApp.Api", OutboxTracing.SourceName, "Wolverine")
                 .AddOtlpExporter(TracesExporter, configure: null))
             .WithMetrics(metrics => metrics
                 .AddAspNetCoreInstrumentation()
                 .AddHttpClientInstrumentation()
                 .AddRuntimeInstrumentation()
-                .AddMeter("TemplateApp.*")
+                .AddMeter("TemplateApp.*", "Wolverine*")
                 .AddOtlpExporter(
                     MetricsExporter,
                     (_, reader) => reader.PeriodicExportingMetricReaderOptions.ExportIntervalMilliseconds = 10_000));

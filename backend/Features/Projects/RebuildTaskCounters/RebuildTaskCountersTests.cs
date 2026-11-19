@@ -11,10 +11,12 @@ namespace TemplateApp.Features.Projects.RebuildTaskCounters;
 public sealed class RebuildTaskCountersTests : IDisposable
 {
     private readonly string _server;
+    private readonly Uri _broker;
     private readonly List<IsolatedApi> _apis = [];
 
-    public RebuildTaskCountersTests(PostgresFixture postgres)
+    public RebuildTaskCountersTests(PostgresFixture postgres, RabbitMqFixture broker)
     {
+        _broker = broker.Uri;
         _server = postgres.ConnectionString;
     }
 
@@ -92,7 +94,7 @@ public sealed class RebuildTaskCountersTests : IDisposable
         await first.DrainOutboxAsync();
         await ExecuteSqlAsync(first, """DELETE FROM projects."ProjectTaskCounters" """);
 
-        IsolatedApi second = IsolatedApi.StartOn(first.Database);
+        IsolatedApi second = IsolatedApi.StartOn(first.Database, _broker, first.Prefix);
         _apis.Add(second);
 
         (int, int)? counters = null;
@@ -126,7 +128,7 @@ public sealed class RebuildTaskCountersTests : IDisposable
 
     private async Task<IsolatedApi> StartAsync()
     {
-        IsolatedApi api = await IsolatedApi.StartAsync(_server);
+        IsolatedApi api = await IsolatedApi.StartAsync(_server, _broker);
         _apis.Add(api);
         return api;
     }
