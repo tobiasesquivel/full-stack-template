@@ -1198,14 +1198,14 @@ async function launch(flags) {
         brokerAttempts += 1;
         const probe = runSync({
           cmd: 'docker',
-          args: ['exec', state.brokerName, 'rabbitmq-diagnostics', '-q', 'check_port_connectivity'],
+          args: ['logs', state.brokerName],
           cwd: REPO_ROOT,
           timeoutMs: 30000,
-          stdoutPath: path.join(evidenceDir, 'docker-broker-ready.stdout.log'),
-          stderrPath: path.join(evidenceDir, 'docker-broker-ready.stderr.log'),
+          stdoutPath: path.join(evidenceDir, 'docker-broker-logs.stdout.log'),
+          stderrPath: path.join(evidenceDir, 'docker-broker-logs.stderr.log'),
         });
         brokerDetail.brokerAttempts = brokerAttempts;
-        if (probe.exitCode === 0 && !probe.timedOut && !probe.spawnError) break;
+        if (/Server startup complete/.test(`${probe.stdout} ${probe.stderr}`)) break;
         if (Date.now() >= brokerDeadline) {
           throw new Error(`rabbitmq never accepted AMQP connections after ${timeouts.pg}ms (${brokerAttempts} probes)`);
         }
