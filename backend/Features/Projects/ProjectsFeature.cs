@@ -13,13 +13,16 @@ internal static class ProjectsFeature
     {
         services.AddMigratedDbContext<ProjectsDbContext>(ProjectsDbContext.Schema, adoptsLegacyTables: false);
         services.AddScoped<IProjectsModule, ProjectsModule>();
-        services.AddRemoteClient<TaskCountsClient>(TasksService);
         services.AddScoped<ProjectResponses>();
         services.AddScoped<FindAssignableProject.FindAssignableProject>();
         services.AddScoped<CreateProject.CreateProject>();
         services.AddScoped<ListProjects.ListProjects>();
         services.AddScoped<GetProject.GetProject>();
         services.AddScoped<UpdateProject.UpdateProject>();
+        services.AddScoped<ApplyTaskEvent.ApplyTaskEvent>();
+        services.AddRemoteClient<RebuildTaskCounters.TaskCountsSnapshotClient>(TasksService);
+        services.AddScoped<RebuildTaskCounters.RebuildTaskCounters>();
+        services.AddHostedService<RebuildTaskCounters.RebuildTaskCountersOnStartup>();
         return services;
     }
 
@@ -38,6 +41,7 @@ internal static class ProjectsFeature
     public static RouteGroupBuilder MapProjectsInternalEndpoints(this RouteGroupBuilder internalApi)
     {
         FindAssignableProject.FindAssignableProjectEndpoint.Map(internalApi);
+        ApplyTaskEvent.ApplyTaskEventEndpoint.Map(internalApi);
 
         return internalApi;
     }

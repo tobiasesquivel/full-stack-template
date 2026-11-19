@@ -112,7 +112,10 @@ test('a task created in this project from the tasks page counts on the projects 
   await expect(projectSelect()).toHaveValue('');
 
   await page.getByRole('link', { name: 'Mis proyectos' }).click();
-  await expect(row(HOME)).toContainText('1 tarea, 0 completadas');
+  await expect(async () => {
+    await page.reload();
+    await expect(row(HOME)).toContainText('1 tarea, 0 completadas', { timeout: 1_000 });
+  }).toPass({ timeout: 15_000 });
 });
 
 test('archiving a project shows Archivado, disables its rename and offers Restaurar', async () => {

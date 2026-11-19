@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using Microsoft.CodeAnalysis;
 
 namespace Dune.Analyzers;
@@ -91,4 +92,23 @@ internal static class DuneSymbols
         return ContainsSegment(ns, ".Persistence.")
             || ns.EndsWith(".Persistence", StringComparison.Ordinal);
     }
+
+    public static bool IsHttpInvoker(ITypeSymbol type)
+    {
+        for (ITypeSymbol? current = type; current is not null; current = current.BaseType)
+        {
+            if (current.Name.Equals("HttpMessageInvoker", StringComparison.Ordinal)
+                && NamespaceOf(current).Equals("System.Net.Http", StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public static bool IsTypedClient(ITypeSymbol type) =>
+        type is INamedTypeSymbol named
+        && named.InstanceConstructors.Any(constructor =>
+            constructor.Parameters.Any(parameter => IsHttpInvoker(parameter.Type)));
 }

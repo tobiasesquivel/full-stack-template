@@ -40,6 +40,7 @@ internal sealed class CreateProject
 
         Project project = Project.Create(callerId, request.Name, _clock.GetUtcNow());
         _db.Projects.Add(project);
+        _db.TaskCounters.Add(new ProjectTaskCounters { ProjectId = project.Id, UpdatedAt = project.CreatedAt });
         try
         {
             await _db.SaveChangesAsync(ct);
@@ -49,6 +50,6 @@ internal sealed class CreateProject
             return ProjectErrors.NameTaken;
         }
 
-        return await _responses.ComposeNewAsync(ProjectRows.From(project), ct);
+        return await _responses.ComposeAsync(ProjectRows.From(project), ct);
     }
 }

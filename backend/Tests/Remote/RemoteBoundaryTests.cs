@@ -145,22 +145,31 @@ public sealed class RemoteBoundaryTests : IClassFixture<ApiFixture>
     }
 
     [Fact]
-    public async Task TasksUnreachable_ProjectReadsAnswer503_ButANewProjectIsCreated()
+    public async Task TasksUnreachable_ProjectReadsAnswerTheLastCounters_WithoutCallingTasks()
     {
         RemoteFault tasks = RemoteFault.Unreachable(RemoteFault.Host(ApiPair.TasksAuthority));
+        tasks.Active = false;
         ApiPair api = _fixture.CreateIsolatedApi(tasks);
         TestSession alice = new(api.CreateClient());
         await alice.RegisterAsync(TestAccounts.UniqueName("alice"));
+        string project = await alice.CreateProjectAsync("Antes de la caída");
+        tasks.Active = true;
 
         SessionResponse created = await alice.SendAsync(HttpMethod.Post, "api/v1/projects", new { name = "Nuevo" });
         SessionResponse list = await alice.SendAsync(HttpMethod.Get, "api/v1/projects", csrf: false);
+        SessionResponse detail = await alice.SendAsync(HttpMethod.Get, $"api/v1/projects/{project}", csrf: false);
 
         Assert.Equal(HttpStatusCode.Created, created.Status);
-        Assert.NotNull(created.Payload);
-        using (created.Payload)
-            Assert.Equal(0, created.Payload.RootElement.GetProperty("taskCount").GetInt32());
-        ProblemAssert.Problem(list, HttpStatusCode.ServiceUnavailable, "Http.ServiceUnavailable");
-        Assert.Equal(1, tasks.Calls);
+        created.Payload?.Dispose();
+        Assert.Equal(HttpStatusCode.OK, list.Status);
+        Assert.NotNull(list.Payload);
+        using (list.Payload)
+            Assert.Equal(2, list.Payload.RootElement.GetProperty("items").GetArrayLength());
+        Assert.Equal(HttpStatusCode.OK, detail.Status);
+        Assert.NotNull(detail.Payload);
+        using (detail.Payload)
+            Assert.Equal(0, detail.Payload.RootElement.GetProperty("taskCount").GetInt32());
+        Assert.Equal(0, tasks.Calls);
     }
 
     [Fact]
@@ -201,10 +210,10 @@ public sealed class RemoteBoundaryTests : IClassFixture<ApiFixture>
         await alice.CreateProjectAsync("Lento");
 
         Stopwatch clock = Stopwatch.StartNew();
-        SessionResponse list = await alice.SendAsync(HttpMethod.Get, "api/v1/projects", csrf: false);
+        SessionResponse deleted = await alice.SendAsync(HttpMethod.Delete, "api/v1/users/me");
         clock.Stop();
 
-        ProblemAssert.Problem(list, HttpStatusCode.ServiceUnavailable, "Http.ServiceUnavailable");
+        ProblemAssert.Problem(deleted, HttpStatusCode.ServiceUnavailable, "Http.ServiceUnavailable");
         Assert.InRange(clock.Elapsed, TimeSpan.FromMilliseconds(400), TimeSpan.FromSeconds(5));
     }
 

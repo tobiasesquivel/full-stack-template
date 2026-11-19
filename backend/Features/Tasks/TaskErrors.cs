@@ -4,10 +4,6 @@ namespace TemplateApp.Features.Tasks;
 
 internal static class TaskErrors
 {
-    public static readonly Error InvalidProjectIds = Error.Validation(
-        code: "ProjectId",
-        description: $"Send between 1 and {CountTasksByProject.CountTasksByProject.MaxProjects} projectId values.");
-
     public static Error NotFound(Guid taskId) => Error.NotFound(
         code: "Task.NotFound",
         description: $"Task with ID '{taskId}' not found.");

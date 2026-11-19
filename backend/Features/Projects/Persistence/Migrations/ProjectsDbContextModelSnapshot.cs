@@ -78,6 +78,42 @@ namespace TemplateApp.Features.Projects.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("TemplateApp.Features.Projects.Persistence.ProjectTaskCounters", b =>
+                {
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("CompletedTaskCount")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("TaskCount")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("ProjectId");
+
+                    b.ToTable("ProjectTaskCounters", "projects");
+                });
+
+            modelBuilder.Entity("TemplateApp.Infrastructure.Messaging.InboxMessage", b =>
+                {
+                    b.Property<Guid>("MessageId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Consumer")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<DateTimeOffset>("ProcessedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("MessageId", "Consumer");
+
+                    b.ToTable("InboxMessages", "projects");
+                });
+
             modelBuilder.Entity("TemplateApp.Infrastructure.Persistence.AuditEntry", b =>
                 {
                     b.Property<long>("Id")
@@ -129,6 +165,15 @@ namespace TemplateApp.Features.Projects.Persistence.Migrations
                         {
                             t.ExcludeFromMigrations();
                         });
+                });
+
+            modelBuilder.Entity("TemplateApp.Features.Projects.Persistence.ProjectTaskCounters", b =>
+                {
+                    b.HasOne("TemplateApp.Features.Projects.Domain.Project", null)
+                        .WithOne()
+                        .HasForeignKey("TemplateApp.Features.Projects.Persistence.ProjectTaskCounters", "ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 #pragma warning restore 612, 618
         }

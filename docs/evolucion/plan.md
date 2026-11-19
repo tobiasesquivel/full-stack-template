@@ -426,6 +426,7 @@ El paso 0.28 se agregó el 2026-10-17, a pedido de Tobi, con otro pendiente del 
 **Nota**: Tobi lo pidió el 2026-11-17 junto con el paso 23.1. La proyección reemplaza la lectura del paso 23.1 que junta varias features.
 **Cambia**: tabla de proyección, consumidor de eventos que la actualiza, la consulta del paso 23.1, migración, tests.
 **Verifica**: test comparativo, donde la proyección devuelve lo mismo que la lectura de antes; test donde el consumidor se atrasa y la lectura muestra el dato viejo hasta procesar el evento; reconstrucción de la proyección desde cero con el mismo resultado.
+**Nota**: la investigación es [paso-24-1-proyeccion-eventos.md](investigacion/paso-24-1-proyeccion-eventos.md). Se hizo en modo autónomo y sin herramientas nuevas. El relay de Tasks reenvía cada evento de tarea por HTTP (`PUT /internal/v1/task-events/{messageId}`) al monolito, que suma o resta en `projects."ProjectTaskCounters"` con su propio inbox. La reconstrucción parte de una foto de Tasks más los eventos sin entregar. El PR va en tres commits ordenados como releases (expand, cambio de lectura, contract). Las elecciones están en `docs/decisions.tsv`. Regla nueva: DUNE0024 (una lectura no llama a otro proceso).
 
 **25. Broker real con consumidor idempotente y DLQ.**
 **Concepto**: at-least-once, deduplicación, mensajes venenosos, orden por partición.

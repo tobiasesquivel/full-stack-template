@@ -25,6 +25,11 @@ internal static class TasksFeature
             .Configure(cookie => cookie.Events.OnValidatePrincipal = RemoteSession.ValidatePrincipalAsync);
         services.AddRemoteClient<AuthSessionClient>(MonolithService);
         services.AddRemoteClient<ProjectsClient>(MonolithService);
+        services.AddRemoteClient<ForwardTaskEvents.TaskEventsClient>(MonolithService);
+        services.AddEventHandler<TaskCreated, ForwardTaskEvents.TaskEventForwarder>();
+        services.AddEventHandler<TaskCompleted, ForwardTaskEvents.TaskEventForwarder>();
+        services.AddEventHandler<TaskReopened, ForwardTaskEvents.TaskEventForwarder>();
+        services.AddEventHandler<TaskDeleted, ForwardTaskEvents.TaskEventForwarder>();
 
         services.AddSingleton<TaskMetrics>();
         services.AddScoped<TaskAccess>();
@@ -33,8 +38,8 @@ internal static class TasksFeature
         services.AddScoped<GetTask.GetTask>();
         services.AddScoped<UpdateTask.UpdateTask>();
         services.AddScoped<DeleteTask.DeleteTask>();
-        services.AddScoped<CountTasksByProject.CountTasksByProject>();
         services.AddScoped<DeleteOwnedTasks.DeleteOwnedTasks>();
+        services.AddScoped<SnapshotTaskCounts.SnapshotTaskCounts>();
         return services;
     }
 
@@ -53,8 +58,8 @@ internal static class TasksFeature
 
     public static RouteGroupBuilder MapTasksInternalEndpoints(this RouteGroupBuilder internalApi)
     {
-        CountTasksByProject.CountTasksByProjectEndpoint.Map(internalApi);
         DeleteOwnedTasks.DeleteOwnedTasksEndpoint.Map(internalApi);
+        SnapshotTaskCounts.SnapshotTaskCountsEndpoint.Map(internalApi);
 
         return internalApi;
     }
