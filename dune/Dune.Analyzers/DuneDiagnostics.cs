@@ -373,7 +373,7 @@ internal static class DuneDiagnostics
         category: "Dune",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
-        description: "Un IEventHandler<T> solo lo llama OutboxRelay (backend/Infrastructure/Messaging/OutboxRelay.cs), que entrega filas ya confirmadas del outbox. Llamarlo desde otro lugar, por ejemplo después de SaveChangesAsync o en un interceptor, publica antes del commit: dentro de un TransactionScope, SaveChanges no confirma. Cuenta como llamada la invocación de un método de un tipo que implementa IEventHandler<T> (también un parámetro genérico restringido a él) y la creación de ese tipo con new. Los tests quedan fuera. Límite: no ve una llamada por reflexión ni por un delegado guardado, como EventHandlerRegistration.Dispatch.");
+        description: "Un IEventHandler<T> solo lo llama OutboxRelay (backend/Infrastructure/Messaging/OutboxRelay.cs), que entrega filas ya confirmadas del outbox. Llamarlo desde otro lugar, por ejemplo después de SaveChangesAsync o en un interceptor, publica antes del commit: dentro de un TransactionScope, SaveChanges no confirma. Cuenta como llamada la invocación de un método de un tipo que implementa IEventHandler<T> (también un parámetro genérico restringido a él) y la creación de ese tipo con new. Los tests quedan fuera. Límite: no ve una llamada por reflexión ni por un delegado guardado, como EventHandlerRegistration.Dispatch. Paso 25: un consumidor de un evento de integración implementa IIntegrationEventHandler<T>, otra interfaz, y lo llama el handler de Wolverine en Infrastructure/Messaging; DUNE0023 no lo mira.");
 
     public static readonly DiagnosticDescriptor ReadSliceCallsRemote = new(
         id: "DUNE0024",
@@ -384,4 +384,13 @@ internal static class DuneDiagnostics
         isEnabledByDefault: true,
         description: "Paso 24.1: una lectura que necesita datos de una feature de otro proceso lee su proyección local, que se pone al día con los eventos de ese proceso; no lo llama en cada request. Cuenta como lectura una slice cuyo endpoint solo mapea GET, como DUNE0019. Cuenta como cliente remoto HttpClient, HttpMessageInvoker o un cliente tipado (un tipo con un HttpClient en su constructor), como DUNE0022. La dependencia se sigue por los constructores de un tipo de la slice y de los tipos de su misma feature, por ejemplo ListProjects -> ProjectResponses -> TaskCountsClient. Los tests quedan fuera. Límite: no ve un cliente pedido con IServiceProvider ni uno detrás de una interfaz, por ejemplo un contrato de otra feature o de otro ensamblado.",
         customTags: WellKnownDiagnosticTags.CompilationEnd);
+
+    public static readonly DiagnosticDescriptor BusOutsideMessaging = new(
+        id: "DUNE0025",
+        title: "Wolverine fuera de Infrastructure/Messaging o como mediator",
+        messageFormat: "'{0}' usa Wolverine {1}: el bus es solo transporte y vive en backend/Infrastructure/Messaging; una feature publica con IntegrationEventPublisher y consume con IIntegrationEventHandler<T>",
+        category: "Dune",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "Paso 25 (ADR-0004 punto 9): Wolverine es el bus elegido, solo como transporte. Un nombre que resuelve a un namespace Wolverine o JasperFx (un using, un tipo, un miembro o un método de extensión) solo aparece en backend/Infrastructure/Messaging/; así ninguna feature conoce el bus. Además, nadie llama a un método Invoke* de un tipo de Wolverine (IMessageBus.InvokeAsync y sus variantes), ni siquiera Infrastructure/Messaging: es el modo mediator de Wolverine, que ADR-0004 descarta. Los tests y las migraciones quedan fuera. Límite: no ve un tipo de Wolverine usado por reflexión ni detrás de var sin nombrarlo, por ejemplo el resultado de un método del repo que devuelve IMessageBus.");
 }
