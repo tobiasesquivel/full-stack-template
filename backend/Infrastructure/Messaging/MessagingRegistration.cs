@@ -18,6 +18,7 @@ public static class MessagingRegistration
         services.AddSingleton<IWolverineExtension, MessagingExtension>();
         services.TryAddScoped<IntegrationEventPublisher>();
         services.AddHealthChecks()
+            .AddCheck<BrokerConnectionHealthCheck>("rabbitmq", HealthStatus.Degraded, timeout: HealthCheckTimeout)
             .AddWolverine("broker", HealthStatus.Degraded, timeout: HealthCheckTimeout)
             .AddWolverineListeners("broker-listeners", failureStatus: HealthStatus.Degraded, timeout: HealthCheckTimeout);
         return services;
