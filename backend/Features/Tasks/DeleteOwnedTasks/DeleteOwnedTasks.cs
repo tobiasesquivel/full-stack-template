@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using TemplateApp.Features.Tasks.Domain;
 using TemplateApp.Features.Tasks.Persistence;
 
 namespace TemplateApp.Features.Tasks.DeleteOwnedTasks;
@@ -14,7 +15,11 @@ internal sealed class DeleteOwnedTasks
 
     public async Task ExecuteAsync(string ownerId, CancellationToken ct)
     {
-        _db.TaskItems.RemoveRange(await _db.TaskItems.Where(t => t.OwnerId == ownerId).ToListAsync(ct));
+        List<TaskItem> owned = await _db.TaskItems.Where(t => t.OwnerId == ownerId).ToListAsync(ct);
+        foreach (TaskItem item in owned)
+            item.MarkDeleted();
+
+        _db.TaskItems.RemoveRange(owned);
         await _db.SaveChangesAsync(ct);
     }
 }

@@ -25,6 +25,7 @@ internal sealed class DeleteTask
         if (!_access.CanAccess(callerId, item, TaskPermissions.Delete))
             return TaskErrors.Forbidden;
 
+        item.MarkDeleted();
         _db.TaskItems.Remove(item);
         await _db.SaveChangesAsync(ct);
 
