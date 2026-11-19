@@ -75,10 +75,25 @@ internal sealed class IsolatedApi : IDisposable
 
     public async Task DrainOutboxAsync()
     {
+        await PublishOutboxAsync();
+        long unconsumed = await Eventually.Async(UnconsumedAsync, count => count == 0, TimeSpan.FromSeconds(30));
+        Assert.Equal(0, unconsumed);
+    }
+
+    public async Task PublishOutboxAsync()
+    {
         while (await Relay.RunOnceAsync(TestContext.Current.CancellationToken) > 0)
         {
         }
     }
+
+    private Task<long> UnconsumedAsync() =>
+        Pair.Monolith.Services.CountAsync(
+            $"""
+            SELECT count(*) AS "Value" FROM tasks."OutboxMessages" AS o
+            WHERE o."ProcessedAt" IS NOT NULL
+              AND NOT EXISTS (SELECT 1 FROM projects."InboxMessages" AS i WHERE i."MessageId" = o."MessageId")
+            """);
 
     public void Dispose() => Pair.Dispose();
 }

@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
+using TemplateApp.Tests.Messaging;
 using TemplateApp.Tests.Support;
 using Xunit;
 
@@ -12,11 +13,13 @@ public sealed class RebuildTaskCountersTests : IDisposable
 {
     private readonly string _server;
     private readonly Uri _broker;
+    private readonly RabbitMqFixture _rabbit;
     private readonly List<IsolatedApi> _apis = [];
 
     public RebuildTaskCountersTests(PostgresFixture postgres, RabbitMqFixture broker)
     {
         _broker = broker.Uri;
+        _rabbit = broker;
         _server = postgres.ConnectionString;
     }
 
@@ -82,6 +85,27 @@ public sealed class RebuildTaskCountersTests : IDisposable
 
         Assert.Equal(HttpStatusCode.NoContent, late.StatusCode);
         Assert.Equal((1, 0), await api.Pair.Monolith.Services.TaskCountersAsync(project));
+    }
+
+    [Fact]
+    public async Task AnEventWaitingInTheQueue_DuringARebuild_IsNotCountedTwice()
+    {
+        IsolatedApi api = await StartAsync();
+        await using TaskEventsBroker broker = await TaskEventsBroker.ConnectAsync(_rabbit, api.Prefix);
+        TestSession alice = await api.SignUpAsync("alice");
+        string project = await alice.CreateProjectAsync("Casa");
+        await MonolithListener.StopAsync(api);
+        await alice.CreateTaskAsync("En la cola", project);
+        await api.PublishOutboxAsync();
+        Assert.Equal(1u, await broker.CountAsync(TaskEventsBroker.Queue));
+
+        await RebuildAsync(api);
+        Assert.Equal((1, 0), await api.Pair.Monolith.Services.TaskCountersAsync(project));
+        await MonolithListener.StartAsync(api);
+        await alice.CreateTaskAsync("Después, en la misma cola", project);
+        await api.DrainOutboxAsync();
+
+        Assert.Equal((2, 0), await api.Pair.Monolith.Services.TaskCountersAsync(project));
     }
 
     [Fact]

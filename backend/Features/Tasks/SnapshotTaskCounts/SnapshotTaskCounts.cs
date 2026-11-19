@@ -23,11 +23,10 @@ internal sealed class SnapshotTaskCounts
             .GroupBy(t => t.ProjectId!.Value)
             .Select(g => new SnapshotCountsItem(g.Key, g.Count(), g.Count(t => t.CompletedAt != null)))
             .ToListAsync(ct);
-        List<Guid> undelivered = await _db.Set<OutboxMessage>()
-            .Where(m => m.ProcessedAt == null)
+        List<Guid> counted = await _db.Set<OutboxMessage>()
             .Select(m => m.MessageId)
             .ToListAsync(ct);
 
-        return new TaskCountsSnapshotResponse(counts, undelivered);
+        return new TaskCountsSnapshotResponse(counts, counted);
     }
 }

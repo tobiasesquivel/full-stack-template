@@ -101,6 +101,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
       api:
         condition: service_healthy
       otel:
@@ -109,6 +111,7 @@ services:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__DefaultConnection: Host=db;Port=5432;Database=${POSTGRES_DB:-templateapp};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:?Define POSTGRES_PASSWORD en .env}
+      Messaging__RabbitMqUri: amqp://${RABBITMQ_USER:-templateapp}:${RABBITMQ_PASSWORD:?Define RABBITMQ_PASSWORD en .env}@rabbitmq:5672/
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel:4318
       Services__Monolith__BaseAddress: http://api:8080/
     volumes:

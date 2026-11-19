@@ -60,7 +60,7 @@ internal sealed class MessagingExtension : IWolverineExtension
             });
         foreach (IntegrationEventType type in _published)
         {
-            options.RegisterMessageType(type.ClrType, type.Name);
+            IntegrationEventNaming.Register(type);
             rabbit.DeclareExchange(Named(type.Exchange), exchange => exchange.ExchangeType = ExchangeType.Direct);
             options.PublishMessage(type.ClrType).ToRabbitRoutingKey(Named(type.Exchange), type.Name).SendInline();
         }
@@ -68,6 +68,7 @@ internal sealed class MessagingExtension : IWolverineExtension
         foreach (IntegrationEventSubscription subscription in _subscriptions)
         {
             string queue = Named(subscription.Queue);
+            IntegrationEventNaming.Register(subscription.Event);
             options.RegisterMessageType(subscription.Event.ClrType, subscription.Event.Name);
             rabbit.DeclareQueue(queue, declared =>
             {

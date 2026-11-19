@@ -55,7 +55,7 @@ public sealed class ApplyTaskEventTests : IDisposable
         await alice.CreateTaskAsync("Comprar pan", project);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => api.Relay.RunOnceAsync(TestContext.Current.CancellationToken));
-        Assert.Equal((1, 0), await CountersAsync(api, project));
+        Assert.Equal((1, 0), await Eventually.Async(() => CountersAsync(api, project), counters => counters == (1, 0), TimeSpan.FromSeconds(30)));
         await api.DrainOutboxAsync();
 
         Assert.Equal((1, 0), await CountersAsync(api, project));
@@ -149,24 +149,24 @@ public sealed class ApplyTaskEventTests : IDisposable
     }
 
     [Fact]
-    public async Task WithTheMonolithDown_TheEventStaysPending_AndArrivesLater()
+    public async Task WithTheMonolithDownForADay_TheEventWaitsInTheQueue_AndCountsWhenItReturns()
     {
-        RemoteFault monolithDown = RemoteFault.Unreachable(RemoteFault.Path("/internal/v1/task-events"));
-        monolithDown.Active = false;
-        IsolatedApi api = await StartAsync(interceptRemote: monolithDown.Intercept);
+        IsolatedApi api = await StartAsync();
         TestSession alice = await api.SignUpAsync("alice");
         string project = await alice.CreateProjectAsync("Casa");
         string task = await alice.CreateTaskAsync("Comprar pan", project);
-        monolithDown.Active = true;
+        await MonolithListener.StopAsync(api);
 
-        await api.Relay.RunOnceAsync(TestContext.Current.CancellationToken);
+        await api.PublishOutboxAsync();
+        api.Clock.Advance(TimeSpan.FromDays(1));
+        await api.PublishOutboxAsync();
 
-        OutboxRow pending = Assert.Single(await api.Pair.Tasks.Services.OutboxRowsAsync(task));
-        Assert.Equal((1, null), (pending.Attempts, pending.ProcessedAt));
+        OutboxRow published = Assert.Single(await api.Pair.Tasks.Services.OutboxRowsAsync(task));
+        Assert.Equal((0, null), (published.Attempts, published.FailedAt));
+        Assert.NotNull(published.ProcessedAt);
         Assert.Equal((0, 0), await CountersAsync(api, project));
 
-        monolithDown.Active = false;
-        api.Clock.Advance(TimeSpan.FromSeconds(3));
+        await MonolithListener.StartAsync(api);
         await api.DrainOutboxAsync();
 
         Assert.Equal((1, 0), await CountersAsync(api, project));

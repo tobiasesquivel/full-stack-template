@@ -11,6 +11,7 @@ internal sealed class TaskEventsBroker : IAsyncDisposable
 {
     public const string Queue = "projects.task-counters";
     public const string DeadLetterQueue = "projects.task-counters.dlq";
+    public const string Probe = "tests.probe";
     private const string Exchange = "tasks.task-events";
 
     private readonly IConnection _connection;
@@ -57,6 +58,14 @@ internal sealed class TaskEventsBroker : IAsyncDisposable
         };
         byte[] body = JsonSerializer.SerializeToUtf8Bytes(payload, JsonSerializerOptions.Web);
         await _channel.BasicPublishAsync(Name(Exchange), type, mandatory: true, properties, body);
+    }
+
+    public async Task BindProbeAsync()
+    {
+        await _channel.ExchangeDeclareAsync(Name(Exchange), ExchangeType.Direct, durable: true);
+        await _channel.QueueDeclareAsync(Name(Probe), durable: true, exclusive: false, autoDelete: false);
+        foreach (string type in new[] { "tasks.task-created", "tasks.task-completed", "tasks.task-reopened", "tasks.task-deleted" })
+            await _channel.QueueBindAsync(Name(Probe), Name(Exchange), type);
     }
 
     public async Task<BasicGetResult?> TakeAsync(string queue) =>

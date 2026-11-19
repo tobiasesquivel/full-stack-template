@@ -18,7 +18,7 @@ public sealed class SnapshotTaskCountsTests : IDisposable
     }
 
     [Fact]
-    public async Task TheSnapshot_CountsEveryProject_AndListsTheEventsNotYetDelivered()
+    public async Task TheSnapshot_CountsEveryProject_AndListsEveryEventStillInTheOutbox()
     {
         _api = await IsolatedApi.StartAsync(_server, _broker);
         TestSession alice = await _api.SignUpAsync("alice");
@@ -43,7 +43,7 @@ public sealed class SnapshotTaskCountsTests : IDisposable
         await _api.DrainOutboxAsync();
 
         using JsonDocument delivered = await SnapshotAsync();
-        Assert.Empty(delivered.RootElement.GetProperty("undeliveredMessageIds").EnumerateArray());
+        Assert.Equal(4, delivered.RootElement.GetProperty("undeliveredMessageIds").GetArrayLength());
     }
 
     public void Dispose() => _api?.Dispose();
