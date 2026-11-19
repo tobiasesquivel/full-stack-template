@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using TemplateApp.Features.Tasks.Domain;
+using TemplateApp.Infrastructure.Messaging;
 using TemplateApp.Infrastructure.Persistence;
 
 namespace TemplateApp.Features.Tasks.Persistence;
@@ -19,5 +20,6 @@ internal sealed class TasksDbContext : DbContext
         modelBuilder.HasDefaultSchema(Schema);
         modelBuilder.ApplyConfiguration(new TaskItemConfiguration());
         modelBuilder.MapSharedAuditEntries();
+        modelBuilder.MapOutbox();
     }
 }
