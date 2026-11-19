@@ -21,5 +21,6 @@ internal sealed class TasksDbContext : DbContext
         modelBuilder.ApplyConfiguration(new TaskItemConfiguration());
         modelBuilder.MapSharedAuditEntries();
         modelBuilder.MapOutbox();
+        modelBuilder.MapInbox();
     }
 }

@@ -20,7 +20,7 @@ public sealed class PerFeatureContextsTransitionTests : IClassFixture<ApiFixture
     [
         ("auth", ["_InitialCreate", "_MoveAuthToSchema"]),
         ("users", ["_InitialCreate", "_MoveUsersToSchema"]),
-        ("tasks", ["_InitialCreate", "_MoveTasksToSchema", "_AddTaskProjectId", "_AddTaskProjectIdIndex", "_AddOutboxMessages"]),
+        ("tasks", ["_InitialCreate", "_MoveTasksToSchema", "_AddTaskProjectId", "_AddTaskProjectIdIndex", "_AddOutboxMessages", "_AddInboxMessages"]),
         ("platform", ["_InitialCreate", "_MovePlatformToSchema"]),
         ("projects", ["_InitialCreate"]),
     ];
@@ -28,7 +28,7 @@ public sealed class PerFeatureContextsTransitionTests : IClassFixture<ApiFixture
     private static readonly string[] DataTables =
         ["AspNetUsers", "AspNetUserRoles", "Sessions", "UserProfiles", "TaskItems", "IdempotencyKeys", "AuditEntries"];
     private static readonly string[] TablesBornInTheirFeatureSchema = ["projects.Projects"];
-    private static readonly string[] TablesAddedAfterTheMove = ["tasks.OutboxMessages"];
+    private static readonly string[] TablesAddedAfterTheMove = ["tasks.InboxMessages", "tasks.OutboxMessages"];
     private static readonly string[] TablesInTheirFeatureSchema =
     [
         "auth.AspNetRoleClaims",
@@ -42,6 +42,7 @@ public sealed class PerFeatureContextsTransitionTests : IClassFixture<ApiFixture
         "platform.AuditEntries",
         "platform.IdempotencyKeys",
         "projects.Projects",
+        "tasks.InboxMessages",
         "tasks.OutboxMessages",
         "tasks.TaskItems",
         "users.UserProfiles",

@@ -67,6 +67,23 @@ namespace TemplateApp.Features.Tasks.Persistence.Migrations
                     b.ToTable("TaskItems", "tasks");
                 });
 
+            modelBuilder.Entity("TemplateApp.Infrastructure.Messaging.InboxMessage", b =>
+                {
+                    b.Property<Guid>("MessageId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Consumer")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<DateTimeOffset>("ProcessedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("MessageId", "Consumer");
+
+                    b.ToTable("InboxMessages", "tasks");
+                });
+
             modelBuilder.Entity("TemplateApp.Infrastructure.Messaging.OutboxMessage", b =>
                 {
                     b.Property<long>("Id")
