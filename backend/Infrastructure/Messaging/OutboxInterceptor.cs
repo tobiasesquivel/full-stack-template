@@ -11,11 +11,15 @@ public sealed class OutboxInterceptor : SaveChangesInterceptor
 {
     private readonly OutboxEvents _events;
     private readonly TimeProvider _clock;
+    private readonly IServiceProvider _services;
+    private readonly IReadOnlyList<EventHandlerRegistration> _handlers;
 
-    public OutboxInterceptor(OutboxEvents events, TimeProvider clock)
+    public OutboxInterceptor(OutboxEvents events, TimeProvider clock, IServiceProvider services, IEnumerable<EventHandlerRegistration> handlers)
     {
         _events = events;
         _clock = clock;
+        _services = services;
+        _handlers = handlers.ToList();
     }
 
     public override InterceptionResult<int> SavingChanges(DbContextEventData eventData, InterceptionResult<int> result)
@@ -48,16 +52,35 @@ public sealed class OutboxInterceptor : SaveChangesInterceptor
         return result;
     }
 
-    public override ValueTask<int> SavedChangesAsync(
+    public override async ValueTask<int> SavedChangesAsync(
         SaveChangesCompletedEventData eventData,
         int result,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(eventData);
         if (eventData.Context is not null)
+        {
+            await PublishAsync(eventData.Context, cancellationToken);
             Forget(eventData.Context);
+        }
 
-        return ValueTask.FromResult(result);
+        return result;
+    }
+
+    private async Task PublishAsync(DbContext context, CancellationToken ct)
+    {
+        DateTimeOffset now = _clock.GetUtcNow();
+        List<IDomainEvent> events = context.ChangeTracker.Entries<IHasDomainEvents>()
+            .SelectMany(entry => entry.Entity.DomainEvents)
+            .ToList();
+        foreach (IDomainEvent @event in events)
+        {
+            foreach (EventHandlerRegistration handler in _handlers.Where(h => h.EventType == @event.GetType()))
+            {
+                await using AsyncServiceScope scope = _services.CreateAsyncScope();
+                await handler.Dispatch(scope.ServiceProvider, @event, new EventContext(Guid.CreateVersion7(now), handler.Consumer, now, now), ct);
+            }
+        }
     }
 
     private void Enqueue(DbContext context)
