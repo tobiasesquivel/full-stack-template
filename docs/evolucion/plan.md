@@ -430,7 +430,7 @@ El paso 0.28 se agregó el 2026-10-17, a pedido de Tobi, con otro pendiente del 
 
 **25. Broker real con consumidor idempotente y DLQ.**
 **Concepto**: at-least-once, deduplicación, mensajes venenosos, orden por partición.
-**Cambia**: `compose.yaml` (broker), adaptador de mensajería, relay del outbox, health de la dependencia, tests de integración con el broker contenedorizado. ⏸ **DECISIÓN DE TOBI (pendiente, bloquea el paso)**: librería — Wolverine (MIT) o MassTransit v8 (Apache-2.0) si no hay presupuesto; v9 y NServiceBus son comerciales. MediatR NO es candidato aquí (es in-process, no bus).
+**Cambia**: `compose.yaml` (broker), adaptador de mensajería, relay del outbox, health de la dependencia, tests de integración con el broker contenedorizado. **Decisión de Tobi (2026-11-19)**: Wolverine (MIT) como librería y RabbitMQ como broker. Descartados MassTransit v8 (mantenimiento hasta fin de 2026) y v9 (comercial).
 **Verifica**: test de reintento y de DLQ; test que mata al consumidor a mitad y el mensaje se reprocesa sin efecto duplicado.
 
 **26. Saga coreografiada (3 pasos con compensación).**
