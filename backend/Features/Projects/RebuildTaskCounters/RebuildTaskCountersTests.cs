@@ -1,0 +1,139 @@
+using System.Net;
+using Microsoft.Extensions.DependencyInjection;
+using Npgsql;
+using TemplateApp.Tests.Support;
+using Xunit;
+
+namespace TemplateApp.Features.Projects.RebuildTaskCounters;
+
+public sealed class RebuildTaskCountersTests : IDisposable
+{
+    private readonly string _server;
+    private readonly List<IsolatedApi> _apis = [];
+
+    public RebuildTaskCountersTests(PostgresFixture postgres)
+    {
+        _server = postgres.ConnectionString;
+    }
+
+    [Fact]
+    public async Task RebuildingFromScratch_GivesTheSameCounters()
+    {
+        IsolatedApi api = await StartAsync();
+        await SeedAsync(api);
+        await api.DrainOutboxAsync();
+        List<TaskCounterRow> before = await api.Pair.Monolith.Services.AllTaskCountersAsync();
+
+        await ExecuteSqlAsync(api, """DELETE FROM projects."ProjectTaskCounters" """);
+        Assert.Empty(await api.Pair.Monolith.Services.AllTaskCountersAsync());
+        await RebuildAsync(api);
+
+        Assert.Equal(before, await api.Pair.Monolith.Services.AllTaskCountersAsync());
+        Assert.Equal(await api.Pair.Monolith.Services.CountedTasksAsync(), before);
+    }
+
+    [Fact]
+    public async Task EventsStillInTheOutbox_AreNotCountedTwice()
+    {
+        IsolatedApi api = await StartAsync();
+        await SeedAsync(api);
+
+        await RebuildAsync(api);
+        await api.DrainOutboxAsync();
+
+        Assert.Equal(await api.Pair.Monolith.Services.CountedTasksAsync(), await api.Pair.Monolith.Services.AllTaskCountersAsync());
+    }
+
+    [Fact]
+    public async Task EventsAfterTheRebuild_AreCounted()
+    {
+        IsolatedApi api = await StartAsync();
+        TestSession alice = await api.SignUpAsync("alice");
+        string project = await alice.CreateProjectAsync("Casa");
+        await alice.CreateTaskAsync("Antes", project);
+        await RebuildAsync(api);
+
+        await alice.CreateTaskAsync("Después", project);
+        await api.DrainOutboxAsync();
+
+        Assert.Equal((2, 0), await api.Pair.Monolith.Services.TaskCountersAsync(project));
+    }
+
+    [Fact]
+    public async Task OnStartup_AProjectWithoutCounters_GetsThemFromTasks()
+    {
+        IsolatedApi first = await StartAsync();
+        TestSession alice = await first.SignUpAsync("alice");
+        string project = await alice.CreateProjectAsync("Casa");
+        await alice.CreateTaskAsync("Abierta", project);
+        await first.DrainOutboxAsync();
+        await ExecuteSqlAsync(first, """DELETE FROM projects."ProjectTaskCounters" """);
+
+        IsolatedApi second = IsolatedApi.StartOn(first.Database);
+        _apis.Add(second);
+
+        (int, int)? counters = null;
+        for (int attempt = 0; attempt < 100 && counters is null; attempt++)
+        {
+            await Task.Delay(100, TestContext.Current.CancellationToken);
+            counters = await second.Pair.Monolith.Services.TaskCountersAsync(project);
+        }
+
+        Assert.Equal((1, 0), counters);
+    }
+
+    public void Dispose()
+    {
+        foreach (IsolatedApi api in _apis)
+            api.Dispose();
+    }
+
+    private static async Task SeedAsync(IsolatedApi api)
+    {
+        TestSession alice = await api.SignUpAsync("alice");
+        TestSession bob = await api.SignUpAsync("bob");
+        string home = await alice.CreateProjectAsync("Casa");
+        await alice.CreateProjectAsync("Vacío");
+        string work = await bob.CreateProjectAsync("Trabajo");
+        await alice.CreateTaskAsync("Abierta", home);
+        string done = await alice.CreateTaskAsync("Hecha", home);
+        string reopened = await alice.CreateTaskAsync("Reabierta", home);
+        string gone = await bob.CreateTaskAsync("Borrada", work);
+        await bob.CreateTaskAsync("Otra", work);
+        await alice.CreateTaskAsync("Suelta");
+        await SetCompletedAsync(alice, done, true);
+        await SetCompletedAsync(alice, reopened, true);
+        await SetCompletedAsync(alice, reopened, false);
+        await SetCompletedAsync(bob, gone, true);
+        SessionResponse deleted = await bob.SendAsync(HttpMethod.Delete, $"api/v1/tasks/{gone}");
+        Assert.Equal(HttpStatusCode.NoContent, deleted.Status);
+    }
+
+    private static async Task SetCompletedAsync(TestSession session, string taskId, bool isCompleted)
+    {
+        uint version = await session.TaskVersionAsync(taskId);
+        SessionResponse updated = await session.SendAsync(HttpMethod.Put, $"api/v1/tasks/{taskId}", new { title = "Tarea", isCompleted, version });
+        updated.Payload?.Dispose();
+        Assert.Equal(HttpStatusCode.OK, updated.Status);
+    }
+
+    private static async Task RebuildAsync(IsolatedApi api)
+    {
+        await using AsyncServiceScope scope = api.Pair.Monolith.Services.CreateAsyncScope();
+        await scope.ServiceProvider.GetRequiredService<RebuildTaskCounters>().ExecuteAsync(TestContext.Current.CancellationToken);
+    }
+
+    private static async Task ExecuteSqlAsync(IsolatedApi api, string sql)
+    {
+        await using NpgsqlConnection connection = await TestDatabases.OpenAsync(api.Database);
+        await using NpgsqlCommand command = new(sql, connection);
+        await command.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
+    }
+
+    private async Task<IsolatedApi> StartAsync()
+    {
+        IsolatedApi api = await IsolatedApi.StartAsync(_server);
+        _apis.Add(api);
+        return api;
+    }
+}

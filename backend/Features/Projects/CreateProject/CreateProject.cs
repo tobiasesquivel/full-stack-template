@@ -40,6 +40,7 @@ internal sealed class CreateProject
 
         Project project = Project.Create(callerId, request.Name, _clock.GetUtcNow());
         _db.Projects.Add(project);
+        _db.TaskCounters.Add(new ProjectTaskCounters { ProjectId = project.Id, UpdatedAt = project.CreatedAt });
         try
         {
             await _db.SaveChangesAsync(ct);

@@ -23,4 +23,14 @@ internal static class ProjectErrors
     public static readonly Error Archived = Error.Conflict(
         code: "Project.Archived",
         description: "An archived project cannot be renamed.");
+
+    public static readonly Error TaskCountersRebuilding = Error.Custom(
+        type: 503,
+        code: "Project.TaskCountersRebuilding",
+        description: "The task counters are being rebuilt. Try again later.");
+
+    public static Error UnreadableTaskEvent(string type, int version) => Error.Custom(
+        type: 400,
+        code: "Project.UnreadableTaskEvent",
+        description: $"Task event {type} v{version} is not readable by this release.");
 }
