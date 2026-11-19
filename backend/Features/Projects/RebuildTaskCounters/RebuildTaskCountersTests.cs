@@ -1,3 +1,6 @@
+using System.Net;
+using System.Net.Http.Json;
+using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using TemplateApp.Tests.Support;
@@ -56,6 +59,27 @@ public sealed class RebuildTaskCountersTests : IDisposable
         await api.DrainOutboxAsync();
 
         Assert.Equal((2, 0), await api.Pair.Monolith.Services.TaskCountersAsync(project));
+    }
+
+    [Fact]
+    public async Task AMessageAppliedBeforeTheRebuild_ArrivingAgainAfterIt_IsNotCountedTwice()
+    {
+        IsolatedApi api = await StartAsync();
+        TestSession alice = await api.SignUpAsync("alice");
+        string project = await alice.CreateProjectAsync("Casa");
+        await alice.CreateTaskAsync("Comprar pan", project);
+        await api.DrainOutboxAsync();
+        OutboxRow applied = Assert.Single(await api.Pair.Tasks.Services.AllOutboxRowsAsync());
+        await RebuildAsync(api);
+
+        using HttpClient monolith = api.Pair.CreateMonolithClient();
+        using HttpResponseMessage late = await monolith.PutAsJsonAsync(
+            $"internal/v1/task-events/{applied.MessageId}",
+            new { type = applied.Type, version = applied.Version, occurredAt = applied.OccurredAt, payload = JsonDocument.Parse(applied.Payload).RootElement },
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.NoContent, late.StatusCode);
+        Assert.Equal((1, 0), await api.Pair.Monolith.Services.TaskCountersAsync(project));
     }
 
     [Fact]

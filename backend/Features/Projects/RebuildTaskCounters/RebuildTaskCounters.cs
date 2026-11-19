@@ -1,7 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using TemplateApp.Features.Projects.Persistence;
-using TemplateApp.Infrastructure.Messaging;
 
 namespace TemplateApp.Features.Projects.RebuildTaskCounters;
 
@@ -48,7 +47,6 @@ internal sealed partial class RebuildTaskCounters
             """,
             ct);
 
-        await _db.Set<InboxMessage>().Where(m => m.Consumer == TaskCountersProjection.Consumer).ExecuteDeleteAsync(ct);
         await _db.Database.ExecuteSqlAsync(
             $"""
             INSERT INTO projects."InboxMessages" ("MessageId", "Consumer", "ProcessedAt")
