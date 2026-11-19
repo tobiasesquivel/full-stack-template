@@ -38,7 +38,6 @@ internal static class TasksFeature
         services.AddScoped<GetTask.GetTask>();
         services.AddScoped<UpdateTask.UpdateTask>();
         services.AddScoped<DeleteTask.DeleteTask>();
-        services.AddScoped<CountTasksByProject.CountTasksByProject>();
         services.AddScoped<DeleteOwnedTasks.DeleteOwnedTasks>();
         services.AddScoped<SnapshotTaskCounts.SnapshotTaskCounts>();
         return services;
@@ -59,7 +58,6 @@ internal static class TasksFeature
 
     public static RouteGroupBuilder MapTasksInternalEndpoints(this RouteGroupBuilder internalApi)
     {
-        CountTasksByProject.CountTasksByProjectEndpoint.Map(internalApi);
         DeleteOwnedTasks.DeleteOwnedTasksEndpoint.Map(internalApi);
         SnapshotTaskCounts.SnapshotTaskCountsEndpoint.Map(internalApi);
 

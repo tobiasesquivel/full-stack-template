@@ -13,7 +13,6 @@ internal static class ProjectsFeature
     {
         services.AddMigratedDbContext<ProjectsDbContext>(ProjectsDbContext.Schema, adoptsLegacyTables: false);
         services.AddScoped<IProjectsModule, ProjectsModule>();
-        services.AddRemoteClient<TaskCountsClient>(TasksService);
         services.AddScoped<ProjectResponses>();
         services.AddScoped<FindAssignableProject.FindAssignableProject>();
         services.AddScoped<CreateProject.CreateProject>();

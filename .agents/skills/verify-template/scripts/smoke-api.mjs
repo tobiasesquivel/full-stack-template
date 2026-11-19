@@ -177,6 +177,17 @@ async function waitTasksStatus(client, status) {
   throw new Error(`GET tasks no respondió ${status} en 60 segundos`);
 }
 
+async function waitProjectCounters(client, projectId, taskCount) {
+  const started = Date.now();
+  const deadline = started + 15000;
+  while (Date.now() < deadline) {
+    const project = (await client.request('GET', `projects/${projectId}`)).payload;
+    if (project.taskCount === taskCount) return { project, catchUpMs: Date.now() - started };
+    await new Promise(resolve => setTimeout(resolve, 200));
+  }
+  throw new Error(`El proyecto ${projectId} no llegó a ${taskCount} tareas en 15 segundos`);
+}
+
 async function waitGatewayUnavailable() {
   const deadline = Date.now() + 30000;
   while (Date.now() < deadline) {
@@ -290,8 +301,9 @@ const sameName = await alice.request('POST', 'projects', { name: 'MUDANZA' }, { 
 assert.equal(sameName.payload.code, 'Project.NameTaken', 'El nombre de proyecto es único por dueño');
 const projectTask = (await alice.request('POST', 'tasks', { title: 'Embalar', projectId: project.id }, { expected: 201 })).payload;
 assert.equal(projectTask.projectId, project.id);
-const counted = (await alice.request('GET', `projects/${project.id}`)).payload;
-assert.equal(counted.taskCount, 1, 'El detalle cuenta las tareas del proyecto');
+const { project: counted, catchUpMs } = await waitProjectCounters(alice, project.id, 1);
+assert.equal(counted.taskCount, 1, 'La proyección se pone al día con la tarea nueva');
+evidence.push({ scenario: 'projection catch-up', taskCount: counted.taskCount, catchUpMs });
 assert.equal(counted.ownerName, 'Perfil de smoke', 'El detalle trae el nombre del dueño desde Users');
 const foreignProject = await bob.request('GET', `projects/${project.id}`, undefined, { expected: 403 });
 assert.equal(foreignProject.payload.code, 'Project.Forbidden');
@@ -326,7 +338,7 @@ if (process.argv.includes('--compose')) {
     assert.ok(!(services.get(service).Publishers ?? []).some(publisher => publisher.PublishedPort),
       `${service} no publica puertos: todo entra por el gateway`);
   }
-  const internalThroughGateway = await fetch(new URL(`/internal/v1/task-counts?projectId=${crypto.randomUUID()}`, base),
+  const internalThroughGateway = await fetch(new URL(`/internal/v1/task-count-snapshot`, base),
     { signal: AbortSignal.timeout(5000) });
   assert.equal(internalThroughGateway.status, 404, 'El gateway no publica los endpoints internos');
   evidence.push({ scenario: 'internal through gateway', status: internalThroughGateway.status });
@@ -336,13 +348,13 @@ if (process.argv.includes('--compose')) {
     assertSecurityHeaders(tasksDown, 'gateway 503 con Tasks caído');
     assert.equal((await tasksDown.json()).code, 'Http.ServiceUnavailable', 'Con Tasks caído, su ruta responde 503 con code');
     await alice.request('GET', 'users/me');
-    const projectsWithoutCounts = await alice.request('GET', 'projects', undefined, { expected: 503 });
-    assert.equal(projectsWithoutCounts.payload.code, 'Http.ServiceUnavailable',
-      'Sin Tasks, la lista de proyectos falla entera en vez de mostrar contadores falsos');
+    const projectsWithoutTasks = await alice.request('GET', 'projects', undefined, { expected: 200 });
+    assert.deepEqual(projectsWithoutTasks.payload.items.map(item => [item.id, item.taskCount]), [[project.id, 1]],
+      'Sin Tasks, la lista de proyectos responde con los contadores que ya tenía');
     const deleteWithoutTasks = await alice.request('DELETE', 'users/me', undefined, { expected: 503 });
     assert.equal(deleteWithoutTasks.payload.code, 'Http.ServiceUnavailable');
     await alice.request('GET', 'users/me');
-    evidence.push({ scenario: 'tasks down', tasks: 503, usersMe: 200, projects: 503, deleteAccount: 503 });
+    evidence.push({ scenario: 'tasks down', tasks: 503, usersMe: 200, projects: 200, deleteAccount: 503 });
   } finally {
     compose('start', 'tasks');
     await waitTasksStatus(alice, 200);
