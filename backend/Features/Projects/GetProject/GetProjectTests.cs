@@ -12,13 +12,16 @@ using Xunit;
 
 namespace TemplateApp.Features.Projects.GetProject;
 
-public sealed class GetProjectTests : IClassFixture<ApiFixture>
+public sealed class GetProjectTests : IClassFixture<ApiFixture>, IDisposable
 {
     private readonly ApiFixture _fixture;
+    private readonly string _server;
+    private readonly List<IsolatedApi> _apis = [];
 
-    public GetProjectTests(ApiFixture fixture)
+    public GetProjectTests(ApiFixture fixture, PostgresFixture postgres)
     {
         _fixture = fixture;
+        _server = postgres.ConnectionString;
     }
 
     [Fact]
@@ -37,7 +40,8 @@ public sealed class GetProjectTests : IClassFixture<ApiFixture>
     [Fact]
     public async Task Detail_CountsItsTasks_AndNamesItsOwner()
     {
-        var alice = new TestSession(_fixture.CreateClient());
+        IsolatedApi api = await StartAsync();
+        var alice = new TestSession(api.Pair.CreateClient());
         string aliceName = TestAccounts.UniqueName("alice");
         await alice.RegisterAsync(aliceName);
         string id = await alice.CreateProjectAsync("Mudanza");
@@ -50,6 +54,7 @@ public sealed class GetProjectTests : IClassFixture<ApiFixture>
         var completed = await alice.SendAsync(HttpMethod.Put, $"api/v1/tasks/{done}", new { title = "Embalar", isCompleted = true, version });
         completed.Payload?.Dispose();
         Assert.Equal(HttpStatusCode.OK, completed.Status);
+        await api.DrainOutboxAsync();
 
         JsonElement project = await alice.ProjectAsync(id);
 
@@ -60,7 +65,26 @@ public sealed class GetProjectTests : IClassFixture<ApiFixture>
     }
 
     [Fact]
-    public async Task Read_LoadsNoProject_And_AsksEachFeatureOnce()
+    public async Task Counters_ShowTheOldValue_UntilTheRelayDeliversTheEvent()
+    {
+        IsolatedApi api = await StartAsync();
+        TestSession alice = await api.SignUpAsync("alice");
+        string id = await alice.CreateProjectAsync("Mudanza");
+        string task = await alice.CreateTaskAsync("Embalar", id);
+
+        Assert.Equal((0, 0), await CountersAsync(alice, id));
+        await api.Relay.RunOnceAsync(TestContext.Current.CancellationToken);
+        Assert.Equal((1, 0), await CountersAsync(alice, id));
+
+        await TaskCounterScenario.SetCompletedAsync(alice, task, true);
+
+        Assert.Equal((1, 0), await CountersAsync(alice, id));
+        await api.Relay.RunOnceAsync(TestContext.Current.CancellationToken);
+        Assert.Equal((1, 1), await CountersAsync(alice, id));
+    }
+
+    [Fact]
+    public async Task Read_LoadsNoProject_And_AsksNoOtherProcess()
     {
         CapturedCommands commands = new();
         HttpClient client = _fixture.CreateIsolatedClient(
@@ -82,9 +106,9 @@ public sealed class GetProjectTests : IClassFixture<ApiFixture>
             .ExecuteAsync(alice.AuthId, Guid.Parse(id), TestContext.Current.CancellationToken);
 
         Assert.False(read.IsError);
-        Assert.Equal(1, read.Value.TaskCount);
         Assert.DoesNotContain("\"NormalizedName\"", Assert.Single(commands.Reading("Projects")).Text, StringComparison.Ordinal);
-        Assert.Single(commands.Reading("TaskItems"));
+        Assert.Single(commands.Reading("ProjectTaskCounters"));
+        Assert.Empty(commands.Reading("TaskItems"));
         Assert.Single(commands.Reading("UserProfiles"));
         Assert.Empty(scope.ServiceProvider.GetRequiredService<ProjectsDbContext>().ChangeTracker.Entries<Project>());
     }
@@ -118,5 +142,24 @@ public sealed class GetProjectTests : IClassFixture<ApiFixture>
         adminUpdate.Payload?.Dispose();
         Assert.Equal(HttpStatusCode.OK, adminUpdate.Status);
         Assert.True((await alice.ProjectAsync(id)).GetProperty("isArchived").GetBoolean());
+    }
+
+    public void Dispose()
+    {
+        foreach (IsolatedApi api in _apis)
+            api.Dispose();
+    }
+
+    private static async Task<(int Tasks, int Completed)> CountersAsync(TestSession session, string projectId)
+    {
+        JsonElement project = await session.ProjectAsync(projectId);
+        return (project.GetProperty("taskCount").GetInt32(), project.GetProperty("completedTaskCount").GetInt32());
+    }
+
+    private async Task<IsolatedApi> StartAsync()
+    {
+        IsolatedApi api = await IsolatedApi.StartAsync(_server);
+        _apis.Add(api);
+        return api;
     }
 }

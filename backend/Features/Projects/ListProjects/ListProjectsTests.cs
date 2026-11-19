@@ -12,13 +12,16 @@ using Xunit;
 
 namespace TemplateApp.Features.Projects.ListProjects;
 
-public sealed class ListProjectsTests : IClassFixture<ApiFixture>
+public sealed class ListProjectsTests : IClassFixture<ApiFixture>, IDisposable
 {
     private readonly ApiFixture _fixture;
+    private readonly string _server;
+    private IsolatedApi? _isolated;
 
-    public ListProjectsTests(ApiFixture fixture)
+    public ListProjectsTests(ApiFixture fixture, PostgresFixture postgres)
     {
         _fixture = fixture;
+        _server = postgres.ConnectionString;
     }
 
     [Fact]
@@ -58,18 +61,19 @@ public sealed class ListProjectsTests : IClassFixture<ApiFixture>
     }
 
     [Fact]
-    public async Task List_ComposesAPageOfFive_WithOneQueryPerFeature_AndTracksNoProject()
+    public async Task List_ComposesAPageOfFive_FromLocalTables_AndTracksNoProject()
     {
         CapturedCommands commands = new();
-        HttpClient client = _fixture.CreateIsolatedClient(
+        _isolated = await IsolatedApi.StartAsync(
+            _server,
             services =>
             {
                 services.ConfigureDbContext<ProjectsDbContext>(options => options.AddInterceptors(commands));
                 services.ConfigureDbContext<TasksDbContext>(options => options.AddInterceptors(commands));
                 services.ConfigureDbContext<UsersDbContext>(options => options.AddInterceptors(commands));
-            },
-            out IServiceProvider services);
-        var alice = new TestSession(client);
+            });
+        IServiceProvider services = _isolated.Pair.Monolith.Services;
+        var alice = new TestSession(_isolated.Pair.CreateClient());
         string aliceName = TestAccounts.UniqueName("alice");
         await alice.RegisterAsync(aliceName);
         Dictionary<Guid, int> tasksPerProject = [];
@@ -80,6 +84,8 @@ public sealed class ListProjectsTests : IClassFixture<ApiFixture>
                 await alice.CreateTaskAsync("Tarea", projectId);
             tasksPerProject[Guid.Parse(projectId)] = i;
         }
+
+        await _isolated.DrainOutboxAsync();
 
         using IServiceScope scope = services.CreateScope();
         commands.Reset();
@@ -94,10 +100,13 @@ public sealed class ListProjectsTests : IClassFixture<ApiFixture>
             Assert.Equal(aliceName, item.OwnerName);
         });
         Assert.DoesNotContain("\"NormalizedName\"", Assert.Single(commands.Reading("Projects")).Text, StringComparison.Ordinal);
-        Assert.Single(commands.Reading("TaskItems"));
+        Assert.Single(commands.Reading("ProjectTaskCounters"));
+        Assert.Empty(commands.Reading("TaskItems"));
         Assert.Single(commands.Reading("UserProfiles"));
         Assert.Empty(scope.ServiceProvider.GetRequiredService<ProjectsDbContext>().ChangeTracker.Entries<Project>());
     }
+
+    public void Dispose() => _isolated?.Dispose();
 
     private static async Task<(string[] Names, string? NextCursor)> PageAsync(TestSession session, string route)
     {

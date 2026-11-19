@@ -30,8 +30,8 @@ public sealed class ApplyTaskEventTests : IDisposable
         await alice.CreateTaskAsync("Abierta", project);
         string done = await alice.CreateTaskAsync("Hecha", project);
         string gone = await alice.CreateTaskAsync("Borrada", project);
-        await CompleteAsync(alice, done);
-        await CompleteAsync(alice, gone);
+        await TaskCounterScenario.SetCompletedAsync(alice, done, true);
+        await TaskCounterScenario.SetCompletedAsync(alice, gone, true);
         SessionResponse deleted = await alice.SendAsync(HttpMethod.Delete, $"api/v1/tasks/{gone}");
         Assert.Equal(HttpStatusCode.NoContent, deleted.Status);
         await alice.CreateTaskAsync("Suelta");
@@ -174,14 +174,6 @@ public sealed class ApplyTaskEventTests : IDisposable
     {
         foreach (IsolatedApi api in _apis)
             api.Dispose();
-    }
-
-    private static async Task CompleteAsync(TestSession session, string taskId)
-    {
-        uint version = await session.TaskVersionAsync(taskId);
-        SessionResponse completed = await session.SendAsync(HttpMethod.Put, $"api/v1/tasks/{taskId}", new { title = "Hecha", isCompleted = true, version });
-        completed.Payload?.Dispose();
-        Assert.Equal(HttpStatusCode.OK, completed.Status);
     }
 
     private static async Task<HttpResponseMessage> PutAsync(

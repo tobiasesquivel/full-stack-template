@@ -1,4 +1,3 @@
-using System.Net;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using TemplateApp.Tests.Support;
@@ -20,7 +19,7 @@ public sealed class RebuildTaskCountersTests : IDisposable
     public async Task RebuildingFromScratch_GivesTheSameCounters()
     {
         IsolatedApi api = await StartAsync();
-        await SeedAsync(api);
+        await TaskCounterScenario.SeedAsync(api);
         await api.DrainOutboxAsync();
         List<TaskCounterRow> before = await api.Pair.Monolith.Services.AllTaskCountersAsync();
 
@@ -36,7 +35,7 @@ public sealed class RebuildTaskCountersTests : IDisposable
     public async Task EventsStillInTheOutbox_AreNotCountedTwice()
     {
         IsolatedApi api = await StartAsync();
-        await SeedAsync(api);
+        await TaskCounterScenario.SeedAsync(api);
 
         await RebuildAsync(api);
         await api.DrainOutboxAsync();
@@ -86,35 +85,6 @@ public sealed class RebuildTaskCountersTests : IDisposable
     {
         foreach (IsolatedApi api in _apis)
             api.Dispose();
-    }
-
-    private static async Task SeedAsync(IsolatedApi api)
-    {
-        TestSession alice = await api.SignUpAsync("alice");
-        TestSession bob = await api.SignUpAsync("bob");
-        string home = await alice.CreateProjectAsync("Casa");
-        await alice.CreateProjectAsync("Vacío");
-        string work = await bob.CreateProjectAsync("Trabajo");
-        await alice.CreateTaskAsync("Abierta", home);
-        string done = await alice.CreateTaskAsync("Hecha", home);
-        string reopened = await alice.CreateTaskAsync("Reabierta", home);
-        string gone = await bob.CreateTaskAsync("Borrada", work);
-        await bob.CreateTaskAsync("Otra", work);
-        await alice.CreateTaskAsync("Suelta");
-        await SetCompletedAsync(alice, done, true);
-        await SetCompletedAsync(alice, reopened, true);
-        await SetCompletedAsync(alice, reopened, false);
-        await SetCompletedAsync(bob, gone, true);
-        SessionResponse deleted = await bob.SendAsync(HttpMethod.Delete, $"api/v1/tasks/{gone}");
-        Assert.Equal(HttpStatusCode.NoContent, deleted.Status);
-    }
-
-    private static async Task SetCompletedAsync(TestSession session, string taskId, bool isCompleted)
-    {
-        uint version = await session.TaskVersionAsync(taskId);
-        SessionResponse updated = await session.SendAsync(HttpMethod.Put, $"api/v1/tasks/{taskId}", new { title = "Tarea", isCompleted, version });
-        updated.Payload?.Dispose();
-        Assert.Equal(HttpStatusCode.OK, updated.Status);
     }
 
     private static async Task RebuildAsync(IsolatedApi api)
