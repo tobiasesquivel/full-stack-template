@@ -40,15 +40,17 @@ public sealed class TaskEventConsumerTests : IAsyncDisposable
         Assert.Equal(0u, await broker.CountAsync(TaskEventsBroker.DeadLetterQueue));
     }
 
-    [Fact]
-    public async Task AnUnreadableEvent_GoesToTheDeadLetterQueue_AtTheFirstAttempt()
+    [Theory]
+    [InlineData("99")]
+    [InlineData("2147483648")]
+    public async Task AnUnreadableEvent_GoesToTheDeadLetterQueue_AtTheFirstAttempt(string version)
     {
         ConsumerScript script = new();
         CapturedLogs logs = new();
         (IsolatedApi api, TaskEventsBroker broker) = await StartAsync(script, services => services.AddSingleton<ILoggerFactory>(new LoggerFactory([logs])));
         string project = await ProjectAsync(api);
 
-        await broker.PublishAsync("tasks.task-created", Guid.NewGuid(), new { projectId = project }, version: 99);
+        await broker.PublishAsync("tasks.task-created", Guid.NewGuid(), new { projectId = project }, version);
 
         uint deadLettered = await Eventually.Async(() => broker.CountAsync(TaskEventsBroker.DeadLetterQueue), count => count > 0, Wait);
         Assert.Equal(1u, deadLettered);

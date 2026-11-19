@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -78,7 +79,7 @@ public sealed class RebuildTaskCountersTests : IDisposable
         await RebuildAsync(api);
 
         await using TaskEventsBroker broker = await TaskEventsBroker.ConnectAsync(_rabbit, api.Prefix);
-        await broker.PublishAsync(applied.Type, applied.MessageId, JsonDocument.Parse(applied.Payload).RootElement, applied.Version);
+        await broker.PublishAsync(applied.Type, applied.MessageId, JsonDocument.Parse(applied.Payload).RootElement, applied.Version.ToString(CultureInfo.InvariantCulture));
         Guid marker = Guid.NewGuid();
         await broker.PublishAsync("tasks.task-created", marker, new { projectId = Guid.NewGuid() });
         await Eventually.Async(

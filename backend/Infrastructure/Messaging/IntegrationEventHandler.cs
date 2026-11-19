@@ -40,7 +40,7 @@ internal sealed class IntegrationEventHandler<TEvent> : MessageHandler<TEvent>
         {
             return parse(text);
         }
-        catch (FormatException error)
+        catch (Exception error) when (error is FormatException or OverflowException)
         {
             throw new UnreadableMessageException($"{_subscription.Event.Name} has an unreadable {name} header.", error);
         }

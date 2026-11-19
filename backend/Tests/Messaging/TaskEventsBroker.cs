@@ -41,7 +41,7 @@ internal sealed class TaskEventsBroker : IAsyncDisposable
 
     public string Name(string identifier) => $"{_prefix}-{identifier}";
 
-    public async Task PublishAsync(string type, Guid messageId, object payload, int version = 1)
+    public async Task PublishAsync(string type, Guid messageId, object payload, string version = "1")
     {
         BasicProperties properties = new()
         {
@@ -52,7 +52,7 @@ internal sealed class TaskEventsBroker : IAsyncDisposable
             Headers = new Dictionary<string, object?>
             {
                 ["templateapp-message-id"] = messageId.ToString("D"),
-                ["templateapp-message-version"] = version.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                ["templateapp-message-version"] = version,
                 ["templateapp-occurred-at"] = DateTimeOffset.UtcNow.ToString("O", System.Globalization.CultureInfo.InvariantCulture),
             },
         };
