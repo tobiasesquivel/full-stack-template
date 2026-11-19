@@ -46,7 +46,6 @@ internal static class ProjectsFeature
     public static RouteGroupBuilder MapProjectsInternalEndpoints(this RouteGroupBuilder internalApi)
     {
         FindAssignableProject.FindAssignableProjectEndpoint.Map(internalApi);
-        ApplyTaskEvent.ApplyTaskEventEndpoint.Map(internalApi);
 
         return internalApi;
     }

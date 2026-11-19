@@ -17,29 +17,21 @@ internal sealed class TaskEventsConsumer :
     }
 
     public Task HandleAsync(TaskCreatedIntegrationEvent @event, EventContext context, CancellationToken ct) =>
-        ApplyAsync(TaskEvents.Created, new TaskEventPayload(@event.ProjectId, WasCompleted: false), context, ct);
+        ApplyAsync(TaskEvents.Created, @event.ProjectId, new TaskCountersDelta(1, 0), context, ct);
 
     public Task HandleAsync(TaskCompletedIntegrationEvent @event, EventContext context, CancellationToken ct) =>
-        ApplyAsync(TaskEvents.Completed, new TaskEventPayload(@event.ProjectId, WasCompleted: false), context, ct);
+        ApplyAsync(TaskEvents.Completed, @event.ProjectId, new TaskCountersDelta(0, 1), context, ct);
 
     public Task HandleAsync(TaskReopenedIntegrationEvent @event, EventContext context, CancellationToken ct) =>
-        ApplyAsync(TaskEvents.Reopened, new TaskEventPayload(@event.ProjectId, WasCompleted: false), context, ct);
+        ApplyAsync(TaskEvents.Reopened, @event.ProjectId, new TaskCountersDelta(0, -1), context, ct);
 
     public Task HandleAsync(TaskDeletedIntegrationEvent @event, EventContext context, CancellationToken ct) =>
-        ApplyAsync(TaskEvents.Deleted, new TaskEventPayload(@event.ProjectId, @event.WasCompleted), context, ct);
+        ApplyAsync(TaskEvents.Deleted, @event.ProjectId, new TaskCountersDelta(-1, @event.WasCompleted ? -1 : 0), context, ct);
 
-    private async Task ApplyAsync(string type, TaskEventPayload payload, EventContext context, CancellationToken ct)
+    private async Task ApplyAsync(string type, Guid? projectId, TaskCountersDelta delta, EventContext context, CancellationToken ct)
     {
-        ErrorOr<Success> applied = await _slice.ExecuteAsync(
-            context.MessageId,
-            new TaskEventRequest(type, TaskEvents.Version, context.OccurredAt, payload),
-            ct);
-        if (!applied.IsError)
-            return;
-
-        if (applied.FirstError.Code == ProjectErrors.TaskCountersRebuilding.Code)
+        ErrorOr<Success> applied = await _slice.ExecuteAsync(type, projectId, delta, context, ct);
+        if (applied.IsError)
             throw new ConsumerUnavailableException($"{type} {context.MessageId} waits: {applied.FirstError.Description}");
-
-        throw new UnreadableMessageException($"{type} {context.MessageId}: {applied.FirstError.Description}");
     }
 }

@@ -77,13 +77,15 @@ public sealed class RebuildTaskCountersTests : IDisposable
         OutboxRow applied = Assert.Single(await api.Pair.Tasks.Services.AllOutboxRowsAsync());
         await RebuildAsync(api);
 
-        using HttpClient monolith = api.Pair.CreateMonolithClient();
-        using HttpResponseMessage late = await monolith.PutAsJsonAsync(
-            $"internal/v1/task-events/{applied.MessageId}",
-            new { type = applied.Type, version = applied.Version, occurredAt = applied.OccurredAt, payload = JsonDocument.Parse(applied.Payload).RootElement },
-            TestContext.Current.CancellationToken);
+        await using TaskEventsBroker broker = await TaskEventsBroker.ConnectAsync(_rabbit, api.Prefix);
+        await broker.PublishAsync(applied.Type, applied.MessageId, JsonDocument.Parse(applied.Payload).RootElement, applied.Version);
+        Guid marker = Guid.NewGuid();
+        await broker.PublishAsync("tasks.task-created", marker, new { projectId = Guid.NewGuid() });
+        await Eventually.Async(
+            () => api.Pair.Monolith.Services.CountAsync($"""SELECT count(*) AS "Value" FROM projects."InboxMessages" WHERE "MessageId" = {marker}"""),
+            rows => rows == 1,
+            TimeSpan.FromSeconds(60));
 
-        Assert.Equal(HttpStatusCode.NoContent, late.StatusCode);
         Assert.Equal((1, 0), await api.Pair.Monolith.Services.TaskCountersAsync(project));
     }
 

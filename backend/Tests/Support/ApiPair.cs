@@ -86,6 +86,7 @@ public sealed class ApiPair : IDisposable
             builder.UseSetting(key, value);
         builder.ConfigureTestServices(services =>
         {
+            services.UseWolverineSoloMode();
             if (!settings.ContainsKey(BrokerSetting))
                 services.DisableAllExternalWolverineTransports();
             configureServices(services);
