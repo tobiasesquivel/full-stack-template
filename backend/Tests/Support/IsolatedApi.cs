@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
+using Npgsql;
 using TemplateApp.Features.Tasks.Persistence;
 using TemplateApp.Infrastructure.Messaging;
 using Xunit;
@@ -27,7 +28,7 @@ internal sealed class IsolatedApi : IDisposable
         string server,
         Action<IServiceCollection>? configure = null,
         Func<HttpRequestMessage, HttpMessageHandler, HttpMessageHandler?>? interceptRemote = null) =>
-        StartOn(await TestDatabases.CreateEmptyAsync(server), configure, interceptRemote);
+        StartOn(new NpgsqlConnectionStringBuilder(await TestDatabases.CreateEmptyAsync(server)) { Pooling = false }.ConnectionString, configure, interceptRemote);
 
     public static IsolatedApi StartOn(
         string database,
