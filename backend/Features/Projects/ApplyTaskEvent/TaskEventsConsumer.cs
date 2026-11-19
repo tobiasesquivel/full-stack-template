@@ -1,5 +1,4 @@
 using ErrorOr;
-using Wolverine;
 using TemplateApp.Infrastructure.Messaging;
 
 namespace TemplateApp.Features.Projects.ApplyTaskEvent;
