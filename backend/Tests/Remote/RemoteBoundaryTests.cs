@@ -52,7 +52,7 @@ public sealed class RemoteBoundaryTests : IClassFixture<ApiFixture>
         SessionResponse after = await alice.SendAsync(HttpMethod.Get, "api/v1/tasks", csrf: false);
         after.Payload?.Dispose();
 
-        Assert.Equal(1, auth.Calls);
+        Assert.Equal(3, auth.Calls);
         Assert.DoesNotContain(during.SetCookies, cookie => cookie.StartsWith(TestAccounts.SessionCookieName, StringComparison.Ordinal));
         ProblemAssert.Problem(during, HttpStatusCode.ServiceUnavailable, "Http.ServiceUnavailable");
         Assert.Equal(HttpStatusCode.OK, after.Status);
@@ -115,7 +115,7 @@ public sealed class RemoteBoundaryTests : IClassFixture<ApiFixture>
         string loose = await alice.CreateTaskAsync("Sin proyecto");
 
         ProblemAssert.Problem(inProject, HttpStatusCode.ServiceUnavailable, "Http.ServiceUnavailable");
-        Assert.Equal(1, projects.Calls);
+        Assert.Equal(3, projects.Calls);
         Assert.Equal(new OwnedRows(1, 1, 1, 1, 1, 1, 0), await api.Monolith.Services.OwnedRowsAsync(alice.AuthId));
         Assert.False(string.IsNullOrEmpty(loose));
     }
@@ -149,13 +149,17 @@ public sealed class RemoteBoundaryTests : IClassFixture<ApiFixture>
     }
 
     [Fact]
-    public async Task ProjectsSilent_TheCallerGivesUpAtItsTimeout_With503()
+    public async Task ProjectsSilent_EachAttemptTimesOut_AndTheTotalTimeoutAnswers503()
     {
         RemoteFault projects = RemoteFault.Silent(request =>
             RemoteFault.Host(ApiPair.MonolithAuthority)(request) && RemoteFault.Path(OwnerScoped)(request));
         projects.Active = false;
         ApiPair api = _fixture.CreateIsolatedApi(
-            new Dictionary<string, string> { ["Services:Monolith:Timeout"] = "00:00:00.500" },
+            new Dictionary<string, string>
+            {
+                ["Services:Monolith:Timeout"] = "00:00:00.300",
+                ["Services:Monolith:TotalTimeout"] = "00:00:01",
+            },
             projects);
         TestSession alice = new(api.CreateClient());
         await alice.RegisterAsync(TestAccounts.UniqueName("alice"));
@@ -167,7 +171,8 @@ public sealed class RemoteBoundaryTests : IClassFixture<ApiFixture>
         clock.Stop();
 
         ProblemAssert.Problem(created, HttpStatusCode.ServiceUnavailable, "Http.ServiceUnavailable");
-        Assert.InRange(clock.Elapsed, TimeSpan.FromMilliseconds(400), TimeSpan.FromSeconds(5));
+        Assert.InRange(clock.Elapsed, TimeSpan.FromMilliseconds(900), TimeSpan.FromSeconds(3));
+        Assert.InRange(projects.Calls, 2, 3);
     }
 
     [Fact]

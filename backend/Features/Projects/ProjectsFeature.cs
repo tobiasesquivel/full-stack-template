@@ -25,7 +25,7 @@ internal static class ProjectsFeature
         services.AddIntegrationEventHandler<ApplyTaskEvent.TaskCompletedIntegrationEvent, ApplyTaskEvent.TaskEventsConsumer>(TaskEvents.Completed, TaskEvents.Version, TaskEvents.Exchange, TaskCountersProjection.Consumer);
         services.AddIntegrationEventHandler<ApplyTaskEvent.TaskReopenedIntegrationEvent, ApplyTaskEvent.TaskEventsConsumer>(TaskEvents.Reopened, TaskEvents.Version, TaskEvents.Exchange, TaskCountersProjection.Consumer);
         services.AddIntegrationEventHandler<ApplyTaskEvent.TaskDeletedIntegrationEvent, ApplyTaskEvent.TaskEventsConsumer>(TaskEvents.Deleted, TaskEvents.Version, TaskEvents.Exchange, TaskCountersProjection.Consumer);
-        services.AddRemoteClient<RebuildTaskCounters.TaskCountsSnapshotClient>(TasksService);
+        services.AddRemoteClient<RebuildTaskCounters.TaskCountsSnapshotClient>(TasksService, RemoteRetry.Idempotent);
         services.AddScoped<RebuildTaskCounters.RebuildTaskCounters>();
         services.AddHostedService<RebuildTaskCounters.RebuildTaskCountersOnStartup>();
         return services;
