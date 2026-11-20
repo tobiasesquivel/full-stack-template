@@ -84,6 +84,9 @@ services:
       Messaging__RabbitMqUri: amqp://${RABBITMQ_USER:-templateapp}:${RABBITMQ_PASSWORD:?Define RABBITMQ_PASSWORD en .env}@rabbitmq:5672/
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel:4318
       Services__Tasks__BaseAddress: http://tasks:8080/
+      AccountClosure__GracePeriodSeconds: ${ACCOUNT_CLOSURE_GRACE_SECONDS:-1209600}
+      AccountClosure__ReminderOffsetsSeconds__0: ${ACCOUNT_CLOSURE_FIRST_REMINDER_SECONDS:-604800}
+      AccountClosure__ReminderOffsetsSeconds__1: ${ACCOUNT_CLOSURE_SECOND_REMINDER_SECONDS:-1123200}
     volumes:
       - dataprotection:/var/lib/templateapp/data-protection-keys
     healthcheck:

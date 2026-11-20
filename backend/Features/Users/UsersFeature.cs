@@ -22,6 +22,7 @@ internal static class UsersFeature
         services.AddIntegrationEventPublication<PublishUserEvents.UserDeletedIntegrationEvent>(UserEvents.Deleted, UserEvents.Version, UserEvents.Exchange);
         services.AddEventHandler<UserDeleted, PublishUserEvents.UserEventPublisher>();
         services.AddSaga<AccountClosureSaga, UsersDbContext>();
+        services.AddSaga<ScheduleAccountClosure.AccountClosureGracePeriod, UsersDbContext>();
         services.AddIntegrationCommand<HoldOwnerTasksIntegrationCommand>(TaskCommands.HoldOwnerTasks, TaskCommands.Version, TaskCommands.Exchange);
         services.AddIntegrationCommand<ReleaseOwnerTasksIntegrationCommand>(TaskCommands.ReleaseOwnerTasks, TaskCommands.Version, TaskCommands.Exchange);
         services.AddIntegrationCommand<DecideAccountClosureInfo>(AuthCommands.DecideAccountClosure, AuthCommands.Version, AuthCommands.Exchange);
@@ -33,12 +34,18 @@ internal static class UsersFeature
         services.AddScoped<IUsersModule, UsersModule>();
         services.AddScoped<GetUser.GetUser>();
         services.AddScoped<GetAccountClosure.GetAccountClosure>();
+        services.AddScoped<GetAccountClosureHistory.GetAccountClosureHistory>();
+        services.AddScoped<WithdrawAccountClosure.WithdrawAccountClosure>();
         services.AddScoped<UpdateProfile.UpdateProfile>();
         services.AddScoped<DeleteUser.DeleteUser>();
         services.AddScoped<CompleteAccountClosure.CompleteAccountClosure>();
         services.AddScoped<CancelAccountClosure.CancelAccountClosure>();
         services.AddAfterCommit<UsersDbContext>();
         services.AddScoped<IAccountClosureSteps, AccountClosureSteps>();
+        services.AddScoped<AccountClosureHistory>();
+        services.AddScoped<StartAccountClosure.StartAccountClosure>();
+        services.AddScoped<RemindAccountClosure.RemindAccountClosure>();
+        services.AddScoped<ScheduleAccountClosure.IAccountClosureGraceSteps, ScheduleAccountClosure.AccountClosureGraceSteps>();
         return services;
     }
 
@@ -48,6 +55,8 @@ internal static class UsersFeature
 
         GetUser.GetUserEndpoint.Map(users);
         GetAccountClosure.GetAccountClosureEndpoint.Map(users);
+        GetAccountClosureHistory.GetAccountClosureHistoryEndpoint.Map(users);
+        WithdrawAccountClosure.WithdrawAccountClosureEndpoint.Map(users);
         UpdateProfile.UpdateProfileEndpoint.Map(users);
         DeleteUser.DeleteUserEndpoint.Map(users);
 

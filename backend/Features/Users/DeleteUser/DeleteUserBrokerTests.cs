@@ -34,7 +34,7 @@ public sealed class DeleteUserBrokerTests : IDisposable
         await alice.CreateProjectAsync("Mudanza");
         await api.DrainAsync();
 
-        (_, Guid closure) = await DeleteUserTests.RequestClosureAsync(alice, "api/v1/users/me");
+        (_, Guid closure) = await DeleteUserTests.RequestClosureAsync(api, alice, "api/v1/users/me");
         Assert.Equal(1, await Eventually.Async(() => HoldsAsync(api, alice.AuthId), holds => holds == 1, Wait));
         SessionResponse whileClosing = await alice.SendAsync(HttpMethod.Post, "api/v1/tasks", new { title = "Durante el cierre" });
         JsonElement closing = await DeleteUserTests.MeAsync(alice, "api/v1/users/me");
@@ -56,7 +56,7 @@ public sealed class DeleteUserBrokerTests : IDisposable
             .Select(entry => entry.Category[(entry.Category.LastIndexOf('.') + 1)..])
             .Distinct(StringComparer.Ordinal)
             .ToArray();
-        Assert.Equal(["AccountClosureSaga", "CancelAccountClosure", "DecideAccountClosure", "DeleteUser", "HoldOwnerTasks", "ReleaseOwnerTasks"], steps.Order(StringComparer.Ordinal));
+        Assert.Equal(["AccountClosureGracePeriod", "AccountClosureSaga", "CancelAccountClosure", "DecideAccountClosure", "DeleteUser", "HoldOwnerTasks", "ReleaseOwnerTasks", "StartAccountClosure"], steps.Order(StringComparer.Ordinal));
         Assert.Equal("Rejected", await SagaStateAsync(api, closure));
     }
 
@@ -77,7 +77,7 @@ public sealed class DeleteUserBrokerTests : IDisposable
         Assert.Equal(HttpStatusCode.Created, keyed.Status);
         Assert.Equal(new OwnedRows(1, 1, 1, 1, 2, 1, 1), await api.Pair.Monolith.Services.OwnedRowsAsync(bob.AuthId));
 
-        (_, Guid closure) = await DeleteUserTests.RequestClosureAsync(bob, "api/v1/users/me");
+        (_, Guid closure) = await DeleteUserTests.RequestClosureAsync(api, bob, "api/v1/users/me");
         await api.DrainAsync();
 
         SessionResponse denied = await bob.SendAsync(HttpMethod.Get, "api/v1/users/me", csrf: false);
@@ -108,7 +108,7 @@ public sealed class DeleteUserBrokerTests : IDisposable
         await alice.CreateTaskAsync("Abierta");
         await TasksListener.StopAsync(api);
 
-        await DeleteUserTests.RequestClosureAsync(alice, "api/v1/users/me");
+        await DeleteUserTests.RequestClosureAsync(api, alice, "api/v1/users/me");
         await api.PublishUsersOutboxAsync();
         await api.PublishAuthOutboxAsync();
         JsonElement whileDown = await DeleteUserTests.MeAsync(alice, "api/v1/users/me");

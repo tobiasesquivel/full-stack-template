@@ -1239,6 +1239,9 @@ async function launch(flags) {
           ConnectionStrings__DefaultConnection: connectionString,
           Messaging__RabbitMqUri: brokerUri,
           Services__Tasks__BaseAddress: `http://127.0.0.1:${tasksPort}/`,
+          AccountClosure__GracePeriodSeconds: '20',
+          AccountClosure__ReminderOffsetsSeconds__0: '5',
+          AccountClosure__ReminderOffsetsSeconds__1: '10',
         },
       },
       {

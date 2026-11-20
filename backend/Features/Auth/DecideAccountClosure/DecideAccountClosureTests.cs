@@ -63,7 +63,7 @@ public sealed class DecideAccountClosureTests : IDisposable
         IsolatedApi api = await StartAsync(services => services.ConfigureDbContext<AuthDbContext>((_, options) => options.AddInterceptors(fault)));
         TestSession bob = await api.SignUpAsync("bob");
 
-        (_, Guid closure) = await DeleteUserTests.RequestClosureAsync(bob, "api/v1/users/me");
+        (_, Guid closure) = await DeleteUserTests.RequestClosureAsync(api, bob, "api/v1/users/me");
         await api.DrainAsync();
 
         Assert.Equal(1, fault.Failures);

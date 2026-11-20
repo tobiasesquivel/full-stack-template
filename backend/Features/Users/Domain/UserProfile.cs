@@ -16,19 +16,41 @@ internal sealed class UserProfile : IOwnedResource, IAuditable, IHasDomainEvents
     public Guid? ClosureId { get; private set; }
     public string? ClosureReason { get; private set; }
     public DateTimeOffset? ClosureChangedAt { get; private set; }
+    public DateTimeOffset? ClosesAt { get; private set; }
 
     public string OwnerId => AuthId;
 
     public IReadOnlyList<IDomainEvent> DomainEvents => _domainEvents;
 
+    public bool ScheduleClosure(Guid closureId, DateTimeOffset now, DateTimeOffset closesAt)
+    {
+        if (ClosureStatus is AccountClosureStatus.Scheduled or AccountClosureStatus.Closing)
+            return false;
+
+        ClosureStatus = AccountClosureStatus.Scheduled;
+        ClosureId = closureId;
+        ClosureReason = null;
+        ClosureChangedAt = now;
+        ClosesAt = closesAt;
+        return true;
+    }
+
+    public bool WithdrawClosure(Guid closureId, DateTimeOffset now)
+    {
+        if (ClosureStatus != AccountClosureStatus.Scheduled || ClosureId != closureId)
+            return false;
+
+        ClosureStatus = AccountClosureStatus.Cancelled;
+        ClosureChangedAt = now;
+        return true;
+    }
+
     public bool RequestClosure(Guid closureId, DateTimeOffset now)
     {
-        if (ClosureStatus == AccountClosureStatus.Closing)
+        if (ClosureStatus != AccountClosureStatus.Scheduled || ClosureId != closureId)
             return false;
 
         ClosureStatus = AccountClosureStatus.Closing;
-        ClosureId = closureId;
-        ClosureReason = null;
         ClosureChangedAt = now;
         return true;
     }

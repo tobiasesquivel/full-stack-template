@@ -13,6 +13,10 @@ internal static class UserErrors
         code: "User.ClosureNotFound",
         description: $"Account closure '{closureId}' not found.");
 
+    public static Error ClosureNotCancellable(Guid closureId) => Error.Conflict(
+        code: "User.ClosureNotCancellable",
+        description: $"Account closure '{closureId}' already started or ended: only a scheduled closure can be cancelled.");
+
     public static readonly Error Forbidden = Error.Forbidden(
         code: "User.Forbidden",
         description: "Access denied.");

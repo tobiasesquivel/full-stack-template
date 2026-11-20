@@ -455,8 +455,9 @@ El paso 0.28 se agregó el 2026-10-17, a pedido de Tobi, con otro pendiente del 
 
 **28. Durable execution para un proceso largo con auditoría.**
 **Concepto**: cuándo conviene una plataforma de workflow en lugar de una saga casera.
-**Cambia**: worker nuevo, `compose.yaml`, tests de reanudación. ⏸ **DECISIÓN DE TOBI (pendiente, bloquea el paso)**: plataforma — workflow durable (p. ej. Temporal, Elsa) vs saga persistida propia del paso 27.
+**Cambia**: una segunda saga de Wolverine en Users (sin worker nuevo ni cambios en `compose.yaml`), historial auditable propio, contrato del cierre (backend, frontend y tests), tests de reanudación. **Decisión de Tobi (2026-11-20)**: seguir con la saga persistida del paso 27 (Wolverine, sin herramienta nueva). Descartados Temporal y Elsa Workflows 3.
 **Verifica**: proceso de varios días simulado con timers acelerados; historial consultable y auditable.
+**Nota**: la investigación es [paso-28-durable-execution.md](investigacion/paso-28-durable-execution.md). Se hizo en modo autónomo, con la elección de herramienta de Tobi. El proceso largo es el cierre de cuenta con período de gracia: `DELETE /users/me` agenda el cierre a 14 días con recordatorios en los días 7 y 13, el usuario lo cancela con `POST /users/closures/{id}/cancel`, y al vencer arranca la saga del paso 27. `AccountClosureGracePeriod` es una segunda `Wolverine.Saga` con `TimeoutMessage` durables. El historial `users."AccountClosureHistory"` es append-only (trigger y DUNE0026) y se lee con `GET /users/closures/{id}/history`. El PR va en tres commits de código ordenados como releases (el monolito conoce la saga sin agendar, el frontend tolera los estados nuevos, `DELETE` agenda). Las elecciones están en `docs/decisions.tsv`. Regla nueva: DUNE0026 (una entidad `IAppendOnly` no se actualiza ni se borra).
 
 ### Fase 9 — Integraciones externas (pasos 29-32)
 

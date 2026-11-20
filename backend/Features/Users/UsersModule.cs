@@ -57,8 +57,18 @@ internal sealed class UsersModule : IUsersModule
         new(
             profile.DisplayName,
             profile.Timezone,
-            profile.ClosureStatus == AccountClosureStatus.Closing ? "closing" : "active",
-            profile.ClosureStatus == AccountClosureStatus.Rejected
-                ? new UserProfileDetails.ClosureDetails(profile.ClosureId!.Value, "rejected", profile.ClosureReason, profile.ClosureChangedAt!.Value)
-                : null);
+            profile.ClosureStatus switch
+            {
+                AccountClosureStatus.Scheduled => "scheduled",
+                AccountClosureStatus.Closing => "closing",
+                _ => "active",
+            },
+            profile.ClosureStatus is AccountClosureStatus.Scheduled or AccountClosureStatus.Closing ? profile.ClosureId : null,
+            profile.ClosureStatus == AccountClosureStatus.Scheduled ? profile.ClosesAt : null,
+            profile.ClosureStatus switch
+            {
+                AccountClosureStatus.Rejected => new UserProfileDetails.ClosureDetails(profile.ClosureId!.Value, "rejected", profile.ClosureReason, profile.ClosureChangedAt!.Value),
+                AccountClosureStatus.Cancelled => new UserProfileDetails.ClosureDetails(profile.ClosureId!.Value, "cancelled", null, profile.ClosureChangedAt!.Value),
+                _ => null,
+            });
 }

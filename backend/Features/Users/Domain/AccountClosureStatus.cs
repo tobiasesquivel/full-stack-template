@@ -5,4 +5,6 @@ internal enum AccountClosureStatus
     None,
     Closing,
     Rejected,
+    Scheduled,
+    Cancelled,
 }

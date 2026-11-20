@@ -393,4 +393,22 @@ internal static class DuneDiagnostics
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
         description: "Pasos 25 y 27 (ADR-0004 punto 9): Wolverine es el bus elegido. Un nombre que resuelve a un namespace Wolverine o JasperFx (un using, un tipo, un miembro o un método de extensión) solo aparece en backend/Infrastructure/Messaging/ y, desde el paso 27, en el archivo de un orquestador: el que declara un tipo que hereda Wolverine.Saga (la saga orquestada, con estado persistido) o Wolverine.TimeoutMessage (su plazo). Ninguna otra slice conoce el bus. Además, nadie llama a un método Invoke* de un tipo de Wolverine (IMessageBus.InvokeAsync y sus variantes), ni siquiera Infrastructure/Messaging: es el modo mediator de Wolverine, que ADR-0004 descarta. Los tests y las migraciones quedan fuera. Límite: no ve un tipo de Wolverine usado por reflexión ni detrás de var sin nombrarlo, por ejemplo el resultado de un método del repo que devuelve IMessageBus.");
+
+    public static readonly DiagnosticDescriptor AppendOnlyWrite = new(
+        id: "DUNE0026",
+        title: "Cambio o borrado de una fila append-only",
+        messageFormat: "'{0}' cambia o borra filas de '{1}', que implementa IAppendOnly: sus filas solo se agregan",
+        category: "Dune",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "Paso 28: un historial auditable (IAppendOnly, en Shared/Domain) solo crece. Su código no llama a Update, UpdateRange, Remove ni RemoveRange (de un DbSet o del DbContext) ni a ExecuteUpdate, ExecuteUpdateAsync, ExecuteDelete o ExecuteDeleteAsync sobre ese tipo. La base lo refuerza con un trigger BEFORE UPDATE OR DELETE que tira error. Los tests y las migraciones quedan fuera. Límite: no ve SQL crudo ni un cambio hecho cargando la entidad con el ChangeTracker y guardando, por eso sus propiedades son init (la otra mitad de la regla).");
+
+    public static readonly DiagnosticDescriptor AppendOnlySetter = new(
+        id: "DUNE0026",
+        title: "Propiedad con set en un tipo append-only",
+        messageFormat: "'{0}' tiene set en '{1}', que implementa IAppendOnly: sus propiedades son init para que nadie cambie una fila cargada",
+        category: "Dune",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "Paso 28: una fila append-only se crea completa y no cambia. Sus propiedades tienen get e init (o solo get); un set público o privado permitiría cargarla, cambiarla y guardarla con SaveChanges, que DUNE0026 no ve como llamada.");
 }

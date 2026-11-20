@@ -163,6 +163,9 @@ jobs:
       POSTGRES_PASSWORD: ci-postgres-password
       RABBITMQ_PASSWORD: ci-rabbitmq-password
       OTEL_EXPORT_DIR: ${{ github.workspace }}/otel-export
+      ACCOUNT_CLOSURE_GRACE_SECONDS: 20
+      ACCOUNT_CLOSURE_FIRST_REMINDER_SECONDS: 5
+      ACCOUNT_CLOSURE_SECOND_REMINDER_SECONDS: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

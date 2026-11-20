@@ -4,6 +4,7 @@ import { Session } from '../../auth';
 import { UsersApi } from '../api/users-api';
 import { describeHttpError } from '../../../core/http-error';
 import { closureNotice } from './closure-notice';
+import { type CancelAttempt, nextCancelAttempt } from './cancel-attempt';
 
 @Component({
   selector: 'app-profile',
@@ -27,9 +28,16 @@ export class Profile {
   protected readonly error = signal<string | null>(null);
   protected readonly saveError = signal<string | null>(null);
   protected readonly saved = signal(false);
+  protected readonly cancelling = signal(false);
+  protected readonly cancelError = signal<string | null>(null);
+  private lastCancel: CancelAttempt | null = null;
   protected readonly closure = computed(() => {
     const user = this.session.currentUser();
     return user ? closureNotice(user) : null;
+  });
+  protected readonly cancellableClosure = computed(() => {
+    const user = this.session.currentUser();
+    return user?.accountStatus === 'scheduled' ? user.closureId : null;
   });
 
   constructor() {
@@ -47,6 +55,22 @@ export class Profile {
       this.error.set(describeHttpError(err));
     } finally {
       this.loading.set(false);
+    }
+  }
+
+  protected async cancelClosure(closureId: string): Promise<void> {
+    this.cancelling.set(true);
+    this.cancelError.set(null);
+    const attempt = nextCancelAttempt(this.lastCancel, closureId);
+    this.lastCancel = attempt;
+    try {
+      await this.usersApi.cancelClosure(attempt.closureId, attempt.key);
+      this.lastCancel = null;
+      await this.load();
+    } catch (err) {
+      this.cancelError.set(describeHttpError(err));
+    } finally {
+      this.cancelling.set(false);
     }
   }
 
