@@ -24,6 +24,18 @@ _Avoid_: autor, asignado, usuario dueño.
 Un propietario cuya cuenta se borró, anotado en Tasks cuando llega el evento. Ninguna tarea nueva puede quedar a su nombre: crearla responde 401. La anotación no se borra.
 _Avoid_: tombstone, soft delete, usuario inactivo.
 
+**Cierre de cuenta**:
+El proceso que borra una cuenta en pasos: Users la marca en cierre, Tasks retiene sus tareas y Auth decide si la borra. Si Auth la rechaza, los pasos anteriores se deshacen y la cuenta vuelve a estar activa con el motivo del rechazo. Lo identifica un id de cierre que el usuario recibe al pedirlo.
+_Avoid_: baja, soft delete, borrado de usuario como sinónimo de cierre.
+
+**Cuenta en cierre**:
+Una cuenta con un cierre pedido que todavía no terminó. Sigue pudiendo entrar y leer, pero no crea tareas nuevas.
+_Avoid_: cuenta inactiva, cuenta bloqueada, cuenta suspendida.
+
+**Retención de tareas**:
+La marca que Tasks pone sobre un propietario en cierre para no aceptarle tareas nuevas. Se quita si el cierre se rechaza y se borra con las tareas si se completa.
+_Avoid_: lock, bloqueo, lápida.
+
 **Tarea (TaskItem)**:
 Una actividad personal con título y estado de completitud que pertenece a un propietario.
 _Avoid_: ticket, trabajo, recurso como sinónimo de tarea.
@@ -41,7 +53,7 @@ Una capacidad nombrada para una acción sobre una clase de recursos. Puede permi
 _Avoid_: rol, permiso propio, permiso global como concepto distinto.
 
 **Rol**:
-Una agrupación de permisos asignada a un usuario. User, Admin y SuperAdmin son los roles del template.
+Una agrupación de permisos asignada a un usuario. User, Admin y SuperAdmin son los roles del template. El último SuperAdmin no puede cerrar su cuenta: el cierre se rechaza.
 _Avoid_: permiso, categoría de perfil.
 
 **Sesión**:
