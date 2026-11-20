@@ -60,7 +60,7 @@ public sealed class CancelAccountClosureTests : IAsyncDisposable
     private static Task<long> InboxRowsAsync(IsolatedApi api, Guid messageId) =>
         api.Pair.Monolith.Services.CountAsync(
             $"""
-            SELECT (SELECT count(*) FROM users."InboxMessages" WHERE "MessageId" = {messageId} AND "Consumer" = 'users.account-closures')
+            SELECT (SELECT count(*) FROM wolverine.wolverine_incoming_envelopes WHERE id = {messageId})
                  + (SELECT count(*) FROM tasks."InboxMessages" WHERE "MessageId" = {messageId} AND "Consumer" = 'tasks.account-closures') AS "Value"
             """);
 }

@@ -35,6 +35,10 @@ jobs:
         run: dotnet build TemplateApp.slnx --configuration Release
         env:
           ConnectionStrings__DefaultConnection: Host=localhost;Port=5432;Database=template_tests;Username=postgres;Password=template-ci;
+      - name: Código generado de Wolverine al día (codegen write)
+        run: node dune/check-codegen.mjs --release
+      - name: Tests del gate de codegen
+        run: node --test dune/check-codegen.test.mjs
       - name: Verificador de comentarios C#
         run: dotnet run --project dune/Dune.CommentVerifier -- --root .
       - name: Backend tests con PostgreSQL real

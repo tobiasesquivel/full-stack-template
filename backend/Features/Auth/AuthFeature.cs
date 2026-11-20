@@ -28,6 +28,7 @@ internal static class AuthFeature
         services.AddEventHandler<AccountDeleted, PublishAuthEvents.AuthEventPublisher>();
         services.AddEventHandler<AccountClosureRejected, PublishAuthEvents.AuthEventPublisher>();
         services.AddIntegrationEventHandler<DecideAccountClosure.OwnerTasksHeldIntegrationEvent, DecideAccountClosure.OwnerTasksHeldConsumer>(TaskEvents.OwnerTasksHeld, TaskEvents.Version, TaskEvents.Exchange, DecideAccountClosure.DecideAccountClosure.Consumer);
+        services.AddIntegrationEventHandler<DecideAccountClosureInfo, DecideAccountClosure.DecideAccountClosureCommandsConsumer>(AuthCommands.DecideAccountClosure, AuthCommands.Version, AuthCommands.Exchange, DecideAccountClosure.DecideAccountClosure.Consumer);
         services.AddAuthIdentity();
         services.AddAuthSession();
         services.AddAuthHttpPolicy();

@@ -1,3 +1,4 @@
+using Wolverine;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Npgsql;
@@ -38,5 +39,6 @@ public static class TestDatabases
         ServiceDescriptor initialization = services.Single(descriptor =>
             descriptor.ServiceType == typeof(IHostedService) && descriptor.ImplementationType == typeof(DatabaseInitialization));
         services.Remove(initialization);
+        services.DisableAllWolverineMessagePersistence();
     }
 }

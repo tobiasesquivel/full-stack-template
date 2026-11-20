@@ -35,6 +35,8 @@ public sealed class CompleteAccountClosureTests : IDisposable
 
         await DeleteUserTests.RequestClosureAsync(bob, "api/v1/users/me");
         await api.DrainAsync();
+        Assert.Equal(0, (await Eventually.Async(() => api.Pair.Monolith.Services.OwnedRowsAsync(bob.AuthId), rows => rows.Profiles == 0, TimeSpan.FromSeconds(60))).Profiles);
+        await api.DrainAsync();
 
         Assert.Equal(1, fault.Failures);
         Assert.Equal(OwnedRows.None, await api.Pair.Monolith.Services.OwnedRowsAsync(bob.AuthId));

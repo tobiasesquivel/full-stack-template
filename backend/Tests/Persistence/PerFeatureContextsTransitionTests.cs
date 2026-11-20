@@ -19,7 +19,7 @@ public sealed class PerFeatureContextsTransitionTests : IClassFixture<ApiFixture
     private static readonly (string Schema, string[] Migrations)[] ContextMigrations =
     [
         ("auth", ["_InitialCreate", "_MoveAuthToSchema", "_AddAccountClosures"]),
-        ("users", ["_InitialCreate", "_MoveUsersToSchema", "_AddOutboxMessages", "_AddAccountClosure"]),
+        ("users", ["_InitialCreate", "_MoveUsersToSchema", "_AddOutboxMessages", "_AddAccountClosure", "_AddAccountClosureSagas"]),
         ("tasks", ["_InitialCreate", "_MoveTasksToSchema", "_AddTaskProjectId", "_AddTaskProjectIdIndex", "_AddOutboxMessages", "_AddInboxMessages", "_AddDeletedOwners", "_AddOwnerHolds"]),
         ("platform", ["_InitialCreate", "_MovePlatformToSchema"]),
         ("projects", ["_InitialCreate", "_AddProjectTaskCounters"]),
@@ -29,7 +29,7 @@ public sealed class PerFeatureContextsTransitionTests : IClassFixture<ApiFixture
         ["AspNetUsers", "AspNetUserRoles", "Sessions", "UserProfiles", "TaskItems", "IdempotencyKeys", "AuditEntries"];
     private static readonly string[] TablesBornInTheirFeatureSchema = ["projects.Projects"];
     private static readonly string[] TablesAddedAfterTheMove =
-        ["auth.AccountClosures", "auth.InboxMessages", "auth.OutboxMessages", "projects.InboxMessages", "projects.ProjectTaskCounters", "tasks.DeletedOwners", "tasks.InboxMessages", "tasks.OutboxMessages", "tasks.OwnerHolds", "users.InboxMessages", "users.OutboxMessages"];
+        ["auth.AccountClosures", "auth.InboxMessages", "auth.OutboxMessages", "projects.InboxMessages", "projects.ProjectTaskCounters", "tasks.DeletedOwners", "tasks.InboxMessages", "tasks.OutboxMessages", "tasks.OwnerHolds", "users.AccountClosureSagas", "users.InboxMessages", "users.OutboxMessages"];
     private static readonly string[] TablesInTheirFeatureSchema =
     [
         "auth.AccountClosures",
@@ -53,6 +53,7 @@ public sealed class PerFeatureContextsTransitionTests : IClassFixture<ApiFixture
         "tasks.OutboxMessages",
         "tasks.OwnerHolds",
         "tasks.TaskItems",
+        "users.AccountClosureSagas",
         "users.InboxMessages",
         "users.OutboxMessages",
         "users.UserProfiles",
@@ -245,7 +246,7 @@ public sealed class PerFeatureContextsTransitionTests : IClassFixture<ApiFixture
             SELECT concat_ws(' | ', 'column', table_schema, table_name, column_name, data_type, udt_name, character_maximum_length,
                              is_nullable, column_default, is_identity, identity_generation)
             FROM information_schema.columns
-            WHERE table_schema NOT IN ('pg_catalog', 'information_schema') AND strpos(table_name, '__EFMigrationsHistory') = 0
+            WHERE table_schema NOT IN ('pg_catalog', 'information_schema', 'wolverine') AND strpos(table_name, '__EFMigrationsHistory') = 0
             ORDER BY 1
             """),
         .. await LinesAsync(database, """
@@ -253,13 +254,13 @@ public sealed class PerFeatureContextsTransitionTests : IClassFixture<ApiFixture
             FROM pg_constraint c
             JOIN pg_namespace n ON n.oid = c.connamespace
             JOIN pg_class r ON r.oid = c.conrelid
-            WHERE n.nspname NOT IN ('pg_catalog', 'information_schema') AND r.relname <> '__EFMigrationsHistory'
+            WHERE n.nspname NOT IN ('pg_catalog', 'information_schema', 'wolverine') AND r.relname <> '__EFMigrationsHistory'
             ORDER BY 1
             """),
         .. await LinesAsync(database, """
             SELECT concat_ws(' | ', 'index', schemaname, tablename, indexname, indexdef)
             FROM pg_indexes
-            WHERE schemaname NOT IN ('pg_catalog', 'information_schema') AND strpos(tablename, '__EFMigrationsHistory') = 0
+            WHERE schemaname NOT IN ('pg_catalog', 'information_schema', 'wolverine') AND strpos(tablename, '__EFMigrationsHistory') = 0
             ORDER BY 1
             """),
     ];
@@ -269,7 +270,7 @@ public sealed class PerFeatureContextsTransitionTests : IClassFixture<ApiFixture
             SELECT n.nspname || '.' || c.relname
             FROM pg_class c
             JOIN pg_namespace n ON n.oid = c.relnamespace
-            WHERE c.relkind = 'r' AND n.nspname NOT IN ('pg_catalog', 'information_schema') AND c.relname <> '__EFMigrationsHistory'
+            WHERE c.relkind = 'r' AND n.nspname NOT IN ('pg_catalog', 'information_schema', 'wolverine') AND c.relname <> '__EFMigrationsHistory'
             ORDER BY n.nspname || '.' || c.relname COLLATE "C"
             """);
 

@@ -219,9 +219,16 @@ const BUS_LIBRARIES = [
   'LiteBus',
 ];
 
-const CHOSEN_BUS_PACKAGES = ['WolverineFx.RabbitMQ', 'WolverineFx.HealthChecks'];
+const CHOSEN_BUS_PACKAGES = [
+  'WolverineFx.RabbitMQ',
+  'WolverineFx.HealthChecks',
+  'WolverineFx.EntityFrameworkCore',
+  'WolverineFx.Postgresql',
+  'WolverineFx.RuntimeCompilation',
+];
 const CHOSEN_BUS_NAMESPACES = ['Wolverine', 'JasperFx'];
 const BUS_HOME = 'backend/Infrastructure/Messaging/';
+const ORCHESTRATOR = /:\s*(?:global::)?(?:Wolverine\.)?(?:Saga|TimeoutMessage)\b/;
 
 function isBusLibrary(name) {
   return BUS_LIBRARIES.some((library) => name === library || name.startsWith(`${library}.`));
@@ -231,9 +238,12 @@ function isChosenBusNamespace(name) {
   return CHOSEN_BUS_NAMESPACES.some((namespace) => name === namespace || name.startsWith(`${namespace}.`));
 }
 
-function allowsBus(file, name) {
+function allowsBus(file, name, text) {
   const rel = toPosix(file);
-  if (file.endsWith('.cs')) return rel.startsWith(BUS_HOME) && isChosenBusNamespace(name);
+  if (file.endsWith('.cs')) {
+    const home = rel.startsWith(BUS_HOME) || (rel.startsWith('backend/Features/') && ORCHESTRATOR.test(text));
+    return home && isChosenBusNamespace(name);
+  }
   return rel === PLATFORM_PROJECT && CHOSEN_BUS_PACKAGES.includes(name);
 }
 
@@ -290,10 +300,10 @@ async function checkNoBus() {
     const text = await readText(file);
     const pattern = file.endsWith('.cs') ? usings : references;
     for (const match of text.matchAll(pattern)) {
-      if (isBusLibrary(match[1]) && !allowsBus(file, match[1])) hits.push(`${toPosix(file)} (${match[1]})`);
+      if (isBusLibrary(match[1]) && !allowsBus(file, match[1], text)) hits.push(`${toPosix(file)} (${match[1]})`);
     }
   }
-  if (hits.length > 0) fail(`un solo bus, Wolverine, con sus paquetes solo en ${PLATFORM_PROJECT} y sus usings solo en ${BUS_HOME}: ${hits.join(', ')}`);
+  if (hits.length > 0) fail(`un solo bus, Wolverine, con sus paquetes solo en ${PLATFORM_PROJECT} y sus usings solo en ${BUS_HOME} o en el archivo de un orquestador de una feature (un tipo que hereda Saga o TimeoutMessage): ${hits.join(', ')}`);
 }
 
 const CACHE_LIBRARIES = [

@@ -6,12 +6,15 @@ namespace TemplateApp.Tests.Support;
 
 internal static class MonolithListener
 {
-    public static ValueTask StopAsync(IsolatedApi api) => Agent(api).StopAndDrainAsync();
+    public const string TaskCounters = "projects.task-counters";
+    public const string Closures = "users.account-closures";
 
-    public static ValueTask StartAsync(IsolatedApi api) => Agent(api).StartAsync();
+    public static ValueTask StopAsync(IsolatedApi api, string queue = TaskCounters) => Agent(api, queue).StopAndDrainAsync();
 
-    private static IListeningAgent Agent(IsolatedApi api) =>
+    public static ValueTask StartAsync(IsolatedApi api, string queue = TaskCounters) => Agent(api, queue).StartAsync();
+
+    private static IListeningAgent Agent(IsolatedApi api, string queue) =>
         api.Pair.Monolith.Services.GetRequiredService<IWolverineRuntime>().Endpoints
-            .FindListeningAgent(new Uri($"rabbitmq://queue/{api.Prefix}-projects.task-counters"))
-        ?? throw new InvalidOperationException("The monolith does not listen on the task counters queue.");
+            .FindListeningAgent(new Uri($"rabbitmq://queue/{api.Prefix}-{queue}"))
+        ?? throw new InvalidOperationException($"The monolith does not listen on {queue}.");
 }

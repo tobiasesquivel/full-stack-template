@@ -1,3 +1,5 @@
+using System.Reflection;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Wolverine;
@@ -9,12 +11,17 @@ public static class MessagingRegistration
 {
     private static readonly TimeSpan HealthCheckTimeout = TimeSpan.FromSeconds(2);
 
-    public static IServiceCollection AddMessaging(this IServiceCollection services)
+    public static IServiceCollection AddMessaging(this IServiceCollection services, Assembly? application = null, bool storesSagas = false)
     {
         services.AddOptionsWithValidateOnStart<MessagingOptions, MessagingOptionsValidator>()
             .BindConfiguration(MessagingOptions.Section);
         IntegrationEventNaming.Install();
-        services.AddWolverine(ExtensionDiscovery.ManualOnly, options => options.ApplicationAssembly = typeof(MessagingRegistration).Assembly);
+        services.AddWolverine(ExtensionDiscovery.ManualOnly, options =>
+        {
+            options.ApplicationAssembly = application ?? typeof(MessagingRegistration).Assembly;
+            if (storesSagas)
+                SagaStorage.Configure(options);
+        });
         services.AddSingleton<IWolverineExtension, MessagingExtension>();
         services.TryAddScoped<IntegrationEventPublisher>();
         services.AddHealthChecks()
@@ -35,4 +42,20 @@ public static class MessagingRegistration
         services.TryAddScoped<IIntegrationEventHandler<TEvent>, THandler>();
         return services.AddSingleton(new IntegrationEventSubscription(new IntegrationEventType(typeof(TEvent), name, version, exchange), queue));
     }
+
+    public static IServiceCollection AddIntegrationCommand<TCommand>(this IServiceCollection services, string name, int version, string exchange)
+        where TCommand : class =>
+        services.AddSingleton(new IntegrationCommandType(new IntegrationEventType(typeof(TCommand), name, version, exchange)));
+
+    public static IServiceCollection AddSaga<TSaga, TContext>(this IServiceCollection services)
+        where TSaga : Saga
+        where TContext : DbContext
+    {
+        services.TryAddScoped<SagaOutbox<TContext>>();
+        return services.AddSingleton(new SagaType(typeof(TSaga)));
+    }
+
+    public static IServiceCollection AddSagaMessage<TMessage>(this IServiceCollection services, string name, int version, string exchange, string queue)
+        where TMessage : class =>
+        services.AddSingleton(new SagaSubscription(new IntegrationEventType(typeof(TMessage), name, version, exchange), queue));
 }

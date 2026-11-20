@@ -15,10 +15,13 @@ internal sealed class UsersDbContext : DbContext
 
     public DbSet<UserProfile> UserProfiles => Set<UserProfile>();
 
+    public DbSet<OrchestrateAccountClosure.AccountClosureSaga> AccountClosureSagas => Set<OrchestrateAccountClosure.AccountClosureSaga>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Schema);
         modelBuilder.ApplyConfiguration(new UserProfileConfiguration());
+        modelBuilder.ApplyConfiguration(new AccountClosureSagaConfiguration());
         modelBuilder.MapSharedAuditEntries();
         modelBuilder.MapOutbox();
         modelBuilder.MapInbox();

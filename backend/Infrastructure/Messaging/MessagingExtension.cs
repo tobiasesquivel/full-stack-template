@@ -1,9 +1,12 @@
+using System.Globalization;
 using System.Text.Json;
 using JasperFx.CodeGeneration;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Npgsql;
 using Wolverine;
 using Wolverine.ErrorHandling;
+using Wolverine.Persistence.Sagas;
 using Wolverine.RabbitMQ;
 using Wolverine.RabbitMQ.Internal;
 
@@ -14,17 +17,24 @@ internal sealed class MessagingExtension : IWolverineExtension
     private static readonly TimeSpan[] Cooldowns = [TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(30)];
     private static readonly TimeSpan Pause = TimeSpan.FromMinutes(1);
     private static readonly TimeSpan[] BugCooldowns = [TimeSpan.FromMilliseconds(200), TimeSpan.FromSeconds(1)];
+    private static readonly TimeSpan[] ConcurrencyCooldowns = [TimeSpan.FromMilliseconds(100), TimeSpan.FromMilliseconds(250), TimeSpan.FromSeconds(1)];
 
     private readonly MessagingOptions _options;
     private readonly string _connectionName;
     private readonly IReadOnlyList<IntegrationEventType> _published;
     private readonly IReadOnlyList<IntegrationEventSubscription> _subscriptions;
+    private readonly IReadOnlyList<IntegrationCommandType> _commands;
+    private readonly IReadOnlyList<SagaType> _sagas;
+    private readonly IReadOnlyList<SagaSubscription> _sagaMessages;
 
     public MessagingExtension(
         IOptions<MessagingOptions> options,
         IHostEnvironment environment,
         IEnumerable<IntegrationEventType> published,
-        IEnumerable<IntegrationEventSubscription> subscriptions)
+        IEnumerable<IntegrationEventSubscription> subscriptions,
+        IEnumerable<IntegrationCommandType> commands,
+        IEnumerable<SagaType> sagas,
+        IEnumerable<SagaSubscription> sagaMessages)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(environment);
@@ -32,6 +42,9 @@ internal sealed class MessagingExtension : IWolverineExtension
         _connectionName = _options.Prefix.Length > 0 ? $"{environment.ApplicationName}/{_options.Prefix}" : environment.ApplicationName;
         _published = published.ToList();
         _subscriptions = subscriptions.ToList();
+        _commands = commands.ToList();
+        _sagas = sagas.ToList();
+        _sagaMessages = sagaMessages.ToList();
     }
 
     public void Configure(WolverineOptions options)
@@ -47,6 +60,7 @@ internal sealed class MessagingExtension : IWolverineExtension
             .Or<TimeoutException>()
             .RetryWithCooldown(Cooldowns)
             .Then.RequeueIndefinitely().AndPauseProcessing(Pause);
+        options.Policies.OnException<SagaConcurrencyException>().Or<DbUpdateConcurrencyException>().RetryWithCooldown(ConcurrencyCooldowns);
         options.Policies.OnException<Exception>().RetryWithCooldown(BugCooldowns);
 
         RabbitMqTransportExpression rabbit = options.UseRabbitMq(_options.RabbitMqUri!)
@@ -60,18 +74,9 @@ internal sealed class MessagingExtension : IWolverineExtension
             });
         foreach (IntegrationEventSubscription subscription in _subscriptions)
         {
-            string queue = Named(subscription.Queue);
             IntegrationEventNaming.Register(subscription.Event);
             options.RegisterMessageType(subscription.Event.ClrType, subscription.Event.Name);
-            rabbit.DeclareQueue(queue, declared =>
-            {
-                declared.QueueType = QueueType.quorum;
-                declared.Arguments["x-single-active-consumer"] = true;
-            });
-            rabbit.BindExchange(Named(subscription.Event.Exchange), ExchangeType.Direct).ToQueue(queue, subscription.Event.Name);
-            options.ListenToRabbitQueue(queue)
-                .DeadLetterQueueing(new DeadLetterQueue($"{queue}.dlq") { ConfigureQueue = dlq => dlq.QueueType = QueueType.quorum })
-                .ProcessInline();
+            Listen(options, rabbit, subscription.Event, subscription.Queue).ProcessInline();
             options.AddMessageHandler(subscription.Event.ClrType, CreateHandler(subscription));
         }
 
@@ -81,6 +86,57 @@ internal sealed class MessagingExtension : IWolverineExtension
             rabbit.DeclareExchange(Named(type.Exchange), exchange => exchange.ExchangeType = ExchangeType.Direct);
             options.PublishMessage(type.ClrType).ToRabbitRoutingKey(Named(type.Exchange), type.Name).SendInline();
         }
+
+        if (_sagas.Count > 0)
+            ConfigureSagas(options, rabbit);
+    }
+
+    private void ConfigureSagas(WolverineOptions options, RabbitMqTransportExpression rabbit)
+    {
+        foreach (SagaType saga in _sagas)
+            options.Discovery.IncludeType(saga.ClrType);
+
+        HashSet<Type> checkedMessages = [];
+        foreach (SagaSubscription subscription in _sagaMessages)
+        {
+            IntegrationEnvelopeCheck.Expect(subscription.Message);
+            checkedMessages.Add(subscription.Message.ClrType);
+            Listen(options, rabbit, subscription.Message, subscription.Queue).UseDurableInbox();
+        }
+
+        options.Policies.AddMiddleware(typeof(IntegrationEnvelopeCheck), chain => checkedMessages.Contains(chain.MessageType));
+
+        foreach (IntegrationCommandType command in _commands)
+        {
+            IntegrationEventType type = command.Command;
+            IntegrationEventNaming.Register(type);
+            rabbit.DeclareExchange(Named(type.Exchange), exchange => exchange.ExchangeType = ExchangeType.Direct);
+            options.PublishMessage(type.ClrType)
+                .ToRabbitRoutingKey(Named(type.Exchange), type.Name)
+                .UseDurableOutbox()
+                .CustomizeOutgoing(envelope => Stamp(envelope, type));
+        }
+    }
+
+    private RabbitMqListenerConfiguration Listen(WolverineOptions options, RabbitMqTransportExpression rabbit, IntegrationEventType message, string queue)
+    {
+        string named = Named(queue);
+        IntegrationEventNaming.Register(message);
+        rabbit.DeclareQueue(named, declared =>
+        {
+            declared.QueueType = QueueType.quorum;
+            declared.Arguments["x-single-active-consumer"] = true;
+        });
+        rabbit.BindExchange(Named(message.Exchange), ExchangeType.Direct).ToQueue(named, message.Name);
+        return options.ListenToRabbitQueue(named)
+            .DeadLetterQueueing(new DeadLetterQueue($"{named}.dlq") { ConfigureQueue = dlq => dlq.QueueType = QueueType.quorum });
+    }
+
+    private static void Stamp(Envelope envelope, IntegrationEventType type)
+    {
+        envelope.Headers[MessageHeaders.MessageId] = envelope.Id.ToString("D");
+        envelope.Headers[MessageHeaders.Version] = type.Version.ToString(CultureInfo.InvariantCulture);
+        envelope.Headers[MessageHeaders.OccurredAt] = (envelope.SentAt == default ? DateTimeOffset.UtcNow : envelope.SentAt).ToString("O", CultureInfo.InvariantCulture);
     }
 
     private string Named(string identifier) => _options.Prefix.Length > 0 ? $"{_options.Prefix}-{identifier}" : identifier;

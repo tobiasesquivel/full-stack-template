@@ -37,13 +37,15 @@ internal sealed class IsolatedApi : IDisposable
         string server,
         Uri broker,
         Action<IServiceCollection>? configure = null,
-        Func<HttpRequestMessage, HttpMessageHandler, HttpMessageHandler?>? interceptRemote = null) =>
+        Func<HttpRequestMessage, HttpMessageHandler, HttpMessageHandler?>? interceptRemote = null,
+        IReadOnlyDictionary<string, string>? settings = null) =>
         StartOn(
             new NpgsqlConnectionStringBuilder(await TestDatabases.CreateEmptyAsync(server)) { Pooling = false }.ConnectionString,
             broker,
             NewPrefix(),
             configure,
-            interceptRemote);
+            interceptRemote,
+            settings);
 
     public static string NewPrefix() => $"t{Guid.NewGuid():N}"[..13];
 
@@ -52,16 +54,18 @@ internal sealed class IsolatedApi : IDisposable
         Uri broker,
         string prefix,
         Action<IServiceCollection>? configure = null,
-        Func<HttpRequestMessage, HttpMessageHandler, HttpMessageHandler?>? interceptRemote = null)
+        Func<HttpRequestMessage, HttpMessageHandler, HttpMessageHandler?>? interceptRemote = null,
+        IReadOnlyDictionary<string, string>? settings = null)
     {
         FakeTimeProvider clock = new(DateTimeOffset.FromUnixTimeSeconds(DateTimeOffset.UtcNow.ToUnixTimeSeconds()));
+        Dictionary<string, string> all = new(settings ?? new Dictionary<string, string>())
+        {
+            [ApiPair.BrokerSetting] = broker.ToString(),
+            ["Messaging:Prefix"] = prefix,
+        };
         ApiPair pair = new(
             database,
-            new Dictionary<string, string>
-            {
-                [ApiPair.BrokerSetting] = broker.ToString(),
-                ["Messaging:Prefix"] = prefix,
-            },
+            all,
             services =>
             {
                 services.AddSingleton<TimeProvider>(clock);
@@ -114,14 +118,22 @@ internal sealed class IsolatedApi : IDisposable
         while (true)
         {
             int published = await Relay.RunOnceAsync(ct) + await UsersRelay.RunOnceAsync(ct) + await AuthRelay.RunOnceAsync(ct);
-            if (published == 0 && await UndeliveredAsync() == 0)
+            if (published == 0 && await UndeliveredAsync() == 0 && await ClosuresInFlightAsync() == 0)
                 return;
 
-            Assert.True(DateTime.UtcNow < deadline, "The outboxes did not settle in 60 s: a message is pending or some consumer never took it.");
+            Assert.True(DateTime.UtcNow < deadline, "The outboxes did not settle in 60 s: a message is pending, some consumer never took it or a closure is still in flight.");
             if (published == 0)
                 await Task.Delay(100, ct);
         }
     }
+
+    public Task<long> ClosuresInFlightAsync() =>
+        Pair.Monolith.Services.CountAsync(
+            $"""
+            SELECT (SELECT count(*) FROM users."AccountClosureSagas" WHERE "State" NOT IN ('Completed', 'Rejected'))
+                 + (SELECT count(*) FROM wolverine.wolverine_outgoing_envelopes)
+                 + (SELECT count(*) FROM wolverine.wolverine_incoming_envelopes WHERE status = 'Incoming') AS "Value"
+            """);
 
     private Task<long> UndeliveredAsync() =>
         Pair.Monolith.Services.CountAsync(
@@ -129,8 +141,6 @@ internal sealed class IsolatedApi : IDisposable
             WITH expected("Type", "Consumer") AS (VALUES
                 ('users.account-closure-requested', 'tasks.account-closures'),
                 ('tasks.owner-tasks-held', 'auth.account-closures'),
-                ('auth.account-deleted', 'users.account-closures'),
-                ('auth.account-closure-rejected', 'users.account-closures'),
                 ('auth.account-closure-rejected', 'tasks.account-closures'),
                 ('users.user-deleted', 'tasks.user-deletions'),
                 ('tasks.task-created', 'projects.task-counters'),

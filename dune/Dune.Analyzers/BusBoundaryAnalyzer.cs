@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Immutable;
+using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -13,6 +14,7 @@ public sealed class BusBoundaryAnalyzer : DiagnosticAnalyzer
 {
     private const string BusHome = "backend/Infrastructure/Messaging/";
     private static readonly string[] BusNamespaces = { "Wolverine", "JasperFx" };
+    private static readonly string[] OrchestratorBases = { "Wolverine.Saga", "Wolverine.TimeoutMessage" };
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
         ImmutableArray.Create(DuneDiagnostics.BusOutsideMessaging);
@@ -35,7 +37,7 @@ public sealed class BusBoundaryAnalyzer : DiagnosticAnalyzer
         }
 
         var path = DunePaths.Normalize(name.SyntaxTree.FilePath);
-        if (!IsChecked(path) || DunePaths.ContainsOrdinal(path, BusHome))
+        if (!IsChecked(path) || DunePaths.ContainsOrdinal(path, BusHome) || DeclaresOrchestrator(context.SemanticModel, context.CancellationToken))
         {
             return;
         }
@@ -72,6 +74,22 @@ public sealed class BusBoundaryAnalyzer : DiagnosticAnalyzer
                 method.Name,
                 "como mediator"));
         }
+    }
+
+    private static bool DeclaresOrchestrator(SemanticModel model, System.Threading.CancellationToken ct)
+    {
+        foreach (var declaration in model.SyntaxTree.GetRoot(ct).DescendantNodes().OfType<BaseTypeDeclarationSyntax>())
+        {
+            for (var type = (model.GetDeclaredSymbol(declaration, ct) as INamedTypeSymbol)?.BaseType; type is not null; type = type.BaseType)
+            {
+                if (Array.IndexOf(OrchestratorBases, type.OriginalDefinition.ToDisplayString()) >= 0)
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     private static bool IsChecked(string path) =>

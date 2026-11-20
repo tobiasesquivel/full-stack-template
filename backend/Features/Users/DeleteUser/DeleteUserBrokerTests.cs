@@ -55,8 +55,9 @@ public sealed class DeleteUserBrokerTests : IDisposable
         string[] steps = logs.Entries
             .Where(entry => entry.Message.Contains(closure.ToString(), StringComparison.Ordinal))
             .Select(entry => entry.Category[(entry.Category.LastIndexOf('.') + 1)..])
+            .Distinct(StringComparer.Ordinal)
             .ToArray();
-        Assert.Equal(["CancelAccountClosure", "DecideAccountClosure", "DeleteUser", "HoldOwnerTasks", "ReleaseOwnerTasks"], steps.Order(StringComparer.Ordinal));
+        Assert.Equal(["AccountClosureSaga", "CancelAccountClosure", "DecideAccountClosure", "DeleteUser", "HoldOwnerTasks", "ReleaseOwnerTasks"], steps.Order(StringComparer.Ordinal));
     }
 
     [Fact]
