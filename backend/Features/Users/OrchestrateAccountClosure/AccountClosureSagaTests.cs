@@ -107,6 +107,27 @@ public sealed class AccountClosureSagaTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task AReplyThatArrivesOnAnotherQueue_IsHandledByTheHandlerOfItsType()
+    {
+        IsolatedApi api = await StartAsync();
+        TaskEventsBroker broker = await ConnectAsync(api);
+        TestSession bob = await api.SignUpAsync("bob");
+        await TasksListener.StopAsync(api);
+        await MonolithListener.StopAsync(api, MonolithListener.Closures);
+        (_, Guid closure) = await DeleteUserTests.RequestClosureAsync(bob, "api/v1/users/me");
+        await broker.BindLegacyAsync("tasks.task-events", "tasks.owner-tasks-held", "auth.account-closures");
+
+        await broker.PublishAsync("tasks.owner-tasks-held", Guid.NewGuid(), new { closureId = closure, userId = bob.AuthId, heldAt = DateTimeOffset.UtcNow });
+        string? state = await Eventually.Async(() => DeleteUserBrokerTests.SagaStateAsync(api, closure), current => current != "HoldingTasks", Wait);
+        await TasksListener.StartAsync(api);
+        await MonolithListener.StartAsync(api, MonolithListener.Closures);
+        await api.DrainAsync();
+
+        Assert.NotEqual("HoldingTasks", state);
+        Assert.Equal("Completed", await DeleteUserBrokerTests.SagaStateAsync(api, closure));
+    }
+
+    [Fact]
     public async Task ADecisionThatArrivesBeforeTheHoldReply_StillCompletesTheClosure()
     {
         IsolatedApi api = await StartAsync();

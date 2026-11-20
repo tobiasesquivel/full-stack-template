@@ -117,8 +117,9 @@ internal sealed class IsolatedApi : IDisposable
         DateTime deadline = DateTime.UtcNow + TimeSpan.FromSeconds(60);
         while (true)
         {
+            long inFlight = await ClosuresInFlightAsync();
             int published = await Relay.RunOnceAsync(ct) + await UsersRelay.RunOnceAsync(ct) + await AuthRelay.RunOnceAsync(ct);
-            if (published == 0 && await UndeliveredAsync() == 0 && await ClosuresInFlightAsync() == 0)
+            if (inFlight == 0 && published == 0 && await UndeliveredAsync() == 0)
                 return;
 
             Assert.True(DateTime.UtcNow < deadline, "The outboxes did not settle in 60 s: a message is pending, some consumer never took it or a closure is still in flight.");
