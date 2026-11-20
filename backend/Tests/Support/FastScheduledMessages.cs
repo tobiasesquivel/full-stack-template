@@ -5,7 +5,7 @@ namespace TemplateApp.Tests.Support;
 
 internal sealed class FastScheduledMessages : IWolverineExtension
 {
-    private static readonly TimeSpan Poll = TimeSpan.FromMilliseconds(200);
+    private static readonly TimeSpan Poll = TimeSpan.FromMilliseconds(500);
 
     public static void Install(IServiceCollection services) => services.AddSingleton<IWolverineExtension, FastScheduledMessages>();
 

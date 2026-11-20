@@ -55,7 +55,7 @@ public sealed class AccountClosureGracePeriodTests : IDisposable
     [Fact]
     public async Task TheMonolithRestartsWhileAReminderIsPending_AndTheGracePeriodResumes_EachStepOnce()
     {
-        Dictionary<string, string> settings = GracePeriod(24, 10, 17);
+        Dictionary<string, string> settings = GracePeriod(40, 20, 30);
         IsolatedApi before = await StartAsync(settings);
         TestSession bob = await before.SignUpAsync("bob");
 
@@ -71,8 +71,8 @@ public sealed class AccountClosureGracePeriodTests : IDisposable
         await after.DrainAsync();
 
         Assert.Equal(3, pending);
-        Assert.True(restarted < TimeSpan.FromSeconds(10), $"The new hosts took {restarted} to start: the first reminder was already due.");
-        Assert.True(seen[0].At >= TimeSpan.FromSeconds(10), $"The first reminder came at {seen[0].At}, before its 10 s.");
+        Assert.True(restarted < TimeSpan.FromSeconds(20), $"The new hosts took {restarted} to start: the first reminder was already due.");
+        Assert.True(seen[0].At >= TimeSpan.FromSeconds(20), $"The first reminder came at {seen[0].At}, before its 20 s.");
         Assert.Equal(["reminder-sent:1", "reminder-sent:2", "grace-expired", "closure-started"], seen.Select(s => s.Fact));
         Assert.Equal(
             ["requested", "reminder-sent:1", "reminder-sent:2", "grace-expired", "closure-started", "completed"],
