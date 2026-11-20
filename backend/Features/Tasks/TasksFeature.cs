@@ -25,8 +25,8 @@ internal static class TasksFeature
         services.AddSessionCookie();
         services.AddOptions<CookieAuthenticationOptions>(SessionCookie.Scheme)
             .Configure(cookie => cookie.Events.OnValidatePrincipal = RemoteSession.ValidatePrincipalAsync);
-        services.AddRemoteClient<AuthSessionClient>(MonolithService);
-        services.AddRemoteClient<ProjectsClient>(MonolithService);
+        services.AddRemoteClient<AuthSessionClient>(MonolithService, RemoteRetry.Idempotent);
+        services.AddRemoteClient<ProjectsClient>(MonolithService, RemoteRetry.Idempotent);
         services.AddIntegrationEventPublication<PublishTaskEvents.TaskCreatedIntegrationEvent>(TaskEvents.Created, TaskEvents.Version, TaskEvents.Exchange);
         services.AddIntegrationEventPublication<PublishTaskEvents.TaskCompletedIntegrationEvent>(TaskEvents.Completed, TaskEvents.Version, TaskEvents.Exchange);
         services.AddIntegrationEventPublication<PublishTaskEvents.TaskReopenedIntegrationEvent>(TaskEvents.Reopened, TaskEvents.Version, TaskEvents.Exchange);

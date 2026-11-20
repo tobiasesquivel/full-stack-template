@@ -55,7 +55,7 @@ public static class ObservabilityExtensions
                 .AddAspNetCoreInstrumentation()
                 .AddHttpClientInstrumentation()
                 .AddRuntimeInstrumentation()
-                .AddMeter("TemplateApp.*", "Wolverine*")
+                .AddMeter("TemplateApp.*", "Wolverine*", "Polly")
                 .AddOtlpExporter(
                     MetricsExporter,
                     (_, reader) => reader.PeriodicExportingMetricReaderOptions.ExportIntervalMilliseconds = 10_000));

@@ -306,6 +306,37 @@ async function checkNoBus() {
   if (hits.length > 0) fail(`un solo bus, Wolverine, con sus paquetes solo en ${PLATFORM_PROJECT} y sus usings solo en ${BUS_HOME} o en el archivo de un orquestador de una feature (un tipo que hereda Saga o TimeoutMessage): ${hits.join(', ')}`);
 }
 
+const RESILIENCE_PACKAGE = 'Microsoft.Extensions.Http.Resilience';
+const TRANSITIVE_ONLY_PACKAGES = ['Polly', 'Microsoft.Extensions.Http.Polly', 'Microsoft.Extensions.Resilience'];
+
+function isTransitiveOnly(name) {
+  return TRANSITIVE_ONLY_PACKAGES.some((library) => name === library || name.startsWith(`${library}.`));
+}
+
+async function resilienceProjectFiles() {
+  const all = [];
+  await collectFiles(backend, all);
+  await collectFiles(path.join(root, 'gateway'), all);
+  const msbuild = all.filter((file) => /\.(csproj|props|targets)$/.test(file));
+  return [...new Set([...msbuild, ...(await buildSources())])];
+}
+
+async function checkResiliencePackages() {
+  const hits = [];
+  const references = /<(?:PackageReference|PackageVersion|Using)\b[^>]*?\b(?:Include|Update)\s*=\s*["']([^"']+)["']/g;
+  const projects = await resilienceProjectFiles();
+  for (const file of projects) {
+    const text = await readText(file);
+    for (const match of text.matchAll(references)) {
+      const name = match[1];
+      if (isTransitiveOnly(name) || (name === RESILIENCE_PACKAGE && toPosix(file) !== PLATFORM_PROJECT)) {
+        hits.push(`${toPosix(file)} (${name})`);
+      }
+    }
+  }
+  if (hits.length > 0) fail(`resiliencia HTTP: ${RESILIENCE_PACKAGE} solo en ${PLATFORM_PROJECT}, y Polly, Microsoft.Extensions.Resilience y Microsoft.Extensions.Http.Polly (deprecado) solo como dependencia transitiva: ${hits.join(', ')}`);
+}
+
 const CACHE_LIBRARIES = [
   'Microsoft.Extensions.Caching',
   'Microsoft.AspNetCore.OutputCaching',
@@ -537,6 +568,7 @@ await checkProductExcludesTests();
 await checkDeploymentBoundary();
 await checkInternalsOnlyForTests();
 await checkNoBus();
+await checkResiliencePackages();
 await checkNoCrossRequestCache();
 await checkRateLimitExemptionOnlyInHealth();
 await checkEditorconfigSeverities();

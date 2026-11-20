@@ -144,7 +144,7 @@ Reglas que convierten la estructura en algo verificable (no documental):
 |---|---|
 | `Microsoft.Extensions.Http.Resilience` | **Recomendado**: `AddStandardResilienceHandler()` sobre Polly v8, con retry + circuit breaker + timeout + total-request timeout. Mantenido por Microsoft ([docs](https://learn.microsoft.com/en-us/dotnet/core/resilience/http-resilience)) |
 | `Microsoft.Extensions.Resilience` | Pipelines para código que no es HTTP |
-| `Polly.Core` / `Polly.Extensions` | Base. **Aviso de licencia**: Polly entró en el *Open Source Maintenance Fee*; desde el **16/11/2026** las empresas con ingresos ≥ US$20.000 por un producto que use Polly pagan US$20/mes ([README de Polly](https://raw.githubusercontent.com/App-vNext/Polly/main/README.md)) |
+| `Polly.Core` / `Polly.Extensions` | Base. **Aviso de licencia**: Polly entró en el *Open Source Maintenance Fee*; desde el **16/11/2026** las empresas con ingresos ≥ US$20.000 por un producto que use Polly pagan US$20/mes ([README de Polly](https://raw.githubusercontent.com/App-vNext/Polly/main/README.md)). Precisión del paso 29: la cuota rige solo para la próxima versión mayor de Polly publicada después de esa fecha y solo para referencias directas; quien lo recibe por `Microsoft.Extensions.Http.Resilience` no la paga ([anuncio](https://www.thepollyproject.org/2026/07/14/polly-osmf-announcement.html)) |
 
 ### 4.6 Mensajería: la decisión con más consecuencias de licencia
 

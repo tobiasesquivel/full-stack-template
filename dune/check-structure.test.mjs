@@ -413,6 +413,45 @@ describe('check-structure', () => {
     });
   }
 
+  it('acepta Microsoft.Extensions.Http.Resilience en Platform', async () => {
+    const repo = await makeRepo();
+    try {
+      await seedValid(repo);
+      await repo.write(
+        'backend/Platform/TemplateApp.Platform.csproj',
+        PLATFORM_PROJECT.replace('</Project>', '<ItemGroup><PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.11.1" /></ItemGroup></Project>'),
+      );
+      const result = await runGate(repo.dir);
+      assert.equal(result.code, 0, result.output);
+    } finally {
+      await repo.cleanup();
+    }
+  });
+
+  for (const [name, rel, content, expected] of [
+    ['la librería de resiliencia en el monolito', 'backend/TemplateApp.csproj', monolithProject('<PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.11.1" />'), /backend\/TemplateApp\.csproj \(Microsoft\.Extensions\.Http\.Resilience\)/],
+    ['Polly.Core directo en Platform', 'backend/Platform/TemplateApp.Platform.csproj', PLATFORM_PROJECT.replace('</Project>', '<ItemGroup><PackageReference Include="Polly.Core" Version="8.9.1" /></ItemGroup></Project>'), /TemplateApp\.Platform\.csproj \(Polly\.Core\)/],
+    ['Polly en el gateway', 'gateway/TemplateApp.Gateway.csproj', VALID_GATEWAY_PROJECT.replace('</ItemGroup>', '<PackageReference Include="Polly" Version="8.9.1" /></ItemGroup>'), /gateway\/TemplateApp\.Gateway\.csproj \(Polly\)/],
+    ['el paquete deprecado Microsoft.Extensions.Http.Polly en Directory.Build.props', 'Directory.Build.props', '<Project><ItemGroup><PackageReference Include="Microsoft.Extensions.Http.Polly" Version="10.0.0" /></ItemGroup></Project>', /Directory\.Build\.props \(Microsoft\.Extensions\.Http\.Polly\)/],
+    ['Polly.Core con comillas simples y espacios en el monolito', 'backend/TemplateApp.csproj', monolithProject("<PackageReference Version='8.9.1' Include = 'Polly.Core' />"), /backend\/TemplateApp\.csproj \(Polly\.Core\)/],
+    ['Polly en un Directory.Build.props del host de Tasks', 'backend/Hosts/Tasks/Directory.Build.props', '<Project><ItemGroup><PackageReference Include="Polly" Version="8.9.1" /></ItemGroup></Project>', /backend\/Hosts\/Tasks\/Directory\.Build\.props \(Polly\)/],
+    ['Microsoft.Extensions.Resilience directo en el host de Tasks', 'backend/Hosts/Tasks/TemplateApp.Tasks.csproj', tasksHostProject().replace('</Project>', '<ItemGroup><PackageReference Include="Microsoft.Extensions.Resilience" Version="10.11.1" /></ItemGroup></Project>'), /TemplateApp\.Tasks\.csproj \(Microsoft\.Extensions\.Resilience\)/],
+  ]) {
+    it(`rechaza ${name}`, async () => {
+      const repo = await makeRepo();
+      try {
+        await seedValid(repo);
+        await repo.write(rel, content);
+        const result = await runGate(repo.dir);
+        assert.equal(result.code, 1, result.output);
+        assert.match(result.output, /resiliencia HTTP:/);
+        assert.match(result.output, expected);
+      } finally {
+        await repo.cleanup();
+      }
+    });
+  }
+
   it('acepta un memo por request y nombres que solo se parecen a caché', async () => {
     const repo = await makeRepo();
     try {
