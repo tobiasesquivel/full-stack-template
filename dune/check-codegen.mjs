@@ -35,7 +35,11 @@ function main() {
     ConnectionStrings__DefaultConnection: 'Host=localhost;Database=codegen;Username=codegen;Password=codegen',
     Messaging__RabbitMqUri: 'amqp://localhost:5672/',
   });
-  const result = verdict(run(root, 'git', ['status', '--porcelain', '--untracked-files=all', '--', GENERATED]));
+  const lines = (args, status) => run(root, 'git', args).split(/\r?\n/).filter(Boolean).map((file) => `${status} ${file}`);
+  const result = verdict([
+    ...lines(['diff', '--name-only', '--', GENERATED], ' M'),
+    ...lines(['ls-files', '--others', '--exclude-standard', '--', GENERATED], '??'),
+  ].join('\n'));
   console.log(`check-codegen: ${result.ok ? 'PASS' : 'FAIL'}`);
   if (!result.ok) {
     console.log(`- ${result.message}`);
