@@ -15,7 +15,7 @@ internal static class SagaStorage
     public static void Configure(WolverineOptions options)
     {
         options.Services.AddKeyedSingleton(Schema, (provider, _) =>
-            NpgsqlDataSource.Create(new NpgsqlConnectionStringBuilder(DatabaseSearchPath.Apply(provider.GetRequiredService<IOptions<DatabaseOptions>>().Value.DefaultConnection)) { Pooling = true }.ConnectionString));
+            NpgsqlDataSource.Create(DatabaseSearchPath.Apply(provider.GetRequiredService<IOptions<DatabaseOptions>>().Value.DefaultConnection)));
         options.PersistMessagesWithPostgresqlUsingDataSourceFromContainer(provider => provider.GetRequiredKeyedService<NpgsqlDataSource>(Schema), Schema);
         options.ServiceLocationPolicy = ServiceLocationPolicy.AlwaysAllowed;
         options.UseEntityFrameworkCoreTransactions();
