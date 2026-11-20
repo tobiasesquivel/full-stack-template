@@ -59,7 +59,7 @@ internal sealed class TaskEventsBroker : IAsyncDisposable
     public Task PublishReleaseCommandAsync(Guid messageId, Guid closureId, string userId) =>
         PublishAsync("tasks.commands", "tasks.release-owner-tasks", messageId, new { closureId, userId });
 
-    private async Task PublishAsync(string exchange, string type, Guid messageId, object payload, string version = "1")
+    public async Task PublishAsync(string exchange, string type, Guid messageId, object payload, string version = "1")
     {
         BasicProperties properties = new()
         {

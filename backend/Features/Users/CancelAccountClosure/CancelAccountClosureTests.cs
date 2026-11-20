@@ -22,7 +22,7 @@ public sealed class CancelAccountClosureTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task TheSameRejectionTwice_CompensatesEachParticipantOnce()
+    public async Task ARejectionThatArrivesAfterTheClosureEnded_TwiceWithTheSameId_ChangesNothing()
     {
         IsolatedApi api = await IsolatedApi.StartAsync(_server, _rabbit.Uri);
         _apis.Add(api);
@@ -30,18 +30,19 @@ public sealed class CancelAccountClosureTests : IAsyncDisposable
         _brokers.Add(broker);
         using RecordedMeasurements finished = new(api.Pair.Monolith.Services, "TemplateApp.Users", "templateapp.account_closures.finished");
         TestSession alice = await api.SignUpAsync("alice");
+        await api.Pair.Monolith.Services.SetRoleAsync(alice.UserName, "SuperAdmin", member: true);
         (_, Guid closure) = await DeleteUserTests.RequestClosureAsync(alice, "api/v1/users/me");
-        await api.PublishUsersOutboxAsync();
-        Assert.Equal(1, await Eventually.Async(() => DeleteUserBrokerTests.HoldsAsync(api, alice.AuthId), holds => holds == 1, Wait));
+        await api.DrainAsync();
+        long version = await VersionAsync(api, closure);
         Guid message = Guid.NewGuid();
-        Guid marker = Guid.NewGuid();
 
         await broker.PublishClosureRejectedAsync(message, closure, alice.AuthId);
         await broker.PublishClosureRejectedAsync(message, closure, alice.AuthId);
-        await broker.PublishClosureRejectedAsync(marker, Guid.NewGuid(), $"marker-{marker:N}");
-        Assert.Equal(2, await Eventually.Async(() => InboxRowsAsync(api, marker), rows => rows == 2, Wait));
+        Assert.Equal(1, await Eventually.Async(() => HandledAsync(api, message), rows => rows == 1, Wait));
+        await api.DrainAsync();
 
-        Assert.Equal(2, await InboxRowsAsync(api, message));
+        Assert.Equal("Rejected", await DeleteUserBrokerTests.SagaStateAsync(api, closure));
+        Assert.Equal(version, await VersionAsync(api, closure));
         Assert.Equal(0, await DeleteUserBrokerTests.HoldsAsync(api, alice.AuthId));
         JsonElement me = await DeleteUserTests.MeAsync(alice, "api/v1/users/me");
         Assert.Equal("active", me.GetProperty("accountStatus").GetString());
@@ -57,10 +58,9 @@ public sealed class CancelAccountClosureTests : IAsyncDisposable
             api.Dispose();
     }
 
-    private static Task<long> InboxRowsAsync(IsolatedApi api, Guid messageId) =>
-        api.Pair.Monolith.Services.CountAsync(
-            $"""
-            SELECT (SELECT count(*) FROM wolverine.wolverine_incoming_envelopes WHERE id = {messageId})
-                 + (SELECT count(*) FROM tasks."InboxMessages" WHERE "MessageId" = {messageId} AND "Consumer" = 'tasks.account-closures') AS "Value"
-            """);
+    private static Task<long> VersionAsync(IsolatedApi api, Guid closureId) =>
+        api.Pair.Monolith.Services.CountAsync($"""SELECT "Version"::bigint AS "Value" FROM users."AccountClosureSagas" WHERE "ClosureId" = {closureId}""");
+
+    private static Task<long> HandledAsync(IsolatedApi api, Guid messageId) =>
+        api.Pair.Monolith.Services.CountAsync($"""SELECT count(*) AS "Value" FROM wolverine.wolverine_incoming_envelopes WHERE id = {messageId} AND status = 'Handled'""");
 }

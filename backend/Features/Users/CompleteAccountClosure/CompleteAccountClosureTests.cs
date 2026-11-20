@@ -33,12 +33,11 @@ public sealed class CompleteAccountClosureTests : IDisposable
         await bob.CreateProjectAsync("Mudanza");
         await bob.CreateTaskAsync("Embalar");
 
-        await DeleteUserTests.RequestClosureAsync(bob, "api/v1/users/me");
-        await api.DrainAsync();
-        Assert.Equal(0, (await Eventually.Async(() => api.Pair.Monolith.Services.OwnedRowsAsync(bob.AuthId), rows => rows.Profiles == 0, TimeSpan.FromSeconds(60))).Profiles);
+        (_, Guid closure) = await DeleteUserTests.RequestClosureAsync(bob, "api/v1/users/me");
         await api.DrainAsync();
 
         Assert.Equal(1, fault.Failures);
+        Assert.Equal("Completed", await DeleteUserBrokerTests.SagaStateAsync(api, closure));
         Assert.Equal(OwnedRows.None, await api.Pair.Monolith.Services.OwnedRowsAsync(bob.AuthId));
         Assert.Equal(1, await api.Pair.Monolith.Services.CountAsync(
             $"""SELECT count(*) AS "Value" FROM users."OutboxMessages" WHERE "Type" = 'users.user-deleted' AND "Payload"->>'authId' = {bob.AuthId}"""));

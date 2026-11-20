@@ -28,12 +28,14 @@ internal static class UsersFeature
         services.AddIntegrationCommand<HoldOwnerTasksIntegrationCommand>(TaskCommands.HoldOwnerTasks, TaskCommands.Version, TaskCommands.Exchange);
         services.AddIntegrationCommand<ReleaseOwnerTasksIntegrationCommand>(TaskCommands.ReleaseOwnerTasks, TaskCommands.Version, TaskCommands.Exchange);
         services.AddIntegrationCommand<DecideAccountClosureInfo>(AuthCommands.DecideAccountClosure, AuthCommands.Version, AuthCommands.Exchange);
+        services.AddSagaMessage<OwnerTasksHeldIntegrationEvent>(TaskEvents.OwnerTasksHeld, TaskEvents.Version, TaskEvents.Exchange, ClosuresConsumer);
         services.AddSagaMessage<OwnerTasksReleasedIntegrationEvent>(TaskEvents.OwnerTasksReleased, TaskEvents.Version, TaskEvents.Exchange, ClosuresConsumer);
         services.AddSagaMessage<AccountDeletedInfo>(AuthEvents.AccountDeleted, AuthEvents.Version, AuthEvents.Exchange, ClosuresConsumer);
         services.AddSagaMessage<AccountClosureRejectedInfo>(AuthEvents.AccountClosureRejected, AuthEvents.Version, AuthEvents.Exchange, ClosuresConsumer);
         services.AddSingleton<UserMetrics>();
         services.AddScoped<IUsersModule, UsersModule>();
         services.AddScoped<GetUser.GetUser>();
+        services.AddScoped<GetAccountClosure.GetAccountClosure>();
         services.AddScoped<UpdateProfile.UpdateProfile>();
         services.AddScoped<DeleteUser.DeleteUser>();
         services.AddScoped<CompleteAccountClosure.CompleteAccountClosure>();
@@ -47,6 +49,7 @@ internal static class UsersFeature
         RouteGroupBuilder users = api.MapGroup("/users").RequireAuthorization();
 
         GetUser.GetUserEndpoint.Map(users);
+        GetAccountClosure.GetAccountClosureEndpoint.Map(users);
         UpdateProfile.UpdateProfileEndpoint.Map(users);
         DeleteUser.DeleteUserEndpoint.Map(users);
 

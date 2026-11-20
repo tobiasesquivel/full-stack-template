@@ -96,6 +96,5 @@ public sealed class DeleteUserTests : IClassFixture<ApiFixture>
     }
 
     private static Task<long> ClosureRequestsAsync(IServiceProvider services, string authId) =>
-        services.CountAsync(
-            $"""SELECT count(*) AS "Value" FROM users."OutboxMessages" WHERE "Type" = 'users.account-closure-requested' AND "Payload"->>'authId' = {authId}""");
+        services.CountAsync($"""SELECT count(*) AS "Value" FROM users."AccountClosureSagas" WHERE "UserId" = {authId}""");
 }

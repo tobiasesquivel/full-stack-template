@@ -140,7 +140,6 @@ internal sealed class IsolatedApi : IDisposable
             $"""
             WITH expected("Type", "Consumer") AS (VALUES
                 ('users.account-closure-requested', 'tasks.account-closures'),
-                ('tasks.owner-tasks-held', 'auth.account-closures'),
                 ('auth.account-closure-rejected', 'tasks.account-closures'),
                 ('users.user-deleted', 'tasks.user-deletions'),
                 ('tasks.task-created', 'projects.task-counters'),

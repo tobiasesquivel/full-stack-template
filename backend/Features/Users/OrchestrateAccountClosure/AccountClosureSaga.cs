@@ -27,6 +27,14 @@ public sealed partial class AccountClosureSaga : Saga
         },
         [new HoldOwnerTasksIntegrationCommand(closureId, userId, now), new AccountClosureOverdue(closureId, overdueAfter)]);
 
+    public DecideAccountClosureInfo? Handle(
+        [SagaIdentityFrom(nameof(OwnerTasksHeldIntegrationEvent.ClosureId))] OwnerTasksHeldIntegrationEvent held,
+        TimeProvider clock,
+        ILogger<AccountClosureSaga> logger) =>
+        TryMove(AccountClosureState.Deciding, TaskEvents.OwnerTasksHeld, clock, logger, AccountClosureState.HoldingTasks)
+            ? new DecideAccountClosureInfo(Id, UserId)
+            : null;
+
     public async Task Handle(
         [SagaIdentityFrom(nameof(AccountDeletedInfo.ClosureId))] AccountDeletedInfo deleted,
         IAccountClosureSteps steps,
@@ -78,6 +86,12 @@ public sealed partial class AccountClosureSaga : Saga
         Overdue = true;
         steps.MarkOverdue(State.ToString());
         LogOverdue(logger, Id, State, overdue.After);
+    }
+
+    public static DecideAccountClosureInfo NotFound(OwnerTasksHeldIntegrationEvent held, ILogger<AccountClosureSaga> logger)
+    {
+        LogChoreographed(logger, held.ClosureId, TaskEvents.OwnerTasksHeld);
+        return new DecideAccountClosureInfo(held.ClosureId, held.UserId);
     }
 
     public static void NotFound(OwnerTasksReleasedIntegrationEvent released, ILogger<AccountClosureSaga> logger) =>
