@@ -37,6 +37,7 @@ internal static class UsersFeature
         services.AddScoped<DeleteUser.DeleteUser>();
         services.AddScoped<CompleteAccountClosure.CompleteAccountClosure>();
         services.AddScoped<CancelAccountClosure.CancelAccountClosure>();
+        services.AddAfterCommit<UsersDbContext>();
         services.AddScoped<IAccountClosureSteps, AccountClosureSteps>();
         return services;
     }

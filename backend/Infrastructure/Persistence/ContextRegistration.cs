@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 
 namespace TemplateApp.Infrastructure.Persistence;
@@ -22,6 +23,14 @@ public static class ContextRegistration
                 npgsql => npgsql.MigrationsHistoryTable(HistoryTable, schema))
             .AddInterceptors(provider.GetRequiredService<AuditInterceptor>()));
         services.AddSingleton(new MigratedContext(typeof(TContext), adoptsLegacyTables, appliesMigrations));
+        return services;
+    }
+
+    public static IServiceCollection AddAfterCommit<TContext>(this IServiceCollection services)
+        where TContext : DbContext
+    {
+        services.TryAddScoped<AfterCommit>();
+        services.ConfigureDbContext<TContext>((provider, options) => options.AddInterceptors(new AfterCommitInterceptor(provider.GetRequiredService<AfterCommit>())));
         return services;
     }
 
