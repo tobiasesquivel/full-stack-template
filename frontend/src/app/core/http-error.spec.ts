@@ -94,4 +94,16 @@ describe('describeHttpError', () => {
       'Demasiadas solicitudes. Espera un momento y vuelve a intentarlo.',
     );
   });
+
+  it('says the server took too long when the gateway answers 504', () => {
+    const gatewayTimeout = {
+      status: 504,
+      title: 'Gateway Timeout',
+      code: 'Http.GatewayTimeout',
+      traceId: '00-trace-span-00',
+    };
+    expect(describeHttpError(httpError(504, gatewayTimeout))).toBe(
+      'El servidor tardó demasiado en responder. Inténtalo de nuevo.',
+    );
+  });
 });

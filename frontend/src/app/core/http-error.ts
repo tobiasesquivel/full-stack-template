@@ -54,6 +54,8 @@ export function describeHttpError(error: unknown): string {
       return detail ?? 'Ya existe un registro con esos datos.';
     case 429:
       return retryText(error.headers.get('Retry-After'));
+    case 504:
+      return 'El servidor tardó demasiado en responder. Inténtalo de nuevo.';
     default:
       return detail ?? 'Error inesperado del servidor. Inténtalo más tarde.';
   }
