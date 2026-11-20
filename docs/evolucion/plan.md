@@ -455,7 +455,7 @@ El paso 0.28 se agregó el 2026-10-17, a pedido de Tobi, con otro pendiente del 
 
 **28. Durable execution para un proceso largo con auditoría.**
 **Concepto**: cuándo conviene una plataforma de workflow en lugar de una saga casera.
-**Cambia**: worker nuevo, `compose.yaml`, tests de reanudación. ⏸ **DECISIÓN DE TOBI (pendiente, bloquea el paso)**: plataforma — workflow durable (p. ej. Temporal, Elsa) vs saga persistida propia del paso 27.
+**Cambia**: una segunda saga de Wolverine en Users (sin worker nuevo ni cambios en `compose.yaml`), historial auditable propio, contrato del cierre (backend, frontend y tests), tests de reanudación. **Decisión de Tobi (2026-11-20)**: seguir con la saga persistida del paso 27 (Wolverine, sin herramienta nueva). Descartados Temporal y Elsa Workflows 3.
 **Verifica**: proceso de varios días simulado con timers acelerados; historial consultable y auditable.
 
 ### Fase 9 — Integraciones externas (pasos 29-32)
