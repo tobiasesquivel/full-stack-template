@@ -17,17 +17,22 @@ public sealed class RetiredBindingsTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task TheBindingTheChoreographyLeftOnAuth_IsRemovedWhenTheContractReleaseStarts()
+    public async Task TheBindingsTheChoreographyLeft_AreRemovedWhenTheContractReleasesStart()
     {
         IsolatedApi before = await IsolatedApi.StartAsync(_server, _rabbit.Uri);
         TaskEventsBroker broker = await TaskEventsBroker.ConnectAsync(_rabbit, before.Prefix);
         _brokers.Add(broker);
         await broker.BindLegacyAsync("tasks.task-events", "tasks.owner-tasks-held", "auth.account-closures");
+        await broker.BindLegacyAsync("users.user-events", "users.account-closure-requested", "tasks.account-closures");
+        await broker.BindLegacyAsync("auth.account-events", "auth.account-closure-rejected", "tasks.account-closures");
         before.Dispose();
 
         _apis.Add(IsolatedApi.StartOn(before.Database, _rabbit.Uri, before.Prefix));
 
         Assert.Equal([$"{broker.Name("auth.commands")}:auth.decide-account-closure"], await broker.BindingKeysAsync("auth.account-closures"));
+        Assert.Equal(
+            [$"{broker.Name("tasks.commands")}:tasks.hold-owner-tasks", $"{broker.Name("tasks.commands")}:tasks.release-owner-tasks"],
+            await broker.BindingKeysAsync("tasks.account-closures"));
     }
 
     public async ValueTask DisposeAsync()

@@ -40,8 +40,8 @@ internal static class TasksFeature
         services.AddEventHandler<OwnerTasksHeld, PublishTaskEvents.TaskEventPublisher>();
         services.AddEventHandler<OwnerTasksReleased, PublishTaskEvents.TaskEventPublisher>();
         services.AddIntegrationEventHandler<DeleteOwnedTasks.UserDeletedIntegrationEvent, DeleteOwnedTasks.UserDeletionsConsumer>(UserEvents.Deleted, UserEvents.Version, UserEvents.Exchange, OwnerTombstones.Consumer);
-        services.AddIntegrationEventHandler<HoldOwnerTasks.AccountClosureRequestedIntegrationEvent, HoldOwnerTasks.AccountClosureRequestsConsumer>(UserEvents.AccountClosureRequested, UserEvents.Version, UserEvents.Exchange, OwnerTombstones.ClosuresConsumer);
-        services.AddIntegrationEventHandler<ReleaseOwnerTasks.AccountClosureRejectedIntegrationEvent, ReleaseOwnerTasks.AccountClosureRejectionsConsumer>(AuthEvents.AccountClosureRejected, AuthEvents.Version, AuthEvents.Exchange, OwnerTombstones.ClosuresConsumer);
+        services.AddRetiredBinding(UserEvents.Exchange, UserEvents.AccountClosureRequested, OwnerTombstones.ClosuresConsumer);
+        services.AddRetiredBinding(AuthEvents.Exchange, AuthEvents.AccountClosureRejected, OwnerTombstones.ClosuresConsumer);
         services.AddIntegrationEventHandler<HoldOwnerTasks.HoldOwnerTasksIntegrationCommand, HoldOwnerTasks.HoldOwnerTasksCommandsConsumer>(TaskCommands.HoldOwnerTasks, TaskCommands.Version, TaskCommands.Exchange, OwnerTombstones.ClosuresConsumer);
         services.AddIntegrationEventHandler<ReleaseOwnerTasks.ReleaseOwnerTasksIntegrationCommand, ReleaseOwnerTasks.ReleaseOwnerTasksCommandsConsumer>(TaskCommands.ReleaseOwnerTasks, TaskCommands.Version, TaskCommands.Exchange, OwnerTombstones.ClosuresConsumer);
 

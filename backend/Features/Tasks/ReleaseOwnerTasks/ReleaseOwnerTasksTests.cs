@@ -20,24 +20,6 @@ public sealed class ReleaseOwnerTasksTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task ARejection_ReleasesTheHoldOfItsClosure_AndTheOwnerCreatesTasksAgain()
-    {
-        (IsolatedApi api, TaskEventsBroker broker) = await StartAsync();
-        TestSession alice = await api.SignUpAsync("alice");
-        Guid closure = Guid.NewGuid();
-        Guid requested = Guid.NewGuid();
-        Guid rejected = Guid.NewGuid();
-        await broker.PublishClosureRequestedAsync(requested, closure, alice.AuthId);
-        await HoldOwnerTasksTests.AcceptedAsync(api, requested);
-
-        await broker.PublishClosureRejectedAsync(rejected, closure, alice.AuthId);
-        await HoldOwnerTasksTests.AcceptedAsync(api, rejected);
-
-        Assert.Equal(0, await HoldOwnerTasksTests.HoldsAsync(api, alice.AuthId, closure));
-        await alice.CreateTaskAsync("Después del rechazo");
-    }
-
-    [Fact]
     public async Task AReleaseCommand_ReleasesTheHold_AndRepliesOwnerTasksReleasedOnce()
     {
         (IsolatedApi api, TaskEventsBroker broker) = await StartAsync();
@@ -60,7 +42,7 @@ public sealed class ReleaseOwnerTasksTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task AnOldRejection_DoesNotReleaseTheHoldOfANewerClosure()
+    public async Task AnOldReleaseCommand_DoesNotReleaseTheHoldOfANewerClosure()
     {
         (IsolatedApi api, TaskEventsBroker broker) = await StartAsync();
         TestSession alice = await api.SignUpAsync("alice");
@@ -68,10 +50,10 @@ public sealed class ReleaseOwnerTasksTests : IAsyncDisposable
         Guid newer = Guid.NewGuid();
         Guid requested = Guid.NewGuid();
         Guid rejected = Guid.NewGuid();
-        await broker.PublishClosureRequestedAsync(requested, newer, alice.AuthId);
+        await broker.PublishHoldCommandAsync(requested, newer, alice.AuthId);
         await HoldOwnerTasksTests.AcceptedAsync(api, requested);
 
-        await broker.PublishClosureRejectedAsync(rejected, older, alice.AuthId);
+        await broker.PublishReleaseCommandAsync(rejected, older, alice.AuthId);
         await HoldOwnerTasksTests.AcceptedAsync(api, rejected);
 
         Assert.Equal(1, await HoldOwnerTasksTests.HoldsAsync(api, alice.AuthId, newer));

@@ -21,7 +21,7 @@ public sealed class HoldOwnerTasksTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task AClosureRequest_HoldsOnlyThatOwner_AndPublishesOwnerTasksHeldOnce()
+    public async Task AHoldCommand_HoldsOnlyThatOwner_AndRepliesOwnerTasksHeldOnce()
     {
         (IsolatedApi api, TaskEventsBroker broker) = await StartAsync();
         TestSession alice = await api.SignUpAsync("alice");
@@ -30,34 +30,15 @@ public sealed class HoldOwnerTasksTests : IAsyncDisposable
         Guid closure = Guid.NewGuid();
         Guid message = Guid.NewGuid();
 
-        await broker.PublishClosureRequestedAsync(message, closure, alice.AuthId);
+        await broker.PublishHoldCommandAsync(message, closure, alice.AuthId);
         await AcceptedAsync(api, message);
-        await broker.PublishClosureRequestedAsync(message, closure, alice.AuthId);
+        await broker.PublishHoldCommandAsync(message, closure, alice.AuthId);
         await AcceptedAsync(api, await MarkerAsync(broker));
 
         SessionResponse refused = await alice.SendAsync(HttpMethod.Post, "api/v1/tasks", new { title = "Durante el cierre" });
         ProblemAssert.Problem(refused, HttpStatusCode.Conflict, "Task.OwnerClosing");
         await bob.CreateTaskAsync("Bob sigue");
         Assert.Equal(1, (await api.Pair.Monolith.Services.OwnedRowsAsync(alice.AuthId)).Tasks);
-        Assert.Equal(1, await HoldsAsync(api, alice.AuthId, closure));
-        Assert.Equal(1, await HeldEventsAsync(api, closure));
-    }
-
-    [Fact]
-    public async Task AHoldCommand_HoldsTheOwner_AndRepliesOwnerTasksHeldOnce()
-    {
-        (IsolatedApi api, TaskEventsBroker broker) = await StartAsync();
-        TestSession alice = await api.SignUpAsync("alice");
-        Guid closure = Guid.NewGuid();
-        Guid message = Guid.NewGuid();
-
-        await broker.PublishHoldCommandAsync(message, closure, alice.AuthId);
-        await AcceptedAsync(api, message);
-        await broker.PublishHoldCommandAsync(message, closure, alice.AuthId);
-        await AcceptedAsync(api, await MarkerAsync(broker));
-
-        SessionResponse refused = await alice.SendAsync(HttpMethod.Post, "api/v1/tasks", new { title = "Durante el cierre" });
-        ProblemAssert.Problem(refused, HttpStatusCode.Conflict, "Task.OwnerClosing");
         Assert.Equal(1, await HoldsAsync(api, alice.AuthId, closure));
         Assert.Equal(1, await HeldEventsAsync(api, closure));
     }
@@ -71,7 +52,7 @@ public sealed class HoldOwnerTasksTests : IAsyncDisposable
         Guid requested = Guid.NewGuid();
         Guid deleted = Guid.NewGuid();
 
-        await broker.PublishClosureRequestedAsync(requested, closure, alice.AuthId);
+        await broker.PublishHoldCommandAsync(requested, closure, alice.AuthId);
         await AcceptedAsync(api, requested);
         await broker.PublishUserDeletedAsync(deleted, alice.AuthId);
         Assert.Equal(1, await Eventually.Async(() => InboxRowsAsync(api, deleted, "tasks.user-deletions"), rows => rows == 1, Wait));
@@ -94,7 +75,7 @@ public sealed class HoldOwnerTasksTests : IAsyncDisposable
     internal static async Task<Guid> MarkerAsync(TaskEventsBroker broker)
     {
         Guid marker = Guid.NewGuid();
-        await broker.PublishClosureRequestedAsync(marker, Guid.NewGuid(), $"marker-{marker:N}");
+        await broker.PublishHoldCommandAsync(marker, Guid.NewGuid(), $"marker-{marker:N}");
         return marker;
     }
 
