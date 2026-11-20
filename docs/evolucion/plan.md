@@ -449,8 +449,9 @@ El paso 0.28 se agregó el 2026-10-17, a pedido de Tobi, con otro pendiente del 
 
 **27. Saga orquestada con máquina de estados persistida.**
 **Concepto**: orquestación, visibilidad del proceso, reanudación tras caída.
-**Cambia**: módulo orquestador o infraestructura de sagas, tests. ⏸ **DECISIÓN DE TOBI (pendiente, bloquea el paso)**: tecnología — saga orquestada a mano sobre el bus elegido en el paso 25, o state machine del propio bus (MassTransit state machine vs Wolverine saga).
+**Cambia**: módulo orquestador o infraestructura de sagas, tests. **Decisión de Tobi (2026-11-20)**: el tipo `Saga` de Wolverine con su outbox durable (`WolverineFx.EntityFrameworkCore` y `WolverineFx.Postgresql` 6.64.2, MIT) y el código generado versionado (`WolverineFx.RuntimeCompilation` 6.64.2, MIT). Descartados el orquestador a mano, `Wolverine.Saga` sin el outbox de Wolverine y la state machine de MassTransit.
 **Verifica**: test que reinicia el proceso a mitad de saga y esta continúa desde su estado persistido.
+**Nota**: la investigación es [paso-27-saga-orquestada.md](investigacion/paso-27-saga-orquestada.md). Se hizo en modo autónomo, con las dos elecciones de herramienta de Tobi. El cierre de cuenta del paso 26 pasa de coreografía a orquestación: `AccountClosureSaga` (Users) guarda cada cierre en `users."AccountClosureSagas"` con su estado, manda comandos a Tasks y a Auth por el outbox durable de Wolverine en la misma transacción que la fila, compensa en orden inverso y marca un cierre atrasado con un `TimeoutMessage`. Entra `GET /users/closures/{closureId}`. El PR va en cinco commits de código ordenados como releases (Tasks entiende comandos, el monolito conoce la saga sin abrirla, el monolito la abre, contract del monolito, contract de Tasks). Cambian DUNE0009, DUNE0020, DUNE0025 y el gate de bus, y entra el gate `check-codegen`. Las elecciones y las correcciones medidas están en `docs/decisions.tsv`.
 
 **28. Durable execution para un proceso largo con auditoría.**
 **Concepto**: cuándo conviene una plataforma de workflow en lugar de una saga casera.

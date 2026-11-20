@@ -189,6 +189,58 @@ public sealed class PublicSurfaceAnalyzerTests
             Dune0020(diagnostics));
     }
 
+    [Fact]
+    public async Task ASagaAndTheTypesOfItsPublicSignature_ArePublic_AndNothingElseOfItsSlice()
+    {
+        var diagnostics = await AnalyzeAsync(
+            ("packages/Wolverine.cs", """
+                namespace Wolverine;
+                public abstract class Saga { }
+                """),
+            ("backend/Features/Users/OrchestrateAccountClosure/AccountClosureSaga.cs", """
+                using System.Threading.Tasks;
+                namespace TemplateApp.Features.Users.OrchestrateAccountClosure;
+                public sealed class AccountClosureSaga : Wolverine.Saga
+                {
+                    public AccountClosureState State { get; set; }
+                    public Task<ReleaseOwnerTasksIntegrationCommand?> Handle(OwnerTasksReleasedIntegrationEvent released, IAccountClosureSteps steps) => Task.FromResult<ReleaseOwnerTasksIntegrationCommand?>(null);
+                    internal static HoldOwnerTasksIntegrationCommand Open() => new();
+                }
+                """),
+            ("backend/Features/Users/OrchestrateAccountClosure/AccountClosureState.cs", """
+                namespace TemplateApp.Features.Users.OrchestrateAccountClosure;
+                public enum AccountClosureState { HoldingTasks }
+                """),
+            ("backend/Features/Users/OrchestrateAccountClosure/OwnerTasksReleasedIntegrationEvent.cs", """
+                namespace TemplateApp.Features.Users.OrchestrateAccountClosure;
+                public sealed record OwnerTasksReleasedIntegrationEvent(System.Guid ClosureId);
+                """),
+            ("backend/Features/Users/OrchestrateAccountClosure/ReleaseOwnerTasksIntegrationCommand.cs", """
+                namespace TemplateApp.Features.Users.OrchestrateAccountClosure;
+                public sealed record ReleaseOwnerTasksIntegrationCommand(System.Guid ClosureId);
+                """),
+            ("backend/Features/Users/OrchestrateAccountClosure/IAccountClosureSteps.cs", """
+                namespace TemplateApp.Features.Users.OrchestrateAccountClosure;
+                public interface IAccountClosureSteps { }
+                """),
+            ("backend/Features/Users/OrchestrateAccountClosure/HoldOwnerTasksIntegrationCommand.cs", """
+                namespace TemplateApp.Features.Users.OrchestrateAccountClosure;
+                public sealed record HoldOwnerTasksIntegrationCommand;
+                """),
+            ("backend/Features/Users/OrchestrateAccountClosure/AccountClosureSteps.cs", """
+                namespace TemplateApp.Features.Users.OrchestrateAccountClosure;
+                public sealed class AccountClosureSteps : IAccountClosureSteps { }
+                """));
+
+        Assert.Equal(
+            new[]
+            {
+                "AccountClosureSteps.cs:2 'AccountClosureSteps' es public fuera de Contracts/: el interior de una feature es internal",
+                "HoldOwnerTasksIntegrationCommand.cs:2 'HoldOwnerTasksIntegrationCommand' es public fuera de Contracts/: el interior de una feature es internal",
+            },
+            Dune0020(diagnostics));
+    }
+
     private static Task<ImmutableArray<Diagnostic>> AnalyzeAsync(params (string Path, string Source)[] files) =>
         AnalyzerHost.AnalyzeAsync(files, AnalyzerHost.Only<PublicSurfaceAnalyzer>());
 

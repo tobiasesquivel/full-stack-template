@@ -29,14 +29,17 @@ public sealed class CompleteAccountClosureTests : IDisposable
             _broker,
             services => services.ConfigureDbContext<UsersDbContext>((_, options) => options.AddInterceptors(fault)));
         _apis.Add(api);
+        using RecordedMeasurements finished = new(api.Pair.Monolith.Services, "TemplateApp.Users", "templateapp.account_closures.finished");
         TestSession bob = await api.SignUpAsync("bob");
         await bob.CreateProjectAsync("Mudanza");
         await bob.CreateTaskAsync("Embalar");
 
-        await DeleteUserTests.RequestClosureAsync(bob, "api/v1/users/me");
+        (_, Guid closure) = await DeleteUserTests.RequestClosureAsync(bob, "api/v1/users/me");
         await api.DrainAsync();
 
         Assert.Equal(1, fault.Failures);
+        Assert.Equal(["completed"], finished.Values.Select(v => (string)v.Tags["templateapp.account_closure.outcome"]!));
+        Assert.Equal("Completed", await DeleteUserBrokerTests.SagaStateAsync(api, closure));
         Assert.Equal(OwnedRows.None, await api.Pair.Monolith.Services.OwnedRowsAsync(bob.AuthId));
         Assert.Equal(1, await api.Pair.Monolith.Services.CountAsync(
             $"""SELECT count(*) AS "Value" FROM users."OutboxMessages" WHERE "Type" = 'users.user-deleted' AND "Payload"->>'authId' = {bob.AuthId}"""));

@@ -310,6 +310,34 @@ describe('check-structure', () => {
     }
   });
 
+  it('acepta los paquetes de la saga en Platform y Wolverine en el archivo de un orquestador', async () => {
+    const repo = await makeRepo();
+    try {
+      await seedValid(repo);
+      await repo.write(
+        'backend/Platform/TemplateApp.Platform.csproj',
+        PLATFORM_PROJECT.replace(
+          '</Project>',
+          '<ItemGroup><PackageReference Include="WolverineFx.EntityFrameworkCore" Version="6.64.2" />'
+            + '<PackageReference Include="WolverineFx.Postgresql" Version="6.64.2" />'
+            + '<PackageReference Include="WolverineFx.RuntimeCompilation" Version="6.64.2" /></ItemGroup></Project>',
+        ),
+      );
+      await repo.write(
+        'backend/Features/Users/OrchestrateAccountClosure/AccountClosureSaga.cs',
+        'using Wolverine;\nusing Wolverine.Persistence.Sagas;\nnamespace TemplateApp.Features.Users.OrchestrateAccountClosure;\npublic sealed class AccountClosureSaga : Saga { }\n',
+      );
+      await repo.write(
+        'backend/Features/Users/OrchestrateAccountClosure/AccountClosureOverdue.cs',
+        'using Wolverine;\nnamespace TemplateApp.Features.Users.OrchestrateAccountClosure;\npublic sealed record AccountClosureOverdue(System.TimeSpan After) : TimeoutMessage(After);\n',
+      );
+      const result = await runGate(repo.dir);
+      assert.equal(result.code, 0, result.output);
+    } finally {
+      await repo.cleanup();
+    }
+  });
+
   it('acepta InternalsVisibleTo para TemplateApp.Tests', async () => {
     const repo = await makeRepo();
     try {
@@ -361,7 +389,10 @@ describe('check-structure', () => {
     ['alias de MediatR en el código', 'backend/Features/Tasks/TaskModule.cs', 'using Bus = MediatR.IMediator;\n'],
     ['Wolverine en el host de Tasks', 'backend/Hosts/Tasks/TemplateApp.Tasks.csproj', tasksHostProject().replace('</Project>', '<ItemGroup><PackageReference Include="WolverineFx" Version="6.64.2" /></ItemGroup></Project>')],
     ['WolverineFx.RabbitMQ en el monolito', 'backend/TemplateApp.csproj', monolithProject('<PackageReference Include="WolverineFx.RabbitMQ" Version="6.64.2" />')],
-    ['un paquete de Wolverine no elegido en Platform', 'backend/Platform/TemplateApp.Platform.csproj', PLATFORM_PROJECT.replace('</Project>', '<ItemGroup><PackageReference Include="WolverineFx.Postgresql" Version="6.64.2" /></ItemGroup></Project>')],
+    ['un paquete de Wolverine no elegido en Platform', 'backend/Platform/TemplateApp.Platform.csproj', PLATFORM_PROJECT.replace('</Project>', '<ItemGroup><PackageReference Include="WolverineFx.Marten" Version="6.64.2" /></ItemGroup></Project>')],
+    ['WolverineFx.Postgresql en el monolito', 'backend/TemplateApp.csproj', monolithProject('<PackageReference Include="WolverineFx.Postgresql" Version="6.64.2" />')],
+    ['using de Wolverine en una slice que solo nombra Saga en un texto', 'backend/Features/Users/DeleteUser/DeleteUser.cs', 'using Wolverine;\nnamespace TemplateApp.Features.Users.DeleteUser;\ninternal sealed class DeleteUser { private const string Kind = "Saga"; }\n'],
+    ['using de Wolverine en un orquestador fuera de backend/Features', 'backend/Shared/ClosureSaga.cs', 'using Wolverine;\npublic sealed class ClosureSaga : Saga { }\n'],
     ['MassTransit en Platform', 'backend/Platform/TemplateApp.Platform.csproj', PLATFORM_PROJECT.replace('</Project>', '<ItemGroup><PackageReference Include="MassTransit.RabbitMQ" Version="8.0.0" /></ItemGroup></Project>')],
     ['global using de Wolverine en Platform', 'backend/Platform/TemplateApp.Platform.csproj', PLATFORM_PROJECT.replace('</Project>', '<ItemGroup><Using Include="Wolverine" /></ItemGroup></Project>')],
     ['using de Wolverine en una slice', 'backend/Features/Projects/ApplyTaskEvent/TaskEventsHandler.cs', 'using Wolverine;\n'],

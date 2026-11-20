@@ -47,13 +47,16 @@ internal sealed class TaskEventsBroker : IAsyncDisposable
     public Task PublishUserDeletedAsync(Guid messageId, string userId) =>
         PublishAsync("users.user-events", "users.user-deleted", messageId, new { userId, deletedAt = DateTimeOffset.UtcNow });
 
-    public Task PublishClosureRequestedAsync(Guid messageId, Guid closureId, string userId) =>
-        PublishAsync("users.user-events", "users.account-closure-requested", messageId, new { closureId, userId, requestedAt = DateTimeOffset.UtcNow });
-
     public Task PublishClosureRejectedAsync(Guid messageId, Guid closureId, string userId) =>
         PublishAsync("auth.account-events", "auth.account-closure-rejected", messageId, new { closureId, userId, reason = "Auth.LastSuperAdmin", rejectedAt = DateTimeOffset.UtcNow });
 
-    private async Task PublishAsync(string exchange, string type, Guid messageId, object payload, string version = "1")
+    public Task PublishHoldCommandAsync(Guid messageId, Guid closureId, string userId) =>
+        PublishAsync("tasks.commands", "tasks.hold-owner-tasks", messageId, new { closureId, userId, requestedAt = DateTimeOffset.UtcNow });
+
+    public Task PublishReleaseCommandAsync(Guid messageId, Guid closureId, string userId) =>
+        PublishAsync("tasks.commands", "tasks.release-owner-tasks", messageId, new { closureId, userId });
+
+    public async Task PublishAsync(string exchange, string type, Guid messageId, object payload, string version = "1")
     {
         BasicProperties properties = new()
         {
@@ -85,6 +88,22 @@ internal sealed class TaskEventsBroker : IAsyncDisposable
 
     public async Task<uint> CountAsync(string queue) =>
         await _channel.MessageCountAsync(Name(queue));
+
+    public async Task BindLegacyAsync(string exchange, string routingKey, string queue)
+    {
+        await _channel.ExchangeDeclareAsync(Name(exchange), ExchangeType.Direct, durable: true);
+        await _channel.QueueBindAsync(Name(queue), Name(exchange), routingKey);
+    }
+
+    public async Task<string[]> BindingKeysAsync(string queue)
+    {
+        using JsonDocument bindings = JsonDocument.Parse(await _management.GetStringAsync($"api/queues/%2F/{Uri.EscapeDataString(Name(queue))}/bindings"));
+        return bindings.RootElement.EnumerateArray()
+            .Where(binding => binding.GetProperty("source").GetString()!.Length > 0)
+            .Select(binding => $"{binding.GetProperty("source").GetString()}:{binding.GetProperty("routing_key").GetString()}")
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+    }
 
     public async Task<int> ConsumersAsync(string queue)
     {

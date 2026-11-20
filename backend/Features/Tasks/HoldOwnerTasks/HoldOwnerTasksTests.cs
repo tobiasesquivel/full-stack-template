@@ -21,7 +21,7 @@ public sealed class HoldOwnerTasksTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task AClosureRequest_HoldsOnlyThatOwner_AndPublishesOwnerTasksHeldOnce()
+    public async Task AHoldCommand_HoldsOnlyThatOwner_AndRepliesOwnerTasksHeldOnce()
     {
         (IsolatedApi api, TaskEventsBroker broker) = await StartAsync();
         TestSession alice = await api.SignUpAsync("alice");
@@ -30,9 +30,9 @@ public sealed class HoldOwnerTasksTests : IAsyncDisposable
         Guid closure = Guid.NewGuid();
         Guid message = Guid.NewGuid();
 
-        await broker.PublishClosureRequestedAsync(message, closure, alice.AuthId);
+        await broker.PublishHoldCommandAsync(message, closure, alice.AuthId);
         await AcceptedAsync(api, message);
-        await broker.PublishClosureRequestedAsync(message, closure, alice.AuthId);
+        await broker.PublishHoldCommandAsync(message, closure, alice.AuthId);
         await AcceptedAsync(api, await MarkerAsync(broker));
 
         SessionResponse refused = await alice.SendAsync(HttpMethod.Post, "api/v1/tasks", new { title = "Durante el cierre" });
@@ -52,7 +52,7 @@ public sealed class HoldOwnerTasksTests : IAsyncDisposable
         Guid requested = Guid.NewGuid();
         Guid deleted = Guid.NewGuid();
 
-        await broker.PublishClosureRequestedAsync(requested, closure, alice.AuthId);
+        await broker.PublishHoldCommandAsync(requested, closure, alice.AuthId);
         await AcceptedAsync(api, requested);
         await broker.PublishUserDeletedAsync(deleted, alice.AuthId);
         Assert.Equal(1, await Eventually.Async(() => InboxRowsAsync(api, deleted, "tasks.user-deletions"), rows => rows == 1, Wait));
@@ -75,7 +75,7 @@ public sealed class HoldOwnerTasksTests : IAsyncDisposable
     internal static async Task<Guid> MarkerAsync(TaskEventsBroker broker)
     {
         Guid marker = Guid.NewGuid();
-        await broker.PublishClosureRequestedAsync(marker, Guid.NewGuid(), $"marker-{marker:N}");
+        await broker.PublishHoldCommandAsync(marker, Guid.NewGuid(), $"marker-{marker:N}");
         return marker;
     }
 

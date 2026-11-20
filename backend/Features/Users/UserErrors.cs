@@ -9,6 +9,10 @@ internal static class UserErrors
         code: "User.NotFound",
         description: $"User with ID '{authId}' not found.");
 
+    public static Error ClosureNotFound(Guid closureId) => Error.NotFound(
+        code: "User.ClosureNotFound",
+        description: $"Account closure '{closureId}' not found.");
+
     public static readonly Error Forbidden = Error.Forbidden(
         code: "User.Forbidden",
         description: "Access denied.");

@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
+using TemplateApp.Features.Tasks.Domain;
 using TemplateApp.Features.Tasks.Persistence;
 using TemplateApp.Infrastructure.Messaging;
 
@@ -8,11 +9,13 @@ namespace TemplateApp.Features.Tasks.ReleaseOwnerTasks;
 internal sealed partial class ReleaseOwnerTasks
 {
     private readonly TasksDbContext _db;
+    private readonly TimeProvider _clock;
     private readonly ILogger<ReleaseOwnerTasks> _logger;
 
-    public ReleaseOwnerTasks(TasksDbContext db, ILogger<ReleaseOwnerTasks> logger)
+    public ReleaseOwnerTasks(TasksDbContext db, TimeProvider clock, ILogger<ReleaseOwnerTasks> logger)
     {
         _db = db;
+        _clock = clock;
         _logger = logger;
     }
 
@@ -21,16 +24,20 @@ internal sealed partial class ReleaseOwnerTasks
         AccountClosureTrace.Mark(closureId);
         await using IDbContextTransaction transaction = await _db.Database.BeginTransactionAsync(ct);
         await OwnerTombstones.LockExclusiveAsync(_db, ownerId, ct);
-        int released = 0;
+        OwnerHold? hold = null;
         if (await _db.TryAcceptAsync(context, ct))
         {
-            released = await _db.OwnerHolds
-                .Where(h => h.OwnerId == ownerId && h.ClosureId == closureId)
-                .ExecuteDeleteAsync(ct);
+            hold = await _db.OwnerHolds.SingleOrDefaultAsync(h => h.OwnerId == ownerId && h.ClosureId == closureId, ct);
+            if (hold is not null)
+            {
+                hold.Release(_clock.GetUtcNow());
+                _db.OwnerHolds.Remove(hold);
+                await _db.SaveChangesAsync(ct);
+            }
         }
 
         await transaction.CommitAsync(ct);
-        if (released > 0)
+        if (hold is not null)
             LogReleased(closureId, ownerId);
     }
 

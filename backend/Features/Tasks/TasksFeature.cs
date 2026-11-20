@@ -21,6 +21,7 @@ internal static class TasksFeature
         services.AddOutboxEvent<TaskReopened>(TaskEvents.Reopened, TaskEvents.Version);
         services.AddOutboxEvent<TaskDeleted>(TaskEvents.Deleted, TaskEvents.Version);
         services.AddOutboxEvent<OwnerTasksHeld>(TaskEvents.OwnerTasksHeld, TaskEvents.Version);
+        services.AddOutboxEvent<OwnerTasksReleased>(TaskEvents.OwnerTasksReleased, TaskEvents.Version);
         services.AddSessionCookie();
         services.AddOptions<CookieAuthenticationOptions>(SessionCookie.Scheme)
             .Configure(cookie => cookie.Events.OnValidatePrincipal = RemoteSession.ValidatePrincipalAsync);
@@ -31,14 +32,18 @@ internal static class TasksFeature
         services.AddIntegrationEventPublication<PublishTaskEvents.TaskReopenedIntegrationEvent>(TaskEvents.Reopened, TaskEvents.Version, TaskEvents.Exchange);
         services.AddIntegrationEventPublication<PublishTaskEvents.TaskDeletedIntegrationEvent>(TaskEvents.Deleted, TaskEvents.Version, TaskEvents.Exchange);
         services.AddIntegrationEventPublication<PublishTaskEvents.OwnerTasksHeldIntegrationEvent>(TaskEvents.OwnerTasksHeld, TaskEvents.Version, TaskEvents.Exchange);
+        services.AddIntegrationEventPublication<PublishTaskEvents.OwnerTasksReleasedIntegrationEvent>(TaskEvents.OwnerTasksReleased, TaskEvents.Version, TaskEvents.Exchange);
         services.AddEventHandler<TaskCreated, PublishTaskEvents.TaskEventPublisher>();
         services.AddEventHandler<TaskCompleted, PublishTaskEvents.TaskEventPublisher>();
         services.AddEventHandler<TaskReopened, PublishTaskEvents.TaskEventPublisher>();
         services.AddEventHandler<TaskDeleted, PublishTaskEvents.TaskEventPublisher>();
         services.AddEventHandler<OwnerTasksHeld, PublishTaskEvents.TaskEventPublisher>();
+        services.AddEventHandler<OwnerTasksReleased, PublishTaskEvents.TaskEventPublisher>();
         services.AddIntegrationEventHandler<DeleteOwnedTasks.UserDeletedIntegrationEvent, DeleteOwnedTasks.UserDeletionsConsumer>(UserEvents.Deleted, UserEvents.Version, UserEvents.Exchange, OwnerTombstones.Consumer);
-        services.AddIntegrationEventHandler<HoldOwnerTasks.AccountClosureRequestedIntegrationEvent, HoldOwnerTasks.AccountClosureRequestsConsumer>(UserEvents.AccountClosureRequested, UserEvents.Version, UserEvents.Exchange, OwnerTombstones.ClosuresConsumer);
-        services.AddIntegrationEventHandler<ReleaseOwnerTasks.AccountClosureRejectedIntegrationEvent, ReleaseOwnerTasks.AccountClosureRejectionsConsumer>(AuthEvents.AccountClosureRejected, AuthEvents.Version, AuthEvents.Exchange, OwnerTombstones.ClosuresConsumer);
+        services.AddRetiredBinding(UserEvents.Exchange, UserEvents.AccountClosureRequested, OwnerTombstones.ClosuresConsumer);
+        services.AddRetiredBinding(AuthEvents.Exchange, AuthEvents.AccountClosureRejected, OwnerTombstones.ClosuresConsumer);
+        services.AddIntegrationEventHandler<HoldOwnerTasks.HoldOwnerTasksIntegrationCommand, HoldOwnerTasks.HoldOwnerTasksCommandsConsumer>(TaskCommands.HoldOwnerTasks, TaskCommands.Version, TaskCommands.Exchange, OwnerTombstones.ClosuresConsumer);
+        services.AddIntegrationEventHandler<ReleaseOwnerTasks.ReleaseOwnerTasksIntegrationCommand, ReleaseOwnerTasks.ReleaseOwnerTasksCommandsConsumer>(TaskCommands.ReleaseOwnerTasks, TaskCommands.Version, TaskCommands.Exchange, OwnerTombstones.ClosuresConsumer);
 
         services.AddSingleton<TaskMetrics>();
         services.AddScoped<TaskAccess>();

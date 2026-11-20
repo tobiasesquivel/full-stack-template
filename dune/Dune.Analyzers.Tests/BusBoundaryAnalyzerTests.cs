@@ -23,6 +23,8 @@ public sealed class BusBoundaryAnalyzerTests
                 Task<T> InvokeAsync<T>(object message, CancellationToken ct = default);
             }
             public class MessageContext { public Envelope? Envelope { get; set; } }
+            public abstract class Saga { }
+            public abstract record TimeoutMessage(TimeSpan DelayTime);
             public static class WolverineOptionsExtensions
             {
                 public static object AddWolverine(this object services) => services;
@@ -144,6 +146,56 @@ public sealed class BusBoundaryAnalyzerTests
                 ("backend/Infrastructure/Messaging/IntegrationEventPublisher.cs", 6),
                 ("backend/Infrastructure/Observability/BusRegistration.cs", 1),
                 ("backend/Infrastructure/Observability/BusRegistration.cs", 5),
+            },
+            Locations(diagnostics));
+    }
+
+    [Fact]
+    public async Task TheOrchestratorFile_NamesWolverine_AndNoOtherFileOfItsSliceDoes()
+    {
+        var diagnostics = await AnalyzeAsync(
+            ("backend/Features/Users/OrchestrateAccountClosure/AccountClosureSaga.cs", """
+                using System;
+                using Wolverine;
+                namespace TemplateApp.Features.Users.OrchestrateAccountClosure;
+                internal sealed class AccountClosureSaga : Saga
+                {
+                    public Guid Id { get; set; }
+                    public Guid Handle(Envelope envelope) => envelope.Id;
+                }
+                """),
+            ("backend/Features/Users/OrchestrateAccountClosure/AccountClosureOverdue.cs", """
+                using System;
+                using Wolverine;
+                namespace TemplateApp.Features.Users.OrchestrateAccountClosure;
+                internal sealed record AccountClosureOverdue(Guid ClosureId, TimeSpan After) : TimeoutMessage(After);
+                """),
+            ("backend/Features/Users/OrchestrateAccountClosure/ClosureEnvelopes.cs", """
+                using System;
+                using Wolverine;
+                namespace TemplateApp.Features.Users.OrchestrateAccountClosure;
+                internal static class ClosureEnvelopes
+                {
+                    public static Guid IdOf(Envelope envelope) => envelope.Id;
+                }
+                """),
+            ("backend/Features/Users/OrchestrateAccountClosure/AskingSaga.cs", """
+                using System.Threading.Tasks;
+                using Wolverine;
+                namespace TemplateApp.Features.Users.OrchestrateAccountClosure;
+                internal sealed class AskingSaga : Saga
+                {
+                    public Task Handle(IMessageBus bus) => bus.InvokeAsync(new object());
+                }
+                """));
+
+        Assert.Equal(
+            new[]
+            {
+                ("backend/Features/Users/OrchestrateAccountClosure/AskingSaga.cs", 6),
+                ("backend/Features/Users/OrchestrateAccountClosure/ClosureEnvelopes.cs", 2),
+                ("backend/Features/Users/OrchestrateAccountClosure/ClosureEnvelopes.cs", 6),
+                ("backend/Features/Users/OrchestrateAccountClosure/ClosureEnvelopes.cs", 6),
             },
             Locations(diagnostics));
     }

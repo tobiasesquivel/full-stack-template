@@ -16,7 +16,7 @@ try
 
     builder.Services.AddBackendInfrastructure(migratesPlatformSchema: true);
     builder.Services.AddTemplateObservability(builder.Environment, "templateapp-api");
-    builder.Services.AddMessaging();
+    builder.Services.AddMessaging(typeof(TemplateApp.MonolithHost).Assembly, storesSagas: true);
     builder.Services.AddAuthFeature();
     builder.Services.AddUsersFeature();
     builder.Services.AddProjectsFeature();
@@ -51,8 +51,7 @@ try
         .MapAuthInternalEndpoints()
         .MapProjectsInternalEndpoints();
 
-    await app.RunAsync();
-    return 0;
+    return await app.RunWithMessagingCommandsAsync(args);
 }
 catch (Exception ex) when (ex is not HostAbortedException)
 {

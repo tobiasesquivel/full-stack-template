@@ -83,7 +83,7 @@ internal static class DuneDiagnostics
         category: "Dune",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
-        description: "Los comentarios se prohíben en backend y dune salvo las migraciones EF generadas de Infrastructure y de cada feature.");
+        description: "Los comentarios se prohíben en backend y dune salvo el código generado por herramientas: las migraciones EF de Infrastructure y de cada feature, y desde el paso 27 los handlers que Wolverine genera con codegen write en backend/Internal/Generated/WolverineHandlers/.");
 
     public static readonly DiagnosticDescriptor OneTypePerFile = new(
         id: "DUNE0010",
@@ -301,7 +301,7 @@ internal static class DuneDiagnostics
         category: "Dune",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
-        description: "Dentro de backend/Features, public significa contrato: solo los tipos de Contracts/ son public y todo lo demás es internal (ADR-0004, punto 1). Así el compilador impide que un contrato exponga un tipo interior en su firma.");
+        description: "Dentro de backend/Features, public significa contrato: solo los tipos de Contracts/ son public y todo lo demás es internal (ADR-0004, punto 1). Así el compilador impide que un contrato exponga un tipo interior en su firma. Excepción del paso 27: una saga de Wolverine (un tipo que hereda Wolverine.Saga) y los tipos de la firma de sus miembros públicos son public, porque Wolverine solo descubre handlers públicos y C# exige que esa firma use tipos públicos. Otra feature igual no los puede usar (DUNE0004).");
 
     public static readonly DiagnosticDescriptor ContractNotPublic = new(
         id: "DUNE0020",
@@ -388,9 +388,9 @@ internal static class DuneDiagnostics
     public static readonly DiagnosticDescriptor BusOutsideMessaging = new(
         id: "DUNE0025",
         title: "Wolverine fuera de Infrastructure/Messaging o como mediator",
-        messageFormat: "'{0}' usa Wolverine {1}: el bus es solo transporte y vive en backend/Infrastructure/Messaging; una feature publica con IntegrationEventPublisher y consume con IIntegrationEventHandler<T>",
+        messageFormat: "'{0}' usa Wolverine {1}: el bus es transporte y vive en backend/Infrastructure/Messaging; una feature publica con IntegrationEventPublisher, consume con IIntegrationEventHandler<T> y solo nombra Wolverine en el archivo de un orquestador (un tipo que hereda Wolverine.Saga o Wolverine.TimeoutMessage)",
         category: "Dune",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
-        description: "Paso 25 (ADR-0004 punto 9): Wolverine es el bus elegido, solo como transporte. Un nombre que resuelve a un namespace Wolverine o JasperFx (un using, un tipo, un miembro o un método de extensión) solo aparece en backend/Infrastructure/Messaging/; así ninguna feature conoce el bus. Además, nadie llama a un método Invoke* de un tipo de Wolverine (IMessageBus.InvokeAsync y sus variantes), ni siquiera Infrastructure/Messaging: es el modo mediator de Wolverine, que ADR-0004 descarta. Los tests y las migraciones quedan fuera. Límite: no ve un tipo de Wolverine usado por reflexión ni detrás de var sin nombrarlo, por ejemplo el resultado de un método del repo que devuelve IMessageBus.");
+        description: "Pasos 25 y 27 (ADR-0004 punto 9): Wolverine es el bus elegido. Un nombre que resuelve a un namespace Wolverine o JasperFx (un using, un tipo, un miembro o un método de extensión) solo aparece en backend/Infrastructure/Messaging/ y, desde el paso 27, en el archivo de un orquestador: el que declara un tipo que hereda Wolverine.Saga (la saga orquestada, con estado persistido) o Wolverine.TimeoutMessage (su plazo). Ninguna otra slice conoce el bus. Además, nadie llama a un método Invoke* de un tipo de Wolverine (IMessageBus.InvokeAsync y sus variantes), ni siquiera Infrastructure/Messaging: es el modo mediator de Wolverine, que ADR-0004 descarta. Los tests y las migraciones quedan fuera. Límite: no ve un tipo de Wolverine usado por reflexión ni detrás de var sin nombrarlo, por ejemplo el resultado de un método del repo que devuelve IMessageBus.");
 }

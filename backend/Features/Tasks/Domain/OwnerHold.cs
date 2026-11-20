@@ -31,5 +31,7 @@ internal sealed class OwnerHold : IHasDomainEvents
         _domainEvents.Add(new OwnerTasksHeld(closureId, OwnerId, now));
     }
 
+    public void Release(DateTimeOffset now) => _domainEvents.Add(new OwnerTasksReleased(ClosureId, OwnerId, now));
+
     public void ClearDomainEvents() => _domainEvents.Clear();
 }

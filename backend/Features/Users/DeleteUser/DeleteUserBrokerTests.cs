@@ -35,7 +35,6 @@ public sealed class DeleteUserBrokerTests : IDisposable
         await api.DrainAsync();
 
         (_, Guid closure) = await DeleteUserTests.RequestClosureAsync(alice, "api/v1/users/me");
-        await api.PublishUsersOutboxAsync();
         Assert.Equal(1, await Eventually.Async(() => HoldsAsync(api, alice.AuthId), holds => holds == 1, Wait));
         SessionResponse whileClosing = await alice.SendAsync(HttpMethod.Post, "api/v1/tasks", new { title = "Durante el cierre" });
         JsonElement closing = await DeleteUserTests.MeAsync(alice, "api/v1/users/me");
@@ -55,8 +54,10 @@ public sealed class DeleteUserBrokerTests : IDisposable
         string[] steps = logs.Entries
             .Where(entry => entry.Message.Contains(closure.ToString(), StringComparison.Ordinal))
             .Select(entry => entry.Category[(entry.Category.LastIndexOf('.') + 1)..])
+            .Distinct(StringComparer.Ordinal)
             .ToArray();
-        Assert.Equal(["CancelAccountClosure", "DecideAccountClosure", "DeleteUser", "HoldOwnerTasks", "ReleaseOwnerTasks"], steps.Order(StringComparer.Ordinal));
+        Assert.Equal(["AccountClosureSaga", "CancelAccountClosure", "DecideAccountClosure", "DeleteUser", "HoldOwnerTasks", "ReleaseOwnerTasks"], steps.Order(StringComparer.Ordinal));
+        Assert.Equal("Rejected", await SagaStateAsync(api, closure));
     }
 
     [Fact]
@@ -86,6 +87,7 @@ public sealed class DeleteUserBrokerTests : IDisposable
         Assert.Equal(0, await HoldsAsync(api, bob.AuthId));
         Assert.Equal(1, await api.Pair.Monolith.Services.CountAsync($"""SELECT count(*) AS "Value" FROM tasks."DeletedOwners" WHERE "OwnerId" = {bob.AuthId}"""));
         Assert.Equal("Completed", await DecisionAsync(api, closure));
+        Assert.Equal("Completed", await SagaStateAsync(api, closure));
         Assert.Equal(1, await api.Pair.Monolith.Services.CountAsync(
             $"""SELECT count(*) AS "Value" FROM users."OutboxMessages" WHERE "Type" = 'users.user-deleted' AND "Payload"->>'authId' = {bob.AuthId}"""));
         Assert.Equal(["completed"], finished.Values.Select(v => (string)v.Tags["templateapp.account_closure.outcome"]!));
@@ -127,6 +129,9 @@ public sealed class DeleteUserBrokerTests : IDisposable
 
     internal static Task<long> HoldsAsync(IsolatedApi api, string ownerId) =>
         api.Pair.Monolith.Services.CountAsync($"""SELECT count(*) AS "Value" FROM tasks."OwnerHolds" WHERE "OwnerId" = {ownerId}""");
+
+    internal static Task<string?> SagaStateAsync(IsolatedApi api, Guid closureId) =>
+        api.Pair.Monolith.Services.TextAsync($"""SELECT "State" AS "Value" FROM users."AccountClosureSagas" WHERE "ClosureId" = {closureId}""");
 
     internal static Task<string?> DecisionAsync(IsolatedApi api, Guid closureId) =>
         api.Pair.Monolith.Services.TextAsync($"""SELECT "Outcome" AS "Value" FROM auth."AccountClosures" WHERE "ClosureId" = {closureId}""");

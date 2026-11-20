@@ -30,7 +30,6 @@ internal sealed class UserProfile : IOwnedResource, IAuditable, IHasDomainEvents
         ClosureId = closureId;
         ClosureReason = null;
         ClosureChangedAt = now;
-        _domainEvents.Add(new AccountClosureRequested(closureId, AuthId, now));
         return true;
     }
 
