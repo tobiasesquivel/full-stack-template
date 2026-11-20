@@ -8,6 +8,8 @@ export interface UserResponse {
   timezone: string;
   roles: string[];
   permissions: string[];
-  accountStatus: 'active' | 'closing';
+  accountStatus: 'active' | 'scheduled' | 'closing';
+  closureId: string | null;
+  closesAt: string | null;
   lastClosure: LastClosure | null;
 }
