@@ -411,4 +411,13 @@ internal static class DuneDiagnostics
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
         description: "Paso 28: una fila append-only se crea completa y no cambia. Sus propiedades tienen get e init (o solo get); un set público o privado permitiría cargarla, cambiarla y guardarla con SaveChanges, que DUNE0026 no ve como llamada.");
+
+    public static readonly DiagnosticDescriptor HttpClientOutsideInfrastructure = new(
+        id: "DUNE0027",
+        title: "Cliente HTTP fuera de Infrastructure/Http",
+        messageFormat: "'{0}' {1}: un cliente hacia otro proceso se registra con AddRemoteClient<TClient>(servicio, RemoteRetry), que le pone la política de resiliencia; solo backend/Infrastructure/Http arma clientes HTTP y nombra Polly",
+        category: "Dune",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "Paso 29: todo cliente saliente pasa por la misma política (bulkhead, timeout total, reintento, circuit breaker y timeout por intento), que vive en backend/Infrastructure/Http/RemoteServices. Fuera de esa carpeta es error crear un HttpClient, un HttpMessageInvoker o un HttpMessageHandler (HttpClientHandler, SocketsHttpHandler o un DelegatingHandler propio), llamar a los registros de IHttpClientFactory (AddHttpClient, ConfigureHttpClientDefaults, ConfigurePrimaryHttpMessageHandler, AddHttpMessageHandler y los demás de HttpClientFactoryServiceCollectionExtensions y HttpClientBuilderExtensions) o a los de Microsoft.Extensions.Http.Resilience (AddResilienceHandler, AddStandardResilienceHandler), y nombrar un símbolo de los namespaces Polly o Microsoft.Extensions.Http.Resilience. Así ninguna slice arma un cliente sin resiliencia ni conoce Polly: un circuito abierto le llega como RemoteServiceUnavailableException. Los tests y las migraciones quedan fuera, y el gateway también (no está en backend/ y YARP trae su cliente). Límite: no ve un cliente pedido a IHttpClientFactory.CreateClient con un nombre que nadie registró.");
 }
