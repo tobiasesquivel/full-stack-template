@@ -1,4 +1,3 @@
-using ErrorOr;
 using TemplateApp.Shared.Domain;
 
 namespace TemplateApp.Features.Auth.Contracts;
@@ -10,6 +9,4 @@ public interface IAuthModule
     Task<bool> CanAccessAsync(string callerId, IOwnedResource resource, string permission, CancellationToken ct);
 
     Task<UserAccountDetails?> FindAccountAsync(string authId, CancellationToken ct);
-
-    Task<ErrorOr<Success>> DeleteAccountAsync(string authId, CancellationToken ct);
 }

@@ -58,13 +58,6 @@ internal sealed class MessagingExtension : IWolverineExtension
                 channel.PublisherConfirmationsEnabled = true;
                 channel.PublisherConfirmationTrackingEnabled = true;
             });
-        foreach (IntegrationEventType type in _published)
-        {
-            IntegrationEventNaming.Register(type);
-            rabbit.DeclareExchange(Named(type.Exchange), exchange => exchange.ExchangeType = ExchangeType.Direct);
-            options.PublishMessage(type.ClrType).ToRabbitRoutingKey(Named(type.Exchange), type.Name).SendInline();
-        }
-
         foreach (IntegrationEventSubscription subscription in _subscriptions)
         {
             string queue = Named(subscription.Queue);
@@ -80,6 +73,13 @@ internal sealed class MessagingExtension : IWolverineExtension
                 .DeadLetterQueueing(new DeadLetterQueue($"{queue}.dlq") { ConfigureQueue = dlq => dlq.QueueType = QueueType.quorum })
                 .ProcessInline();
             options.AddMessageHandler(subscription.Event.ClrType, CreateHandler(subscription));
+        }
+
+        foreach (IntegrationEventType type in _published)
+        {
+            IntegrationEventNaming.Register(type);
+            rabbit.DeclareExchange(Named(type.Exchange), exchange => exchange.ExchangeType = ExchangeType.Direct);
+            options.PublishMessage(type.ClrType).ToRabbitRoutingKey(Named(type.Exchange), type.Name).SendInline();
         }
     }
 

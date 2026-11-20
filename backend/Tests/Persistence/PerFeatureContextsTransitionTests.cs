@@ -18,20 +18,21 @@ public sealed class PerFeatureContextsTransitionTests : IClassFixture<ApiFixture
     private const string Owner = "owner-transition";
     private static readonly (string Schema, string[] Migrations)[] ContextMigrations =
     [
-        ("auth", ["_InitialCreate", "_MoveAuthToSchema"]),
-        ("users", ["_InitialCreate", "_MoveUsersToSchema", "_AddOutboxMessages"]),
-        ("tasks", ["_InitialCreate", "_MoveTasksToSchema", "_AddTaskProjectId", "_AddTaskProjectIdIndex", "_AddOutboxMessages", "_AddInboxMessages", "_AddDeletedOwners"]),
+        ("auth", ["_InitialCreate", "_MoveAuthToSchema", "_AddAccountClosures"]),
+        ("users", ["_InitialCreate", "_MoveUsersToSchema", "_AddOutboxMessages", "_AddAccountClosure"]),
+        ("tasks", ["_InitialCreate", "_MoveTasksToSchema", "_AddTaskProjectId", "_AddTaskProjectIdIndex", "_AddOutboxMessages", "_AddInboxMessages", "_AddDeletedOwners", "_AddOwnerHolds"]),
         ("platform", ["_InitialCreate", "_MovePlatformToSchema"]),
         ("projects", ["_InitialCreate", "_AddProjectTaskCounters"]),
     ];
-    private static readonly string[] ColumnsAddedAfterTheMove = ["ProjectId"];
+    private static readonly string[] ColumnsAddedAfterTheMove = ["ProjectId", "ClosureStatus", "ClosureId", "ClosureReason", "ClosureChangedAt"];
     private static readonly string[] DataTables =
         ["AspNetUsers", "AspNetUserRoles", "Sessions", "UserProfiles", "TaskItems", "IdempotencyKeys", "AuditEntries"];
     private static readonly string[] TablesBornInTheirFeatureSchema = ["projects.Projects"];
     private static readonly string[] TablesAddedAfterTheMove =
-        ["projects.InboxMessages", "projects.ProjectTaskCounters", "tasks.DeletedOwners", "tasks.InboxMessages", "tasks.OutboxMessages", "users.OutboxMessages"];
+        ["auth.AccountClosures", "auth.InboxMessages", "auth.OutboxMessages", "projects.InboxMessages", "projects.ProjectTaskCounters", "tasks.DeletedOwners", "tasks.InboxMessages", "tasks.OutboxMessages", "tasks.OwnerHolds", "users.InboxMessages", "users.OutboxMessages"];
     private static readonly string[] TablesInTheirFeatureSchema =
     [
+        "auth.AccountClosures",
         "auth.AspNetRoleClaims",
         "auth.AspNetRoles",
         "auth.AspNetUserClaims",
@@ -39,6 +40,8 @@ public sealed class PerFeatureContextsTransitionTests : IClassFixture<ApiFixture
         "auth.AspNetUserRoles",
         "auth.AspNetUserTokens",
         "auth.AspNetUsers",
+        "auth.InboxMessages",
+        "auth.OutboxMessages",
         "auth.Sessions",
         "platform.AuditEntries",
         "platform.IdempotencyKeys",
@@ -48,7 +51,9 @@ public sealed class PerFeatureContextsTransitionTests : IClassFixture<ApiFixture
         "tasks.DeletedOwners",
         "tasks.InboxMessages",
         "tasks.OutboxMessages",
+        "tasks.OwnerHolds",
         "tasks.TaskItems",
+        "users.InboxMessages",
         "users.OutboxMessages",
         "users.UserProfiles",
     ];

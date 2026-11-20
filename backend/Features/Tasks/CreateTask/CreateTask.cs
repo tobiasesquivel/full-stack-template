@@ -47,11 +47,11 @@ internal sealed class CreateTask
         }
 
         using TransactionScope transaction = CrossContextTransaction.Begin();
-        LiveOwner? owner = await OwnerTombstones.FindLiveAsync(_db, callerId, ct);
-        if (owner is null)
-            return TaskErrors.OwnerDeleted;
+        ErrorOr<LiveOwner> owner = await OwnerTombstones.FindLiveAsync(_db, callerId, ct);
+        if (owner.IsError)
+            return owner.Errors;
 
-        var item = TaskItem.Create(owner, TaskItem.NormalizeTitle(request.Title), request.ProjectId, _clock.GetUtcNow());
+        var item = TaskItem.Create(owner.Value, TaskItem.NormalizeTitle(request.Title), request.ProjectId, _clock.GetUtcNow());
 
         _db.TaskItems.Add(item);
         await _db.SaveChangesAsync(ct);

@@ -37,6 +37,23 @@ namespace TemplateApp.Features.Tasks.Persistence.Migrations
                     b.ToTable("DeletedOwners", "tasks");
                 });
 
+            modelBuilder.Entity("TemplateApp.Features.Tasks.Domain.OwnerHold", b =>
+                {
+                    b.Property<string>("OwnerId")
+                        .HasMaxLength(450)
+                        .HasColumnType("character varying(450)");
+
+                    b.Property<Guid>("ClosureId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("HeldAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("OwnerId");
+
+                    b.ToTable("OwnerHolds", "tasks");
+                });
+
             modelBuilder.Entity("TemplateApp.Features.Tasks.Domain.TaskItem", b =>
                 {
                     b.Property<Guid>("Id")

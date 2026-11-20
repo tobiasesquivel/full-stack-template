@@ -17,6 +17,7 @@ const USAGE = [
   '  read through both releases must match what the rehearsal expects. The previous release',
   '  then deletes an account that both releases wrote to: its account and profile must be gone',
   '  and no task, profile, key or session may point to a missing account. Audit rows stay on purpose.',
+  '  From step 26 the deletion is a closure (202): without Tasks and RabbitMQ it waits in closing, so the account and profile stay.',
   '  --expect-fail names the stages (1 is the second ref) that must fail: a negative control passes',
   '  only when the previous release fails and the new release passes every check of that stage.',
   '  Each check is recorded with the release it failed on. A release that does not start fails its stage and ends the rehearsal.',
@@ -309,13 +310,16 @@ async function deleteAccountWithPreviousRelease(previous, next, stage) {
       (SELECT count(*) FROM ${table('AspNetUsers')} WHERE "Id" = '${accountId}'),
       (SELECT count(*) FROM ${table('UserProfiles')} WHERE "AuthId" = '${accountId}'))`).split(',').map(Number);
   const left = orphans();
+  const deleted = response.status === 204 && accounts === 0 && profiles === 0;
+  const closing = response.status === 202 && response.payload?.status === 'closing' && accounts === 1 && profiles === 1;
   return {
     deletedBy: previous.name,
     status: response.status,
+    closureId: response.payload?.closureId,
     tasksBefore: owned,
     remaining: { accounts, profiles },
     orphans: left,
-    ok: response.status === 204 && owned === 2 && accountId !== '' && accounts === 0 && profiles === 0 && Object.values(left).every(count => count === 0),
+    ok: (deleted || closing) && owned === 2 && accountId !== '' && Object.values(left).every(count => count === 0),
   };
 }
 

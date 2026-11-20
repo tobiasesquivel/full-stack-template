@@ -47,6 +47,12 @@ internal sealed class TaskEventsBroker : IAsyncDisposable
     public Task PublishUserDeletedAsync(Guid messageId, string userId) =>
         PublishAsync("users.user-events", "users.user-deleted", messageId, new { userId, deletedAt = DateTimeOffset.UtcNow });
 
+    public Task PublishClosureRequestedAsync(Guid messageId, Guid closureId, string userId) =>
+        PublishAsync("users.user-events", "users.account-closure-requested", messageId, new { closureId, userId, requestedAt = DateTimeOffset.UtcNow });
+
+    public Task PublishClosureRejectedAsync(Guid messageId, Guid closureId, string userId) =>
+        PublishAsync("auth.account-events", "auth.account-closure-rejected", messageId, new { closureId, userId, reason = "Auth.LastSuperAdmin", rejectedAt = DateTimeOffset.UtcNow });
+
     private async Task PublishAsync(string exchange, string type, Guid messageId, object payload, string version = "1")
     {
         BasicProperties properties = new()

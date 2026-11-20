@@ -1,4 +1,7 @@
 using System.Net;
+using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using TemplateApp.Tests.Support;
 using Xunit;
 
@@ -6,6 +9,8 @@ namespace TemplateApp.Features.Users.DeleteUser;
 
 public sealed class DeleteUserBrokerTests : IDisposable
 {
+    private static readonly TimeSpan Wait = TimeSpan.FromSeconds(60);
+
     private readonly string _server;
     private readonly Uri _broker;
     private readonly List<IsolatedApi> _apis = [];
@@ -17,60 +22,101 @@ public sealed class DeleteUserBrokerTests : IDisposable
     }
 
     [Fact]
-    public async Task DeleteMe_LeavesNoRowOfTheAccountInAnyFeature_OnceTasksConsumesTheEvent()
+    public async Task TheLastSuperAdminAsksToClose_AuthRejects_AndBothEarlierStepsCompensate()
+    {
+        CapturedLogs logs = new();
+        IsolatedApi api = await StartAsync(services => services.AddSingleton<ILoggerFactory>(new LoggerFactory([logs])));
+        using RecordedMeasurements finished = new(api.Pair.Monolith.Services, "TemplateApp.Users", "templateapp.account_closures.finished");
+        TestSession alice = await api.SignUpAsync("alice");
+        await api.Pair.Monolith.Services.SetRoleAsync(alice.UserName, "SuperAdmin", member: true);
+        await alice.CreateTaskAsync("Primera");
+        await alice.CreateTaskAsync("Segunda");
+        await alice.CreateProjectAsync("Mudanza");
+        await api.DrainAsync();
+
+        (_, Guid closure) = await DeleteUserTests.RequestClosureAsync(alice, "api/v1/users/me");
+        await api.PublishUsersOutboxAsync();
+        Assert.Equal(1, await Eventually.Async(() => HoldsAsync(api, alice.AuthId), holds => holds == 1, Wait));
+        SessionResponse whileClosing = await alice.SendAsync(HttpMethod.Post, "api/v1/tasks", new { title = "Durante el cierre" });
+        JsonElement closing = await DeleteUserTests.MeAsync(alice, "api/v1/users/me");
+        await api.DrainAsync();
+
+        ProblemAssert.Problem(whileClosing, HttpStatusCode.Conflict, "Task.OwnerClosing");
+        Assert.Equal("closing", closing.GetProperty("accountStatus").GetString());
+        JsonElement me = await DeleteUserTests.MeAsync(alice, "api/v1/users/me");
+        Assert.Equal("active", me.GetProperty("accountStatus").GetString());
+        JsonElement last = me.GetProperty("lastClosure");
+        Assert.Equal((closure, "rejected", "Auth.LastSuperAdmin"), (last.GetProperty("closureId").GetGuid(), last.GetProperty("outcome").GetString(), last.GetProperty("reason").GetString()));
+        Assert.Equal(new OwnedRows(1, 2, 1, 1, 2, 1, 0), await api.Pair.Monolith.Services.OwnedRowsAsync(alice.AuthId));
+        Assert.Equal(0, await HoldsAsync(api, alice.AuthId));
+        Assert.Equal("Rejected", await DecisionAsync(api, closure));
+        await alice.CreateTaskAsync("Después del rechazo");
+        Assert.Equal(["rejected"], finished.Values.Select(v => (string)v.Tags["templateapp.account_closure.outcome"]!));
+        string[] steps = logs.Entries
+            .Where(entry => entry.Message.Contains(closure.ToString(), StringComparison.Ordinal))
+            .Select(entry => entry.Category[(entry.Category.LastIndexOf('.') + 1)..])
+            .ToArray();
+        Assert.Equal(["CancelAccountClosure", "DecideAccountClosure", "DeleteUser", "HoldOwnerTasks", "ReleaseOwnerTasks"], steps.Order(StringComparer.Ordinal));
+    }
+
+    [Fact]
+    public async Task AnOrdinaryUserAsksToClose_TheClosureCompletes_AndNoRowOfTheAccountStays()
     {
         IsolatedApi api = await StartAsync();
-        TestSession alice = await api.SignUpAsync("alice");
-        await alice.CreateTaskAsync("Sin clave");
-        await alice.CreateProjectAsync("Mudanza");
-        SessionResponse keyed = await alice.SendAsync(
+        using RecordedMeasurements finished = new(api.Pair.Monolith.Services, "TemplateApp.Users", "templateapp.account_closures.finished");
+        TestSession bob = await api.SignUpAsync("bob");
+        await bob.CreateTaskAsync("Sin clave");
+        await bob.CreateProjectAsync("Mudanza");
+        SessionResponse keyed = await bob.SendAsync(
             HttpMethod.Post,
             "api/v1/tasks",
             new { title = "Con clave" },
             headers: new Dictionary<string, string> { ["Idempotency-Key"] = Guid.NewGuid().ToString() });
         keyed.Payload?.Dispose();
         Assert.Equal(HttpStatusCode.Created, keyed.Status);
-        Assert.Equal(new OwnedRows(1, 1, 1, 1, 2, 1, 1), await api.Pair.Monolith.Services.OwnedRowsAsync(alice.AuthId));
+        Assert.Equal(new OwnedRows(1, 1, 1, 1, 2, 1, 1), await api.Pair.Monolith.Services.OwnedRowsAsync(bob.AuthId));
 
-        SessionResponse deleted = await alice.SendAsync(HttpMethod.Delete, "api/v1/users/me");
-        deleted.Payload?.Dispose();
-        await api.DrainUsersOutboxAsync();
+        (_, Guid closure) = await DeleteUserTests.RequestClosureAsync(bob, "api/v1/users/me");
+        await api.DrainAsync();
 
-        Assert.Equal(HttpStatusCode.NoContent, deleted.Status);
-        Assert.Equal(OwnedRows.None, await api.Pair.Monolith.Services.OwnedRowsAsync(alice.AuthId));
+        SessionResponse denied = await bob.SendAsync(HttpMethod.Get, "api/v1/users/me", csrf: false);
+        denied.Payload?.Dispose();
+        Assert.Equal(HttpStatusCode.Unauthorized, denied.Status);
+        Assert.Equal(OwnedRows.None, await api.Pair.Monolith.Services.OwnedRowsAsync(bob.AuthId));
+        Assert.Equal(0, await HoldsAsync(api, bob.AuthId));
+        Assert.Equal(1, await api.Pair.Monolith.Services.CountAsync($"""SELECT count(*) AS "Value" FROM tasks."DeletedOwners" WHERE "OwnerId" = {bob.AuthId}"""));
+        Assert.Equal("Completed", await DecisionAsync(api, closure));
+        Assert.Equal(1, await api.Pair.Monolith.Services.CountAsync(
+            $"""SELECT count(*) AS "Value" FROM users."OutboxMessages" WHERE "Type" = 'users.user-deleted' AND "Payload"->>'authId' = {bob.AuthId}"""));
+        Assert.Equal(["completed"], finished.Values.Select(v => (string)v.Tags["templateapp.account_closure.outcome"]!));
+        AuditRow profileDeletion = (await api.Pair.Monolith.Services.AuditEntriesAsync(bob.AuthId)).Last();
+        Assert.Equal(("Deleted", "system", null), (profileDeletion.Operation, profileDeletion.ActorKind, profileDeletion.ActorId));
+        await bob.CsrfAsync();
+        SessionResponse relogin = await bob.SendAsync(HttpMethod.Post, "api/v1/auth/login", new { userName = bob.UserName, password = bob.Password });
+        relogin.Payload?.Dispose();
+        Assert.Equal(HttpStatusCode.Unauthorized, relogin.Status);
     }
 
     [Fact]
-    public async Task WithTasksDown_DeleteMe_Answers204_AndTheTasksGoWhenTasksComesBack()
+    public async Task WithTasksDown_TheClosureWaitsClosing_AndCompletesWhenTasksComesBack()
     {
-        RemoteFault tasks = RemoteFault.Unreachable(RemoteFault.Host(ApiPair.TasksAuthority));
-        tasks.Active = false;
-        IsolatedApi api = await StartAsync(tasks);
+        IsolatedApi api = await StartAsync();
         TestSession alice = await api.SignUpAsync("alice");
-        string done = await alice.CreateTaskAsync("Hecha");
-        string open = await alice.CreateTaskAsync("Abierta");
-        await TaskCounterScenario.SetCompletedAsync(alice, done, true);
+        await alice.CreateTaskAsync("Hecha");
+        await alice.CreateTaskAsync("Abierta");
         await TasksListener.StopAsync(api);
-        tasks.Active = true;
 
-        SessionResponse deleted = await alice.SendAsync(HttpMethod.Delete, "api/v1/users/me");
-        deleted.Payload?.Dispose();
-        OwnedRows whileDown = await api.Pair.Monolith.Services.OwnedRowsAsync(alice.AuthId);
+        await DeleteUserTests.RequestClosureAsync(alice, "api/v1/users/me");
         await api.PublishUsersOutboxAsync();
-        long tasksBeforeTheReturn = (await api.Pair.Monolith.Services.OwnedRowsAsync(alice.AuthId)).Tasks;
+        await api.PublishAuthOutboxAsync();
+        JsonElement whileDown = await DeleteUserTests.MeAsync(alice, "api/v1/users/me");
+        OwnedRows rowsWhileDown = await api.Pair.Monolith.Services.OwnedRowsAsync(alice.AuthId);
         await TasksListener.StartAsync(api);
-        await api.DrainUsersOutboxAsync();
+        await api.DrainAsync();
 
-        Assert.Equal(HttpStatusCode.NoContent, deleted.Status);
-        Assert.Equal(new OwnedRows(0, 0, 0, 0, 2, 0, 0), whileDown);
-        Assert.Equal(2, tasksBeforeTheReturn);
-        Assert.Equal(0, tasks.Calls);
+        Assert.Equal("closing", whileDown.GetProperty("accountStatus").GetString());
+        Assert.Equal(new OwnedRows(1, 1, 1, 1, 2, 0, 0), rowsWhileDown);
         Assert.Equal(OwnedRows.None, await api.Pair.Monolith.Services.OwnedRowsAsync(alice.AuthId));
-        Assert.Equal(1, await DeletedEventsAsync(api, done));
-        Assert.Equal(1, await DeletedEventsAsync(api, open));
-        AuditRow taskDeletion = (await api.Pair.Monolith.Services.AuditEntriesAsync(open)).Last();
-        Assert.Equal(("Deleted", "system", null), (taskDeletion.Operation, taskDeletion.ActorKind, taskDeletion.ActorId));
-        Assert.Equal(1, await api.Pair.Monolith.Services.CountAsync($"""SELECT count(*) AS "Value" FROM tasks."DeletedOwners" WHERE "OwnerId" = {alice.AuthId}"""));
     }
 
     public void Dispose()
@@ -79,13 +125,15 @@ public sealed class DeleteUserBrokerTests : IDisposable
             api.Dispose();
     }
 
-    private static Task<long> DeletedEventsAsync(IsolatedApi api, string taskId) =>
-        api.Pair.Monolith.Services.CountAsync(
-            $"""SELECT count(*) AS "Value" FROM tasks."OutboxMessages" WHERE "Type" = 'tasks.task-deleted' AND "Payload"->>'taskId' = {taskId}""");
+    internal static Task<long> HoldsAsync(IsolatedApi api, string ownerId) =>
+        api.Pair.Monolith.Services.CountAsync($"""SELECT count(*) AS "Value" FROM tasks."OwnerHolds" WHERE "OwnerId" = {ownerId}""");
 
-    private async Task<IsolatedApi> StartAsync(RemoteFault? fault = null)
+    internal static Task<string?> DecisionAsync(IsolatedApi api, Guid closureId) =>
+        api.Pair.Monolith.Services.TextAsync($"""SELECT "Outcome" AS "Value" FROM auth."AccountClosures" WHERE "ClosureId" = {closureId}""");
+
+    private async Task<IsolatedApi> StartAsync(Action<IServiceCollection>? configure = null)
     {
-        IsolatedApi api = await IsolatedApi.StartAsync(_server, _broker, interceptRemote: fault is null ? null : fault.Intercept);
+        IsolatedApi api = await IsolatedApi.StartAsync(_server, _broker, configure);
         _apis.Add(api);
         return api;
     }

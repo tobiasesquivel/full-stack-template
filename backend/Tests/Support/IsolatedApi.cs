@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
 using Npgsql;
+using TemplateApp.Features.Auth.Persistence;
 using TemplateApp.Features.Tasks.Persistence;
 using TemplateApp.Features.Users.Persistence;
 using TemplateApp.Infrastructure.Messaging;
@@ -29,6 +30,8 @@ internal sealed class IsolatedApi : IDisposable
     public OutboxRelay Relay => Pair.Tasks.Services.GetRequiredKeyedService<OutboxRelay>(typeof(TasksDbContext));
 
     public OutboxRelay UsersRelay => Pair.Monolith.Services.GetRequiredKeyedService<OutboxRelay>(typeof(UsersDbContext));
+
+    public OutboxRelay AuthRelay => Pair.Monolith.Services.GetRequiredKeyedService<OutboxRelay>(typeof(AuthDbContext));
 
     public static async Task<IsolatedApi> StartAsync(
         string server,
@@ -97,19 +100,58 @@ internal sealed class IsolatedApi : IDisposable
         }
     }
 
-    public async Task DrainUsersOutboxAsync()
+    public async Task PublishAuthOutboxAsync()
     {
-        await PublishUsersOutboxAsync();
-        long unconsumed = await Eventually.Async(UnconsumedUserEventsAsync, count => count == 0, TimeSpan.FromSeconds(30));
-        Assert.Equal(0, unconsumed);
+        while (await AuthRelay.RunOnceAsync(TestContext.Current.CancellationToken) > 0)
+        {
+        }
     }
 
-    private Task<long> UnconsumedUserEventsAsync() =>
+    public async Task DrainAsync()
+    {
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        DateTime deadline = DateTime.UtcNow + TimeSpan.FromSeconds(60);
+        while (true)
+        {
+            int published = await Relay.RunOnceAsync(ct) + await UsersRelay.RunOnceAsync(ct) + await AuthRelay.RunOnceAsync(ct);
+            if (published == 0 && await UndeliveredAsync() == 0)
+                return;
+
+            Assert.True(DateTime.UtcNow < deadline, "The outboxes did not settle in 60 s: a message is pending or some consumer never took it.");
+            if (published == 0)
+                await Task.Delay(100, ct);
+        }
+    }
+
+    private Task<long> UndeliveredAsync() =>
         Pair.Monolith.Services.CountAsync(
             $"""
-            SELECT count(*) AS "Value" FROM users."OutboxMessages" AS o
+            WITH expected("Type", "Consumer") AS (VALUES
+                ('users.account-closure-requested', 'tasks.account-closures'),
+                ('tasks.owner-tasks-held', 'auth.account-closures'),
+                ('auth.account-deleted', 'users.account-closures'),
+                ('auth.account-closure-rejected', 'users.account-closures'),
+                ('auth.account-closure-rejected', 'tasks.account-closures'),
+                ('users.user-deleted', 'tasks.user-deletions'),
+                ('tasks.task-created', 'projects.task-counters'),
+                ('tasks.task-completed', 'projects.task-counters'),
+                ('tasks.task-reopened', 'projects.task-counters'),
+                ('tasks.task-deleted', 'projects.task-counters')),
+            outbox AS (
+                SELECT "MessageId", "Type", "ProcessedAt" FROM users."OutboxMessages"
+                UNION ALL SELECT "MessageId", "Type", "ProcessedAt" FROM tasks."OutboxMessages"
+                UNION ALL SELECT "MessageId", "Type", "ProcessedAt" FROM auth."OutboxMessages"),
+            inbox AS (
+                SELECT "MessageId", "Consumer" FROM users."InboxMessages"
+                UNION ALL SELECT "MessageId", "Consumer" FROM tasks."InboxMessages"
+                UNION ALL SELECT "MessageId", "Consumer" FROM auth."InboxMessages"
+                UNION ALL SELECT "MessageId", "Consumer" FROM projects."InboxMessages")
+            SELECT count(*) AS "Value" FROM outbox AS o
             WHERE o."ProcessedAt" IS NULL
-               OR NOT EXISTS (SELECT 1 FROM tasks."InboxMessages" AS i WHERE i."MessageId" = o."MessageId")
+               OR EXISTS (
+                   SELECT 1 FROM expected AS e
+                   WHERE e."Type" = o."Type"
+                     AND NOT EXISTS (SELECT 1 FROM inbox AS i WHERE i."MessageId" = o."MessageId" AND i."Consumer" = e."Consumer"))
             """);
 
     private Task<long> UnconsumedAsync() =>
@@ -117,6 +159,7 @@ internal sealed class IsolatedApi : IDisposable
             $"""
             SELECT count(*) AS "Value" FROM tasks."OutboxMessages" AS o
             WHERE o."ProcessedAt" IS NOT NULL
+              AND o."Type" LIKE 'tasks.task-%'
               AND NOT EXISTS (SELECT 1 FROM projects."InboxMessages" AS i WHERE i."MessageId" = o."MessageId")
             """);
 

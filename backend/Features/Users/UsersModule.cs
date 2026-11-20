@@ -54,5 +54,11 @@ internal sealed class UsersModule : IUsersModule
     }
 
     public static UserProfileDetails Describe(UserProfile profile) =>
-        new(profile.DisplayName, profile.Timezone);
+        new(
+            profile.DisplayName,
+            profile.Timezone,
+            profile.ClosureStatus == AccountClosureStatus.Closing ? "closing" : "active",
+            profile.ClosureStatus == AccountClosureStatus.Rejected
+                ? new UserProfileDetails.ClosureDetails(profile.ClosureId!.Value, "rejected", profile.ClosureReason, profile.ClosureChangedAt!.Value)
+                : null);
 }

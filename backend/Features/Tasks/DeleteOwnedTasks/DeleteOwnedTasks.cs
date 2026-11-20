@@ -22,6 +22,7 @@ internal sealed class DeleteOwnedTasks
         if (await _db.TryAcceptAsync(context, ct))
         {
             await OwnerTombstones.BuryAsync(_db, ownerId, deletedAt, ct);
+            await _db.OwnerHolds.Where(h => h.OwnerId == ownerId).ExecuteDeleteAsync(ct);
             List<TaskItem> owned = await _db.TaskItems.Where(t => t.OwnerId == ownerId).ToListAsync(ct);
             foreach (TaskItem item in owned)
                 item.MarkDeleted();

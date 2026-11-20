@@ -1,4 +1,3 @@
-using ErrorOr;
 using Microsoft.AspNetCore.Identity;
 using TemplateApp.Features.Auth.Access;
 using TemplateApp.Features.Auth.Contracts;
@@ -40,20 +39,5 @@ internal sealed class AuthModule : IAuthModule
             identity.Email,
             grant.Roles,
             grant.Permissions.ToList().AsReadOnly());
-    }
-
-    public async Task<ErrorOr<Success>> DeleteAccountAsync(string authId, CancellationToken ct)
-    {
-        AppIdentityUser? identity = await _users.FindByIdAsync(authId);
-        if (identity is null)
-            return AuthErrors.AccountNotFound;
-
-        IdentityResult deleted = await _users.DeleteAsync(identity);
-        if (!deleted.Succeeded)
-            return deleted.Errors
-                .Select(AuthErrors.AccountDeleteFailed)
-                .ToList();
-
-        return Result.Success;
     }
 }

@@ -17,11 +17,14 @@ internal sealed class TasksDbContext : DbContext
 
     public DbSet<DeletedOwner> DeletedOwners => Set<DeletedOwner>();
 
+    public DbSet<OwnerHold> OwnerHolds => Set<OwnerHold>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Schema);
         modelBuilder.ApplyConfiguration(new TaskItemConfiguration());
         modelBuilder.ApplyConfiguration(new DeletedOwnerConfiguration());
+        modelBuilder.ApplyConfiguration(new OwnerHoldConfiguration());
         modelBuilder.MapSharedAuditEntries();
         modelBuilder.MapOutbox();
         modelBuilder.MapInbox();
