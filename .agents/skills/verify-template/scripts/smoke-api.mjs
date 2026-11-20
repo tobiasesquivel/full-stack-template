@@ -182,6 +182,9 @@ async function requestClosure(client) {
   assert.equal(accepted.payload.status, 'closing', 'Borrar la cuenta abre un cierre en curso');
   assert.match(accepted.payload.closureId, /^[0-9a-f-]{36}$/, 'El 202 lleva el id del cierre');
   assert.equal(accepted.headers.get('location'), '/api/v1/users/me', 'El 202 apunta al monitor del cierre');
+  const closure = await client.request('GET', `users/closures/${accepted.payload.closureId}`, undefined, { expected: 200 });
+  assert.equal(closure.payload.closureId, accepted.payload.closureId, 'El orquestador guarda el cierre con el mismo id del 202');
+  assert.ok(['holdingTasks', 'deciding', 'completed'].includes(closure.payload.state), `El cierre recién pedido está en un estado del orquestador, no en ${closure.payload.state}`);
   return accepted.payload.closureId;
 }
 
