@@ -1,5 +1,10 @@
 using System.Net;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
+using TemplateApp.Features.Tasks.Domain;
+using TemplateApp.Features.Tasks.Persistence;
+using TemplateApp.Infrastructure.Messaging;
 using TemplateApp.Tests.Support;
 using Xunit;
 
@@ -55,5 +60,42 @@ public sealed class CreateTaskOwnerDeletedTests : IClassFixture<ApiFixture>
         Assert.True(waited, $"POST /tasks did not wait for the deletion: it answered {(int)created.Status} while the tombstone was not committed yet.");
         ProblemAssert.Problem(created, HttpStatusCode.Unauthorized, "Task.OwnerDeleted");
         Assert.Equal(0, (await _fixture.Services.OwnedRowsAsync(alice.AuthId)).Tasks);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Create_HoldsTheOwnerLockUntilItSaves_SoADeletionThatArrivesMeanwhileWaitsAndDeletesTheTask(bool withIdempotencyKey)
+    {
+        PauseBeforeSaving<TaskItem> pause = new();
+        HttpClient client = _fixture.CreateIsolatedTasksClient(
+            services => services.ConfigureDbContext<TasksDbContext>((_, options) => options.AddInterceptors(pause)),
+            out IServiceProvider tasks);
+        TestSession alice = new(client);
+        await alice.RegisterAsync(TestAccounts.UniqueName("alice"));
+        Dictionary<string, string>? headers = withIdempotencyKey
+            ? new Dictionary<string, string> { ["Idempotency-Key"] = Guid.NewGuid().ToString() }
+            : null;
+
+        Task<SessionResponse> create = alice.SendAsync(HttpMethod.Post, "api/v1/tasks", new { title = "En carrera" }, headers: headers);
+        await pause.Reached.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
+        Task deletion = DeleteByEventAsync(tasks, alice.AuthId);
+        bool waited = await HeldOwnerLock.SomeoneWaitsAsync(_database, alice.AuthId, deletion);
+        pause.Release();
+        SessionResponse created = await create;
+        created.Payload?.Dispose();
+        await deletion;
+
+        Assert.True(waited, "The deletion did not wait for the POST that had already passed the tombstone: CreateTask let the owner lock go before saving.");
+        Assert.Equal(HttpStatusCode.Created, created.Status);
+        Assert.Equal(0, (await tasks.OwnedRowsAsync(alice.AuthId)).Tasks);
+    }
+
+    private static async Task DeleteByEventAsync(IServiceProvider tasks, string ownerId)
+    {
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        await using AsyncServiceScope scope = tasks.CreateAsyncScope();
+        await scope.ServiceProvider.GetRequiredService<DeleteOwnedTasks.DeleteOwnedTasks>()
+            .ExecuteAsync(ownerId, now, new EventContext(Guid.NewGuid(), OwnerTombstones.Consumer, now, now), TestContext.Current.CancellationToken);
     }
 }

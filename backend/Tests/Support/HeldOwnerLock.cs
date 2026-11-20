@@ -33,7 +33,15 @@ internal sealed class HeldOwnerLock : IAsyncDisposable
         await command.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
     }
 
-    public async Task<bool> BlocksAsync(Task competitor)
+    public Task<bool> BlocksAsync(Task competitor) => WaitsAsync(_connection, _transaction, _ownerKey, competitor);
+
+    public static async Task<bool> SomeoneWaitsAsync(string database, string ownerId, Task competitor)
+    {
+        await using NpgsqlConnection connection = await TestDatabases.OpenAsync(database);
+        return await WaitsAsync(connection, null, (uint)OwnerTombstones.LockKey(ownerId), competitor);
+    }
+
+    private static async Task<bool> WaitsAsync(NpgsqlConnection connection, NpgsqlTransaction? transaction, long ownerKey, Task competitor)
     {
         DateTime deadline = DateTime.UtcNow + Wait;
         while (!competitor.IsCompleted && DateTime.UtcNow < deadline)
@@ -44,10 +52,10 @@ internal sealed class HeldOwnerLock : IAsyncDisposable
                 WHERE locktype = 'advisory' AND NOT granted
                   AND classid::bigint = $1 AND objid::bigint = $2 AND objsubid = 2
                 """,
-                _connection,
-                _transaction);
+                connection,
+                transaction);
             waiting.Parameters.Add(new NpgsqlParameter { Value = (long)OwnerTombstones.LockSpace });
-            waiting.Parameters.Add(new NpgsqlParameter { Value = _ownerKey });
+            waiting.Parameters.Add(new NpgsqlParameter { Value = ownerKey });
             if ((long)(await waiting.ExecuteScalarAsync(TestContext.Current.CancellationToken))! > 0)
                 return true;
 
