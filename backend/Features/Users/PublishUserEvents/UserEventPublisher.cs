@@ -3,7 +3,7 @@ using TemplateApp.Infrastructure.Messaging;
 
 namespace TemplateApp.Features.Users.PublishUserEvents;
 
-internal sealed class UserEventPublisher : IEventHandler<UserDeleted>, IEventHandler<AccountClosureRequested>
+internal sealed class UserEventPublisher : IEventHandler<UserDeleted>
 {
     private readonly IntegrationEventPublisher _broker;
 
@@ -14,7 +14,4 @@ internal sealed class UserEventPublisher : IEventHandler<UserDeleted>, IEventHan
 
     public Task HandleAsync(UserDeleted @event, EventContext context, CancellationToken ct) =>
         _broker.PublishAsync(new UserDeletedIntegrationEvent(@event.AuthId, @event.DeletedAt), context, ct);
-
-    public Task HandleAsync(AccountClosureRequested @event, EventContext context, CancellationToken ct) =>
-        _broker.PublishAsync(new AccountClosureRequestedIntegrationEvent(@event.ClosureId, @event.AuthId, @event.RequestedAt), context, ct);
 }

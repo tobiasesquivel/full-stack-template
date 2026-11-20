@@ -15,16 +15,15 @@ internal sealed partial class CancelAccountClosure
         _logger = logger;
     }
 
-    public async Task<DateTimeOffset?> RestoreAsync(Guid closureId, string userId, string reason, DateTimeOffset now, CancellationToken ct)
+    public async Task<bool> RestoreAsync(Guid closureId, string userId, string reason, DateTimeOffset now, CancellationToken ct)
     {
         AccountClosureTrace.Mark(closureId);
         UserProfile? profile = await _db.UserProfiles.SingleOrDefaultAsync(p => p.AuthId == userId, ct);
-        DateTimeOffset? closingSince = profile?.ClosureChangedAt;
         if (profile is null || !profile.RejectClosure(closureId, reason, now))
-            return null;
+            return false;
 
         LogCompensated(closureId, userId, reason);
-        return closingSince ?? now;
+        return true;
     }
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Account closure {ClosureId} was rejected ({Reason}): Users puts user {UserId} back to active")]

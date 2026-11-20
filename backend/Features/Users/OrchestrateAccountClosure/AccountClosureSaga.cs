@@ -88,26 +88,17 @@ public sealed partial class AccountClosureSaga : Saga
         LogOverdue(logger, Id, State, overdue.After);
     }
 
-    public static DecideAccountClosureInfo NotFound(OwnerTasksHeldIntegrationEvent held, ILogger<AccountClosureSaga> logger)
-    {
-        LogChoreographed(logger, held.ClosureId, TaskEvents.OwnerTasksHeld);
-        return new DecideAccountClosureInfo(held.ClosureId, held.UserId);
-    }
+    public static void NotFound(OwnerTasksHeldIntegrationEvent held, ILogger<AccountClosureSaga> logger) =>
+        LogUnknown(logger, held.ClosureId, TaskEvents.OwnerTasksHeld);
 
     public static void NotFound(OwnerTasksReleasedIntegrationEvent released, ILogger<AccountClosureSaga> logger) =>
         LogUnknown(logger, released.ClosureId, TaskEvents.OwnerTasksReleased);
 
-    public static Task NotFound(AccountDeletedInfo deleted, IAccountClosureSteps steps, TimeProvider clock, ILogger<AccountClosureSaga> logger, CancellationToken ct)
-    {
-        LogChoreographed(logger, deleted.ClosureId, AuthEvents.AccountDeleted);
-        return steps.CompleteAsync(deleted.ClosureId, deleted.UserId, null, clock.GetUtcNow(), ct);
-    }
+    public static void NotFound(AccountDeletedInfo deleted, ILogger<AccountClosureSaga> logger) =>
+        LogUnknown(logger, deleted.ClosureId, AuthEvents.AccountDeleted);
 
-    public static Task NotFound(AccountClosureRejectedInfo rejected, IAccountClosureSteps steps, TimeProvider clock, ILogger<AccountClosureSaga> logger, CancellationToken ct)
-    {
-        LogChoreographed(logger, rejected.ClosureId, AuthEvents.AccountClosureRejected);
-        return steps.RejectAsync(rejected.ClosureId, rejected.UserId, rejected.Reason, null, clock.GetUtcNow(), ct);
-    }
+    public static void NotFound(AccountClosureRejectedInfo rejected, ILogger<AccountClosureSaga> logger) =>
+        LogUnknown(logger, rejected.ClosureId, AuthEvents.AccountClosureRejected);
 
     public static void NotFound(AccountClosureOverdue overdue)
     {
@@ -137,9 +128,6 @@ public sealed partial class AccountClosureSaga : Saga
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Account closure {ClosureId}: no closure with this id, the orchestrator ignores {Reply}")]
     private static partial void LogUnknown(ILogger logger, Guid closureId, string reply);
-
-    [LoggerMessage(Level = LogLevel.Information, Message = "Account closure {ClosureId} started before the orchestrator: it finishes by choreography after {Reply}")]
-    private static partial void LogChoreographed(ILogger logger, Guid closureId, string reply);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Account closure {ClosureId} is overdue: still {State} after {After}")]
     private static partial void LogOverdue(ILogger logger, Guid closureId, AccountClosureState state, TimeSpan after);

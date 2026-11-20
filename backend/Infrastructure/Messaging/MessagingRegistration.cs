@@ -24,6 +24,7 @@ public static class MessagingRegistration
         });
         services.AddSingleton<IWolverineExtension, MessagingExtension>();
         services.TryAddScoped<IntegrationEventPublisher>();
+        services.AddHostedService<RetiredBindings>();
         services.AddHealthChecks()
             .AddCheck<BrokerConnectionHealthCheck>("rabbitmq", HealthStatus.Degraded, timeout: HealthCheckTimeout)
             .AddWolverine("broker", HealthStatus.Degraded, timeout: HealthCheckTimeout)
@@ -42,6 +43,9 @@ public static class MessagingRegistration
         services.TryAddScoped<IIntegrationEventHandler<TEvent>, THandler>();
         return services.AddSingleton(new IntegrationEventSubscription(new IntegrationEventType(typeof(TEvent), name, version, exchange), queue));
     }
+
+    public static IServiceCollection AddRetiredBinding(this IServiceCollection services, string exchange, string routingKey, string queue) =>
+        services.AddSingleton(new RetiredBinding(exchange, routingKey, queue));
 
     public static IServiceCollection AddIntegrationCommand<TCommand>(this IServiceCollection services, string name, int version, string exchange)
         where TCommand : class =>

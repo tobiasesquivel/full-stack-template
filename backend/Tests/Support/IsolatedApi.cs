@@ -139,7 +139,6 @@ internal sealed class IsolatedApi : IDisposable
         Pair.Monolith.Services.CountAsync(
             $"""
             WITH expected("Type", "Consumer") AS (VALUES
-                ('users.account-closure-requested', 'tasks.account-closures'),
                 ('auth.account-closure-rejected', 'tasks.account-closures'),
                 ('users.user-deleted', 'tasks.user-deletions'),
                 ('tasks.task-created', 'projects.task-counters'),

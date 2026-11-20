@@ -92,6 +92,22 @@ internal sealed class TaskEventsBroker : IAsyncDisposable
     public async Task<uint> CountAsync(string queue) =>
         await _channel.MessageCountAsync(Name(queue));
 
+    public async Task BindLegacyAsync(string exchange, string routingKey, string queue)
+    {
+        await _channel.ExchangeDeclareAsync(Name(exchange), ExchangeType.Direct, durable: true);
+        await _channel.QueueBindAsync(Name(queue), Name(exchange), routingKey);
+    }
+
+    public async Task<string[]> BindingKeysAsync(string queue)
+    {
+        using JsonDocument bindings = JsonDocument.Parse(await _management.GetStringAsync($"api/queues/%2F/{Uri.EscapeDataString(Name(queue))}/bindings"));
+        return bindings.RootElement.EnumerateArray()
+            .Where(binding => binding.GetProperty("source").GetString()!.Length > 0)
+            .Select(binding => $"{binding.GetProperty("source").GetString()}:{binding.GetProperty("routing_key").GetString()}")
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+    }
+
     public async Task<int> ConsumersAsync(string queue)
     {
         using JsonDocument body = JsonDocument.Parse(await _management.GetStringAsync($"api/queues/%2F/{Uri.EscapeDataString(Name(queue))}"));

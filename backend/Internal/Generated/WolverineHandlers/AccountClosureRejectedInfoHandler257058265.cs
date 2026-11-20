@@ -27,11 +27,6 @@ namespace Internal.Generated.WolverineHandlers
             Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService<Wolverine.Runtime.ScopedMessageContextHolder>(serviceScope.ServiceProvider).Context = context;
             
             /*
-            * Concrete type TemplateApp.Features.Users.OrchestrateAccountClosure.AccountClosureSteps is not public, so requires service location
-            */
-            var accountClosureSteps = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService<TemplateApp.Features.Users.OrchestrateAccountClosure.IAccountClosureSteps>(serviceScope.ServiceProvider);
-            
-            /*
             * Concrete type TemplateApp.Features.Users.Persistence.UsersDbContext is not public, so requires service location
             */
             var usersDbContext = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService<TemplateApp.Features.Users.Persistence.UsersDbContext>(serviceScope.ServiceProvider);
@@ -66,7 +61,7 @@ namespace Internal.Generated.WolverineHandlers
                 {
                     
                     // The actual message execution
-                    await TemplateApp.Features.Users.OrchestrateAccountClosure.AccountClosureSaga.NotFound(accountClosureRejectedInfo, accountClosureSteps, _timeProvider, _loggerOfAccountClosureSaga, cancellation).ConfigureAwait(false);
+                    TemplateApp.Features.Users.OrchestrateAccountClosure.AccountClosureSaga.NotFound(accountClosureRejectedInfo, _loggerOfAccountClosureSaga);
                 }
                 else
                 {

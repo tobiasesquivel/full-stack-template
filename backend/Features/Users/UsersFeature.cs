@@ -19,11 +19,8 @@ internal static class UsersFeature
             .BindConfiguration(AccountClosureOptions.Section);
         services.AddOutbox<UsersDbContext>();
         services.AddOutboxEvent<UserDeleted>(UserEvents.Deleted, UserEvents.Version);
-        services.AddOutboxEvent<AccountClosureRequested>(UserEvents.AccountClosureRequested, UserEvents.Version);
         services.AddIntegrationEventPublication<PublishUserEvents.UserDeletedIntegrationEvent>(UserEvents.Deleted, UserEvents.Version, UserEvents.Exchange);
-        services.AddIntegrationEventPublication<PublishUserEvents.AccountClosureRequestedIntegrationEvent>(UserEvents.AccountClosureRequested, UserEvents.Version, UserEvents.Exchange);
         services.AddEventHandler<UserDeleted, PublishUserEvents.UserEventPublisher>();
-        services.AddEventHandler<AccountClosureRequested, PublishUserEvents.UserEventPublisher>();
         services.AddSaga<AccountClosureSaga, UsersDbContext>();
         services.AddIntegrationCommand<HoldOwnerTasksIntegrationCommand>(TaskCommands.HoldOwnerTasks, TaskCommands.Version, TaskCommands.Exchange);
         services.AddIntegrationCommand<ReleaseOwnerTasksIntegrationCommand>(TaskCommands.ReleaseOwnerTasks, TaskCommands.Version, TaskCommands.Exchange);

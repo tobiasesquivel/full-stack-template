@@ -1,7 +1,6 @@
 using System.Net;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
-using Npgsql;
 using TemplateApp.Features.Users.DeleteUser;
 using TemplateApp.Tests.Messaging;
 using TemplateApp.Tests.Support;
@@ -145,28 +144,21 @@ public sealed class AccountClosureSagaTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task AClosureOpenedByChoreographyBeforeTheDeploy_FinishesByChoreography()
+    public async Task AReplyForAClosureTheOrchestratorNeverOpened_IsIgnored_AndDecidesNothing()
     {
         IsolatedApi api = await StartAsync();
         TaskEventsBroker broker = await ConnectAsync(api);
         TestSession bob = await api.SignUpAsync("bob");
-        await bob.CreateTaskAsync("Embalar");
-        await api.DrainAsync();
         Guid closure = Guid.CreateVersion7();
-        await using (NpgsqlConnection connection = await TestDatabases.OpenAsync(api.Database))
-        await using (NpgsqlCommand closing = new("""UPDATE users."UserProfiles" SET "ClosureStatus" = 'Closing', "ClosureId" = $1, "ClosureChangedAt" = now() WHERE "AuthId" = $2""", connection))
-        {
-            closing.Parameters.Add(new NpgsqlParameter { Value = closure });
-            closing.Parameters.Add(new NpgsqlParameter { Value = bob.AuthId });
-            Assert.Equal(1, await closing.ExecuteNonQueryAsync(TestContext.Current.CancellationToken));
-        }
+        Guid message = Guid.NewGuid();
 
-        await broker.PublishAsync("tasks.owner-tasks-held", Guid.NewGuid(), new { closureId = closure, userId = bob.AuthId, heldAt = DateTimeOffset.UtcNow });
-        Assert.Equal("Completed", await Eventually.Async(() => DeleteUserBrokerTests.DecisionAsync(api, closure), decision => decision == "Completed", Wait));
+        await broker.PublishAsync("tasks.owner-tasks-held", message, new { closureId = closure, userId = bob.AuthId, heldAt = DateTimeOffset.UtcNow });
+        Assert.Equal(1, await Eventually.Async(() => HandledAsync(api, message), rows => rows == 1, Wait));
         await api.DrainAsync();
 
         Assert.Null(await DeleteUserBrokerTests.SagaStateAsync(api, closure));
-        Assert.Equal(OwnedRows.None, await api.Pair.Monolith.Services.OwnedRowsAsync(bob.AuthId));
+        Assert.Null(await DeleteUserBrokerTests.DecisionAsync(api, closure));
+        Assert.Equal(1, (await api.Pair.Monolith.Services.OwnedRowsAsync(bob.AuthId)).Accounts);
     }
 
     public async ValueTask DisposeAsync()

@@ -21,7 +21,7 @@ internal sealed partial class CompleteAccountClosure
         _logger = logger;
     }
 
-    public async Task<DateTimeOffset?> PurgeAsync(Guid closureId, string userId, DateTimeOffset now, CancellationToken ct)
+    public async Task<bool> PurgeAsync(Guid closureId, string userId, DateTimeOffset now, CancellationToken ct)
     {
         if (_db.Database.CurrentTransaction is null)
             throw new InvalidOperationException("The profile purge saves inside the transaction of the closure step that calls it.");
@@ -31,13 +31,12 @@ internal sealed partial class CompleteAccountClosure
         await _keys.ForgetOwnerAsync(userId, ct);
         UserProfile? profile = await _db.UserProfiles.SingleOrDefaultAsync(p => p.AuthId == userId, ct);
         if (profile is null)
-            return null;
+            return false;
 
-        DateTimeOffset closingSince = profile.ClosureChangedAt ?? now;
         profile.MarkDeleted(now);
         _db.UserProfiles.Remove(profile);
         LogCompleted(closureId, userId);
-        return closingSince;
+        return true;
     }
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Account closure {ClosureId} completed: Users purged the projects, keys and profile of user {UserId}")]

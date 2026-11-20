@@ -61,11 +61,7 @@ namespace Internal.Generated.WolverineHandlers
                 {
                     
                     // The actual message execution
-                    var outgoing2 = TemplateApp.Features.Users.OrchestrateAccountClosure.AccountClosureSaga.NotFound(ownerTasksHeldIntegrationEvent, _loggerOfAccountClosureSaga);
-
-                    
-                    // Outgoing, cascaded message
-                    await context.EnqueueCascadingAsync(outgoing2).ConfigureAwait(false);
+                    TemplateApp.Features.Users.OrchestrateAccountClosure.AccountClosureSaga.NotFound(ownerTasksHeldIntegrationEvent, _loggerOfAccountClosureSaga);
                 }
                 else
                 {

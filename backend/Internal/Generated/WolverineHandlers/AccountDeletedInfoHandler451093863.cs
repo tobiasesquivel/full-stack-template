@@ -66,7 +66,7 @@ namespace Internal.Generated.WolverineHandlers
                 {
                     
                     // The actual message execution
-                    await TemplateApp.Features.Users.OrchestrateAccountClosure.AccountClosureSaga.NotFound(accountDeletedInfo, accountClosureSteps, _timeProvider, _loggerOfAccountClosureSaga, cancellation).ConfigureAwait(false);
+                    TemplateApp.Features.Users.OrchestrateAccountClosure.AccountClosureSaga.NotFound(accountDeletedInfo, _loggerOfAccountClosureSaga);
                 }
                 else
                 {
