@@ -117,6 +117,11 @@ public sealed class AppendOnlyAnalyzer : DiagnosticAnalyzer
                 }
             }
 
+            if (value.Type is IArrayTypeSymbol { ElementType: INamedTypeSymbol arrayElement } && IsAppendOnly(arrayElement))
+            {
+                return arrayElement;
+            }
+
             if (value.Type is INamedTypeSymbol sequence)
             {
                 var elementType = sequence.AllInterfaces

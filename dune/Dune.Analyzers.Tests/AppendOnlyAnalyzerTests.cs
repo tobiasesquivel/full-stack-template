@@ -115,6 +115,9 @@ public sealed class AppendOnlyAnalyzerTests
                         await db.AccountClosureHistory.Where(e => e.ClosureId == closureId).ExecuteUpdateAsync(s => s.SetProperty(e => e.Kind, "x"), ct);
                         db.AccountClosureHistory.Where(e => e.ClosureId == closureId).ExecuteDelete();
                         await db.AccountClosureHistory.ExecuteDeleteAsync(ct);
+                        var array = rows.ToArray();
+                        db.RemoveRange(array);
+                        db.UpdateRange(array);
                     }
                 }
                 """),
@@ -145,6 +148,8 @@ public sealed class AppendOnlyAnalyzerTests
                 ("backend/Features/Users/RewriteHistory.cs", 22),
                 ("backend/Features/Users/RewriteHistory.cs", 23),
                 ("backend/Features/Users/RewriteHistory.cs", 24),
+                ("backend/Features/Users/RewriteHistory.cs", 26),
+                ("backend/Features/Users/RewriteHistory.cs", 27),
             },
             Locations(diagnostics));
     }
