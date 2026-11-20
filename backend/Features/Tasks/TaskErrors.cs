@@ -20,6 +20,10 @@ internal static class TaskErrors
         code: "ProjectId",
         description: "ProjectId must be one of your projects.");
 
+    public static readonly Error OwnerDeleted = Error.Unauthorized(
+        code: "Task.OwnerDeleted",
+        description: "The account that would own the task was deleted.");
+
     public static readonly Error ProjectArchived = Error.Conflict(
         code: "Task.ProjectArchived",
         description: "A task cannot be added to an archived project.");

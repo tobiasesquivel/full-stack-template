@@ -1,6 +1,8 @@
 using System.Net;
 using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
 using TemplateApp.Infrastructure.Http;
+using TemplateApp.Infrastructure.Messaging;
 using TemplateApp.Tests.Support;
 using Xunit;
 
@@ -9,10 +11,12 @@ namespace TemplateApp.Features.Tasks.DeleteOwnedTasks;
 public sealed class DeleteOwnedTasksTests : IClassFixture<ApiFixture>
 {
     private readonly ApiFixture _fixture;
+    private readonly string _database;
 
-    public DeleteOwnedTasksTests(ApiFixture fixture)
+    public DeleteOwnedTasksTests(ApiFixture fixture, PostgresFixture postgres)
     {
         _fixture = fixture;
+        _database = postgres.ConnectionString;
     }
 
     [Fact]
@@ -46,6 +50,37 @@ public sealed class DeleteOwnedTasksTests : IClassFixture<ApiFixture>
         Assert.Equal(HttpStatusCode.NoContent, deleted.StatusCode);
         AuditRow row = (await _fixture.Services.AuditEntriesAsync(id)).Last();
         Assert.Equal(("Deleted", "user", "admin-42"), (row.Operation, row.ActorKind, row.ActorId));
+    }
+
+    [Fact]
+    public async Task ATaskCreatedWhileTheDeletionWaits_IsDeletedToo()
+    {
+        TestSession alice = new(_fixture.CreateClient());
+        await alice.RegisterAsync(TestAccounts.UniqueName("alice"));
+        await alice.CreateTaskAsync("Antes");
+        Guid late = Guid.NewGuid();
+        await using HeldOwnerLock create = await HeldOwnerLock.SharedAsync(_database, alice.AuthId);
+        await create.ExecuteAsync(
+            """INSERT INTO tasks."TaskItems" ("Id", "OwnerId", "Title", "CreatedAt") VALUES ($1, $2, 'En carrera', now())""",
+            late,
+            alice.AuthId);
+
+        Task deletion = DeleteByEventAsync(alice.AuthId);
+        bool waited = await create.BlocksAsync(deletion);
+        await create.CommitAsync();
+        await deletion;
+
+        Assert.True(waited, "The deletion did not wait for the task being created.");
+        Assert.Equal(0, (await _fixture.Services.OwnedRowsAsync(alice.AuthId)).Tasks);
+        Assert.Equal("tasks.task-deleted", (await _fixture.TasksServices.OutboxRowsAsync(late.ToString())).Last().Type);
+    }
+
+    private async Task DeleteByEventAsync(string ownerId)
+    {
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        await using AsyncServiceScope scope = _fixture.TasksServices.CreateAsyncScope();
+        await scope.ServiceProvider.GetRequiredService<DeleteOwnedTasks>()
+            .ExecuteAsync(ownerId, now, new EventContext(Guid.NewGuid(), OwnerTombstones.Consumer, now, now), TestContext.Current.CancellationToken);
     }
 
     private async Task<HttpResponseMessage> DeleteAsync(string ownerId, string? actor)

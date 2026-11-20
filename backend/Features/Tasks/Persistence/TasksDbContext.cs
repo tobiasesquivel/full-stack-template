@@ -15,10 +15,13 @@ internal sealed class TasksDbContext : DbContext
 
     public DbSet<TaskItem> TaskItems => Set<TaskItem>();
 
+    public DbSet<DeletedOwner> DeletedOwners => Set<DeletedOwner>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Schema);
         modelBuilder.ApplyConfiguration(new TaskItemConfiguration());
+        modelBuilder.ApplyConfiguration(new DeletedOwnerConfiguration());
         modelBuilder.MapSharedAuditEntries();
         modelBuilder.MapOutbox();
         modelBuilder.MapInbox();
