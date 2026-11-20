@@ -33,6 +33,7 @@ internal static class TasksFeature
         services.AddEventHandler<TaskCompleted, PublishTaskEvents.TaskEventPublisher>();
         services.AddEventHandler<TaskReopened, PublishTaskEvents.TaskEventPublisher>();
         services.AddEventHandler<TaskDeleted, PublishTaskEvents.TaskEventPublisher>();
+        services.AddIntegrationEventHandler<DeleteOwnedTasks.UserDeletedIntegrationEvent, DeleteOwnedTasks.UserDeletionsConsumer>(UserEvents.Deleted, UserEvents.Version, UserEvents.Exchange, OwnerTombstones.Consumer);
 
         services.AddSingleton<TaskMetrics>();
         services.AddScoped<TaskAccess>();
@@ -61,7 +62,6 @@ internal static class TasksFeature
 
     public static RouteGroupBuilder MapTasksInternalEndpoints(this RouteGroupBuilder internalApi)
     {
-        DeleteOwnedTasks.DeleteOwnedTasksEndpoint.Map(internalApi);
         SnapshotTaskCounts.SnapshotTaskCountsEndpoint.Map(internalApi);
 
         return internalApi;

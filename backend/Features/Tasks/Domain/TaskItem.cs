@@ -24,17 +24,17 @@ internal sealed class TaskItem : IOwnedResource, IAuditable, IHasDomainEvents
 
     public IReadOnlyList<IDomainEvent> DomainEvents => _domainEvents;
 
-    public static TaskItem Create(string ownerId, string title, Guid? projectId, DateTimeOffset now)
+    public static TaskItem Create(LiveOwner owner, string title, Guid? projectId, DateTimeOffset now)
     {
         TaskItem item = new()
         {
             Id = Guid.NewGuid(),
-            OwnerId = ownerId,
+            OwnerId = owner.Id,
             Title = title,
             ProjectId = projectId,
             CreatedAt = now,
         };
-        item._domainEvents.Add(new TaskCreated(item.Id, ownerId, projectId, now));
+        item._domainEvents.Add(new TaskCreated(item.Id, owner.Id, projectId, now));
         return item;
     }
 

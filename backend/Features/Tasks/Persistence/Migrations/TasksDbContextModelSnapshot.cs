@@ -23,6 +23,20 @@ namespace TemplateApp.Features.Tasks.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("TemplateApp.Features.Tasks.Domain.DeletedOwner", b =>
+                {
+                    b.Property<string>("OwnerId")
+                        .HasMaxLength(450)
+                        .HasColumnType("character varying(450)");
+
+                    b.Property<DateTimeOffset>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("OwnerId");
+
+                    b.ToTable("DeletedOwners", "tasks");
+                });
+
             modelBuilder.Entity("TemplateApp.Features.Tasks.Domain.TaskItem", b =>
                 {
                     b.Property<Guid>("Id")

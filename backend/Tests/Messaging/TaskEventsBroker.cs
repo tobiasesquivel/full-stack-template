@@ -41,7 +41,13 @@ internal sealed class TaskEventsBroker : IAsyncDisposable
 
     public string Name(string identifier) => $"{_prefix}-{identifier}";
 
-    public async Task PublishAsync(string type, Guid messageId, object payload, string version = "1")
+    public Task PublishAsync(string type, Guid messageId, object payload, string version = "1") =>
+        PublishAsync(Exchange, type, messageId, payload, version);
+
+    public Task PublishUserDeletedAsync(Guid messageId, string userId) =>
+        PublishAsync("users.user-events", "users.user-deleted", messageId, new { userId, deletedAt = DateTimeOffset.UtcNow });
+
+    private async Task PublishAsync(string exchange, string type, Guid messageId, object payload, string version = "1")
     {
         BasicProperties properties = new()
         {
@@ -57,7 +63,7 @@ internal sealed class TaskEventsBroker : IAsyncDisposable
             },
         };
         byte[] body = JsonSerializer.SerializeToUtf8Bytes(payload, JsonSerializerOptions.Web);
-        await _channel.BasicPublishAsync(Name(Exchange), type, mandatory: true, properties, body);
+        await _channel.BasicPublishAsync(Name(exchange), type, mandatory: true, properties, body);
     }
 
     public async Task BindProbeAsync()

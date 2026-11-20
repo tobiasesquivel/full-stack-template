@@ -342,6 +342,9 @@ if (process.argv.includes('--compose')) {
     { signal: AbortSignal.timeout(5000) });
   assert.equal(internalThroughGateway.status, 404, 'El gateway no publica los endpoints internos');
   evidence.push({ scenario: 'internal through gateway', status: internalThroughGateway.status });
+  const carol = new ApiClient();
+  await carol.register(`carol${suffix}`);
+  await carol.request('POST', 'tasks', { title: 'Se borra cuando Tasks vuelve' }, { expected: 201 });
   compose('stop', 'tasks');
   try {
     const tasksDown = await waitTasksStatus(alice, 503);
@@ -351,10 +354,10 @@ if (process.argv.includes('--compose')) {
     const projectsWithoutTasks = await alice.request('GET', 'projects', undefined, { expected: 200 });
     assert.deepEqual(projectsWithoutTasks.payload.items.map(item => [item.id, item.taskCount]), [[project.id, 1]],
       'Sin Tasks, la lista de proyectos responde con los contadores que ya tenía');
-    const deleteWithoutTasks = await alice.request('DELETE', 'users/me', undefined, { expected: 503 });
-    assert.equal(deleteWithoutTasks.payload.code, 'Http.ServiceUnavailable');
+    await carol.request('DELETE', 'users/me', undefined, { expected: 204 });
+    await carol.request('GET', 'users/me', undefined, { expected: 401 });
     await alice.request('GET', 'users/me');
-    evidence.push({ scenario: 'tasks down', tasks: 503, usersMe: 200, projects: 200, deleteAccount: 503 });
+    evidence.push({ scenario: 'tasks down', tasks: 503, usersMe: 200, projects: 200, deleteAccount: 204 });
   } finally {
     compose('start', 'tasks');
     await waitTasksStatus(alice, 200);

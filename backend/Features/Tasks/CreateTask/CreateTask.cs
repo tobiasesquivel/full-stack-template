@@ -1,7 +1,9 @@
+using System.Transactions;
 using ErrorOr;
 using TemplateApp.Features.Tasks.Access;
 using TemplateApp.Features.Tasks.Domain;
 using TemplateApp.Features.Tasks.Persistence;
+using TemplateApp.Infrastructure.Persistence;
 using TemplateApp.Shared.Http;
 
 namespace TemplateApp.Features.Tasks.CreateTask;
@@ -44,10 +46,16 @@ internal sealed class CreateTask
                 return TaskErrors.ProjectArchived;
         }
 
-        var item = TaskItem.Create(callerId, TaskItem.NormalizeTitle(request.Title), request.ProjectId, _clock.GetUtcNow());
+        using TransactionScope transaction = CrossContextTransaction.Begin();
+        LiveOwner? owner = await OwnerTombstones.FindLiveAsync(_db, callerId, ct);
+        if (owner is null)
+            return TaskErrors.OwnerDeleted;
+
+        var item = TaskItem.Create(owner, TaskItem.NormalizeTitle(request.Title), request.ProjectId, _clock.GetUtcNow());
 
         _db.TaskItems.Add(item);
         await _db.SaveChangesAsync(ct);
+        transaction.Complete();
         _metrics.TaskCreated();
 
         return TaskResponses.From(item);

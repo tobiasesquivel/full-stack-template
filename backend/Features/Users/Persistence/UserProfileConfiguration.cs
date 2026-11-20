@@ -10,6 +10,8 @@ internal sealed class UserProfileConfiguration : IEntityTypeConfiguration<UserPr
     {
         builder.HasKey(u => u.AuthId);
 
+        builder.Ignore(u => u.DomainEvents);
+
         builder.Property(u => u.AuthId)
             .HasMaxLength(450)
             .IsRequired();

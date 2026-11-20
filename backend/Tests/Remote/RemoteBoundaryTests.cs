@@ -96,30 +96,6 @@ public sealed class RemoteBoundaryTests : IClassFixture<ApiFixture>
     }
 
     [Fact]
-    public async Task TasksAnswerLost_AfterDeletingTheTasks_TheAccountStaysWithoutTasks_AndTheRetryFinishes()
-    {
-        RemoteFault tasks = RemoteFault.LostResponse(RemoteFault.Host(ApiPair.TasksAuthority));
-        tasks.Active = false;
-        ApiPair api = _fixture.CreateIsolatedApi(tasks);
-        TestSession alice = new(api.CreateClient());
-        await alice.RegisterAsync(TestAccounts.UniqueName("alice"));
-        await alice.CreateTaskAsync("Se borra aunque se pierda la respuesta");
-        await alice.CreateProjectAsync("Queda hasta el reintento");
-
-        tasks.Active = true;
-        SessionResponse during = await alice.SendAsync(HttpMethod.Delete, "api/v1/users/me");
-        OwnedRows afterFailure = await api.Monolith.Services.OwnedRowsAsync(alice.AuthId);
-        tasks.Active = false;
-        SessionResponse retry = await alice.SendAsync(HttpMethod.Delete, "api/v1/users/me");
-        retry.Payload?.Dispose();
-
-        ProblemAssert.Problem(during, HttpStatusCode.ServiceUnavailable, "Http.ServiceUnavailable");
-        Assert.Equal(new OwnedRows(1, 1, 1, 1, 0, 1, 0), afterFailure);
-        Assert.Equal(HttpStatusCode.NoContent, retry.Status);
-        Assert.Equal(OwnedRows.None, await api.Monolith.Services.OwnedRowsAsync(alice.AuthId));
-    }
-
-    [Fact]
     public async Task ProjectsUnreachable_CreatingATaskInAProject_Answers503_AndSavesNothing()
     {
         RemoteFault projects = RemoteFault.Unreachable(request =>
@@ -173,47 +149,24 @@ public sealed class RemoteBoundaryTests : IClassFixture<ApiFixture>
     }
 
     [Fact]
-    public async Task TasksUnreachable_DeletingTheAccount_Answers503_LeavesEveryRow_AndTheRetryLeavesNoOrphan()
+    public async Task ProjectsSilent_TheCallerGivesUpAtItsTimeout_With503()
     {
-        RemoteFault tasks = RemoteFault.Unreachable(RemoteFault.Host(ApiPair.TasksAuthority));
-        tasks.Active = false;
-        ApiPair api = _fixture.CreateIsolatedApi(tasks);
-        TestSession alice = new(api.CreateClient());
-        await alice.RegisterAsync(TestAccounts.UniqueName("alice"));
-        await alice.CreateTaskAsync("Debe sobrevivir a la caída");
-        await alice.CreateProjectAsync("También");
-        OwnedRows before = await api.Monolith.Services.OwnedRowsAsync(alice.AuthId);
-
-        tasks.Active = true;
-        SessionResponse during = await alice.SendAsync(HttpMethod.Delete, "api/v1/users/me");
-        OwnedRows afterFailure = await api.Monolith.Services.OwnedRowsAsync(alice.AuthId);
-        tasks.Active = false;
-        SessionResponse retry = await alice.SendAsync(HttpMethod.Delete, "api/v1/users/me");
-        retry.Payload?.Dispose();
-
-        Assert.Equal(new OwnedRows(1, 1, 1, 1, 1, 1, 0), before);
-        ProblemAssert.Problem(during, HttpStatusCode.ServiceUnavailable, "Http.ServiceUnavailable");
-        Assert.Equal(before, afterFailure);
-        Assert.Equal(HttpStatusCode.NoContent, retry.Status);
-        Assert.Equal(OwnedRows.None, await api.Monolith.Services.OwnedRowsAsync(alice.AuthId));
-    }
-
-    [Fact]
-    public async Task TasksSilent_TheCallerGivesUpAtItsTimeout_With503()
-    {
-        RemoteFault tasks = RemoteFault.Silent(RemoteFault.Host(ApiPair.TasksAuthority));
+        RemoteFault projects = RemoteFault.Silent(request =>
+            RemoteFault.Host(ApiPair.MonolithAuthority)(request) && RemoteFault.Path(OwnerScoped)(request));
+        projects.Active = false;
         ApiPair api = _fixture.CreateIsolatedApi(
-            new Dictionary<string, string> { ["Services:Tasks:Timeout"] = "00:00:00.500" },
-            tasks);
+            new Dictionary<string, string> { ["Services:Monolith:Timeout"] = "00:00:00.500" },
+            projects);
         TestSession alice = new(api.CreateClient());
         await alice.RegisterAsync(TestAccounts.UniqueName("alice"));
-        await alice.CreateProjectAsync("Lento");
+        string project = await alice.CreateProjectAsync("Lento");
 
+        projects.Active = true;
         Stopwatch clock = Stopwatch.StartNew();
-        SessionResponse deleted = await alice.SendAsync(HttpMethod.Delete, "api/v1/users/me");
+        SessionResponse created = await alice.SendAsync(HttpMethod.Post, "api/v1/tasks", new { title = "Embalar", projectId = project });
         clock.Stop();
 
-        ProblemAssert.Problem(deleted, HttpStatusCode.ServiceUnavailable, "Http.ServiceUnavailable");
+        ProblemAssert.Problem(created, HttpStatusCode.ServiceUnavailable, "Http.ServiceUnavailable");
         Assert.InRange(clock.Elapsed, TimeSpan.FromMilliseconds(400), TimeSpan.FromSeconds(5));
     }
 

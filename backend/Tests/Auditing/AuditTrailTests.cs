@@ -129,7 +129,7 @@ public sealed class AuditTrailTests : IClassFixture<ApiFixture>
     }
 
     [Fact]
-    public async Task AccountDeletion_RecordsTheProfileAndEachOfItsTasks()
+    public async Task AccountDeletion_RecordsTheProfileDeletedByTheUser_AndLeavesTheTasksToTheEvent()
     {
         var alice = new TestSession(_fixture.CreateClient());
         await alice.RegisterAsync(TestAccounts.UniqueName("alice"));
@@ -145,7 +145,7 @@ public sealed class AuditTrailTests : IClassFixture<ApiFixture>
             profileRows.Select(r => (r.Operation, r.ActorKind, r.ActorId)));
         List<AuditRow> taskRows = await _fixture.Services.AuditEntriesAsync(id);
         Assert.Equal(
-            [("Added", "user", alice.AuthId), ("Deleted", "user", alice.AuthId)],
+            [("Added", "user", alice.AuthId)],
             taskRows.Select(r => (r.Operation, r.ActorKind, r.ActorId)));
     }
 

@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using TemplateApp.Features.Users.Domain;
+using TemplateApp.Infrastructure.Messaging;
 using TemplateApp.Infrastructure.Persistence;
 
 namespace TemplateApp.Features.Users.Persistence;
@@ -19,5 +20,6 @@ internal sealed class UsersDbContext : DbContext
         modelBuilder.HasDefaultSchema(Schema);
         modelBuilder.ApplyConfiguration(new UserProfileConfiguration());
         modelBuilder.MapSharedAuditEntries();
+        modelBuilder.MapOutbox();
     }
 }
