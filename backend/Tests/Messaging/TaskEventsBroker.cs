@@ -53,6 +53,12 @@ internal sealed class TaskEventsBroker : IAsyncDisposable
     public Task PublishClosureRejectedAsync(Guid messageId, Guid closureId, string userId) =>
         PublishAsync("auth.account-events", "auth.account-closure-rejected", messageId, new { closureId, userId, reason = "Auth.LastSuperAdmin", rejectedAt = DateTimeOffset.UtcNow });
 
+    public Task PublishHoldCommandAsync(Guid messageId, Guid closureId, string userId) =>
+        PublishAsync("tasks.commands", "tasks.hold-owner-tasks", messageId, new { closureId, userId, requestedAt = DateTimeOffset.UtcNow });
+
+    public Task PublishReleaseCommandAsync(Guid messageId, Guid closureId, string userId) =>
+        PublishAsync("tasks.commands", "tasks.release-owner-tasks", messageId, new { closureId, userId });
+
     private async Task PublishAsync(string exchange, string type, Guid messageId, object payload, string version = "1")
     {
         BasicProperties properties = new()

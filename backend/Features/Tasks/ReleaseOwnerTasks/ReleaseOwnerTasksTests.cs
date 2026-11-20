@@ -38,6 +38,28 @@ public sealed class ReleaseOwnerTasksTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task AReleaseCommand_ReleasesTheHold_AndRepliesOwnerTasksReleasedOnce()
+    {
+        (IsolatedApi api, TaskEventsBroker broker) = await StartAsync();
+        TestSession alice = await api.SignUpAsync("alice");
+        Guid closure = Guid.NewGuid();
+        Guid held = Guid.NewGuid();
+        Guid released = Guid.NewGuid();
+        Guid again = Guid.NewGuid();
+        await broker.PublishHoldCommandAsync(held, closure, alice.AuthId);
+        await HoldOwnerTasksTests.AcceptedAsync(api, held);
+
+        await broker.PublishReleaseCommandAsync(released, closure, alice.AuthId);
+        await HoldOwnerTasksTests.AcceptedAsync(api, released);
+        await broker.PublishReleaseCommandAsync(again, closure, alice.AuthId);
+        await HoldOwnerTasksTests.AcceptedAsync(api, again);
+
+        Assert.Equal(0, await HoldOwnerTasksTests.HoldsAsync(api, alice.AuthId, closure));
+        Assert.Equal(1, await ReleasedEventsAsync(api, closure));
+        await alice.CreateTaskAsync("Después de soltar");
+    }
+
+    [Fact]
     public async Task AnOldRejection_DoesNotReleaseTheHoldOfANewerClosure()
     {
         (IsolatedApi api, TaskEventsBroker broker) = await StartAsync();
@@ -64,6 +86,10 @@ public sealed class ReleaseOwnerTasksTests : IAsyncDisposable
         foreach (IsolatedApi api in _apis)
             api.Dispose();
     }
+
+    private static Task<long> ReleasedEventsAsync(IsolatedApi api, Guid closureId) =>
+        api.Pair.Monolith.Services.CountAsync(
+            $"""SELECT count(*) AS "Value" FROM tasks."OutboxMessages" WHERE "Type" = 'tasks.owner-tasks-released' AND "Payload"->>'closureId' = {closureId.ToString()}""");
 
     private async Task<(IsolatedApi Api, TaskEventsBroker Broker)> StartAsync()
     {
