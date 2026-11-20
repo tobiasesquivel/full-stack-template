@@ -158,7 +158,9 @@ public sealed class RemoteBoundaryTests : IClassFixture<ApiFixture>
             new Dictionary<string, string>
             {
                 ["Services:Monolith:Timeout"] = "00:00:00.300",
-                ["Services:Monolith:TotalTimeout"] = "00:00:01",
+                ["Services:Monolith:TotalTimeout"] = "00:00:00.700",
+                ["Services:Monolith:Retries"] = "5",
+                ["Services:Monolith:RetryDelay"] = "00:00:00.010",
             },
             projects);
         TestSession alice = new(api.CreateClient());
@@ -171,7 +173,7 @@ public sealed class RemoteBoundaryTests : IClassFixture<ApiFixture>
         clock.Stop();
 
         ProblemAssert.Problem(created, HttpStatusCode.ServiceUnavailable, "Http.ServiceUnavailable");
-        Assert.InRange(clock.Elapsed, TimeSpan.FromMilliseconds(900), TimeSpan.FromSeconds(3));
+        Assert.InRange(clock.Elapsed, TimeSpan.FromMilliseconds(600), TimeSpan.FromMilliseconds(1500));
         Assert.InRange(projects.Calls, 2, 3);
     }
 

@@ -1,8 +1,10 @@
 using System.Net;
+using System.Net.Http.Json;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Polly.CircuitBreaker;
 using Polly.RateLimiting;
+using Polly.Timeout;
 using TemplateApp.Features.Tasks;
 using TemplateApp.Features.Tasks.Access;
 using TemplateApp.Infrastructure.Http;
@@ -78,7 +80,7 @@ public sealed class RemoteResilienceTests : IDisposable
         await using ServiceProvider services = Services<ProjectsClient>(
             RemoteRetry.Idempotent,
             ("BreakerMinimumThroughput", "2"),
-            ("BreakDuration", "00:00:00.500"));
+            ("BreakDuration", "00:00:02"));
         ProjectsClient projects = services.GetRequiredService<ProjectsClient>();
         CancellationToken ct = TestContext.Current.CancellationToken;
 
@@ -92,7 +94,7 @@ public sealed class RemoteResilienceTests : IDisposable
         _monolith.Reset();
         _monolith.Given(OwnerProjects().UsingGet())
             .RespondWith(Response.Create().WithStatusCode(HttpStatusCode.OK).WithBodyAsJson(new { isArchived = false }));
-        await Task.Delay(TimeSpan.FromMilliseconds(700), ct);
+        await Task.Delay(TimeSpan.FromMilliseconds(2300), ct);
         ProjectAssignment? probe = await projects.FindAssignableAsync("alice", Guid.NewGuid(), ct);
         ProjectAssignment? closed = await projects.FindAssignableAsync("alice", Guid.NewGuid(), ct);
 
@@ -108,20 +110,53 @@ public sealed class RemoteResilienceTests : IDisposable
     [Fact]
     public async Task Bulkhead_ACallOverTheConcurrencyLimit_IsRejectedWithoutReachingTheServer()
     {
-        _monolith.Given(OwnerProjects().UsingGet())
-            .RespondWith(Response.Create().WithStatusCode(HttpStatusCode.OK).WithBodyAsJson(new { isArchived = false }).WithDelay(TimeSpan.FromMilliseconds(500)));
-        await using ServiceProvider services = Services<ProjectsClient>(RemoteRetry.Idempotent, ("MaxConcurrentRequests", "1"));
+        HeldServer server = new();
+        await using ServiceProvider services = Services<ProjectsClient>(RemoteRetry.Idempotent, server, ("MaxConcurrentRequests", "1"));
         ProjectsClient projects = services.GetRequiredService<ProjectsClient>();
         CancellationToken ct = TestContext.Current.CancellationToken;
 
         Task<ProjectAssignment?> first = projects.FindAssignableAsync("alice", Guid.NewGuid(), ct);
-        await Task.Delay(TimeSpan.FromMilliseconds(100), ct);
+        await server.Arrived.Task.WaitAsync(ct);
         RemoteServiceUnavailableException second = await Assert.ThrowsAsync<RemoteServiceUnavailableException>(
             () => projects.FindAssignableAsync("bob", Guid.NewGuid(), ct));
+        server.Release.SetResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(new { isArchived = false }) });
 
         Assert.IsType<RateLimiterRejectedException>(second.InnerException);
         Assert.Equal(new ProjectAssignment(IsArchived: false), await first);
-        Assert.Single(_monolith.LogEntries);
+        Assert.Equal(1, server.Calls);
+    }
+
+    [Fact]
+    public async Task HeadersArriveButTheBodyStalls_TheAttemptTimeoutCoversTheBody_AndTheCallerGets503()
+    {
+        StalledBodyServer server = new();
+        await using ServiceProvider services = Services<ProjectsClient>(
+            RemoteRetry.Idempotent,
+            server,
+            ("Timeout", "00:00:00.300"),
+            ("TotalTimeout", "00:00:02"),
+            ("Retries", "1"));
+        using CancellationTokenSource guard = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        guard.CancelAfter(TimeSpan.FromSeconds(10));
+
+        RemoteServiceUnavailableException stalled = await Assert.ThrowsAsync<RemoteServiceUnavailableException>(
+            () => services.GetRequiredService<ProjectsClient>().FindAssignableAsync("alice", Guid.NewGuid(), guard.Token));
+
+        Assert.IsType<TimeoutRejectedException>(stalled.InnerException);
+        Assert.Equal(2, server.Calls);
+    }
+
+    [Fact]
+    public async Task PersistentTooManyRequests_AfterTheRetries_TheCallerGets503()
+    {
+        _monolith.Given(OwnerProjects().UsingGet())
+            .RespondWith(Response.Create().WithStatusCode(HttpStatusCode.TooManyRequests).WithHeader("Retry-After", "86400"));
+        await using ServiceProvider services = Services<ProjectsClient>(RemoteRetry.Idempotent, ("Retries", "1"));
+
+        await Assert.ThrowsAsync<RemoteServiceUnavailableException>(() => services.GetRequiredService<ProjectsClient>()
+            .FindAssignableAsync("alice", Guid.NewGuid(), TestContext.Current.CancellationToken));
+
+        Assert.Equal(2, _monolith.LogEntries.Count());
     }
 
     public void Dispose() => _monolith.Dispose();
@@ -130,6 +165,10 @@ public sealed class RemoteResilienceTests : IDisposable
         Request.Create().WithPath(new WildcardMatcher("/internal/v1/owners/*/projects/*"));
 
     private ServiceProvider Services<TClient>(RemoteRetry retry, params (string Key, string Value)[] settings)
+        where TClient : class =>
+        Services<TClient>(retry, primary: null, settings);
+
+    private ServiceProvider Services<TClient>(RemoteRetry retry, HttpMessageHandler? primary, params (string Key, string Value)[] settings)
         where TClient : class
     {
         string section = $"{RemoteServiceOptions.Section}:{TasksFeature.MonolithService}";
@@ -146,7 +185,44 @@ public sealed class RemoteResilienceTests : IDisposable
         services.AddLogging();
         services.AddMetrics();
         services.AddHttpContextAccessor();
-        services.AddRemoteClient<TClient>(TasksFeature.MonolithService, retry);
+        IHttpClientBuilder client = services.AddRemoteClient<TClient>(TasksFeature.MonolithService, retry);
+        if (primary is not null)
+            client.ConfigurePrimaryHttpMessageHandler(() => primary);
         return services.BuildServiceProvider();
+    }
+
+    private sealed class HeldServer : HttpMessageHandler
+    {
+        private int _calls;
+
+        public TaskCompletionSource Arrived { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public TaskCompletionSource<HttpResponseMessage> Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public int Calls => _calls;
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Interlocked.Increment(ref _calls);
+            Arrived.TrySetResult();
+            return Release.Task.WaitAsync(cancellationToken);
+        }
+    }
+
+    private sealed class StalledBodyServer : HttpMessageHandler
+    {
+        private int _calls;
+
+        public int Calls => _calls;
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Interlocked.Increment(ref _calls);
+            System.IO.Pipelines.Pipe body = new();
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StreamContent(body.Reader.AsStream()),
+            });
+        }
     }
 }

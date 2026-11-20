@@ -21,6 +21,7 @@ public static class RemoteServices
         services.AddOptionsWithValidateOnStart<RemoteServiceOptions, RemoteServiceOptionsValidator>(service)
             .BindConfiguration($"{RemoteServiceOptions.Section}:{service}");
         services.AddTransient<OnBehalfOf.ForwardingHandler>();
+        services.AddTransient<BufferedBodyHandler>();
 
         IHttpClientBuilder client = services.AddHttpClient<TClient>((provider, http) =>
             {
@@ -30,7 +31,7 @@ public static class RemoteServices
             .AddHttpMessageHandler<OnBehalfOf.ForwardingHandler>();
         client.AddResilienceHandler(ResilienceHandler, (pipeline, context) =>
             BuildPipeline(pipeline, context.ServiceProvider.GetRequiredService<IOptionsMonitor<RemoteServiceOptions>>().Get(service), retry));
-        return client;
+        return client.AddHttpMessageHandler<BufferedBodyHandler>();
     }
 
     private static void BuildPipeline(ResiliencePipelineBuilder<HttpResponseMessage> pipeline, RemoteServiceOptions remote, RemoteRetry retry)
@@ -47,6 +48,7 @@ public static class RemoteServices
                 Delay = remote.RetryDelay,
                 BackoffType = DelayBackoffType.Exponential,
                 UseJitter = true,
+                ShouldRetryAfterHeader = false,
             });
         }
 
@@ -87,7 +89,7 @@ public static class RemoteServices
         HttpStatusCode status = response.StatusCode;
         response.Dispose();
         string answered = $"answered {(int)status}";
-        if ((int)status >= 500)
+        if ((int)status >= 500 || status is HttpStatusCode.RequestTimeout or HttpStatusCode.TooManyRequests)
             throw new RemoteServiceUnavailableException(Describe(client, request, answered));
 
         throw new InvalidOperationException(Describe(client, request, answered + ", outside its contract"));

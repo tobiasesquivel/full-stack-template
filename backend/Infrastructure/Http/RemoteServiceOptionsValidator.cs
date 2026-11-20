@@ -4,6 +4,7 @@ namespace TemplateApp.Infrastructure.Http;
 
 public sealed class RemoteServiceOptionsValidator : IValidateOptions<RemoteServiceOptions>
 {
+    private static readonly TimeSpan MinTimeout = TimeSpan.FromMilliseconds(10);
     private static readonly TimeSpan MaxTimeout = RemoteServices.BreakerSamplingDuration / 2;
     private static readonly TimeSpan MaxTotalTimeout = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan MinBreakDuration = TimeSpan.FromMilliseconds(500);
@@ -20,8 +21,8 @@ public sealed class RemoteServiceOptionsValidator : IValidateOptions<RemoteServi
             || (address.Scheme != Uri.UriSchemeHttp && address.Scheme != Uri.UriSchemeHttps))
             failures.Add($"{section}:BaseAddress must be an absolute http or https URL.");
 
-        if (options.Timeout <= TimeSpan.Zero || options.Timeout > MaxTimeout)
-            failures.Add($"{section}:Timeout must be greater than zero and at most {MaxTimeout.TotalSeconds} seconds.");
+        if (options.Timeout < MinTimeout || options.Timeout > MaxTimeout)
+            failures.Add($"{section}:Timeout must be between {MinTimeout.TotalMilliseconds} ms and {MaxTimeout.TotalSeconds} seconds.");
 
         if (options.TotalTimeout <= options.Timeout || options.TotalTimeout > MaxTotalTimeout)
             failures.Add($"{section}:TotalTimeout must be greater than Timeout and at most {MaxTotalTimeout.TotalSeconds} seconds.");
@@ -29,8 +30,8 @@ public sealed class RemoteServiceOptionsValidator : IValidateOptions<RemoteServi
         if (options.Retries is < 0 or > MaxRetries)
             failures.Add($"{section}:Retries must be between 0 and {MaxRetries}.");
 
-        if (options.RetryDelay <= TimeSpan.Zero)
-            failures.Add($"{section}:RetryDelay must be greater than zero.");
+        if (options.RetryDelay <= TimeSpan.Zero || options.RetryDelay >= options.TotalTimeout)
+            failures.Add($"{section}:RetryDelay must be greater than zero and shorter than TotalTimeout.");
 
         if (options.BreakDuration < MinBreakDuration || options.BreakDuration > MaxBreakDuration)
             failures.Add($"{section}:BreakDuration must be between {MinBreakDuration.TotalSeconds} and {MaxBreakDuration.TotalSeconds} seconds.");

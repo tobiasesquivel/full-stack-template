@@ -8,6 +8,8 @@ namespace TemplateApp.Tests.Remote;
 
 public sealed partial class TimeoutCascadeTests
 {
+    private const int SequentialRemoteCallsPerRequest = 2;
+
     private static readonly TimeSpan NginxDefaultReadTimeout = TimeSpan.FromSeconds(60);
 
     private static readonly string Root = FindRoot();
@@ -29,13 +31,14 @@ public sealed partial class TimeoutCascadeTests
         Assert.Equal(["monolith", "tasks"], clusters.Keys.Order(StringComparer.Ordinal));
         foreach ((string cluster, TimeSpan timeout) in clusters)
         {
-            Assert.True(client.TotalTimeout < timeout, $"{service}: total {client.TotalTimeout} must be shorter than the gateway cluster {cluster} ({timeout})");
+            TimeSpan worstCase = client.TotalTimeout * SequentialRemoteCallsPerRequest;
+            Assert.True(worstCase < timeout, $"{service}: {SequentialRemoteCallsPerRequest} calls of {client.TotalTimeout} must end before the gateway cluster {cluster} gives up ({timeout})");
             Assert.True(timeout < nginx, $"gateway cluster {cluster} ({timeout}) must be shorter than nginx ({nginx})");
         }
     }
 
     [Fact]
-    public void ComposeDoesNotOverrideTheClientTimeouts()
+    public void ComposeDoesNotOverrideTheTimeouts()
     {
         string compose = File.ReadAllText(Path.Combine(Root, "compose.yaml"));
 
@@ -76,6 +79,6 @@ public sealed partial class TimeoutCascadeTests
     [GeneratedRegex(@"proxy_read_timeout\s+(\d+)s?\s*;")]
     private static partial Regex NginxReadTimeoutSetting();
 
-    [GeneratedRegex(@"Services__\w+__\w*Timeout")]
+    [GeneratedRegex(@"Services__\w+__\w*Timeout|ReverseProxy__Clusters__\w+__HttpRequest__ActivityTimeout")]
     private static partial Regex ComposeTimeoutOverride();
 }
