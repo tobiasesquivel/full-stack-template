@@ -25,7 +25,7 @@ Usamos **Vertical Slice Architecture** (Jimmy Bogard) dentro de features que fun
 6. **Lo que nombra una feature va a esa feature.** `Infrastructure/` queda para la fontanería técnica del host. `Shared/` queda como núcleo mínimo que no nombra ninguna feature. Cada feature se registra sola desde su `<Feature>Feature.cs`.
 7. **Un solo proyecto .NET.** Dune hace cumplir los límites. Desde el paso 23, un proyecto por proceso: lo cambia [ADR-0005](0005-gateway-y-procesos-propios.md).
 8. **El frontend sigue el mismo criterio.** Cada feature de Angular tiene su servicio, sus modelos y sus rutas. `core/` queda para lo transversal.
-9. **Sin mediator ni bus por ahora.** El paso 25 del plan elige un bus. Hasta entonces, un gate neutral rechaza cualquier librería de bus o mediator.
+9. **Sin mediator; un bus solo como transporte.** Desde el paso 25 el bus es Wolverine sobre RabbitMQ y vive en `Infrastructure/Messaging`: lleva eventos de integración entre procesos y nada más. Ninguna slice lo usa como mediator ni lo conoce (DUNE0025).
 
 ## Cambios
 
@@ -33,6 +33,7 @@ Usamos **Vertical Slice Architecture** (Jimmy Bogard) dentro de features que fun
 - 2026-10-18 (paso 4), decide Tobi: el punto 4 pasa de "una sola dirección" a "las dos direcciones, solo por contrato". El código ya usaba `Users.Contracts` desde Auth, y `architecture.md` lo describía así. El paso 4 lo hace visible: `RegisterUser` arma la URL del usuario con `Users.Contracts.UserEndpointNames`.
 - 2026-11-03 (paso 6.3), decide Tobi: `Contracts/` es solo lo que usa otra feature (punto 5). Las responses HTTP que comparten varias slices de la misma feature salen de `Contracts/` a la raíz de la feature (`TaskResponse`, `HealthStatusResponse`). Cada feature que expone algo tiene una sola puerta, `I<Feature>Module`, implementada por `<Feature>Module` en la raíz. No es el módulo parcial que descarta este ADR: es una interfaz por caso de uso entre features, y las slices siguen siendo clases propias.
 - 2026-11-18 (paso 23), decide Tobi: el punto 7 pasa a "un proyecto .NET por proceso". El gateway del paso 23 es un proceso propio, y el paso 23.2 extrae `Tasks` a otro. Lo explica [ADR-0005](0005-gateway-y-procesos-propios.md).
+- 2026-11-19 (paso 25), decide Tobi la herramienta (Wolverine y RabbitMQ) y el modo autónomo el resto: el punto 9 pasa de "sin mediator ni bus por ahora" a "sin mediator; un bus solo como transporte". Wolverine entra solo por `Infrastructure/Messaging` (gate de `check-structure.mjs` y DUNE0025); las features publican con `IntegrationEventPublisher` y consumen con `IIntegrationEventHandler<T>`, interfaces del repo. `IMessageBus.InvokeAsync`, el modo mediator de Wolverine, está prohibido en todo el producto.
 
 ## Condiciones para que una slice siga siendo profunda
 

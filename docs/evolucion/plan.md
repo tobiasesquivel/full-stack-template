@@ -430,8 +430,15 @@ El paso 0.28 se agregó el 2026-10-17, a pedido de Tobi, con otro pendiente del 
 
 **25. Broker real con consumidor idempotente y DLQ.**
 **Concepto**: at-least-once, deduplicación, mensajes venenosos, orden por partición.
-**Cambia**: `compose.yaml` (broker), adaptador de mensajería, relay del outbox, health de la dependencia, tests de integración con el broker contenedorizado. ⏸ **DECISIÓN DE TOBI (pendiente, bloquea el paso)**: librería — Wolverine (MIT) o MassTransit v8 (Apache-2.0) si no hay presupuesto; v9 y NServiceBus son comerciales. MediatR NO es candidato aquí (es in-process, no bus).
+**Cambia**: `compose.yaml` (broker), adaptador de mensajería, relay del outbox, health de la dependencia, tests de integración con el broker contenedorizado. **Decisión de Tobi (2026-11-19)**: Wolverine (MIT) como librería y RabbitMQ como broker. Descartados MassTransit v8 (mantenimiento hasta fin de 2026) y v9 (comercial).
 **Verifica**: test de reintento y de DLQ; test que mata al consumidor a mitad y el mensaje se reprocesa sin efecto duplicado.
+**Nota**: la investigación es [paso-25-broker-wolverine.md](investigacion/paso-25-broker-wolverine.md). Se hizo en modo autónomo. El outbox casero del paso 24 queda y Wolverine es solo el transporte: el relay de Tasks publica los cuatro eventos de tarea en el exchange `tasks.task-events` de RabbitMQ y el monolito los consume de la cola quorum `projects.task-counters` (un solo consumidor activo, DLQ propia) con el inbox del 24.1. El evento de cuenta borrada pasa al paso 25.1. El PR va en tres commits ordenados como releases (el monolito escucha, Tasks publica, se borra el `PUT`). Las elecciones están en `docs/decisions.tsv`. Regla nueva: DUNE0025 (Wolverine solo en `Infrastructure/Messaging` y nunca como mediator).
+
+**25.1. Evento de cuenta borrada por el broker.**
+**Concepto**: un segundo productor y un segundo consumidor sobre el mismo bus: el outbox en el monolito y el consumidor idempotente en Tasks, con una lápida contra la carrera con `POST /tasks`.
+**Cambia**: outbox en el schema `users` (tabla, interceptor y relay), evento de dominio `UserDeleted` en `UserProfile`, `UserDeletedIntegrationEvent` en las dos features, consumidor con inbox en Tasks, lápida del dueño borrado que `CreateTask` consulta en su transacción, `DeleteUser` sin la llamada HTTP, borrar `OwnedTasksClient` y `DELETE /internal/v1/owners/{id}/tasks`, tests. Puede sacar `CrossContextTransaction` de `DeleteUser` si Auth y Projects también pasan a eventos; si no, queda.
+**Verifica**: borrar la cuenta con Tasks caído responde 204 y las tareas se borran cuando Tasks vuelve; el mismo evento entregado dos veces borra una sola vez; una tarea creada después del borrado de la cuenta no queda huérfana.
+**Nota**: lo propuso la investigación del paso 25 (sección 11) para que el 25 sea un solo cambio observable. Lo abre el orquestador del modo autónomo después del 25.
 
 **26. Saga coreografiada (3 pasos con compensación).**
 **Concepto**: transacción distribuida sin locks; compensación explícita.

@@ -4,6 +4,7 @@ using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Npgsql;
+using TemplateApp.Infrastructure.Messaging;
 using TemplateApp.Tests.Support;
 using Xunit;
 
@@ -15,15 +16,33 @@ public sealed class GetReadinessTests : IClassFixture<ApiFixture>
 
     private readonly ApiFixture _fixture;
     private readonly PostgresFixture _postgres;
+    private readonly RabbitMqFixture _rabbit;
 
-    public GetReadinessTests(ApiFixture fixture, PostgresFixture postgres)
+    public GetReadinessTests(ApiFixture fixture, PostgresFixture postgres, RabbitMqFixture rabbit)
     {
         _fixture = fixture;
         _postgres = postgres;
+        _rabbit = rabbit;
     }
 
     [Fact]
     public async Task Ready_Returns200_WithEachDependencyHealthy()
+    {
+        using HttpClient client = ClientAgainst(
+            _postgres.ConnectionString,
+            services => services.PostConfigure<MessagingOptions>(options => options.RabbitMqUri = _rabbit.Uri));
+        using HttpResponseMessage response = await client.GetAsync("/api/v1/health/ready");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using JsonDocument body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("ready", body.RootElement.GetProperty("status").GetString());
+        Assert.Equal(
+            new Dictionary<string, string> { ["database"] = "healthy", ["migrations"] = "healthy", ["rabbitmq"] = "healthy", ["broker"] = "healthy", ["broker-listeners"] = "healthy" },
+            Checks(body));
+    }
+
+    [Fact]
+    public async Task Ready_Returns200_WithRabbitMqUnreachable_AndMarksItDegraded()
     {
         using HttpClient client = _fixture.CreateClient();
         using HttpResponseMessage response = await client.GetAsync("/api/v1/health/ready");
@@ -33,7 +52,7 @@ public sealed class GetReadinessTests : IClassFixture<ApiFixture>
         Assert.Equal("ready", body.RootElement.GetProperty("status").GetString());
         Assert.True(body.RootElement.TryGetProperty("timestamp", out _));
         Assert.Equal(
-            new Dictionary<string, string> { ["database"] = "healthy", ["migrations"] = "healthy" },
+            new Dictionary<string, string> { ["database"] = "healthy", ["migrations"] = "healthy", ["rabbitmq"] = "degraded", ["broker"] = "healthy", ["broker-listeners"] = "healthy" },
             Checks(body));
     }
 
@@ -69,7 +88,7 @@ public sealed class GetReadinessTests : IClassFixture<ApiFixture>
         using JsonDocument body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         Assert.Equal("not-ready", body.RootElement.GetProperty("status").GetString());
         Assert.Equal(
-            new Dictionary<string, string> { ["database"] = "healthy", ["migrations"] = "unhealthy" },
+            new Dictionary<string, string> { ["database"] = "healthy", ["migrations"] = "unhealthy", ["rabbitmq"] = "degraded", ["broker"] = "healthy", ["broker-listeners"] = "healthy" },
             Checks(body));
     }
 

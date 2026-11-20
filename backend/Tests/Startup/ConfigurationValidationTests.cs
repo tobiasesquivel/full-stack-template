@@ -24,6 +24,9 @@ public sealed class ConfigurationValidationTests : IDisposable
     [InlineData("Services__Tasks__BaseAddress", null, "Services:Tasks:BaseAddress must be an absolute http or https URL.")]
     [InlineData("Services__Tasks__BaseAddress", "tasks:8080", "Services:Tasks:BaseAddress must be an absolute http or https URL.")]
     [InlineData("Services__Tasks__Timeout", "00:01:00", "Services:Tasks:Timeout must be greater than zero and at most 30 seconds.")]
+    [InlineData("Messaging__RabbitMqUri", null, "Messaging:RabbitMqUri must be an absolute amqp or amqps URL.")]
+    [InlineData("Messaging__RabbitMqUri", "http://rabbitmq:15672/", "Messaging:RabbitMqUri must be an absolute amqp or amqps URL.")]
+    [InlineData("Messaging__Prefix", "Tests_1", "Messaging:Prefix may only use lowercase letters, digits and hyphens.")]
     public async Task Api_WithAnInvalidSetting_ExitsBeforeTouchingTheDatabase_NamingTheSetting(string variable, string? value, string expected)
     {
         (int exitCode, string output) = await RunApiAsync(variable, value);
@@ -76,6 +79,7 @@ public sealed class ConfigurationValidationTests : IDisposable
         start.Environment["Session__IdleTimeoutMinutes"] = "30";
         start.Environment["Services__Tasks__BaseAddress"] = "http://tasks.invalid/";
         start.Environment["Services__Monolith__BaseAddress"] = "http://monolith.invalid/";
+        start.Environment["Messaging__RabbitMqUri"] = "amqp://rabbitmq.invalid:5672/";
         start.Environment.Remove("OTEL_EXPORTER_OTLP_ENDPOINT");
         if (value is null)
             start.Environment.Remove(variable);

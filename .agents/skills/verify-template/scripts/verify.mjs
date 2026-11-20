@@ -26,6 +26,7 @@ const FRONTEND_PKG = path.join(FRONTEND_DIR, 'package.json');
 
 const RUN_ID_RE = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;
 const DEFAULT_PG_IMAGE = 'postgres:18';
+const DEFAULT_BROKER_IMAGE = 'rabbitmq:4.4.1-management';
 const DEFAULT_DB_NAME = 'template_verify';
 const READY_SENTINEL = 'VERIFY_TEMPLATE_READY';
 const LABEL_RUN = 'verify-template-run';
@@ -578,6 +579,7 @@ const STAGE_NAMES = [
   'dotnet-build',
   'dotnet-test',
   'postgres-start',
+  'broker-start',
   'api-start',
   'frontend-setup',
   'frontend-serve',
@@ -746,6 +748,7 @@ async function teardownOwned({
   children = null,
   containerName = null,
   volumeName = null,
+  brokerName = null,
   dockerResources = false,
   verify = false,
   runRecord = null,
@@ -810,6 +813,35 @@ async function teardownOwned({
     };
     await remove('container', ['rm', '-f', containerName], /no such container/i);
     await remove('volume', ['volume', 'rm', volumeName], /no such volume/i);
+  }
+
+  if ((dockerResources || verify) && brokerName) {
+    const listed = runSync({
+      cmd: 'docker',
+      args: ['ps', '-aq', '--filter', `name=^/${brokerName}$`, '--filter', `label=${LABEL_RUN}=${runId}`],
+      cwd: REPO_ROOT,
+      timeoutMs: timeout,
+      stdoutPath: path.join(evidenceDir ?? REPO_ROOT, `${tag}-broker-ps.stdout.log`),
+      stderrPath: path.join(evidenceDir ?? REPO_ROOT, `${tag}-broker-ps.stderr.log`),
+    });
+    const ids = listed.stdout.trim().split(/\s+/).filter(Boolean);
+    if (listed.exitCode !== 0) {
+      ok = false;
+      actions.push({ what: 'broker:ps', exitCode: listed.exitCode });
+    } else if (ids.length === 0) {
+      actions.push({ what: 'broker:absent', note: 'no container with this name and run label; nothing removed' });
+    } else {
+      const res = runSync({
+        cmd: 'docker',
+        args: ['rm', '-f', ...ids],
+        cwd: REPO_ROOT,
+        timeoutMs: timeout,
+        stdoutPath: path.join(evidenceDir ?? REPO_ROOT, `${tag}-broker-rm.stdout.log`),
+        stderrPath: path.join(evidenceDir ?? REPO_ROOT, `${tag}-broker-rm.stderr.log`),
+      });
+      if (res.exitCode !== 0) ok = false;
+      actions.push({ what: 'broker:rm', exitCode: res.exitCode });
+    }
   }
 
   if (unknownChildren) ok = false;
@@ -883,6 +915,7 @@ async function launch(flags) {
     children: new Map(),
     containerName: `verify-pg-${runId}`.slice(0, 120),
     volumeName: `verify-pgdata-${runId}`.slice(0, 120),
+    brokerName: `verify-rabbit-${runId}`.slice(0, 120),
     containerCreated: false,
     containerId: null,
     apiBase: null,
@@ -914,6 +947,7 @@ async function launch(flags) {
     children: state.children,
     containerName: state.containerName,
     volumeName: state.volumeName,
+    brokerName: state.brokerName,
     dockerResources: state.containerCreated,
     evidenceDir,
     runId,
@@ -1136,6 +1170,56 @@ async function launch(flags) {
     mark('postgres-start', 'PASS', pgDetail, Date.now() - t0);
 
     t0 = Date.now();
+    const brokerPort = await freePort();
+    const brokerPassword = crypto.randomBytes(24).toString('hex');
+    addSecret(brokerPassword);
+    const brokerUri = `amqp://verify:${brokerPassword}@127.0.0.1:${brokerPort}/`;
+    addSecret(brokerUri);
+    const brokerDetail = { image: DEFAULT_BROKER_IMAGE, containerName: state.brokerName, brokerPort };
+    try {
+      const brokerRun = await runCommand({
+        cmd: 'docker',
+        args: [
+          'run', '-d', '--name', state.brokerName, '--label', labelRun, '--label', labelNonce,
+          '-e', 'RABBITMQ_DEFAULT_USER=verify', '-e', `RABBITMQ_DEFAULT_PASS=${brokerPassword}`,
+          '-p', `127.0.0.1:${brokerPort}:5672`, DEFAULT_BROKER_IMAGE,
+        ],
+        cwd: REPO_ROOT,
+        timeoutMs: timeouts.docker,
+        stdoutPath: path.join(evidenceDir, 'docker-broker-run.stdout.log'),
+        stderrPath: path.join(evidenceDir, 'docker-broker-run.stderr.log'),
+      });
+      if (brokerRun.exitCode !== 0 || brokerRun.timedOut || brokerRun.spawnError) {
+        throw new Error(`docker run ${DEFAULT_BROKER_IMAGE} failed (exit ${brokerRun.exitCode})`);
+      }
+      const brokerDeadline = Date.now() + timeouts.pg;
+      let brokerAttempts = 0;
+      for (;;) {
+        brokerAttempts += 1;
+        const probe = runSync({
+          cmd: 'docker',
+          args: ['logs', state.brokerName],
+          cwd: REPO_ROOT,
+          timeoutMs: 30000,
+          stdoutPath: path.join(evidenceDir, 'docker-broker-logs.stdout.log'),
+          stderrPath: path.join(evidenceDir, 'docker-broker-logs.stderr.log'),
+        });
+        brokerDetail.brokerAttempts = brokerAttempts;
+        if (/Server startup complete/.test(`${probe.stdout} ${probe.stderr}`)) break;
+        if (Date.now() >= brokerDeadline) {
+          throw new Error(`rabbitmq never accepted AMQP connections after ${timeouts.pg}ms (${brokerAttempts} probes)`);
+        }
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+      }
+    } catch (err) {
+      mark('broker-start', 'FAIL', { ...brokerDetail, message: err.message }, Date.now() - t0);
+      await failStage('broker-start', err.message, { detail: { ...brokerDetail } });
+      await launchCleanup('broker start failed');
+      process.exit(1);
+    }
+    mark('broker-start', 'PASS', brokerDetail, Date.now() - t0);
+
+    t0 = Date.now();
     const apiPort = wantApiPort === 0 ? await freePort() : wantApiPort;
     const monolithPort = await freePort();
     const tasksPort = await freePort();
@@ -1153,6 +1237,7 @@ async function launch(flags) {
           ASPNETCORE_ENVIRONMENT: 'Development',
           ASPNETCORE_URLS: `http://127.0.0.1:${monolithPort}`,
           ConnectionStrings__DefaultConnection: connectionString,
+          Messaging__RabbitMqUri: brokerUri,
           Services__Tasks__BaseAddress: `http://127.0.0.1:${tasksPort}/`,
         },
       },
@@ -1165,6 +1250,7 @@ async function launch(flags) {
           ASPNETCORE_ENVIRONMENT: 'Development',
           ASPNETCORE_URLS: `http://127.0.0.1:${tasksPort}`,
           ConnectionStrings__DefaultConnection: connectionString,
+          Messaging__RabbitMqUri: brokerUri,
           Services__Monolith__BaseAddress: `http://127.0.0.1:${monolithPort}/`,
         },
       },
@@ -1390,6 +1476,7 @@ async function launch(flags) {
       containerName: state.containerName,
       containerId: state.containerId,
       volumeName: state.volumeName,
+      brokerName: state.brokerName,
       ownership: { runId, nonce: ownershipNonce, labels: [labelRun, `${LABEL_NONCE}=<nonce>`] },
       image: pgImage,
       control: { host: '127.0.0.1', port: 0, nonceFile: 'control-nonce.txt' },
@@ -1437,6 +1524,7 @@ async function launch(flags) {
             children: state.children,
             containerName: state.containerName,
             volumeName: state.volumeName,
+            brokerName: state.brokerName,
             dockerResources: state.containerCreated,
             evidenceDir,
             runId,
@@ -1731,6 +1819,7 @@ async function cleanup(flags) {
       children: null,
       containerName: runRecord.containerName,
       volumeName: runRecord.volumeName,
+      brokerName: runRecord.brokerName ?? null,
       verify: true,
       runRecord,
       evidenceDir,

@@ -235,7 +235,7 @@ describe('check-structure', () => {
       'un bus en el host de Tasks',
       'backend/Hosts/Tasks/TemplateApp.Tasks.csproj',
       tasksHostProject().replace('</Project>', '<ItemGroup><PackageReference Include="MediatR" Version="12.0.0" /></ItemGroup></Project>'),
-      /bus o mediator antes del paso 25: backend\/Hosts\/Tasks\/TemplateApp\.Tasks\.csproj \(MediatR\)/,
+      /un solo bus, Wolverine.*: backend\/Hosts\/Tasks\/TemplateApp\.Tasks\.csproj \(MediatR\)/,
     ],
     [
       'DisableRateLimiting en el Program.cs del host de Tasks',
@@ -283,6 +283,26 @@ describe('check-structure', () => {
         ),
       );
       await repo.write('backend/Features/Tasks/TaskModule.cs', 'using ErrorOr;\nusing TemplateApp.Shared.Messaging;\n');
+      const result = await runGate(repo.dir);
+      assert.equal(result.code, 0, result.output);
+    } finally {
+      await repo.cleanup();
+    }
+  });
+
+  it('acepta Wolverine solo en Platform y en Infrastructure/Messaging', async () => {
+    const repo = await makeRepo();
+    try {
+      await seedValid(repo);
+      await repo.write(
+        'backend/Platform/TemplateApp.Platform.csproj',
+        PLATFORM_PROJECT.replace(
+          '</Project>',
+          '<ItemGroup><PackageReference Include="WolverineFx.RabbitMQ" Version="6.64.2" />'
+            + '<PackageReference Include="WolverineFx.HealthChecks" Version="6.64.2" /></ItemGroup></Project>',
+        ),
+      );
+      await repo.write('backend/Infrastructure/Messaging/MessagingRegistration.cs', 'using JasperFx.CodeGeneration;\nusing Wolverine;\nusing Wolverine.RabbitMQ;\n');
       const result = await runGate(repo.dir);
       assert.equal(result.code, 0, result.output);
     } finally {
@@ -339,6 +359,14 @@ describe('check-structure', () => {
     ['using de Wolverine en el código', 'backend/Infrastructure/Composition.cs', 'using Wolverine;\n'],
     ['global using de Rebus en el código', 'backend/Shared/GlobalUsings.cs', 'global using Rebus.Bus;\n'],
     ['alias de MediatR en el código', 'backend/Features/Tasks/TaskModule.cs', 'using Bus = MediatR.IMediator;\n'],
+    ['Wolverine en el host de Tasks', 'backend/Hosts/Tasks/TemplateApp.Tasks.csproj', tasksHostProject().replace('</Project>', '<ItemGroup><PackageReference Include="WolverineFx" Version="6.64.2" /></ItemGroup></Project>')],
+    ['WolverineFx.RabbitMQ en el monolito', 'backend/TemplateApp.csproj', monolithProject('<PackageReference Include="WolverineFx.RabbitMQ" Version="6.64.2" />')],
+    ['un paquete de Wolverine no elegido en Platform', 'backend/Platform/TemplateApp.Platform.csproj', PLATFORM_PROJECT.replace('</Project>', '<ItemGroup><PackageReference Include="WolverineFx.Postgresql" Version="6.64.2" /></ItemGroup></Project>')],
+    ['MassTransit en Platform', 'backend/Platform/TemplateApp.Platform.csproj', PLATFORM_PROJECT.replace('</Project>', '<ItemGroup><PackageReference Include="MassTransit.RabbitMQ" Version="8.0.0" /></ItemGroup></Project>')],
+    ['global using de Wolverine en Platform', 'backend/Platform/TemplateApp.Platform.csproj', PLATFORM_PROJECT.replace('</Project>', '<ItemGroup><Using Include="Wolverine" /></ItemGroup></Project>')],
+    ['using de Wolverine en una slice', 'backend/Features/Projects/ApplyTaskEvent/TaskEventsHandler.cs', 'using Wolverine;\n'],
+    ['using de JasperFx fuera de Messaging', 'backend/Infrastructure/Observability/Bus.cs', 'using JasperFx.Core;\n'],
+    ['MediatR dentro de Messaging', 'backend/Infrastructure/Messaging/Mediator.cs', 'using MediatR;\n'],
   ]) {
     it(`rechaza ${name}`, async () => {
       const repo = await makeRepo();
@@ -347,7 +375,7 @@ describe('check-structure', () => {
         await repo.write(rel, content);
         const result = await runGate(repo.dir);
         assert.equal(result.code, 1);
-        assert.match(result.output, /bus o mediator antes del paso 25/);
+        assert.match(result.output, /un solo bus, Wolverine/);
       } finally {
         await repo.cleanup();
       }

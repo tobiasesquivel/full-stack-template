@@ -13,6 +13,8 @@ public sealed partial class OutboxRelay : BackgroundService
     private const int LastErrorMaxLength = 2000;
     private const int CleanupBatchSize = 1000;
     private static readonly TimeSpan CleanupEvery = TimeSpan.FromMinutes(1);
+    private static readonly TimeSpan BrokerRetryMin = TimeSpan.FromSeconds(1);
+    private static readonly TimeSpan BrokerRetryMax = TimeSpan.FromSeconds(60);
 
     private readonly IServiceProvider _services;
     private readonly Type _contextType;
@@ -86,7 +88,10 @@ public sealed partial class OutboxRelay : BackgroundService
         await using IDbContextTransaction transaction = await db.Database.BeginTransactionAsync(ct);
         List<OutboxMessage> batch = await db.Set<OutboxMessage>().FromSql(PendingBatch(db)).ToListAsync(ct);
         foreach (OutboxMessage message in batch)
-            await DeliverAsync(message, ct);
+        {
+            if (!await DeliverAsync(message, ct))
+                break;
+        }
 
         await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
@@ -106,7 +111,7 @@ public sealed partial class OutboxRelay : BackgroundService
             _clock.GetUtcNow(),
             _options.BatchSize);
 
-    private async Task DeliverAsync(OutboxMessage message, CancellationToken ct)
+    private async Task<bool> DeliverAsync(OutboxMessage message, CancellationToken ct)
     {
         using Activity? activity = OutboxTracing.Source.StartActivity(
             ActivityKind.Consumer,
@@ -132,20 +137,37 @@ public sealed partial class OutboxRelay : BackgroundService
             DateTimeOffset processedAt = _clock.GetUtcNow();
             message.ProcessedAt = processedAt;
             _metrics.Delivered(processedAt - message.OccurredAt);
+            return true;
+        }
+        catch (BrokerUnavailableException error) when (!ct.IsCancellationRequested)
+        {
+            Postpone(message, error);
+            activity?.SetStatus(ActivityStatusCode.Error, error.GetType().Name);
+            return false;
         }
         catch (Exception error) when (!ct.IsCancellationRequested)
         {
             Fail(message, error);
             activity?.SetStatus(ActivityStatusCode.Error, error.GetType().Name);
+            return true;
         }
+    }
+
+    private void Postpone(OutboxMessage message, BrokerUnavailableException error)
+    {
+        DateTimeOffset now = _clock.GetUtcNow();
+        message.LastError = Describe(error);
+        TimeSpan age = now - message.OccurredAt;
+        message.NextAttemptAt = now + (age < BrokerRetryMin ? BrokerRetryMin : age > BrokerRetryMax ? BrokerRetryMax : age);
+        _metrics.DeliveryFailed(message.Type);
+        LogBrokerUnavailable(error, message.MessageId, message.Type, message.NextAttemptAt.Value);
     }
 
     private void Fail(OutboxMessage message, Exception error)
     {
         DateTimeOffset now = _clock.GetUtcNow();
         message.Attempts++;
-        string description = $"{error.GetType().Name}: {error.Message}";
-        message.LastError = description.Length <= LastErrorMaxLength ? description : description[..LastErrorMaxLength];
+        message.LastError = Describe(error);
         _metrics.DeliveryFailed(message.Type);
 
         if (message.Attempts >= _options.MaxAttempts)
@@ -158,6 +180,14 @@ public sealed partial class OutboxRelay : BackgroundService
 
         message.NextAttemptAt = now + TimeSpan.FromSeconds(Math.Pow(2, message.Attempts));
         LogWillRetry(error, message.MessageId, message.Type, message.Attempts, message.NextAttemptAt.Value);
+    }
+
+    private static string Describe(Exception error)
+    {
+        string description = error.InnerException is { } cause
+            ? $"{error.GetType().Name}: {error.Message} ({cause.GetType().Name}: {cause.Message})"
+            : $"{error.GetType().Name}: {error.Message}";
+        return description.Length <= LastErrorMaxLength ? description : description[..LastErrorMaxLength];
     }
 
     private async Task RecordBacklogAsync(DbContext db, CancellationToken ct)
@@ -193,6 +223,9 @@ public sealed partial class OutboxRelay : BackgroundService
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Outbox message {MessageId} ({Type}) failed attempt {Attempts}; next attempt at {NextAttemptAt}")]
     private partial void LogWillRetry(Exception error, Guid messageId, string type, int attempts, DateTimeOffset nextAttemptAt);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The broker did not take outbox message {MessageId} ({Type}); it stays pending without spending an attempt until {NextAttemptAt}")]
+    private partial void LogBrokerUnavailable(Exception error, Guid messageId, string type, DateTimeOffset nextAttemptAt);
 
     [LoggerMessage(Level = LogLevel.Error, Message = "Outbox message {MessageId} ({Type}) failed {Attempts} attempts and will not be retried")]
     private partial void LogGaveUp(Exception error, Guid messageId, string type, int attempts);

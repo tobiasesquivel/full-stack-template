@@ -16,20 +16,23 @@ internal static class TasksFeature
     {
         services.AddMigratedDbContext<TasksDbContext>(TasksDbContext.Schema, adoptsLegacyTables: true);
         services.AddOutbox<TasksDbContext>();
-        services.AddOutboxEvent<TaskCreated>("tasks.task-created", version: 1);
-        services.AddOutboxEvent<TaskCompleted>("tasks.task-completed", version: 1);
-        services.AddOutboxEvent<TaskReopened>("tasks.task-reopened", version: 1);
-        services.AddOutboxEvent<TaskDeleted>("tasks.task-deleted", version: 1);
+        services.AddOutboxEvent<TaskCreated>(TaskEvents.Created, TaskEvents.Version);
+        services.AddOutboxEvent<TaskCompleted>(TaskEvents.Completed, TaskEvents.Version);
+        services.AddOutboxEvent<TaskReopened>(TaskEvents.Reopened, TaskEvents.Version);
+        services.AddOutboxEvent<TaskDeleted>(TaskEvents.Deleted, TaskEvents.Version);
         services.AddSessionCookie();
         services.AddOptions<CookieAuthenticationOptions>(SessionCookie.Scheme)
             .Configure(cookie => cookie.Events.OnValidatePrincipal = RemoteSession.ValidatePrincipalAsync);
         services.AddRemoteClient<AuthSessionClient>(MonolithService);
         services.AddRemoteClient<ProjectsClient>(MonolithService);
-        services.AddRemoteClient<ForwardTaskEvents.TaskEventsClient>(MonolithService);
-        services.AddEventHandler<TaskCreated, ForwardTaskEvents.TaskEventForwarder>();
-        services.AddEventHandler<TaskCompleted, ForwardTaskEvents.TaskEventForwarder>();
-        services.AddEventHandler<TaskReopened, ForwardTaskEvents.TaskEventForwarder>();
-        services.AddEventHandler<TaskDeleted, ForwardTaskEvents.TaskEventForwarder>();
+        services.AddIntegrationEventPublication<PublishTaskEvents.TaskCreatedIntegrationEvent>(TaskEvents.Created, TaskEvents.Version, TaskEvents.Exchange);
+        services.AddIntegrationEventPublication<PublishTaskEvents.TaskCompletedIntegrationEvent>(TaskEvents.Completed, TaskEvents.Version, TaskEvents.Exchange);
+        services.AddIntegrationEventPublication<PublishTaskEvents.TaskReopenedIntegrationEvent>(TaskEvents.Reopened, TaskEvents.Version, TaskEvents.Exchange);
+        services.AddIntegrationEventPublication<PublishTaskEvents.TaskDeletedIntegrationEvent>(TaskEvents.Deleted, TaskEvents.Version, TaskEvents.Exchange);
+        services.AddEventHandler<TaskCreated, PublishTaskEvents.TaskEventPublisher>();
+        services.AddEventHandler<TaskCompleted, PublishTaskEvents.TaskEventPublisher>();
+        services.AddEventHandler<TaskReopened, PublishTaskEvents.TaskEventPublisher>();
+        services.AddEventHandler<TaskDeleted, PublishTaskEvents.TaskEventPublisher>();
 
         services.AddSingleton<TaskMetrics>();
         services.AddScoped<TaskAccess>();

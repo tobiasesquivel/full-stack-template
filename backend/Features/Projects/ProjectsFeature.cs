@@ -1,6 +1,7 @@
 using TemplateApp.Features.Projects.Contracts;
 using TemplateApp.Features.Projects.Persistence;
 using TemplateApp.Infrastructure.Http;
+using TemplateApp.Infrastructure.Messaging;
 using TemplateApp.Infrastructure.Persistence;
 
 namespace TemplateApp.Features.Projects;
@@ -20,6 +21,10 @@ internal static class ProjectsFeature
         services.AddScoped<GetProject.GetProject>();
         services.AddScoped<UpdateProject.UpdateProject>();
         services.AddScoped<ApplyTaskEvent.ApplyTaskEvent>();
+        services.AddIntegrationEventHandler<ApplyTaskEvent.TaskCreatedIntegrationEvent, ApplyTaskEvent.TaskEventsConsumer>(TaskEvents.Created, TaskEvents.Version, TaskEvents.Exchange, TaskCountersProjection.Consumer);
+        services.AddIntegrationEventHandler<ApplyTaskEvent.TaskCompletedIntegrationEvent, ApplyTaskEvent.TaskEventsConsumer>(TaskEvents.Completed, TaskEvents.Version, TaskEvents.Exchange, TaskCountersProjection.Consumer);
+        services.AddIntegrationEventHandler<ApplyTaskEvent.TaskReopenedIntegrationEvent, ApplyTaskEvent.TaskEventsConsumer>(TaskEvents.Reopened, TaskEvents.Version, TaskEvents.Exchange, TaskCountersProjection.Consumer);
+        services.AddIntegrationEventHandler<ApplyTaskEvent.TaskDeletedIntegrationEvent, ApplyTaskEvent.TaskEventsConsumer>(TaskEvents.Deleted, TaskEvents.Version, TaskEvents.Exchange, TaskCountersProjection.Consumer);
         services.AddRemoteClient<RebuildTaskCounters.TaskCountsSnapshotClient>(TasksService);
         services.AddScoped<RebuildTaskCounters.RebuildTaskCounters>();
         services.AddHostedService<RebuildTaskCounters.RebuildTaskCountersOnStartup>();
@@ -41,7 +46,6 @@ internal static class ProjectsFeature
     public static RouteGroupBuilder MapProjectsInternalEndpoints(this RouteGroupBuilder internalApi)
     {
         FindAssignableProject.FindAssignableProjectEndpoint.Map(internalApi);
-        ApplyTaskEvent.ApplyTaskEventEndpoint.Map(internalApi);
 
         return internalApi;
     }

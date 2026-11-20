@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using TemplateApp.Hosts.Tasks;
+using Wolverine;
 
 namespace TemplateApp.Tests.Support;
 
@@ -10,6 +11,7 @@ public sealed class ApiPair : IDisposable
 {
     public const string MonolithAuthority = "monolith";
     public const string TasksAuthority = "tasks";
+    public const string BrokerSetting = "Messaging:RabbitMqUri";
     private const string TasksPrefix = "/api/v1/tasks";
 
     private readonly MonolithFactory _monolith;
@@ -79,9 +81,16 @@ public sealed class ApiPair : IDisposable
         builder.UseSetting("Services:Tasks:BaseAddress", $"http://{TasksAuthority}/");
         builder.UseSetting("Services:Monolith:BaseAddress", $"http://{MonolithAuthority}/");
         builder.UseSetting("Outbox:RelayEnabled", "false");
+        builder.UseSetting(BrokerSetting, "amqp://localhost:5672/");
         foreach ((string key, string value) in settings)
             builder.UseSetting(key, value);
-        builder.ConfigureTestServices(configureServices);
+        builder.ConfigureTestServices(services =>
+        {
+            services.UseWolverineSoloMode();
+            if (!settings.ContainsKey(BrokerSetting))
+                services.DisableAllExternalWolverineTransports();
+            configureServices(services);
+        });
     }
 
     internal sealed class MonolithFactory(

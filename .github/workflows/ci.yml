@@ -157,6 +157,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       POSTGRES_PASSWORD: ci-postgres-password
+      RABBITMQ_PASSWORD: ci-rabbitmq-password
       OTEL_EXPORT_DIR: ${{ github.workspace }}/otel-export
     steps:
       - uses: actions/checkout@v4
@@ -175,7 +176,7 @@ jobs:
         run: |
           if ! docker compose up --build --wait --wait-timeout 300; then
             docker compose ps
-            docker compose logs gateway api tasks db otel prometheus
+            docker compose logs gateway api tasks db rabbitmq otel prometheus
             exit 1
           fi
       - name: Smoke runtime (API, DB down, persistencia, OTEL)
@@ -189,7 +190,7 @@ jobs:
           PROMETHEUS_URL: http://localhost:9090/
       - name: Logs del stack si falla
         if: failure()
-        run: docker compose logs gateway api tasks db otel prometheus
+        run: docker compose logs gateway api tasks db rabbitmq otel prometheus
       - name: Apagar stack
         if: always()
         run: docker compose down --timeout 30 --volumes

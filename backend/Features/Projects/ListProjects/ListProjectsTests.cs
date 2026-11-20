@@ -16,10 +16,12 @@ public sealed class ListProjectsTests : IClassFixture<ApiFixture>, IDisposable
 {
     private readonly ApiFixture _fixture;
     private readonly string _server;
+    private readonly Uri _broker;
     private IsolatedApi? _isolated;
 
-    public ListProjectsTests(ApiFixture fixture, PostgresFixture postgres)
+    public ListProjectsTests(ApiFixture fixture, PostgresFixture postgres, RabbitMqFixture broker)
     {
+        _broker = broker.Uri;
         _fixture = fixture;
         _server = postgres.ConnectionString;
     }
@@ -66,6 +68,7 @@ public sealed class ListProjectsTests : IClassFixture<ApiFixture>, IDisposable
         CapturedCommands commands = new();
         _isolated = await IsolatedApi.StartAsync(
             _server,
+            _broker,
             services =>
             {
                 services.ConfigureDbContext<ProjectsDbContext>(options => options.AddInterceptors(commands));

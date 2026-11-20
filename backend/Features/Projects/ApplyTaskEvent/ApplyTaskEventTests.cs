@@ -1,6 +1,4 @@
 using System.Net;
-using System.Net.Http.Json;
-using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
@@ -11,13 +9,20 @@ using Xunit;
 
 namespace TemplateApp.Features.Projects.ApplyTaskEvent;
 
-public sealed class ApplyTaskEventTests : IDisposable
+public sealed class ApplyTaskEventTests : IAsyncDisposable
 {
-    private readonly string _server;
-    private readonly List<IsolatedApi> _apis = [];
+    private static readonly TimeSpan Wait = TimeSpan.FromSeconds(60);
 
-    public ApplyTaskEventTests(PostgresFixture postgres)
+    private readonly string _server;
+    private readonly Uri _broker;
+    private readonly RabbitMqFixture _rabbit;
+    private readonly List<IsolatedApi> _apis = [];
+    private readonly List<TaskEventsBroker> _brokers = [];
+
+    public ApplyTaskEventTests(PostgresFixture postgres, RabbitMqFixture broker)
     {
+        _broker = broker.Uri;
+        _rabbit = broker;
         _server = postgres.ConnectionString;
     }
 
@@ -53,7 +58,7 @@ public sealed class ApplyTaskEventTests : IDisposable
         await alice.CreateTaskAsync("Comprar pan", project);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => api.Relay.RunOnceAsync(TestContext.Current.CancellationToken));
-        Assert.Equal((1, 0), await CountersAsync(api, project));
+        Assert.Equal((1, 0), await Eventually.Async(() => CountersAsync(api, project), counters => counters == (1, 0), TimeSpan.FromSeconds(30)));
         await api.DrainOutboxAsync();
 
         Assert.Equal((1, 0), await CountersAsync(api, project));
@@ -64,14 +69,15 @@ public sealed class ApplyTaskEventTests : IDisposable
     public async Task TheSameMessageTwice_CountsOnce()
     {
         IsolatedApi api = await StartAsync();
+        TaskEventsBroker broker = await BrokerAsync(api);
         TestSession alice = await api.SignUpAsync("alice");
         string project = await alice.CreateProjectAsync("Casa");
         Guid message = Guid.NewGuid();
 
-        using HttpResponseMessage first = await PutAsync(api, message, "tasks.task-created", project);
-        using HttpResponseMessage second = await PutAsync(api, message, "tasks.task-created", project);
+        await broker.PublishAsync("tasks.task-created", message, new { projectId = project });
+        await broker.PublishAsync("tasks.task-created", message, new { projectId = project });
+        await ConsumedAsync(api, broker);
 
-        Assert.Equal((HttpStatusCode.NoContent, HttpStatusCode.NoContent), (first.StatusCode, second.StatusCode));
         Assert.Equal((1, 0), await CountersAsync(api, project));
     }
 
@@ -79,13 +85,16 @@ public sealed class ApplyTaskEventTests : IDisposable
     public async Task EventsOutOfOrder_EndInTheSameCounters()
     {
         IsolatedApi api = await StartAsync();
+        TaskEventsBroker broker = await BrokerAsync(api);
         TestSession alice = await api.SignUpAsync("alice");
         string project = await alice.CreateProjectAsync("Casa");
 
-        using HttpResponseMessage deleted = await PutAsync(api, Guid.NewGuid(), "tasks.task-deleted", project, wasCompleted: true);
+        await broker.PublishAsync("tasks.task-deleted", Guid.NewGuid(), new { projectId = project, wasCompleted = true });
+        await ConsumedAsync(api, broker);
         Assert.Equal((-1, -1), await CountersAsync(api, project));
-        using HttpResponseMessage completed = await PutAsync(api, Guid.NewGuid(), "tasks.task-completed", project);
-        using HttpResponseMessage created = await PutAsync(api, Guid.NewGuid(), "tasks.task-created", project);
+        await broker.PublishAsync("tasks.task-completed", Guid.NewGuid(), new { projectId = project });
+        await broker.PublishAsync("tasks.task-created", Guid.NewGuid(), new { projectId = project });
+        await ConsumedAsync(api, broker);
 
         Assert.Equal((0, 0), await CountersAsync(api, project));
     }
@@ -94,34 +103,40 @@ public sealed class ApplyTaskEventTests : IDisposable
     public async Task AnEventForAnUnknownProject_HasNoEffect()
     {
         IsolatedApi api = await StartAsync();
+        TaskEventsBroker broker = await BrokerAsync(api);
         string unknown = Guid.NewGuid().ToString();
+        Guid message = Guid.NewGuid();
 
-        using HttpResponseMessage response = await PutAsync(api, Guid.NewGuid(), "tasks.task-created", unknown);
+        await broker.PublishAsync("tasks.task-created", message, new { projectId = unknown });
+        await ConsumedAsync(api, broker);
 
-        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        Assert.Equal(1, await InboxRowsAsync(api, message));
         Assert.Null(await api.Pair.Monolith.Services.TaskCountersAsync(unknown));
     }
 
     [Fact]
-    public async Task AnUnknownType_IsIgnored_AndAnUnknownVersion_Answers400()
+    public async Task AnEventTypeTheQueueDoesNotBind_NeverReachesTheConsumer()
     {
         IsolatedApi api = await StartAsync();
+        TaskEventsBroker broker = await BrokerAsync(api);
         TestSession alice = await api.SignUpAsync("alice");
         string project = await alice.CreateProjectAsync("Casa");
+        Guid renamed = Guid.NewGuid();
 
-        using HttpResponseMessage unknownType = await PutAsync(api, Guid.NewGuid(), "tasks.task-renamed", project);
-        using HttpResponseMessage unknownVersion = await PutAsync(api, Guid.NewGuid(), "tasks.task-created", project, version: 2);
+        await broker.PublishAsync("tasks.task-renamed", renamed, new { projectId = project });
+        await broker.PublishAsync("tasks.task-created", Guid.NewGuid(), new { projectId = project });
+        await ConsumedAsync(api, broker);
 
-        Assert.Equal(HttpStatusCode.NoContent, unknownType.StatusCode);
-        Assert.Equal(HttpStatusCode.BadRequest, unknownVersion.StatusCode);
-        await AssertCodeAsync(unknownVersion, "Project.UnreadableTaskEvent");
-        Assert.Equal((0, 0), await CountersAsync(api, project));
+        Assert.Equal(0, await InboxRowsAsync(api, renamed));
+        Assert.Equal(0u, await broker.CountAsync(TaskEventsBroker.DeadLetterQueue));
+        Assert.Equal((1, 0), await CountersAsync(api, project));
     }
 
     [Fact]
-    public async Task WhileTheCountersAreRebuilt_AnEventAnswers503_AndCountsOnceAfterwards()
+    public async Task WhileTheCountersAreRebuilt_AnEventWaits_AndCountsOnceAfterwards()
     {
         IsolatedApi api = await StartAsync();
+        TaskEventsBroker broker = await BrokerAsync(api);
         TestSession alice = await api.SignUpAsync("alice");
         string project = await alice.CreateProjectAsync("Casa");
         Guid message = Guid.NewGuid();
@@ -132,75 +147,55 @@ public sealed class ApplyTaskEventTests : IDisposable
             await using NpgsqlCommand exclusive = new("SELECT pg_advisory_xact_lock(7164253024)", rebuild, transaction);
             await exclusive.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
 
-            using HttpResponseMessage blocked = await PutAsync(api, message, "tasks.task-created", project);
+            await broker.PublishAsync("tasks.task-created", message, new { projectId = project });
+            await Task.Delay(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
 
-            Assert.Equal(HttpStatusCode.ServiceUnavailable, blocked.StatusCode);
-            await AssertCodeAsync(blocked, "Project.TaskCountersRebuilding");
             Assert.Equal((0, 0), await CountersAsync(api, project));
+            Assert.Equal(0, await InboxRowsAsync(api, message));
             await transaction.CommitAsync(TestContext.Current.CancellationToken);
         }
 
-        using HttpResponseMessage retried = await PutAsync(api, message, "tasks.task-created", project);
-
-        Assert.Equal(HttpStatusCode.NoContent, retried.StatusCode);
+        Assert.Equal(1, await Eventually.Async(() => InboxRowsAsync(api, message), rows => rows == 1, Wait));
         Assert.Equal((1, 0), await CountersAsync(api, project));
     }
 
     [Fact]
-    public async Task WithTheMonolithDown_TheEventStaysPending_AndArrivesLater()
+    public async Task WithTheMonolithDownForADay_TheEventWaitsInTheQueue_AndCountsWhenItReturns()
     {
-        RemoteFault monolithDown = RemoteFault.Unreachable(RemoteFault.Path("/internal/v1/task-events"));
-        monolithDown.Active = false;
-        IsolatedApi api = await StartAsync(interceptRemote: monolithDown.Intercept);
+        IsolatedApi api = await StartAsync();
         TestSession alice = await api.SignUpAsync("alice");
         string project = await alice.CreateProjectAsync("Casa");
         string task = await alice.CreateTaskAsync("Comprar pan", project);
-        monolithDown.Active = true;
+        await MonolithListener.StopAsync(api);
 
-        await api.Relay.RunOnceAsync(TestContext.Current.CancellationToken);
+        await api.PublishOutboxAsync();
+        api.Clock.Advance(TimeSpan.FromDays(1));
+        await api.PublishOutboxAsync();
 
-        OutboxRow pending = Assert.Single(await api.Pair.Tasks.Services.OutboxRowsAsync(task));
-        Assert.Equal((1, null), (pending.Attempts, pending.ProcessedAt));
+        OutboxRow published = Assert.Single(await api.Pair.Tasks.Services.OutboxRowsAsync(task));
+        Assert.Equal((0, null), (published.Attempts, published.FailedAt));
+        Assert.NotNull(published.ProcessedAt);
         Assert.Equal((0, 0), await CountersAsync(api, project));
 
-        monolithDown.Active = false;
-        api.Clock.Advance(TimeSpan.FromSeconds(3));
+        await MonolithListener.StartAsync(api);
         await api.DrainOutboxAsync();
 
         Assert.Equal((1, 0), await CountersAsync(api, project));
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
+        foreach (TaskEventsBroker broker in _brokers)
+            await broker.DisposeAsync();
         foreach (IsolatedApi api in _apis)
             api.Dispose();
     }
 
-    private static async Task<HttpResponseMessage> PutAsync(
-        IsolatedApi api,
-        Guid messageId,
-        string type,
-        string projectId,
-        bool wasCompleted = false,
-        int version = 1)
+    private static async Task ConsumedAsync(IsolatedApi api, TaskEventsBroker broker)
     {
-        using HttpClient monolith = api.Pair.CreateMonolithClient();
-        return await monolith.PutAsJsonAsync(
-            $"internal/v1/task-events/{messageId}",
-            new
-            {
-                type,
-                version,
-                occurredAt = DateTimeOffset.UtcNow,
-                payload = new { taskId = Guid.NewGuid(), ownerId = "someone", projectId, wasCompleted },
-            },
-            TestContext.Current.CancellationToken);
-    }
-
-    private static async Task AssertCodeAsync(HttpResponseMessage response, string code)
-    {
-        using JsonDocument body = JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
-        Assert.Equal(code, body.RootElement.GetProperty("code").GetString());
+        Guid marker = Guid.NewGuid();
+        await broker.PublishAsync("tasks.task-created", marker, new { projectId = Guid.NewGuid() });
+        Assert.Equal(1, await Eventually.Async(() => InboxRowsAsync(api, marker), rows => rows == 1, Wait));
     }
 
     private static async Task<(int Tasks, int Completed)> CountersAsync(IsolatedApi api, string projectId) =>
@@ -209,11 +204,21 @@ public sealed class ApplyTaskEventTests : IDisposable
     private static Task<long> InboxRowsAsync(IsolatedApi api) =>
         api.Pair.Monolith.Services.CountAsync($"""SELECT count(*) AS "Value" FROM projects."InboxMessages" """);
 
+    private static Task<long> InboxRowsAsync(IsolatedApi api, Guid messageId) =>
+        api.Pair.Monolith.Services.CountAsync($"""SELECT count(*) AS "Value" FROM projects."InboxMessages" WHERE "MessageId" = {messageId}""");
+
+    private async Task<TaskEventsBroker> BrokerAsync(IsolatedApi api)
+    {
+        TaskEventsBroker broker = await TaskEventsBroker.ConnectAsync(_rabbit, api.Prefix);
+        _brokers.Add(broker);
+        return broker;
+    }
+
     private async Task<IsolatedApi> StartAsync(
         Action<IServiceCollection>? configure = null,
         Func<HttpRequestMessage, HttpMessageHandler, HttpMessageHandler?>? interceptRemote = null)
     {
-        IsolatedApi api = await IsolatedApi.StartAsync(_server, configure, interceptRemote);
+        IsolatedApi api = await IsolatedApi.StartAsync(_server, _broker, configure, interceptRemote);
         _apis.Add(api);
         return api;
     }

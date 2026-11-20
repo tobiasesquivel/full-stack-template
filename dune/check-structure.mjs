@@ -219,8 +219,22 @@ const BUS_LIBRARIES = [
   'LiteBus',
 ];
 
+const CHOSEN_BUS_PACKAGES = ['WolverineFx.RabbitMQ', 'WolverineFx.HealthChecks'];
+const CHOSEN_BUS_NAMESPACES = ['Wolverine', 'JasperFx'];
+const BUS_HOME = 'backend/Infrastructure/Messaging/';
+
 function isBusLibrary(name) {
   return BUS_LIBRARIES.some((library) => name === library || name.startsWith(`${library}.`));
+}
+
+function isChosenBusNamespace(name) {
+  return CHOSEN_BUS_NAMESPACES.some((namespace) => name === namespace || name.startsWith(`${namespace}.`));
+}
+
+function allowsBus(file, name) {
+  const rel = toPosix(file);
+  if (file.endsWith('.cs')) return rel.startsWith(BUS_HOME) && isChosenBusNamespace(name);
+  return rel === PLATFORM_PROJECT && CHOSEN_BUS_PACKAGES.includes(name);
 }
 
 async function buildSources() {
@@ -276,10 +290,10 @@ async function checkNoBus() {
     const text = await readText(file);
     const pattern = file.endsWith('.cs') ? usings : references;
     for (const match of text.matchAll(pattern)) {
-      if (isBusLibrary(match[1])) hits.push(`${toPosix(file)} (${match[1]})`);
+      if (isBusLibrary(match[1]) && !allowsBus(file, match[1])) hits.push(`${toPosix(file)} (${match[1]})`);
     }
   }
-  if (hits.length > 0) fail(`bus o mediator antes del paso 25: ${hits.join(', ')}`);
+  if (hits.length > 0) fail(`un solo bus, Wolverine, con sus paquetes solo en ${PLATFORM_PROJECT} y sus usings solo en ${BUS_HOME}: ${hits.join(', ')}`);
 }
 
 const CACHE_LIBRARIES = [

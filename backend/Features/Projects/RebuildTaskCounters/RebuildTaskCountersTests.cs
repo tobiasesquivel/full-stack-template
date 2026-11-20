@@ -1,8 +1,10 @@
+using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
+using TemplateApp.Tests.Messaging;
 using TemplateApp.Tests.Support;
 using Xunit;
 
@@ -11,10 +13,14 @@ namespace TemplateApp.Features.Projects.RebuildTaskCounters;
 public sealed class RebuildTaskCountersTests : IDisposable
 {
     private readonly string _server;
+    private readonly Uri _broker;
+    private readonly RabbitMqFixture _rabbit;
     private readonly List<IsolatedApi> _apis = [];
 
-    public RebuildTaskCountersTests(PostgresFixture postgres)
+    public RebuildTaskCountersTests(PostgresFixture postgres, RabbitMqFixture broker)
     {
+        _broker = broker.Uri;
+        _rabbit = broker;
         _server = postgres.ConnectionString;
     }
 
@@ -72,14 +78,37 @@ public sealed class RebuildTaskCountersTests : IDisposable
         OutboxRow applied = Assert.Single(await api.Pair.Tasks.Services.AllOutboxRowsAsync());
         await RebuildAsync(api);
 
-        using HttpClient monolith = api.Pair.CreateMonolithClient();
-        using HttpResponseMessage late = await monolith.PutAsJsonAsync(
-            $"internal/v1/task-events/{applied.MessageId}",
-            new { type = applied.Type, version = applied.Version, occurredAt = applied.OccurredAt, payload = JsonDocument.Parse(applied.Payload).RootElement },
-            TestContext.Current.CancellationToken);
+        await using TaskEventsBroker broker = await TaskEventsBroker.ConnectAsync(_rabbit, api.Prefix);
+        await broker.PublishAsync(applied.Type, applied.MessageId, JsonDocument.Parse(applied.Payload).RootElement, applied.Version.ToString(CultureInfo.InvariantCulture));
+        Guid marker = Guid.NewGuid();
+        await broker.PublishAsync("tasks.task-created", marker, new { projectId = Guid.NewGuid() });
+        await Eventually.Async(
+            () => api.Pair.Monolith.Services.CountAsync($"""SELECT count(*) AS "Value" FROM projects."InboxMessages" WHERE "MessageId" = {marker}"""),
+            rows => rows == 1,
+            TimeSpan.FromSeconds(60));
 
-        Assert.Equal(HttpStatusCode.NoContent, late.StatusCode);
         Assert.Equal((1, 0), await api.Pair.Monolith.Services.TaskCountersAsync(project));
+    }
+
+    [Fact]
+    public async Task AnEventWaitingInTheQueue_DuringARebuild_IsNotCountedTwice()
+    {
+        IsolatedApi api = await StartAsync();
+        await using TaskEventsBroker broker = await TaskEventsBroker.ConnectAsync(_rabbit, api.Prefix);
+        TestSession alice = await api.SignUpAsync("alice");
+        string project = await alice.CreateProjectAsync("Casa");
+        await MonolithListener.StopAsync(api);
+        await alice.CreateTaskAsync("En la cola", project);
+        await api.PublishOutboxAsync();
+        Assert.Equal(1u, await broker.CountAsync(TaskEventsBroker.Queue));
+
+        await RebuildAsync(api);
+        Assert.Equal((1, 0), await api.Pair.Monolith.Services.TaskCountersAsync(project));
+        await MonolithListener.StartAsync(api);
+        await alice.CreateTaskAsync("Después, en la misma cola", project);
+        await api.DrainOutboxAsync();
+
+        Assert.Equal((2, 0), await api.Pair.Monolith.Services.TaskCountersAsync(project));
     }
 
     [Fact]
@@ -92,7 +121,7 @@ public sealed class RebuildTaskCountersTests : IDisposable
         await first.DrainOutboxAsync();
         await ExecuteSqlAsync(first, """DELETE FROM projects."ProjectTaskCounters" """);
 
-        IsolatedApi second = IsolatedApi.StartOn(first.Database);
+        IsolatedApi second = IsolatedApi.StartOn(first.Database, _broker, first.Prefix);
         _apis.Add(second);
 
         (int, int)? counters = null;
@@ -126,7 +155,7 @@ public sealed class RebuildTaskCountersTests : IDisposable
 
     private async Task<IsolatedApi> StartAsync()
     {
-        IsolatedApi api = await IsolatedApi.StartAsync(_server);
+        IsolatedApi api = await IsolatedApi.StartAsync(_server, _broker);
         _apis.Add(api);
         return api;
     }

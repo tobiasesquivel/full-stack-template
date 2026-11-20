@@ -3,6 +3,7 @@ using TemplateApp.Features.Health;
 using TemplateApp.Features.Tasks;
 using TemplateApp.Infrastructure.DependencyInjection;
 using TemplateApp.Infrastructure.Http;
+using TemplateApp.Infrastructure.Messaging;
 using TemplateApp.Infrastructure.Observability;
 
 Log.Logger = ObservabilityExtensions.ConfigureBootstrapLogger(new LoggerConfiguration()).CreateLogger();
@@ -13,6 +14,7 @@ try
 
     builder.Services.AddBackendInfrastructure(migratesPlatformSchema: false);
     builder.Services.AddTemplateObservability(builder.Environment, "templateapp-tasks");
+    builder.Services.AddMessaging();
     builder.Services.AddTasksFeature();
     builder.Services.AddHealthFeature();
     builder.Services.AddVersionedApi();

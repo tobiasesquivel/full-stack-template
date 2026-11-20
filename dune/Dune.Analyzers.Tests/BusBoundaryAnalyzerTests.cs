@@ -1,0 +1,166 @@
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using Microsoft.CodeAnalysis;
+using Xunit;
+
+namespace Dune.Analyzers.Tests;
+
+public sealed class BusBoundaryAnalyzerTests
+{
+    private const string Wolverine = """
+        using System;
+        using System.Threading;
+        using System.Threading.Tasks;
+        namespace Wolverine
+        {
+            public sealed class Envelope { public Guid Id { get; set; } }
+            public sealed class DeliveryOptions { }
+            public interface IMessageBus
+            {
+                Task PublishAsync<T>(T message, DeliveryOptions? options = null);
+                Task InvokeAsync(object message, CancellationToken ct = default);
+                Task<T> InvokeAsync<T>(object message, CancellationToken ct = default);
+            }
+            public class MessageContext { public Envelope? Envelope { get; set; } }
+            public static class WolverineOptionsExtensions
+            {
+                public static object AddWolverine(this object services) => services;
+            }
+        }
+        namespace Wolverine.Runtime.Handlers
+        {
+            public abstract class MessageHandler<T>
+            {
+                protected abstract Task HandleAsync(T message, Wolverine.MessageContext context, CancellationToken cancellation);
+            }
+        }
+        namespace TemplateApp.Infrastructure.Messaging
+        {
+            public interface IIntegrationEventHandler<in TEvent>
+            {
+                Task HandleAsync(TEvent @event, CancellationToken ct);
+            }
+        }
+        """;
+
+    [Fact]
+    public async Task WolverineLivesInInfrastructureMessaging_AndFeaturesUseTheRepoInterfaces()
+    {
+        var diagnostics = await AnalyzeAsync(
+            ("backend/Infrastructure/Messaging/IntegrationEventHandler.cs", """
+                using System.Threading;
+                using System.Threading.Tasks;
+                using Wolverine;
+                using Wolverine.Runtime.Handlers;
+                namespace TemplateApp.Infrastructure.Messaging;
+                public sealed class IntegrationEventHandler<T> : MessageHandler<T>
+                {
+                    protected override Task HandleAsync(T message, MessageContext context, CancellationToken cancellation) =>
+                        Task.FromResult(context.Envelope!.Id);
+                }
+                """),
+            ("backend/Infrastructure/Messaging/IntegrationEventPublisher.cs", """
+                using System.Threading.Tasks;
+                using Wolverine;
+                namespace TemplateApp.Infrastructure.Messaging;
+                public sealed class IntegrationEventPublisher(IMessageBus bus)
+                {
+                    public Task PublishAsync<T>(T @event) => bus.PublishAsync(@event, new DeliveryOptions());
+                }
+                """),
+            ("backend/Features/Projects/ApplyTaskEvent/TaskEventsConsumer.cs", """
+                using System.Threading;
+                using System.Threading.Tasks;
+                using TemplateApp.Infrastructure.Messaging;
+                namespace TemplateApp.Features.Projects.ApplyTaskEvent;
+                public sealed record TaskCreatedIntegrationEvent(System.Guid TaskId);
+                public sealed class TaskEventsConsumer : IIntegrationEventHandler<TaskCreatedIntegrationEvent>
+                {
+                    public Task HandleAsync(TaskCreatedIntegrationEvent @event, CancellationToken ct) => Task.CompletedTask;
+                }
+                """),
+            ("backend/Tests/Messaging/BrokerTests.cs", """
+                using System.Threading.Tasks;
+                using Wolverine;
+                namespace TemplateApp.Tests.Messaging;
+                public sealed class BrokerTests
+                {
+                    public Task PublishAsync(IMessageBus bus) => bus.InvokeAsync(new object());
+                }
+                """));
+
+        Assert.Empty(Locations(diagnostics));
+    }
+
+    [Fact]
+    public async Task WolverineInAFeature_OrAsAMediator_IsRejected()
+    {
+        var diagnostics = await AnalyzeAsync(
+            ("backend/Features/Projects/ApplyTaskEvent/TaskEventsHandler.cs", """
+                using System;
+                using Wolverine;
+                namespace TemplateApp.Features.Projects.ApplyTaskEvent;
+                public sealed class TaskEventsHandler
+                {
+                    public Guid Handle(Envelope envelope) => envelope.Id;
+                }
+                """),
+            ("backend/Features/Tasks/CreateTask/CreateTaskEndpoint.cs", """
+                using System.Threading.Tasks;
+                namespace TemplateApp.Features.Tasks.CreateTask;
+                public static class CreateTaskEndpoint
+                {
+                    public static Task HandleAsync(global::Wolverine.IMessageBus bus) => bus.InvokeAsync(new object());
+                }
+                """),
+            ("backend/Infrastructure/Observability/BusRegistration.cs", """
+                using Wolverine;
+                namespace TemplateApp.Infrastructure.Observability;
+                public static class BusRegistration
+                {
+                    public static object Add(object services) => services.AddWolverine();
+                }
+                """),
+            ("backend/Infrastructure/Messaging/IntegrationEventPublisher.cs", """
+                using System.Threading.Tasks;
+                using Wolverine;
+                namespace TemplateApp.Infrastructure.Messaging;
+                public sealed class IntegrationEventPublisher(IMessageBus bus)
+                {
+                    public Task<int> AskAsync(object question) => bus.InvokeAsync<int>(question);
+                }
+                """));
+
+        Assert.Equal(
+            new[]
+            {
+                ("backend/Features/Projects/ApplyTaskEvent/TaskEventsHandler.cs", 2),
+                ("backend/Features/Projects/ApplyTaskEvent/TaskEventsHandler.cs", 6),
+                ("backend/Features/Projects/ApplyTaskEvent/TaskEventsHandler.cs", 6),
+                ("backend/Features/Tasks/CreateTask/CreateTaskEndpoint.cs", 5),
+                ("backend/Features/Tasks/CreateTask/CreateTaskEndpoint.cs", 5),
+                ("backend/Features/Tasks/CreateTask/CreateTaskEndpoint.cs", 5),
+                ("backend/Infrastructure/Messaging/IntegrationEventPublisher.cs", 6),
+                ("backend/Infrastructure/Observability/BusRegistration.cs", 1),
+                ("backend/Infrastructure/Observability/BusRegistration.cs", 5),
+            },
+            Locations(diagnostics));
+    }
+
+    private static Task<System.Collections.Immutable.ImmutableArray<Diagnostic>> AnalyzeAsync(
+        params (string Path, string Source)[] files) =>
+        AnalyzerHost.AnalyzeAsync(
+            new List<(string, string)>(files) { ("packages/Wolverine.cs", Wolverine) },
+            AnalyzerHost.Only<BusBoundaryAnalyzer>());
+
+    private static (string Path, int Line)[] Locations(System.Collections.Immutable.ImmutableArray<Diagnostic> diagnostics) =>
+        diagnostics
+            .Where(diagnostic => diagnostic.Id == "DUNE0025")
+            .Select(diagnostic => (
+                diagnostic.Location.SourceTree!.FilePath,
+                diagnostic.Location.GetLineSpan().StartLinePosition.Line + 1))
+            .OrderBy(location => location.FilePath, System.StringComparer.Ordinal)
+            .ThenBy(location => location.Item2)
+            .ToArray();
+}

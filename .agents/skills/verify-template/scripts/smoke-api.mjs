@@ -210,7 +210,7 @@ assert.equal(live.headers.get('api-supported-versions'), '1.0', 'La API declara 
 const unknownVersion = await anonymous.request('GET', '../v9/health/live', undefined, { expected: 404 });
 assert.equal(unknownVersion.payload.code, 'Http.NotFound', 'Una versión inexistente responde ProblemDetails con code');
 const ready = await anonymous.request('GET', 'health/ready');
-assert.deepEqual(ready.payload.checks, { database: 'healthy', migrations: 'healthy' },
+assert.deepEqual(ready.payload.checks, { database: 'healthy', migrations: 'healthy', rabbitmq: 'healthy', broker: 'healthy', 'broker-listeners': 'healthy' },
   'Readiness informa cada dependencia sana');
 const withoutSession = await anonymous.request('GET', 'tasks', undefined, { expected: 401 });
 assert.equal(withoutSession.payload.code, 'Auth.SessionRequired');
