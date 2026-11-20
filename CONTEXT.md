@@ -20,6 +20,10 @@ _Avoid_: log, historial de valores, event sourcing.
 El usuario al que pertenece una tarea, un proyecto o un perfil.
 _Avoid_: autor, asignado, usuario dueño.
 
+**Propietario borrado (lápida)**:
+Un propietario cuya cuenta se borró, anotado en Tasks cuando llega el evento. Ninguna tarea nueva puede quedar a su nombre: crearla responde 401. La anotación no se borra.
+_Avoid_: tombstone, soft delete, usuario inactivo.
+
 **Tarea (TaskItem)**:
 Una actividad personal con título y estado de completitud que pertenece a un propietario.
 _Avoid_: ticket, trabajo, recurso como sinónimo de tarea.

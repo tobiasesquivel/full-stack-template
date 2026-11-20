@@ -22,21 +22,14 @@ internal sealed class DeleteOwnedTasks
         if (await _db.TryAcceptAsync(context, ct))
         {
             await OwnerTombstones.BuryAsync(_db, ownerId, deletedAt, ct);
-            await DeleteAllAsync(ownerId, ct);
+            List<TaskItem> owned = await _db.TaskItems.Where(t => t.OwnerId == ownerId).ToListAsync(ct);
+            foreach (TaskItem item in owned)
+                item.MarkDeleted();
+
+            _db.TaskItems.RemoveRange(owned);
+            await _db.SaveChangesAsync(ct);
         }
 
         await transaction.CommitAsync(ct);
-    }
-
-    public Task ExecuteAsync(string ownerId, CancellationToken ct) => DeleteAllAsync(ownerId, ct);
-
-    private async Task DeleteAllAsync(string ownerId, CancellationToken ct)
-    {
-        List<TaskItem> owned = await _db.TaskItems.Where(t => t.OwnerId == ownerId).ToListAsync(ct);
-        foreach (TaskItem item in owned)
-            item.MarkDeleted();
-
-        _db.TaskItems.RemoveRange(owned);
-        await _db.SaveChangesAsync(ct);
     }
 }

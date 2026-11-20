@@ -1,7 +1,6 @@
 using System.Net;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
-using TemplateApp.Infrastructure.Http;
 using TemplateApp.Infrastructure.Messaging;
 using TemplateApp.Tests.Support;
 using Xunit;
@@ -20,7 +19,7 @@ public sealed class DeleteOwnedTasksTests : IClassFixture<ApiFixture>
     }
 
     [Fact]
-    public async Task DeletesOnlyTheOwnersTasks_AndRepeatingItChangesNothing()
+    public async Task DeletesOnlyTheOwnersTasks_AndASecondEventChangesNothing()
     {
         TestSession alice = new(_fixture.CreateClient());
         await alice.RegisterAsync(TestAccounts.UniqueName("alice"));
@@ -29,27 +28,24 @@ public sealed class DeleteOwnedTasksTests : IClassFixture<ApiFixture>
         await alice.CreateTaskAsync("De Alice");
         await bob.CreateTaskAsync("De Bob");
 
-        using HttpResponseMessage first = await DeleteAsync(alice.AuthId, actor: null);
-        using HttpResponseMessage again = await DeleteAsync(alice.AuthId, actor: null);
+        await DeleteByEventAsync(alice.AuthId);
+        await DeleteByEventAsync(alice.AuthId);
 
-        Assert.Equal(HttpStatusCode.NoContent, first.StatusCode);
-        Assert.Equal(HttpStatusCode.NoContent, again.StatusCode);
         Assert.Equal(0, await CountAsync(alice));
         Assert.Equal(1, await CountAsync(bob));
     }
 
     [Fact]
-    public async Task TheAuditNamesTheUserTheCallerActsFor()
+    public async Task TheAuditNamesTheSystem_BecauseAnEventDeletesTheTasks()
     {
         TestSession alice = new(_fixture.CreateClient());
         await alice.RegisterAsync(TestAccounts.UniqueName("alice"));
         string id = await alice.CreateTaskAsync("Auditada");
 
-        using HttpResponseMessage deleted = await DeleteAsync(alice.AuthId, actor: "admin-42");
+        await DeleteByEventAsync(alice.AuthId);
 
-        Assert.Equal(HttpStatusCode.NoContent, deleted.StatusCode);
         AuditRow row = (await _fixture.Services.AuditEntriesAsync(id)).Last();
-        Assert.Equal(("Deleted", "user", "admin-42"), (row.Operation, row.ActorKind, row.ActorId));
+        Assert.Equal(("Deleted", "system", null), (row.Operation, row.ActorKind, row.ActorId));
     }
 
     [Fact]
@@ -81,15 +77,6 @@ public sealed class DeleteOwnedTasksTests : IClassFixture<ApiFixture>
         await using AsyncServiceScope scope = _fixture.TasksServices.CreateAsyncScope();
         await scope.ServiceProvider.GetRequiredService<DeleteOwnedTasks>()
             .ExecuteAsync(ownerId, now, new EventContext(Guid.NewGuid(), OwnerTombstones.Consumer, now, now), TestContext.Current.CancellationToken);
-    }
-
-    private async Task<HttpResponseMessage> DeleteAsync(string ownerId, string? actor)
-    {
-        using HttpClient tasks = _fixture.CreateTasksClient();
-        using HttpRequestMessage request = new(HttpMethod.Delete, $"internal/v1/owners/{ownerId}/tasks");
-        if (actor is not null)
-            request.Headers.Add(OnBehalfOf.Header, actor);
-        return await tasks.SendAsync(request, TestContext.Current.CancellationToken);
     }
 
     private static async Task<int> CountAsync(TestSession session)

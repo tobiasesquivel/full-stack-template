@@ -62,7 +62,6 @@ internal static class TasksFeature
 
     public static RouteGroupBuilder MapTasksInternalEndpoints(this RouteGroupBuilder internalApi)
     {
-        DeleteOwnedTasks.DeleteOwnedTasksEndpoint.Map(internalApi);
         SnapshotTaskCounts.SnapshotTaskCountsEndpoint.Map(internalApi);
 
         return internalApi;

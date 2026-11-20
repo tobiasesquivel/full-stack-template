@@ -1,5 +1,9 @@
 using System.Diagnostics;
 using System.Net;
+using Microsoft.Extensions.DependencyInjection;
+using TemplateApp.Features.Tasks;
+using TemplateApp.Features.Tasks.DeleteOwnedTasks;
+using TemplateApp.Infrastructure.Messaging;
 using TemplateApp.Tests.Support;
 using Xunit;
 
@@ -64,9 +68,10 @@ public sealed class TaskEventsTests : IClassFixture<ApiFixture>
         string open = await bob.CreateTaskAsync("Abierta");
         await PutAsync(bob, done, "Hecha", isCompleted: true);
 
-        using HttpClient tasks = _fixture.CreateTasksClient();
-        using HttpResponseMessage response = await tasks.DeleteAsync($"internal/v1/owners/{bob.AuthId}/tasks", TestContext.Current.CancellationToken);
-        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        await using (AsyncServiceScope scope = _fixture.TasksServices.CreateAsyncScope())
+            await scope.ServiceProvider.GetRequiredService<DeleteOwnedTasks>().ExecuteAsync(
+                bob.AuthId, now, new EventContext(Guid.NewGuid(), OwnerTombstones.Consumer, now, now), TestContext.Current.CancellationToken);
 
         OutboxRow doneDeleted = (await _fixture.TasksServices.OutboxRowsAsync(done)).Last();
         OutboxRow openDeleted = (await _fixture.TasksServices.OutboxRowsAsync(open)).Last();
