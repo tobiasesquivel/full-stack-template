@@ -25,15 +25,23 @@ Un propietario cuya cuenta se borró, anotado en Tasks cuando llega el evento. N
 _Avoid_: tombstone, soft delete, usuario inactivo.
 
 **Cierre de cuenta**:
-El proceso que borra una cuenta en pasos: Users la marca en cierre, Tasks retiene sus tareas y Auth decide si la borra. Si Auth la rechaza, los pasos anteriores se deshacen, primero en Tasks y después en Users, y la cuenta vuelve a estar activa con el motivo del rechazo. Lo identifica un id de cierre que el usuario recibe al pedirlo. Lo coordina el orquestador del cierre.
+El proceso que borra una cuenta en pasos. Primero corre el período de gracia; al vencer, Users la marca en cierre, Tasks retiene sus tareas y Auth decide si la borra. Si Auth la rechaza, los pasos anteriores se deshacen, primero en Tasks y después en Users, y la cuenta vuelve a estar activa con el motivo del rechazo. Lo identifica un id de cierre que el usuario recibe al pedirlo y que no cambia en todo el proceso. Lo coordina el orquestador del cierre.
 _Avoid_: baja, soft delete, borrado de usuario como sinónimo de cierre.
+
+**Período de gracia**:
+El plazo entre el pedido de cierre y el inicio del cierre (14 días por defecto), en el que el cierre está agendado y todavía se puede cancelar. La cuenta funciona igual que antes. Recibe dos recordatorios (días 7 y 13) y, al vencer, arranca el cierre. Cancelarlo devuelve la cuenta a activa sin tocar Tasks ni Auth.
+_Avoid_: cooldown, demora, cierre pendiente como sinónimo; un cierre cancelado no es un cierre rechazado.
+
+**Historial del cierre**:
+La lista ordenada de los hechos de un cierre: pedido, recordatorios, cancelación, vencimiento del período de gracia, inicio del cierre y resultado. Cada hecho dice cuándo pasó y quién lo hizo (el id opaco de quien pidió o canceló, o el sistema), sin datos personales. Solo se agregan hechos: ninguno se cambia ni se borra, y sobrevive al borrado de la cuenta.
+_Avoid_: log, auditoría (la auditoría registra cambios de entidades), event store.
 
 **Orquestador del cierre**:
 Quien coordina un cierre de cuenta: guarda en qué estado está cada cierre (reteniendo tareas, decidiendo, soltando tareas, completado o rechazado), le pide a Tasks y a Auth el paso siguiente y sigue desde ese estado si el sistema se reinicia. Un cierre que pasa su plazo sin terminar queda marcado como atrasado.
 _Avoid_: workflow, manager, coordinador como clase genérica.
 
 **Cuenta en cierre**:
-Una cuenta con un cierre pedido que todavía no terminó. Sigue pudiendo entrar y leer, pero no crea tareas nuevas.
+Una cuenta cuyo cierre ya arrancó (pasó el período de gracia) y todavía no terminó. Sigue pudiendo entrar y leer, pero no crea tareas nuevas. Durante el período de gracia la cuenta está agendada, no en cierre.
 _Avoid_: cuenta inactiva, cuenta bloqueada, cuenta suspendida.
 
 **Retención de tareas**:
