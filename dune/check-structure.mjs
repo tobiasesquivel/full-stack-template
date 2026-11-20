@@ -308,18 +308,23 @@ async function checkNoBus() {
 
 const RESILIENCE_PACKAGE = 'Microsoft.Extensions.Http.Resilience';
 const TRANSITIVE_ONLY_PACKAGES = ['Polly', 'Microsoft.Extensions.Http.Polly', 'Microsoft.Extensions.Resilience'];
-const GATEWAY_PROJECT = 'gateway/TemplateApp.Gateway.csproj';
 
 function isTransitiveOnly(name) {
   return TRANSITIVE_ONLY_PACKAGES.some((library) => name === library || name.startsWith(`${library}.`));
 }
 
+async function resilienceProjectFiles() {
+  const all = [];
+  await collectFiles(backend, all);
+  await collectFiles(path.join(root, 'gateway'), all);
+  const msbuild = all.filter((file) => /\.(csproj|props|targets)$/.test(file));
+  return [...new Set([...msbuild, ...(await buildSources())])];
+}
+
 async function checkResiliencePackages() {
   const hits = [];
-  const references = /<(?:PackageReference|PackageVersion|Using)\s+(?:Include|Update)="([^"]+)"/g;
-  const gateway = path.join(root, GATEWAY_PROJECT);
-  const projects = [...(await productSources()), ...(await buildSources()), ...((await exists(gateway)) ? [gateway] : [])]
-    .filter((file) => !file.endsWith('.cs'));
+  const references = /<(?:PackageReference|PackageVersion|Using)\b[^>]*?\b(?:Include|Update)\s*=\s*["']([^"']+)["']/g;
+  const projects = await resilienceProjectFiles();
   for (const file of projects) {
     const text = await readText(file);
     for (const match of text.matchAll(references)) {

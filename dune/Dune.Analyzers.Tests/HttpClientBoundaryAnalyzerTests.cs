@@ -29,6 +29,10 @@ public sealed class HttpClientBoundaryAnalyzerTests
                 public static IHttpClientBuilder AddStandardResilienceHandler(this IHttpClientBuilder builder) => builder;
             }
         }
+        namespace System.Net.Http
+        {
+            public interface IHttpClientFactory { HttpClient CreateClient(string name); }
+        }
         namespace Polly.CircuitBreaker
         {
             public sealed class BrokenCircuitException : Exception { }
@@ -115,6 +119,14 @@ public sealed class HttpClientBoundaryAnalyzerTests
                     public static bool IsOpen(System.Exception ex) => ex is BrokenCircuitException;
                 }
                 """),
+            ("backend/Features/Projects/RebuildTaskCounters/SnapshotReader.cs", """
+                using System.Net.Http;
+                namespace TemplateApp.Features.Projects.RebuildTaskCounters;
+                internal sealed class SnapshotReader(IHttpClientFactory clients)
+                {
+                    public HttpClient Client() => clients.CreateClient("Tasks");
+                }
+                """),
             ("backend/Hosts/Tasks/Program.cs", """
                 using Microsoft.Extensions.DependencyInjection;
                 namespace TemplateApp.Hosts.Tasks;
@@ -128,6 +140,7 @@ public sealed class HttpClientBoundaryAnalyzerTests
         Assert.Equal(
             new[]
             {
+                ("backend/Features/Projects/RebuildTaskCounters/SnapshotReader.cs", 3),
                 ("backend/Features/Tasks/Access/AuthSessionClient.cs", 1),
                 ("backend/Features/Tasks/Access/AuthSessionClient.cs", 5),
                 ("backend/Features/Tasks/CreateTask/ProjectsLookup.cs", 5),

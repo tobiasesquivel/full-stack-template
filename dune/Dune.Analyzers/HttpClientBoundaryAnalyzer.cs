@@ -14,6 +14,7 @@ public sealed class HttpClientBoundaryAnalyzer : DiagnosticAnalyzer
     private const string HttpHome = "backend/Infrastructure/Http/";
     private static readonly string[] ResilienceNamespaces = { "Polly", "Microsoft.Extensions.Http.Resilience" };
     private static readonly string[] HttpPipelineTypes = { "System.Net.Http.HttpMessageInvoker", "System.Net.Http.HttpMessageHandler" };
+    private const string ClientFactory = "System.Net.Http.IHttpClientFactory";
     private static readonly string[] ClientRegistrationTypes =
     {
         "Microsoft.Extensions.DependencyInjection.HttpClientFactoryServiceCollectionExtensions",
@@ -58,6 +59,10 @@ public sealed class HttpClientBoundaryAnalyzer : DiagnosticAnalyzer
         if (IsInNamespace(ns, ResilienceNamespaces))
         {
             Report(context.ReportDiagnostic, name.GetLocation(), name.ToString(), "nombra la librería de resiliencia");
+        }
+        else if (symbol is INamedTypeSymbol type && type.OriginalDefinition.ToDisplayString() == ClientFactory)
+        {
+            Report(context.ReportDiagnostic, name.GetLocation(), name.ToString(), "pide clientes a la fábrica sin pasar por AddRemoteClient");
         }
     }
 
