@@ -129,20 +129,21 @@ public sealed class AuditTrailTests : IClassFixture<ApiFixture>
     }
 
     [Fact]
-    public async Task AccountDeletion_RecordsTheProfileDeletedByTheUser_AndLeavesTheTasksToTheEvent()
+    public async Task AccountClosureRequest_RecordsTheProfileChangedByTheUser_AndLeavesTheTasksToTheSaga()
     {
         var alice = new TestSession(_fixture.CreateClient());
         await alice.RegisterAsync(TestAccounts.UniqueName("alice"));
         string id = await alice.CreateTaskAsync("Comprar pan");
 
-        var deleted = await alice.SendAsync(HttpMethod.Delete, "api/v1/users/me");
-        deleted.Payload?.Dispose();
-        Assert.Equal(HttpStatusCode.NoContent, deleted.Status);
+        var requested = await alice.SendAsync(HttpMethod.Delete, "api/v1/users/me");
+        requested.Payload?.Dispose();
+        Assert.Equal(HttpStatusCode.Accepted, requested.Status);
 
         List<AuditRow> profileRows = await _fixture.Services.AuditEntriesAsync(alice.AuthId);
         Assert.Equal(
-            [("Added", "anonymous", null), ("Deleted", "user", alice.AuthId)],
+            [("Added", "anonymous", null), ("Modified", "user", alice.AuthId)],
             profileRows.Select(r => (r.Operation, r.ActorKind, r.ActorId)));
+        Assert.Equal("ClosureChangedAt,ClosureId,ClosureStatus", profileRows.Last().ChangedProperties);
         List<AuditRow> taskRows = await _fixture.Services.AuditEntriesAsync(id);
         Assert.Equal(
             [("Added", "user", alice.AuthId)],

@@ -1,8 +1,9 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { FormField, FormRoot, form, required } from '@angular/forms/signals';
 import { Session } from '../../auth';
 import { UsersApi } from '../api/users-api';
 import { describeHttpError } from '../../../core/http-error';
+import { closureNotice } from './closure-notice';
 
 @Component({
   selector: 'app-profile',
@@ -26,6 +27,10 @@ export class Profile {
   protected readonly error = signal<string | null>(null);
   protected readonly saveError = signal<string | null>(null);
   protected readonly saved = signal(false);
+  protected readonly closure = computed(() => {
+    const user = this.session.currentUser();
+    return user ? closureNotice(user) : null;
+  });
 
   constructor() {
     void this.load();

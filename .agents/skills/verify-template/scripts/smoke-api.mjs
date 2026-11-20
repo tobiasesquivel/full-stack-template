@@ -177,6 +177,27 @@ async function waitTasksStatus(client, status) {
   throw new Error(`GET tasks no respondió ${status} en 60 segundos`);
 }
 
+async function requestClosure(client) {
+  const accepted = await client.request('DELETE', 'users/me', undefined, { expected: 202 });
+  assert.equal(accepted.payload.status, 'closing', 'Borrar la cuenta abre un cierre en curso');
+  assert.match(accepted.payload.closureId, /^[0-9a-f-]{36}$/, 'El 202 lleva el id del cierre');
+  assert.equal(accepted.headers.get('location'), '/api/v1/users/me', 'El 202 apunta al monitor del cierre');
+  return accepted.payload.closureId;
+}
+
+async function waitAccountClosed(client) {
+  const deadline = Date.now() + 60000;
+  while (Date.now() < deadline) {
+    const response = await fetch(new URL('users/me', base), {
+      headers: { accept: 'application/json', cookie: client.cookieHeader() },
+      signal: AbortSignal.timeout(5000),
+    }).catch(() => undefined);
+    if (response?.status === 401) return;
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+  throw new Error('El cierre de la cuenta no terminó en 60 segundos: GET users/me no respondió 401');
+}
+
 async function waitProjectCounters(client, projectId, taskCount) {
   const started = Date.now();
   const deadline = started + 15000;
@@ -354,14 +375,18 @@ if (process.argv.includes('--compose')) {
     const projectsWithoutTasks = await alice.request('GET', 'projects', undefined, { expected: 200 });
     assert.deepEqual(projectsWithoutTasks.payload.items.map(item => [item.id, item.taskCount]), [[project.id, 1]],
       'Sin Tasks, la lista de proyectos responde con los contadores que ya tenía');
-    await carol.request('DELETE', 'users/me', undefined, { expected: 204 });
-    await carol.request('GET', 'users/me', undefined, { expected: 401 });
+    await requestClosure(carol);
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    assert.equal((await carol.request('GET', 'users/me')).payload.accountStatus, 'closing',
+      'Con Tasks caído, el cierre espera en closing');
     await alice.request('GET', 'users/me');
-    evidence.push({ scenario: 'tasks down', tasks: 503, usersMe: 200, projects: 200, deleteAccount: 204 });
+    evidence.push({ scenario: 'tasks down', tasks: 503, usersMe: 200, projects: 200, closeAccount: 202, accountStatus: 'closing' });
   } finally {
     compose('start', 'tasks');
     await waitTasksStatus(alice, 200);
   }
+  await waitAccountClosed(carol);
+  evidence.push({ scenario: 'tasks back', closedAccount: 401 });
   compose('stop', 'api');
   try {
     const unavailable = await waitGatewayUnavailable();
@@ -402,9 +427,10 @@ const revokedTasks = await revoked.request('GET', 'tasks', undefined, { expected
 assert.equal(revokedTasks.payload.code, 'Auth.SessionRequired', 'Revocar la sesión corta también el proceso de Tasks');
 await alice.request('GET', 'users/me', undefined, { expected: 401 });
 await alice.open(aliceName);
-await alice.request('DELETE', 'users/me', undefined, { expected: 204 });
-await alice.request('GET', 'users/me', undefined, { expected: 401 });
-await bob.request('DELETE', 'users/me', undefined, { expected: 204 });
+await requestClosure(alice);
+await waitAccountClosed(alice);
+await requestClosure(bob);
+await waitAccountClosed(bob);
 
 if (process.env.OTEL_EXPORT_DIR) {
   const deadline = Date.now() + 30000;

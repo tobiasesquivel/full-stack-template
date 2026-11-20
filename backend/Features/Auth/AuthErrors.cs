@@ -21,10 +21,6 @@ internal static class AuthErrors
         code: "Auth.ProfileMissing",
         description: "User profile is missing.");
 
-    public static readonly Error AccountNotFound = Error.NotFound(
-        code: "Auth.AccountNotFound",
-        description: "Account not found.");
-
     public static readonly Error LastSuperAdmin = Error.Conflict(
         code: "Auth.LastSuperAdmin",
         description: "The only SuperAdmin account cannot be closed.");
@@ -47,9 +43,5 @@ internal static class AuthErrors
 
     public static Error IdentityRejected(IdentityError error) => Error.Validation(
         code: error.Code,
-        description: error.Description);
-
-    public static Error AccountDeleteFailed(IdentityError error) => Error.Failure(
-        code: "Auth.AccountDeleteFailed",
         description: error.Description);
 }

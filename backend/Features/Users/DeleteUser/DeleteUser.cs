@@ -1,55 +1,53 @@
-using System.Transactions;
 using ErrorOr;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using TemplateApp.Features.Auth.Contracts;
-using TemplateApp.Features.Projects.Contracts;
 using TemplateApp.Features.Users.Contracts;
 using TemplateApp.Features.Users.Domain;
 using TemplateApp.Features.Users.Persistence;
-using TemplateApp.Infrastructure.Persistence;
 
 namespace TemplateApp.Features.Users.DeleteUser;
 
-internal sealed class DeleteUser
+internal sealed partial class DeleteUser
 {
     private readonly UsersDbContext _db;
     private readonly IAuthModule _auth;
-    private readonly IProjectsModule _projects;
-    private readonly IdempotencyKeys _keys;
     private readonly TimeProvider _clock;
+    private readonly ILogger<DeleteUser> _logger;
 
-    public DeleteUser(UsersDbContext db, IAuthModule auth, IProjectsModule projects, IdempotencyKeys keys, TimeProvider clock)
+    public DeleteUser(UsersDbContext db, IAuthModule auth, TimeProvider clock, ILogger<DeleteUser> logger)
     {
         _db = db;
         _auth = auth;
-        _projects = projects;
-        _keys = keys;
         _clock = clock;
+        _logger = logger;
     }
 
-    public async Task<ErrorOr<Success>> ExecuteAsync(string callerId, string authId, CancellationToken ct)
+    public async Task<ErrorOr<AccountClosureResponse>> ExecuteAsync(string callerId, string authId, CancellationToken ct)
     {
-        UserProfile? profile = await _db.UserProfiles
-            .SingleOrDefaultAsync(p => p.AuthId == authId, ct);
+        await using IDbContextTransaction transaction = await _db.Database.BeginTransactionAsync(ct);
+        UserProfile? profile = (await _db.UserProfiles
+            .FromSql($"""SELECT * FROM users."UserProfiles" WHERE "AuthId" = {authId} FOR UPDATE""")
+            .ToListAsync(ct)).SingleOrDefault();
         if (profile is null)
             return UserErrors.NotFound(authId);
 
         if (!await _auth.CanAccessAsync(callerId, profile, UserPermissions.Manage, ct))
             return UserErrors.Forbidden;
 
-        using TransactionScope transaction = CrossContextTransaction.Begin();
-
-        await _projects.DeleteOwnedProjectsAsync(authId, ct);
-        await _keys.ForgetOwnerAsync(authId, ct);
-        profile.MarkDeleted(_clock.GetUtcNow());
-        _db.UserProfiles.Remove(profile);
+        DateTimeOffset now = _clock.GetUtcNow();
+        bool requested = profile.RequestClosure(Guid.CreateVersion7(now), now);
         await _db.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
 
-        ErrorOr<Success> deleted = await _auth.DeleteAccountAsync(authId, ct);
-        if (deleted.IsError)
-            return deleted.FirstError.Type == ErrorType.NotFound ? UserErrors.NotFound(authId) : deleted;
+        Guid closureId = profile.ClosureId!.Value;
+        AccountClosureTrace.Mark(closureId);
+        if (requested)
+            LogRequested(closureId, authId);
 
-        transaction.Complete();
-        return deleted;
+        return new AccountClosureResponse(closureId, "closing");
     }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Account closure {ClosureId}: Users marks user {UserId} as closing and asks Tasks to hold the tasks")]
+    private partial void LogRequested(Guid closureId, string userId);
 }

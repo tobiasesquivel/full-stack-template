@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using TemplateApp.Features.Auth.Domain;
 using TemplateApp.Features.Auth.Persistence;
+using TemplateApp.Features.Users.DeleteUser;
 using TemplateApp.Infrastructure.Messaging;
 using TemplateApp.Tests.Support;
 using Xunit;
@@ -49,10 +50,27 @@ public sealed class DecideAccountClosureTests : IDisposable
         await Task.WhenAll(first, second);
 
         Assert.Equal(2, waiting);
-        string?[] outcomes = [await DecisionAsync(api, aliceClosure), await DecisionAsync(api, bobClosure)];
+        string?[] outcomes = [await DeleteUserBrokerTests.DecisionAsync(api, aliceClosure), await DeleteUserBrokerTests.DecisionAsync(api, bobClosure)];
         Assert.Equal(["Completed", "Rejected"], outcomes.Order(StringComparer.Ordinal));
         long accountsLeft = (await api.Pair.Monolith.Services.OwnedRowsAsync(alice.AuthId)).Accounts + (await api.Pair.Monolith.Services.OwnedRowsAsync(bob.AuthId)).Accounts;
         Assert.Equal(1, accountsLeft);
+    }
+
+    [Fact]
+    public async Task ATechnicalFailureInTheDecision_IsRetriedByTheBus_AndNeverBecomesARejection()
+    {
+        FailAfterSaving<AccountClosure> fault = new(EntityState.Added, times: 1, error: () => new NpgsqlException("The connection dropped after saving (test fault)."));
+        IsolatedApi api = await StartAsync(services => services.ConfigureDbContext<AuthDbContext>((_, options) => options.AddInterceptors(fault)));
+        TestSession bob = await api.SignUpAsync("bob");
+
+        (_, Guid closure) = await DeleteUserTests.RequestClosureAsync(bob, "api/v1/users/me");
+        await api.DrainAsync();
+
+        Assert.Equal(1, fault.Failures);
+        Assert.Equal("Completed", await DeleteUserBrokerTests.DecisionAsync(api, closure));
+        Assert.Equal(0, await api.Pair.Monolith.Services.CountAsync(
+            $"""SELECT count(*) AS "Value" FROM auth."OutboxMessages" WHERE "Type" = 'auth.account-closure-rejected'"""));
+        Assert.Equal(OwnedRows.None, await api.Pair.Monolith.Services.OwnedRowsAsync(bob.AuthId));
     }
 
     [Fact]
@@ -67,7 +85,7 @@ public sealed class DecideAccountClosureTests : IDisposable
 
         Assert.Equal(1, fault.Failures);
         Assert.Equal(new OwnedRows(1, 1, 1, 1, 0, 0, 0), await api.Pair.Monolith.Services.OwnedRowsAsync(bob.AuthId));
-        Assert.Null(await DecisionAsync(api, closure));
+        Assert.Null(await DeleteUserBrokerTests.DecisionAsync(api, closure));
         Assert.Equal(0, await api.Pair.Monolith.Services.CountAsync($"""SELECT count(*) AS "Value" FROM auth."OutboxMessages" """));
         Assert.Equal(0, await api.Pair.Monolith.Services.CountAsync($"""SELECT count(*) AS "Value" FROM auth."InboxMessages" """));
     }
@@ -85,9 +103,6 @@ public sealed class DecideAccountClosureTests : IDisposable
         await scope.ServiceProvider.GetRequiredService<DecideAccountClosure>()
             .ExecuteAsync(closureId, userId, new EventContext(Guid.NewGuid(), DecideAccountClosure.Consumer, now, now), TestContext.Current.CancellationToken);
     }
-
-    private static Task<string?> DecisionAsync(IsolatedApi api, Guid closureId) =>
-        api.Pair.Monolith.Services.TextAsync($"""SELECT "Outcome" AS "Value" FROM auth."AccountClosures" WHERE "ClosureId" = {closureId}""");
 
     private static async Task<long> WaitingAsync(NpgsqlConnection connection, NpgsqlTransaction transaction)
     {

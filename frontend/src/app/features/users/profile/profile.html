@@ -25,6 +25,15 @@
       <dd>{{ session.currentUser()?.email }}</dd>
     </dl>
 
+    @if (closure(); as notice) {
+      <p
+        role="status"
+        class="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900"
+      >
+        {{ notice }}
+      </p>
+    }
+
     <form [formRoot]="profileForm">
       <div class="mb-3">
         <label for="profile-display" class="mb-1 block text-sm/normal font-semibold"

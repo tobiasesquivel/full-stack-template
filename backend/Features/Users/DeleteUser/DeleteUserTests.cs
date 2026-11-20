@@ -1,4 +1,9 @@
 using System.Net;
+using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using TemplateApp.Features.Users.Domain;
+using TemplateApp.Features.Users.Persistence;
 using TemplateApp.Tests.Support;
 using Xunit;
 
@@ -14,80 +19,83 @@ public sealed class DeleteUserTests : IClassFixture<ApiFixture>
     }
 
     [Fact]
-    public async Task DeleteMe_Cascades_And_AccessBecomes401()
+    public async Task DeleteMe_Answers202WithTheClosure_AndASecondDeleteAnswersTheSameClosure()
     {
         TestSession alice = new(_fixture.CreateClient());
         await alice.RegisterAsync(TestAccounts.UniqueName("alice"));
 
-        await alice.CreateTaskAsync("Para cascada");
+        (SessionResponse first, Guid closure) = await RequestClosureAsync(alice, "api/v1/users/me");
+        (_, Guid again) = await RequestClosureAsync(alice, "api/v1/users/me");
 
-        SessionResponse deleted = await alice.SendAsync(HttpMethod.Delete, "api/v1/users/me");
-        deleted.Payload?.Dispose();
-        Assert.Equal(HttpStatusCode.NoContent, deleted.Status);
-
-        SessionResponse denied = await alice.SendAsync(HttpMethod.Get, "api/v1/users/me", csrf: false);
-        denied.Payload?.Dispose();
-        Assert.Equal(HttpStatusCode.Unauthorized, denied.Status);
-
-        await alice.CsrfAsync();
-        SessionResponse relogin = await alice.SendAsync(
-            HttpMethod.Post,
-            "api/v1/auth/login",
-            new { userName = alice.UserName, password = alice.Password });
-
-        relogin.Payload?.Dispose();
-        Assert.Equal(HttpStatusCode.Unauthorized, relogin.Status);
+        Assert.Equal("/api/v1/users/me", first.Location);
+        Assert.Equal(closure, again);
+        JsonElement me = await MeAsync(alice, "api/v1/users/me");
+        Assert.Equal("closing", me.GetProperty("accountStatus").GetString());
+        Assert.Equal(JsonValueKind.Null, me.GetProperty("lastClosure").ValueKind);
+        Assert.Equal(1, await ClosureRequestsAsync(_fixture.Services, alice.AuthId));
+        Assert.Equal(1, (await _fixture.Services.OwnedRowsAsync(alice.AuthId)).Accounts);
     }
 
     [Fact]
-    public async Task DeleteMe_SavesOneUserDeletedEvent_InTheUsersOutbox()
+    public async Task ASuperAdminClosingAnotherAccount_GetsTheLocationOfThatUser_WithTheSameClosureFields()
     {
         TestSession alice = new(_fixture.CreateClient());
         await alice.RegisterAsync(TestAccounts.UniqueName("alice"));
+        TestSession admin = new(_fixture.CreateClient());
+        string adminName = TestAccounts.UniqueName("admin");
+        await admin.RegisterAsync(adminName);
+        await _fixture.SetRoleAsync(adminName, "SuperAdmin", member: true);
 
-        SessionResponse deleted = await alice.SendAsync(HttpMethod.Delete, "api/v1/users/me");
-        deleted.Payload?.Dispose();
+        (SessionResponse accepted, Guid closure) = await RequestClosureAsync(admin, $"api/v1/users/{alice.AuthId}");
 
-        Assert.Equal(HttpStatusCode.NoContent, deleted.Status);
-        Assert.Equal(1, await UserDeletedEventsAsync(_fixture.Services, alice.AuthId));
+        Assert.Equal($"/api/v1/users/{alice.AuthId}", accepted.Location);
+        JsonElement seenByAdmin = await MeAsync(admin, $"api/v1/users/{alice.AuthId}");
+        JsonElement seenByAlice = await MeAsync(alice, "api/v1/users/me");
+        Assert.Equal("closing", seenByAdmin.GetProperty("accountStatus").GetString());
+        Assert.Equal(seenByAlice.GetProperty("accountStatus").GetString(), seenByAdmin.GetProperty("accountStatus").GetString());
+        Assert.Equal(seenByAlice.GetProperty("lastClosure").ValueKind, seenByAdmin.GetProperty("lastClosure").ValueKind);
+        Assert.Equal(1, await ClosureRequestsAsync(_fixture.Services, alice.AuthId));
+        Assert.NotEqual(Guid.Empty, closure);
     }
 
     [Fact]
-    public async Task WhenAuthFailsAfterTheProfileIsDeleted_TheProfileStays_AndNoEventLeaves()
+    public async Task WhenSavingTheClosureFails_TheProfileStaysActive_AndNoEventLeaves()
     {
-        ApiPair api = _fixture.CreateIsolatedApi(new Dictionary<string, string>(), FailingAccountDeletion.Install);
+        ApiPair api = _fixture.CreateIsolatedApi(
+            new Dictionary<string, string>(),
+            services => services.ConfigureDbContext<UsersDbContext>((_, options) => options.AddInterceptors(new FailAfterSaving<UserProfile>(EntityState.Modified))));
         TestSession alice = new(api.CreateClient());
         await alice.RegisterAsync(TestAccounts.UniqueName("alice"));
 
         SessionResponse failed = await alice.SendAsync(HttpMethod.Delete, "api/v1/users/me");
 
         ProblemAssert.Problem(failed, HttpStatusCode.InternalServerError, "Http.Unexpected");
-        Assert.Equal(1, (await api.Monolith.Services.OwnedRowsAsync(alice.AuthId)).Profiles);
-        Assert.Equal(0, await UserDeletedEventsAsync(api.Monolith.Services, alice.AuthId));
+        Assert.Equal("active", (await MeAsync(alice, "api/v1/users/me")).GetProperty("accountStatus").GetString());
+        Assert.Equal(0, await ClosureRequestsAsync(api.Monolith.Services, alice.AuthId));
     }
 
-    [Fact]
-    public async Task DeleteMe_RemovesStoredIdempotencyKeys()
+    internal static async Task<(SessionResponse Response, Guid ClosureId)> RequestClosureAsync(TestSession session, string route)
     {
-        TestSession alice = new(_fixture.CreateClient());
-        await alice.RegisterAsync(TestAccounts.UniqueName("alice"));
-
-        SessionResponse created = await alice.SendAsync(
-            HttpMethod.Post,
-            "api/v1/tasks",
-            new { title = "Para cascada" },
-            headers: new Dictionary<string, string> { ["Idempotency-Key"] = Guid.NewGuid().ToString() });
-        created.Payload?.Dispose();
-        Assert.Equal(HttpStatusCode.Created, created.Status);
-        Assert.Equal(1, await _fixture.IdempotencyKeyCountAsync(alice.AuthId));
-
-        SessionResponse deleted = await alice.SendAsync(HttpMethod.Delete, "api/v1/users/me");
-        deleted.Payload?.Dispose();
-        Assert.Equal(HttpStatusCode.NoContent, deleted.Status);
-        Assert.Equal(0, await _fixture.IdempotencyKeyCountAsync(alice.AuthId));
+        SessionResponse accepted = await session.SendAsync(HttpMethod.Delete, route);
+        Assert.Equal(HttpStatusCode.Accepted, accepted.Status);
+        Assert.NotNull(accepted.Payload);
+        using (accepted.Payload)
+        {
+            Assert.Equal("closing", accepted.Payload.RootElement.GetProperty("status").GetString());
+            return (accepted, accepted.Payload.RootElement.GetProperty("closureId").GetGuid());
+        }
     }
 
-    private static Task<long> UserDeletedEventsAsync(IServiceProvider services, string authId) =>
+    internal static async Task<JsonElement> MeAsync(TestSession session, string route)
+    {
+        SessionResponse me = await session.SendAsync(HttpMethod.Get, route, csrf: false);
+        Assert.Equal(HttpStatusCode.OK, me.Status);
+        Assert.NotNull(me.Payload);
+        using (me.Payload)
+            return me.Payload.RootElement.Clone();
+    }
+
+    private static Task<long> ClosureRequestsAsync(IServiceProvider services, string authId) =>
         services.CountAsync(
-            $"""SELECT count(*) AS "Value" FROM users."OutboxMessages" WHERE "Type" = 'users.user-deleted' AND "Payload"->>'authId' = {authId}""");
+            $"""SELECT count(*) AS "Value" FROM users."OutboxMessages" WHERE "Type" = 'users.account-closure-requested' AND "Payload"->>'authId' = {authId}""");
 }
