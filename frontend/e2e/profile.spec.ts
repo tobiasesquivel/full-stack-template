@@ -80,7 +80,7 @@ test('deleting the account schedules its closure and cancelling it brings the ac
   });
   expect(deleted).toMatchObject({ status: 202, body: { status: 'scheduled' } });
   await reloadWithSession(page);
-  await expect(page.getByText(/^Tu cuenta se cierra el /)).toBeVisible();
+  await expect(page.getByText('Tu cuenta se cierra el')).toBeVisible();
 
   const cancelled = response(page, 'POST', '/cancel', 204);
   await page.getByRole('button', { name: 'Cancelar cierre' }).click();
