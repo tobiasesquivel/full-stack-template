@@ -15,6 +15,7 @@ internal sealed class UserMetrics
     private readonly Counter<long> _finished;
     private readonly Histogram<double> _duration;
     private readonly Counter<long> _overdue;
+    private readonly Counter<long> _reminders;
 
     public UserMetrics(IMeterFactory meterFactory)
     {
@@ -33,6 +34,10 @@ internal sealed class UserMetrics
             "templateapp.account_closures.overdue",
             unit: "{closure}",
             description: "Account closures still in flight when their deadline passed, by the state they were stuck in.");
+        _reminders = meter.CreateCounter<long>(
+            "templateapp.account_closures.reminders",
+            unit: "{reminder}",
+            description: "Reminders sent during the grace period of a scheduled account closure.");
     }
 
     public void AccountClosureFinished(ClosureOutcome outcome, TimeSpan duration)
@@ -43,6 +48,8 @@ internal sealed class UserMetrics
     }
 
     public void AccountClosureOverdue(string state) => _overdue.Add(1, new KeyValuePair<string, object?>(StateTag, state));
+
+    public void AccountClosureReminded() => _reminders.Add(1);
 
     private static string TagValue(ClosureOutcome outcome) => outcome switch
     {

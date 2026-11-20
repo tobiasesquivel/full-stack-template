@@ -11,6 +11,8 @@ public sealed record UserResponse(
     IReadOnlyList<string> Roles,
     IReadOnlyList<string> Permissions,
     string AccountStatus,
+    Guid? ClosureId,
+    DateTimeOffset? ClosesAt,
     UserProfileDetails.ClosureDetails? LastClosure)
 {
     public static UserResponse From(UserAccountDetails account, UserProfileDetails profile) =>
@@ -23,5 +25,7 @@ public sealed record UserResponse(
             account.Roles,
             account.Permissions,
             profile.AccountStatus,
+            profile.ClosureId,
+            profile.ClosesAt,
             profile.LastClosure);
 }

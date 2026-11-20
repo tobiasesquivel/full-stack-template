@@ -48,19 +48,25 @@ internal sealed partial class DeleteUser
         if (!await _auth.CanAccessAsync(callerId, profile, UserPermissions.Manage, ct))
             return UserErrors.Forbidden;
 
+        if (profile.ClosureStatus == AccountClosureStatus.Scheduled)
+        {
+            await transaction.CommitAsync(ct);
+            return new AccountClosureResponse(profile.ClosureId!.Value, "scheduled", profile.ClosesAt);
+        }
+
         DateTimeOffset now = _clock.GetUtcNow();
         Guid closureId = Guid.CreateVersion7(now);
         if (!profile.RequestClosure(closureId, now))
         {
             await transaction.CommitAsync(ct);
-            return new AccountClosureResponse(profile.ClosureId!.Value, "closing");
+            return new AccountClosureResponse(profile.ClosureId!.Value, "closing", null);
         }
 
         (AccountClosureSaga saga, object[] messages) = AccountClosureSaga.Open(closureId, authId, now, _options.OverdueAfter);
         await _sagas.StartAndCommitAsync(saga, messages, ct);
         AccountClosureTrace.Mark(closureId);
         LogRequested(closureId, authId);
-        return new AccountClosureResponse(closureId, "closing");
+        return new AccountClosureResponse(closureId, "closing", null);
     }
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Account closure {ClosureId}: Users marks user {UserId} as closing and the orchestrator asks Tasks to hold the tasks")]

@@ -17,11 +17,17 @@ internal sealed class UsersDbContext : DbContext
 
     public DbSet<OrchestrateAccountClosure.AccountClosureSaga> AccountClosureSagas => Set<OrchestrateAccountClosure.AccountClosureSaga>();
 
+    public DbSet<ScheduleAccountClosure.AccountClosureGracePeriod> AccountClosureGracePeriods => Set<ScheduleAccountClosure.AccountClosureGracePeriod>();
+
+    public DbSet<AccountClosureHistoryEntry> AccountClosureHistory => Set<AccountClosureHistoryEntry>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Schema);
         modelBuilder.ApplyConfiguration(new UserProfileConfiguration());
         modelBuilder.ApplyConfiguration(new AccountClosureSagaConfiguration());
+        modelBuilder.ApplyConfiguration(new AccountClosureGracePeriodConfiguration());
+        modelBuilder.ApplyConfiguration(new AccountClosureHistoryConfiguration());
         modelBuilder.MapSharedAuditEntries();
         modelBuilder.MapOutbox();
         modelBuilder.MapInbox();
