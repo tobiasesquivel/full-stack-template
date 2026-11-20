@@ -21,5 +21,6 @@ internal sealed class UsersDbContext : DbContext
         modelBuilder.ApplyConfiguration(new UserProfileConfiguration());
         modelBuilder.MapSharedAuditEntries();
         modelBuilder.MapOutbox();
+        modelBuilder.MapInbox();
     }
 }

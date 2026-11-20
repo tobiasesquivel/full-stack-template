@@ -25,6 +25,15 @@ internal sealed class UserProfileConfiguration : IEntityTypeConfiguration<UserPr
             .IsRequired()
             .HasDefaultValue("UTC");
 
+        builder.Property(u => u.ClosureStatus)
+            .HasConversion<string>()
+            .HasMaxLength(20)
+            .IsRequired()
+            .HasDefaultValue(AccountClosureStatus.None);
+
+        builder.Property(u => u.ClosureReason)
+            .HasMaxLength(100);
+
         builder.ToTable("UserProfiles");
     }
 }

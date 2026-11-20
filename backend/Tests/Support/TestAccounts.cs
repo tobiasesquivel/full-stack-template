@@ -83,9 +83,12 @@ internal static class TestAccounts
         }
     }
 
-    public static async Task SetRoleAsync(this ApiFixture fixture, string userName, string role, bool member)
+    public static Task SetRoleAsync(this ApiFixture fixture, string userName, string role, bool member) =>
+        fixture.Services.SetRoleAsync(userName, role, member);
+
+    public static async Task SetRoleAsync(this IServiceProvider services, string userName, string role, bool member)
     {
-        using IServiceScope scope = fixture.Services.CreateScope();
+        using IServiceScope scope = services.CreateScope();
         UserManager<AppIdentityUser> users = scope.ServiceProvider.GetRequiredService<UserManager<AppIdentityUser>>();
         AppIdentityUser? identity = await users.FindByNameAsync(userName);
         Assert.NotNull(identity);

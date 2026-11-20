@@ -13,6 +13,13 @@ internal static class DatabaseRows
         return await db.Database.SqlQuery<long>(sql).SingleAsync();
     }
 
+    public static async Task<string?> TextAsync(this IServiceProvider services, FormattableString sql)
+    {
+        using IServiceScope scope = services.CreateScope();
+        PlatformDbContext db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        return await db.Database.SqlQuery<string>(sql).SingleOrDefaultAsync();
+    }
+
     public static async Task<OwnedRows> OwnedRowsAsync(this IServiceProvider services, string authId) =>
         new(
             await services.CountAsync($"""SELECT count(*) AS "Value" FROM "AspNetUsers" WHERE "Id" = {authId}"""),

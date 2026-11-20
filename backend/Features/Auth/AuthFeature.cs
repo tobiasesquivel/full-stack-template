@@ -5,8 +5,10 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
 using TemplateApp.Features.Auth.Access;
 using TemplateApp.Features.Auth.Contracts;
+using TemplateApp.Features.Auth.Domain.Events;
 using TemplateApp.Features.Auth.Persistence;
 using TemplateApp.Infrastructure.Http;
+using TemplateApp.Infrastructure.Messaging;
 using TemplateApp.Infrastructure.Persistence;
 
 namespace TemplateApp.Features.Auth;
@@ -18,6 +20,14 @@ internal static class AuthFeature
     public static IServiceCollection AddAuthFeature(this IServiceCollection services)
     {
         services.AddMigratedDbContext<AuthDbContext>(AuthDbContext.Schema, adoptsLegacyTables: true);
+        services.AddOutbox<AuthDbContext>();
+        services.AddOutboxEvent<AccountDeleted>(AuthEvents.AccountDeleted, AuthEvents.Version);
+        services.AddOutboxEvent<AccountClosureRejected>(AuthEvents.AccountClosureRejected, AuthEvents.Version);
+        services.AddIntegrationEventPublication<AccountDeletedInfo>(AuthEvents.AccountDeleted, AuthEvents.Version, AuthEvents.Exchange);
+        services.AddIntegrationEventPublication<AccountClosureRejectedInfo>(AuthEvents.AccountClosureRejected, AuthEvents.Version, AuthEvents.Exchange);
+        services.AddEventHandler<AccountDeleted, PublishAuthEvents.AuthEventPublisher>();
+        services.AddEventHandler<AccountClosureRejected, PublishAuthEvents.AuthEventPublisher>();
+        services.AddIntegrationEventHandler<DecideAccountClosure.OwnerTasksHeldIntegrationEvent, DecideAccountClosure.OwnerTasksHeldConsumer>(TaskEvents.OwnerTasksHeld, TaskEvents.Version, TaskEvents.Exchange, DecideAccountClosure.DecideAccountClosure.Consumer);
         services.AddAuthIdentity();
         services.AddAuthSession();
         services.AddAuthHttpPolicy();
@@ -33,6 +43,7 @@ internal static class AuthFeature
         services.AddScoped<OpenSession.OpenSession>();
         services.AddScoped<CloseSession.CloseSession>();
         services.AddScoped<CheckSession.CheckSession>();
+        services.AddScoped<DecideAccountClosure.DecideAccountClosure>();
 
         return services;
     }

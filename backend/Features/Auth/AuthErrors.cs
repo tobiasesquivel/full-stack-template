@@ -25,6 +25,10 @@ internal static class AuthErrors
         code: "Auth.AccountNotFound",
         description: "Account not found.");
 
+    public static readonly Error LastSuperAdmin = Error.Conflict(
+        code: "Auth.LastSuperAdmin",
+        description: "The only SuperAdmin account cannot be closed.");
+
     public static readonly Error SessionInactive = Error.NotFound(
         code: "Auth.SessionInactive",
         description: "The session does not exist, expired or belongs to another user.");
