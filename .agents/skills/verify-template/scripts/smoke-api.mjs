@@ -177,19 +177,59 @@ async function waitTasksStatus(client, status) {
   throw new Error(`GET tasks no respondió ${status} en 60 segundos`);
 }
 
-async function requestClosure(client) {
+const SMOKE_GRACE_LIMIT_MS = 120000;
+
+async function scheduleClosure(client) {
   const accepted = await client.request('DELETE', 'users/me', undefined, { expected: 202 });
-  assert.equal(accepted.payload.status, 'closing', 'Borrar la cuenta abre un cierre en curso');
+  assert.equal(accepted.payload.status, 'scheduled', 'Borrar la cuenta agenda el cierre después del período de gracia');
   assert.match(accepted.payload.closureId, /^[0-9a-f-]{36}$/, 'El 202 lleva el id del cierre');
   assert.equal(accepted.headers.get('location'), '/api/v1/users/me', 'El 202 apunta al monitor del cierre');
+  const closesIn = Date.parse(accepted.payload.closesAt) - Date.now();
+  assert.ok(closesIn < SMOKE_GRACE_LIMIT_MS,
+    `El cierre vence en ${Math.round(closesIn / 1000)} s: el smoke necesita un período de gracia corto (AccountClosure__GracePeriodSeconds, en Compose ACCOUNT_CLOSURE_GRACE_SECONDS)`);
   const closure = await client.request('GET', `users/closures/${accepted.payload.closureId}`, undefined, { expected: 200 });
-  assert.equal(closure.payload.closureId, accepted.payload.closureId, 'El orquestador guarda el cierre con el mismo id del 202');
-  assert.ok(['holdingTasks', 'deciding', 'completed'].includes(closure.payload.state), `El cierre recién pedido está en un estado del orquestador, no en ${closure.payload.state}`);
+  assert.equal(closure.payload.closureId, accepted.payload.closureId, 'El cierre agendado se lee con el mismo id del 202');
+  assert.ok(['scheduled', 'holdingTasks', 'deciding', 'completed'].includes(closure.payload.state), `El cierre recién pedido está agendado o ya en curso, no en ${closure.payload.state}`);
+  assert.equal(closure.payload.closesAt, accepted.payload.closesAt, 'La lectura del cierre trae la misma fecha de cierre');
+  const history = await client.request('GET', `users/closures/${accepted.payload.closureId}/history`, undefined, { expected: 200 });
+  assert.equal(history.payload.items[0].kind, 'requested', 'El historial del cierre empieza con el pedido');
   return accepted.payload.closureId;
 }
 
+async function cancelClosure(client) {
+  const closureId = await scheduleClosure(client);
+  const key = { 'Idempotency-Key': crypto.randomUUID() };
+  await client.request('POST', `users/closures/${closureId}/cancel`, undefined, { expected: 204, headers: key });
+  const replayed = await client.request('POST', `users/closures/${closureId}/cancel`, undefined, { expected: 204, headers: key });
+  assert.equal(replayed.headers.get('idempotent-replayed'), 'true', 'La misma clave repite la cancelación');
+  const again = await client.request('POST', `users/closures/${closureId}/cancel`, undefined, { expected: 409 });
+  assert.equal(again.payload.code, 'User.ClosureNotCancellable', 'Un cierre ya cancelado no se cancela de nuevo');
+  const me = (await client.request('GET', 'users/me')).payload;
+  assert.equal(me.accountStatus, 'active', 'Cancelar el cierre devuelve la cuenta a activa');
+  assert.deepEqual([me.lastClosure.closureId, me.lastClosure.outcome], [closureId, 'cancelled'], 'El perfil recuerda el cierre cancelado');
+  const closure = await client.request('GET', `users/closures/${closureId}`, undefined, { expected: 200 });
+  assert.equal(closure.payload.state, 'cancelled');
+  const history = await client.request('GET', `users/closures/${closureId}/history`, undefined, { expected: 200 });
+  assert.deepEqual(history.payload.items.map(item => item.kind).filter(kind => kind !== 'reminder-sent'), ['requested', 'cancelled'],
+    'El historial guarda el pedido y la cancelación');
+  evidence.push({ scenario: 'closure cancelled during the grace period', closureId, history: history.payload.items.map(item => item.kind) });
+}
+
+async function waitAccountStatus(client, status) {
+  const deadline = Date.now() + 90000;
+  while (Date.now() < deadline) {
+    const response = await fetch(new URL('users/me', base), {
+      headers: { accept: 'application/json', cookie: client.cookieHeader() },
+      signal: AbortSignal.timeout(5000),
+    }).catch(() => undefined);
+    if (response?.status === 200 && (await response.json()).accountStatus === status) return;
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+  throw new Error(`GET users/me no llegó a accountStatus ${status} en 90 segundos`);
+}
+
 async function waitAccountClosed(client) {
-  const deadline = Date.now() + 60000;
+  const deadline = Date.now() + 90000;
   while (Date.now() < deadline) {
     const response = await fetch(new URL('users/me', base), {
       headers: { accept: 'application/json', cookie: client.cookieHeader() },
@@ -198,7 +238,7 @@ async function waitAccountClosed(client) {
     if (response?.status === 401) return;
     await new Promise(resolve => setTimeout(resolve, 500));
   }
-  throw new Error('El cierre de la cuenta no terminó en 60 segundos: GET users/me no respondió 401');
+  throw new Error('El cierre de la cuenta no terminó en 90 segundos (período de gracia y cierre): GET users/me no respondió 401');
 }
 
 async function waitProjectCounters(client, projectId, taskCount) {
@@ -378,7 +418,8 @@ if (process.argv.includes('--compose')) {
     const projectsWithoutTasks = await alice.request('GET', 'projects', undefined, { expected: 200 });
     assert.deepEqual(projectsWithoutTasks.payload.items.map(item => [item.id, item.taskCount]), [[project.id, 1]],
       'Sin Tasks, la lista de proyectos responde con los contadores que ya tenía');
-    await requestClosure(carol);
+    await scheduleClosure(carol);
+    await waitAccountStatus(carol, 'closing');
     await new Promise(resolve => setTimeout(resolve, 3000));
     assert.equal((await carol.request('GET', 'users/me')).payload.accountStatus, 'closing',
       'Con Tasks caído, el cierre espera en closing');
@@ -430,9 +471,10 @@ const revokedTasks = await revoked.request('GET', 'tasks', undefined, { expected
 assert.equal(revokedTasks.payload.code, 'Auth.SessionRequired', 'Revocar la sesión corta también el proceso de Tasks');
 await alice.request('GET', 'users/me', undefined, { expected: 401 });
 await alice.open(aliceName);
-await requestClosure(alice);
+await cancelClosure(bob);
+await scheduleClosure(alice);
+await scheduleClosure(bob);
 await waitAccountClosed(alice);
-await requestClosure(bob);
 await waitAccountClosed(bob);
 
 if (process.env.OTEL_EXPORT_DIR) {

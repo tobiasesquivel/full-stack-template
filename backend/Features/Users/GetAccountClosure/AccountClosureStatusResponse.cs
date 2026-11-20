@@ -8,4 +8,5 @@ internal sealed record AccountClosureStatusResponse(
     bool Overdue,
     DateTimeOffset StartedAt,
     DateTimeOffset StateChangedAt,
-    DateTimeOffset? FinishedAt);
+    DateTimeOffset? FinishedAt,
+    DateTimeOffset? ClosesAt);

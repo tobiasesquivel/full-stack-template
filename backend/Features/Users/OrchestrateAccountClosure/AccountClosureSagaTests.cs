@@ -35,7 +35,7 @@ public sealed class AccountClosureSagaTests : IAsyncDisposable
         await before.DrainAsync();
         await MonolithListener.StopAsync(before, MonolithListener.Closures);
 
-        (_, Guid closure) = await DeleteUserTests.RequestClosureAsync(bob, "api/v1/users/me");
+        (_, Guid closure) = await DeleteUserTests.RequestClosureAsync(before, bob, "api/v1/users/me");
         Assert.Equal(1, await Eventually.Async(() => DeleteUserBrokerTests.HoldsAsync(before, bob.AuthId), holds => holds == 1, Wait));
         await before.PublishOutboxAsync();
         Assert.Equal(1u, await Eventually.Async(() => broker.CountAsync(MonolithListener.Closures), waiting => waiting == 1, Wait));
@@ -62,7 +62,7 @@ public sealed class AccountClosureSagaTests : IAsyncDisposable
         TestSession alice = await api.SignUpAsync("alice");
         await api.Pair.Monolith.Services.SetRoleAsync(alice.UserName, "SuperAdmin", member: true);
 
-        (_, Guid closure) = await DeleteUserTests.RequestClosureAsync(alice, "api/v1/users/me");
+        (_, Guid closure) = await DeleteUserTests.RequestClosureAsync(api, alice, "api/v1/users/me");
         Assert.Equal(1, await Eventually.Async(() => DeleteUserBrokerTests.HoldsAsync(api, alice.AuthId), holds => holds == 1, Wait));
         await TasksListener.StopAsync(api);
         await api.PublishOutboxAsync();
@@ -94,7 +94,7 @@ public sealed class AccountClosureSagaTests : IAsyncDisposable
         TestSession bob = await api.SignUpAsync("bob");
         await TasksListener.StopAsync(api);
 
-        (_, Guid closure) = await DeleteUserTests.RequestClosureAsync(bob, "api/v1/users/me");
+        (_, Guid closure) = await DeleteUserTests.RequestClosureAsync(api, bob, "api/v1/users/me");
         Assert.True(await Eventually.Async(() => OverdueAsync(api, closure), late => late, Wait));
         JsonElement stuck = await ClosureAsync(bob, closure);
         await TasksListener.StartAsync(api);
@@ -114,7 +114,7 @@ public sealed class AccountClosureSagaTests : IAsyncDisposable
         TestSession bob = await api.SignUpAsync("bob");
         await TasksListener.StopAsync(api);
         await MonolithListener.StopAsync(api, MonolithListener.Closures);
-        (_, Guid closure) = await DeleteUserTests.RequestClosureAsync(bob, "api/v1/users/me");
+        (_, Guid closure) = await DeleteUserTests.RequestClosureAsync(api, bob, "api/v1/users/me");
         await broker.BindLegacyAsync("tasks.task-events", "tasks.owner-tasks-held", "auth.account-closures");
 
         await broker.PublishAsync("tasks.owner-tasks-held", Guid.NewGuid(), new { closureId = closure, userId = bob.AuthId, heldAt = DateTimeOffset.UtcNow });
@@ -134,7 +134,7 @@ public sealed class AccountClosureSagaTests : IAsyncDisposable
         TaskEventsBroker broker = await ConnectAsync(api);
         TestSession bob = await api.SignUpAsync("bob");
         await TasksListener.StopAsync(api);
-        (_, Guid closure) = await DeleteUserTests.RequestClosureAsync(bob, "api/v1/users/me");
+        (_, Guid closure) = await DeleteUserTests.RequestClosureAsync(api, bob, "api/v1/users/me");
         Guid decision = Guid.NewGuid();
 
         await broker.PublishAsync("auth.account-events", "auth.account-deleted", decision, new { closureId = closure, userId = bob.AuthId, deletedAt = DateTimeOffset.UtcNow });
@@ -152,7 +152,7 @@ public sealed class AccountClosureSagaTests : IAsyncDisposable
         IsolatedApi api = await StartAsync();
         TaskEventsBroker broker = await ConnectAsync(api);
         TestSession bob = await api.SignUpAsync("bob");
-        (_, Guid closure) = await DeleteUserTests.RequestClosureAsync(bob, "api/v1/users/me");
+        (_, Guid closure) = await DeleteUserTests.RequestClosureAsync(api, bob, "api/v1/users/me");
         await api.DrainAsync();
         Guid duplicate = Guid.NewGuid();
 

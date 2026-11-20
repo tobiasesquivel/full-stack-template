@@ -47,13 +47,10 @@ internal sealed class UserProfile : IOwnedResource, IAuditable, IHasDomainEvents
 
     public bool RequestClosure(Guid closureId, DateTimeOffset now)
     {
-        if (ClosureStatus == AccountClosureStatus.Closing
-            || (ClosureStatus == AccountClosureStatus.Scheduled && ClosureId != closureId))
+        if (ClosureStatus != AccountClosureStatus.Scheduled || ClosureId != closureId)
             return false;
 
         ClosureStatus = AccountClosureStatus.Closing;
-        ClosureId = closureId;
-        ClosureReason = null;
         ClosureChangedAt = now;
         return true;
     }

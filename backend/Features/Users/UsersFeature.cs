@@ -34,6 +34,8 @@ internal static class UsersFeature
         services.AddScoped<IUsersModule, UsersModule>();
         services.AddScoped<GetUser.GetUser>();
         services.AddScoped<GetAccountClosure.GetAccountClosure>();
+        services.AddScoped<GetAccountClosureHistory.GetAccountClosureHistory>();
+        services.AddScoped<WithdrawAccountClosure.WithdrawAccountClosure>();
         services.AddScoped<UpdateProfile.UpdateProfile>();
         services.AddScoped<DeleteUser.DeleteUser>();
         services.AddScoped<CompleteAccountClosure.CompleteAccountClosure>();
@@ -53,6 +55,8 @@ internal static class UsersFeature
 
         GetUser.GetUserEndpoint.Map(users);
         GetAccountClosure.GetAccountClosureEndpoint.Map(users);
+        GetAccountClosureHistory.GetAccountClosureHistoryEndpoint.Map(users);
+        WithdrawAccountClosure.WithdrawAccountClosureEndpoint.Map(users);
         UpdateProfile.UpdateProfileEndpoint.Map(users);
         DeleteUser.DeleteUserEndpoint.Map(users);
 

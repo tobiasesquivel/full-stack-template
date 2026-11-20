@@ -34,7 +34,7 @@ public sealed class CompleteAccountClosureTests : IDisposable
         await bob.CreateProjectAsync("Mudanza");
         await bob.CreateTaskAsync("Embalar");
 
-        (_, Guid closure) = await DeleteUserTests.RequestClosureAsync(bob, "api/v1/users/me");
+        (_, Guid closure) = await DeleteUserTests.RequestClosureAsync(api, bob, "api/v1/users/me");
         await api.DrainAsync();
 
         Assert.Equal(1, fault.Failures);

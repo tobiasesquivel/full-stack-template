@@ -143,7 +143,7 @@ public sealed class AuditTrailTests : IClassFixture<ApiFixture>
         Assert.Equal(
             [("Added", "anonymous", null), ("Modified", "user", alice.AuthId)],
             profileRows.Select(r => (r.Operation, r.ActorKind, r.ActorId)));
-        Assert.Equal("ClosureChangedAt,ClosureId,ClosureStatus", profileRows.Last().ChangedProperties);
+        Assert.Equal("ClosesAt,ClosureChangedAt,ClosureId,ClosureStatus", profileRows.Last().ChangedProperties);
         List<AuditRow> taskRows = await _fixture.Services.AuditEntriesAsync(id);
         Assert.Equal(
             [("Added", "user", alice.AuthId)],

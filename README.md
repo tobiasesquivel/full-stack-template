@@ -20,7 +20,7 @@ Para ejecutar el backend fuera de Compose, configura `ConnectionStrings__Default
 
 La API valida su configuración al arrancar, antes de tocar la base. Si un valor no cumple su regla, no levanta: sale con código 1 y el log dice qué clave falló. Las reglas son: `ConnectionStrings:DefaultConnection` obligatoria, con formato de PostgreSQL y con `Host`; `Session:AbsoluteExpirationDays` entre 1 y 365; `Session:IdleTimeoutMinutes` entre 1 y 1440; `Otel:Endpoint` (u `OTEL_EXPORTER_OTLP_ENDPOINT`) como URL absoluta `http` o `https`; `DataProtection:KeysDirectory` vacía o como ruta absoluta. `backend/appsettings.example.json` muestra cada clave.
 
-Para Compose, copia `.env.example` a `.env`. Sustituye el valor inválido de `POSTGRES_PASSWORD` por un secret propio antes de iniciar. `.env` no debe versionarse. Los demás nombres de configuración son `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PORT`, `API_PORT`, `WEB_PORT`, `PROMETHEUS_PORT` y `OTEL_EXPORT_DIR`. `docker compose config` puede imprimir secrets interpolados. No adjuntes su salida completa como evidencia pública.
+Para Compose, copia `.env.example` a `.env`. Sustituye el valor inválido de `POSTGRES_PASSWORD` por un secret propio antes de iniciar. `.env` no debe versionarse. Los demás nombres de configuración son `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PORT`, `API_PORT`, `WEB_PORT`, `PROMETHEUS_PORT`, `OTEL_EXPORT_DIR` y los plazos del cierre de cuenta: `ACCOUNT_CLOSURE_GRACE_SECONDS` (período de gracia, 14 días por defecto), `ACCOUNT_CLOSURE_FIRST_REMINDER_SECONDS` y `ACCOUNT_CLOSURE_SECOND_REMINDER_SECONDS` (recordatorios, días 7 y 13). `docker compose config` puede imprimir secrets interpolados. No adjuntes su salida completa como evidencia pública.
 
 ## Ejecutar con Docker
 
@@ -120,7 +120,7 @@ node --test ../dune/check-frontend.test.mjs
 node ../dune/check-frontend.mjs --root ..
 ```
 
-Para levantar una instancia aislada y probar la API real, usá la skill `verify-template` ([SKILL.md](.agents/skills/verify-template/SKILL.md)): `launch`, `doctor`, `api` y `cleanup`. Con el conjunto Docker iniciado, el escenario HTTP también corre directo desde la raíz:
+Para levantar una instancia aislada y probar la API real, usá la skill `verify-template` ([SKILL.md](.agents/skills/verify-template/SKILL.md)): `launch`, `doctor`, `api` y `cleanup`. `launch` arranca la API con un período de gracia de 20 segundos y recordatorios a los 5 y 10, para que el smoke y las e2e vean el cierre completo. Con el conjunto Docker iniciado, el escenario HTTP también corre directo desde la raíz; el smoke cierra cuentas de punta a punta y falla si el período de gracia pasa de 2 minutos, así que levantá Compose con `ACCOUNT_CLOSURE_GRACE_SECONDS=20`, `ACCOUNT_CLOSURE_FIRST_REMINDER_SECONDS=5` y `ACCOUNT_CLOSURE_SECOND_REMINDER_SECONDS=10`, como hace el job `compose` de CI:
 
 ```sh
 node .agents/skills/verify-template/scripts/smoke-api.mjs

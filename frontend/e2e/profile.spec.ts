@@ -65,3 +65,33 @@ test('an unknown time zone gets 400 with an alert and keeps the saved zone', asy
   await reloadWithSession(page);
   await expect(page.getByLabel('Zona horaria (IANA)')).toHaveValue(ZONE);
 });
+
+test('deleting the account schedules its closure and cancelling it brings the account back', async () => {
+  const deleted = await page.evaluate(async () => {
+    const token = document.cookie
+      .split('; ')
+      .find((cookie) => cookie.startsWith('XSRF-TOKEN='))
+      ?.slice('XSRF-TOKEN='.length);
+    const answer = await fetch('/api/v1/users/me', {
+      method: 'DELETE',
+      headers: { 'X-XSRF-TOKEN': decodeURIComponent(token ?? '') },
+    });
+    return { status: answer.status, body: (await answer.json()) as { status: string } };
+  });
+  expect(deleted).toMatchObject({ status: 202, body: { status: 'scheduled' } });
+  await reloadWithSession(page);
+  await expect(page.getByText(/^Tu cuenta se cierra el /)).toBeVisible();
+
+  const cancelled = response(page, 'POST', '/cancel', 204);
+  await page.getByRole('button', { name: 'Cancelar cierre' }).click();
+  await cancelled;
+  await expect(
+    page.getByText('Cancelaste el cierre de tu cuenta. Tus datos siguen igual.'),
+  ).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Cancelar cierre' })).toHaveCount(0);
+  await reloadWithSession(page);
+  await expect(
+    page.getByText('Cancelaste el cierre de tu cuenta. Tus datos siguen igual.'),
+  ).toBeVisible();
+  await expect(page.getByLabel('Nombre visible')).toHaveValue('Perfil verificado');
+});

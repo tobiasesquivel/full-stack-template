@@ -1,14 +1,12 @@
 using System.Diagnostics;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Storage;
+using System.Globalization;
+using System.Net;
+using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 using Npgsql;
-using TemplateApp.Features.Users.Domain;
-using TemplateApp.Features.Users.OrchestrateAccountClosure;
-using TemplateApp.Features.Users.Persistence;
-using TemplateApp.Infrastructure.Messaging;
+using TemplateApp.Features.Users.DeleteUser;
 using TemplateApp.Tests.Support;
+using Wolverine;
 using Xunit;
 
 namespace TemplateApp.Features.Users.ScheduleAccountClosure;
@@ -16,13 +14,6 @@ namespace TemplateApp.Features.Users.ScheduleAccountClosure;
 public sealed class AccountClosureGracePeriodTests : IDisposable
 {
     private static readonly TimeSpan Wait = TimeSpan.FromSeconds(60);
-
-    private static readonly Dictionary<string, string> SecondsNotDays = new()
-    {
-        ["AccountClosure:GracePeriodSeconds"] = "6",
-        ["AccountClosure:ReminderOffsetsSeconds:0"] = "2",
-        ["AccountClosure:ReminderOffsetsSeconds:1"] = "4",
-    };
 
     private readonly string _server;
     private readonly Uri _broker;
@@ -35,50 +26,158 @@ public sealed class AccountClosureGracePeriodTests : IDisposable
     }
 
     [Fact]
-    public async Task AGracePeriodOpenedByTheNextRelease_RemindsTwice_AndThenStartsTheClosure()
+    public async Task AGracePeriodOfDays_RunWithSecondsForDays_RemindsTwice_AndThenStartsTheClosure()
     {
-        IsolatedApi api = await StartAsync(SecondsNotDays);
+        IsolatedApi api = await StartAsync(GracePeriod(6, 2, 4));
         using RecordedMeasurements reminders = new(api.Pair.Monolith.Services, "TemplateApp.Users", "templateapp.account_closures.reminders");
         TestSession bob = await api.SignUpAsync("bob");
         Stopwatch elapsed = Stopwatch.StartNew();
 
-        Guid closure = await OpenAsNextReleaseAsync(api, bob.AuthId);
+        (_, Guid closure, _) = await DeleteUserTests.ScheduleClosureAsync(bob, "api/v1/users/me");
         List<(string Fact, TimeSpan At)> seen = await WatchAsync(api, closure, AccountClosureFacts.ClosureStarted, elapsed);
+        JsonElement closing = await DeleteUserTests.MeAsync(bob, "api/v1/users/me");
         await api.DrainAsync();
 
-        Assert.Equal(
-            ["requested", "reminder-sent:1", "reminder-sent:2", "grace-expired", "closure-started", "completed"],
-            await HistoryAsync(api, closure));
         Assert.Equal(["reminder-sent:1", "reminder-sent:2", "grace-expired", "closure-started"], seen.Select(s => s.Fact));
         Assert.True(seen[0].At >= TimeSpan.FromSeconds(2), $"The first reminder came at {seen[0].At}, before its 2 s.");
         Assert.True(seen[1].At >= TimeSpan.FromSeconds(4), $"The second reminder came at {seen[1].At}, before its 4 s.");
         Assert.True(seen[2].At >= TimeSpan.FromSeconds(6), $"The grace period ended at {seen[2].At}, before its 6 s.");
+        Assert.Equal("closing", closing.GetProperty("accountStatus").GetString());
+        Assert.Equal(
+            ["requested", "reminder-sent:1", "reminder-sent:2", "grace-expired", "closure-started", "completed"],
+            await HistoryAsync(api, closure));
         Assert.Equal(2, reminders.Values.Count);
         Assert.Equal(0, await GracePeriodsAsync(api, closure));
-        Assert.Equal("Completed", await api.Pair.Monolith.Services.TextAsync($"""SELECT "State" AS "Value" FROM users."AccountClosureSagas" WHERE "ClosureId" = {closure}"""));
+        Assert.Equal("Completed", await DeleteUserBrokerTests.SagaStateAsync(api, closure));
+        Assert.Equal(OwnedRows.None, await api.Pair.Monolith.Services.OwnedRowsAsync(bob.AuthId));
     }
 
     [Fact]
-    public async Task TheClosureHistory_RejectsADirectUpdateOrDelete()
+    public async Task TheMonolithRestartsWhileAReminderIsPending_AndTheGracePeriodResumes_EachStepOnce()
     {
-        IsolatedApi api = await StartAsync();
+        Dictionary<string, string> settings = GracePeriod(24, 10, 17);
+        IsolatedApi before = await StartAsync(settings);
+        TestSession bob = await before.SignUpAsync("bob");
+
+        Stopwatch elapsed = Stopwatch.StartNew();
+        (_, Guid closure, _) = await DeleteUserTests.ScheduleClosureAsync(bob, "api/v1/users/me");
+        long pending = await ScheduledTimersAsync(before);
+        before.Dispose();
+        _apis.Remove(before);
+        IsolatedApi after = IsolatedApi.StartOn(before.Database, _broker, before.Prefix, FastScheduledMessages.Install, settings: settings);
+        _apis.Add(after);
+        TimeSpan restarted = elapsed.Elapsed;
+        List<(string Fact, TimeSpan At)> seen = await WatchAsync(after, closure, AccountClosureFacts.ClosureStarted, elapsed);
+        await after.DrainAsync();
+
+        Assert.Equal(3, pending);
+        Assert.True(restarted < TimeSpan.FromSeconds(10), $"The new hosts took {restarted} to start: the first reminder was already due.");
+        Assert.True(seen[0].At >= TimeSpan.FromSeconds(10), $"The first reminder came at {seen[0].At}, before its 10 s.");
+        Assert.Equal(["reminder-sent:1", "reminder-sent:2", "grace-expired", "closure-started"], seen.Select(s => s.Fact));
+        Assert.Equal(
+            ["requested", "reminder-sent:1", "reminder-sent:2", "grace-expired", "closure-started", "completed"],
+            await HistoryAsync(after, closure));
+        Assert.Equal(0, await GracePeriodsAsync(after, closure));
+        Assert.Equal("Completed", await DeleteUserBrokerTests.SagaStateAsync(after, closure));
+    }
+
+    [Fact]
+    public async Task ACancellationThatQueuesBehindTheExpiry_Gets409_AndTheClosureRunsToTheEnd()
+    {
+        IsolatedApi api = await StartAsync(GracePeriod(3, 1, 2));
         TestSession bob = await api.SignUpAsync("bob");
-        Guid closure = await OpenAsNextReleaseAsync(api, bob.AuthId);
-        await using NpgsqlConnection connection = await TestDatabases.OpenAsync(api.Database);
+        (_, Guid closure, _) = await DeleteUserTests.ScheduleClosureAsync(bob, "api/v1/users/me");
+        CancellationToken ct = TestContext.Current.CancellationToken;
 
-        PostgresException update = await Assert.ThrowsAsync<PostgresException>(() =>
-            ExecuteAsync(connection, """UPDATE users."AccountClosureHistory" SET "Actor" = 'someone-else' WHERE "ClosureId" = $1""", closure));
-        PostgresException delete = await Assert.ThrowsAsync<PostgresException>(() =>
-            ExecuteAsync(connection, """DELETE FROM users."AccountClosureHistory" WHERE "ClosureId" = $1""", closure));
+        await using NpgsqlConnection held = await TestDatabases.OpenAsync(api.Database);
+        await using NpgsqlTransaction holding = await LockProfileAsync(held, bob.AuthId);
+        long expiryWaits = await Eventually.Async(() => WaitingForLocksAsync(api), count => count == 1, Wait);
+        Task<SessionResponse> cancel = CancelAsync(bob, closure);
+        long bothWait = await Eventually.Async(() => WaitingForLocksAsync(api), count => count == 2, Wait);
+        await holding.CommitAsync(ct);
+        SessionResponse cancelled = await cancel;
+        await api.DrainAsync();
 
-        Assert.Equal((PostgresErrorCodes.RestrictViolation, PostgresErrorCodes.RestrictViolation), (update.SqlState, delete.SqlState));
-        Assert.Equal(["requested"], await HistoryAsync(api, closure));
+        Assert.Equal((1, 2), (expiryWaits, bothWait));
+        ProblemAssert.Problem(cancelled, HttpStatusCode.Conflict, "User.ClosureNotCancellable");
+        Assert.Equal(["requested", "reminder-sent:1", "reminder-sent:2", "grace-expired", "closure-started", "completed"], await HistoryAsync(api, closure));
+        Assert.Equal("Completed", await DeleteUserBrokerTests.SagaStateAsync(api, closure));
+        Assert.Equal(OwnedRows.None, await api.Pair.Monolith.Services.OwnedRowsAsync(bob.AuthId));
+    }
+
+    [Fact]
+    public async Task AnExpiryThatQueuesBehindTheCancellation_StartsNothing_AndTheGracePeriodEndsCancelled()
+    {
+        IsolatedApi api = await StartAsync(GracePeriod(3, 1, 2));
+        TestSession bob = await api.SignUpAsync("bob");
+        (_, Guid closure, _) = await DeleteUserTests.ScheduleClosureAsync(bob, "api/v1/users/me");
+        CancellationToken ct = TestContext.Current.CancellationToken;
+
+        await using NpgsqlConnection held = await TestDatabases.OpenAsync(api.Database);
+        await using NpgsqlTransaction holding = await LockProfileAsync(held, bob.AuthId);
+        Task<SessionResponse> cancel = CancelAsync(bob, closure);
+        long cancelWaits = await Eventually.Async(() => WaitingForLocksAsync(api), count => count == 1, Wait);
+        long bothWait = await Eventually.Async(() => WaitingForLocksAsync(api), count => count == 2, Wait);
+        await holding.CommitAsync(ct);
+        SessionResponse cancelled = await cancel;
+        cancelled.Payload?.Dispose();
+        long timersLeft = await Eventually.Async(() => ScheduledTimersAsync(api), count => count == 0, Wait);
+        long gracePeriods = await Eventually.Async(() => GracePeriodsAsync(api, closure), count => count == 0, Wait);
+        JsonElement me = await DeleteUserTests.MeAsync(bob, "api/v1/users/me");
+
+        Assert.Equal((1, 2), (cancelWaits, bothWait));
+        Assert.Equal(HttpStatusCode.NoContent, cancelled.Status);
+        Assert.Equal((0, 0), (timersLeft, gracePeriods));
+        Assert.Equal("active", me.GetProperty("accountStatus").GetString());
+        Assert.Equal("cancelled", me.GetProperty("lastClosure").GetProperty("outcome").GetString());
+        Assert.Null(await DeleteUserBrokerTests.SagaStateAsync(api, closure));
+        string[] history = await HistoryAsync(api, closure);
+        Assert.DoesNotContain("closure-started", history);
+        Assert.Equal("cancelled", history[^1]);
+    }
+
+    [Fact]
+    public async Task AReminderDeliveredTwice_LeavesOneHistoryRow_AndCountsOnce()
+    {
+        IsolatedApi api = await StartAsync([]);
+        using RecordedMeasurements reminders = new(api.Pair.Monolith.Services, "TemplateApp.Users", "templateapp.account_closures.reminders");
+        TestSession bob = await api.SignUpAsync("bob");
+        (_, Guid closure, _) = await DeleteUserTests.ScheduleClosureAsync(bob, "api/v1/users/me");
+
+        await RemindAsync(api, closure, 1);
+        await RemindAsync(api, closure, 1);
+
+        Assert.Equal(["requested", "reminder-sent:1"], await HistoryAsync(api, closure));
+        Assert.Single(reminders.Values);
+        Assert.Equal("1", await api.Pair.Monolith.Services.TextAsync(
+            $"""SELECT "RemindersSent"::text AS "Value" FROM users."AccountClosureGracePeriods" WHERE "ClosureId" = {closure}"""));
     }
 
     public void Dispose()
     {
         foreach (IsolatedApi api in _apis)
             api.Dispose();
+    }
+
+    internal static Dictionary<string, string> GracePeriod(int seconds, int firstReminder, int secondReminder) => new()
+    {
+        ["AccountClosure:GracePeriodSeconds"] = seconds.ToString(CultureInfo.InvariantCulture),
+        ["AccountClosure:ReminderOffsetsSeconds:0"] = firstReminder.ToString(CultureInfo.InvariantCulture),
+        ["AccountClosure:ReminderOffsetsSeconds:1"] = secondReminder.ToString(CultureInfo.InvariantCulture),
+    };
+
+    internal static async Task EndGracePeriodAsync(IsolatedApi api, Guid closureId)
+    {
+        using IServiceScope scope = api.Pair.Monolith.Services.CreateScope();
+        await scope.ServiceProvider.GetRequiredService<IMessageBus>()
+            .InvokeAsync(new AccountClosureGraceExpired(closureId, TimeSpan.Zero), TestContext.Current.CancellationToken);
+    }
+
+    private static async Task RemindAsync(IsolatedApi api, Guid closureId, int number)
+    {
+        using IServiceScope scope = api.Pair.Monolith.Services.CreateScope();
+        await scope.ServiceProvider.GetRequiredService<IMessageBus>()
+            .InvokeAsync(new AccountClosureReminderDue(closureId, number, TimeSpan.Zero), TestContext.Current.CancellationToken);
     }
 
     internal static async Task<string[]> HistoryAsync(IsolatedApi api, Guid closureId)
@@ -94,7 +193,17 @@ public sealed class AccountClosureGracePeriodTests : IDisposable
     internal static Task<long> GracePeriodsAsync(IsolatedApi api, Guid closureId) =>
         api.Pair.Monolith.Services.CountAsync($"""SELECT count(*) AS "Value" FROM users."AccountClosureGracePeriods" WHERE "ClosureId" = {closureId}""");
 
-    internal static async Task<List<(string Fact, TimeSpan At)>> WatchAsync(IsolatedApi api, Guid closureId, string until, Stopwatch elapsed)
+    internal static Task<long> ScheduledTimersAsync(IsolatedApi api) =>
+        api.Pair.Monolith.Services.CountAsync(
+            $"""
+            SELECT count(*) AS "Value" FROM wolverine.wolverine_incoming_envelopes
+            WHERE status IN ('Scheduled', 'Incoming') AND (message_type LIKE '%AccountClosureReminderDue%' OR message_type LIKE '%AccountClosureGraceExpired%')
+            """);
+
+    internal static Task<SessionResponse> CancelAsync(TestSession session, Guid closureId) =>
+        session.SendAsync(HttpMethod.Post, $"api/v1/users/closures/{closureId}/cancel");
+
+    private static async Task<List<(string Fact, TimeSpan At)>> WatchAsync(IsolatedApi api, Guid closureId, string until, Stopwatch elapsed)
     {
         List<(string Fact, TimeSpan At)> seen = [];
         DateTime deadline = DateTime.UtcNow + Wait;
@@ -112,32 +221,23 @@ public sealed class AccountClosureGracePeriodTests : IDisposable
         return seen;
     }
 
-    private static async Task<Guid> OpenAsNextReleaseAsync(IsolatedApi api, string authId)
+    private static async Task<NpgsqlTransaction> LockProfileAsync(NpgsqlConnection connection, string authId)
     {
-        CancellationToken ct = TestContext.Current.CancellationToken;
-        using IServiceScope scope = api.Pair.Monolith.Services.CreateScope();
-        UsersDbContext db = scope.ServiceProvider.GetRequiredService<UsersDbContext>();
-        AccountClosureOptions options = scope.ServiceProvider.GetRequiredService<IOptions<AccountClosureOptions>>().Value;
-        DateTimeOffset now = api.Clock.GetUtcNow();
-        Guid closureId = Guid.CreateVersion7(now);
-        await using IDbContextTransaction transaction = await db.Database.BeginTransactionAsync(ct);
-        UserProfile profile = await db.UserProfiles.SingleAsync(p => p.AuthId == authId, ct);
-        Assert.True(profile.ScheduleClosure(closureId, now, now + options.GracePeriod));
-        await scope.ServiceProvider.GetRequiredService<AccountClosureHistory>()
-            .RecordAsync(closureId, authId, AccountClosureFacts.Requested, authId, (now + options.GracePeriod).ToString("O"), now, ct);
-        (AccountClosureGracePeriod saga, object[] messages) = AccountClosureGracePeriod.Open(closureId, authId, now, options.GracePeriod, options.Reminders);
-        await scope.ServiceProvider.GetRequiredService<SagaOutbox<UsersDbContext>>().StartAndCommitAsync(saga, messages, ct);
-        return closureId;
+        NpgsqlTransaction transaction = await connection.BeginTransactionAsync(TestContext.Current.CancellationToken);
+        await using NpgsqlCommand take = new("""SELECT 1 FROM users."UserProfiles" WHERE "AuthId" = $1 FOR UPDATE""", connection, transaction);
+        take.Parameters.Add(new NpgsqlParameter { Value = authId });
+        await take.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
+        return transaction;
     }
 
-    private static async Task ExecuteAsync(NpgsqlConnection connection, string sql, Guid closureId)
-    {
-        await using NpgsqlCommand command = new(sql, connection);
-        command.Parameters.Add(new NpgsqlParameter { Value = closureId });
-        await command.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
-    }
+    private static Task<long> WaitingForLocksAsync(IsolatedApi api) =>
+        api.Pair.Monolith.Services.CountAsync(
+            $"""
+            SELECT count(*) AS "Value" FROM pg_stat_activity
+            WHERE datname = current_database() AND wait_event_type = 'Lock' AND query LIKE '%UserProfiles%FOR UPDATE%'
+            """);
 
-    private async Task<IsolatedApi> StartAsync(Dictionary<string, string>? settings = null)
+    private async Task<IsolatedApi> StartAsync(Dictionary<string, string> settings)
     {
         IsolatedApi api = await IsolatedApi.StartAsync(_server, _broker, FastScheduledMessages.Install, settings: settings);
         _apis.Add(api);

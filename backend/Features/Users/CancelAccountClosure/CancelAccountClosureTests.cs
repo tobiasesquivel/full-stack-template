@@ -31,7 +31,7 @@ public sealed class CancelAccountClosureTests : IAsyncDisposable
         using RecordedMeasurements finished = new(api.Pair.Monolith.Services, "TemplateApp.Users", "templateapp.account_closures.finished");
         TestSession alice = await api.SignUpAsync("alice");
         await api.Pair.Monolith.Services.SetRoleAsync(alice.UserName, "SuperAdmin", member: true);
-        (_, Guid closure) = await DeleteUserTests.RequestClosureAsync(alice, "api/v1/users/me");
+        (_, Guid closure) = await DeleteUserTests.RequestClosureAsync(api, alice, "api/v1/users/me");
         await api.DrainAsync();
         long version = await VersionAsync(api, closure);
         Guid message = Guid.NewGuid();
