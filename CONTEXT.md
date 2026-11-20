@@ -25,8 +25,12 @@ Un propietario cuya cuenta se borró, anotado en Tasks cuando llega el evento. N
 _Avoid_: tombstone, soft delete, usuario inactivo.
 
 **Cierre de cuenta**:
-El proceso que borra una cuenta en pasos: Users la marca en cierre, Tasks retiene sus tareas y Auth decide si la borra. Si Auth la rechaza, los pasos anteriores se deshacen y la cuenta vuelve a estar activa con el motivo del rechazo. Lo identifica un id de cierre que el usuario recibe al pedirlo.
+El proceso que borra una cuenta en pasos: Users la marca en cierre, Tasks retiene sus tareas y Auth decide si la borra. Si Auth la rechaza, los pasos anteriores se deshacen, primero en Tasks y después en Users, y la cuenta vuelve a estar activa con el motivo del rechazo. Lo identifica un id de cierre que el usuario recibe al pedirlo. Lo coordina el orquestador del cierre.
 _Avoid_: baja, soft delete, borrado de usuario como sinónimo de cierre.
+
+**Orquestador del cierre**:
+Quien coordina un cierre de cuenta: guarda en qué estado está cada cierre (reteniendo tareas, decidiendo, soltando tareas, completado o rechazado), le pide a Tasks y a Auth el paso siguiente y sigue desde ese estado si el sistema se reinicia. Un cierre que pasa su plazo sin terminar queda marcado como atrasado.
+_Avoid_: workflow, manager, coordinador como clase genérica.
 
 **Cuenta en cierre**:
 Una cuenta con un cierre pedido que todavía no terminó. Sigue pudiendo entrar y leer, pero no crea tareas nuevas.
