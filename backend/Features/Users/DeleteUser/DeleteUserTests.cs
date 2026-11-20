@@ -40,26 +40,30 @@ public sealed class DeleteUserTests : IClassFixture<ApiFixture>
     }
 
     [Fact]
-    public async Task DeleteMe_LeavesNoRowOfTheAccountInAnyFeature()
+    public async Task DeleteMe_SavesOneUserDeletedEvent_InTheUsersOutbox()
     {
         TestSession alice = new(_fixture.CreateClient());
         await alice.RegisterAsync(TestAccounts.UniqueName("alice"));
-        await alice.CreateTaskAsync("Sin clave");
-        await alice.CreateProjectAsync("Mudanza");
-        SessionResponse keyed = await alice.SendAsync(
-            HttpMethod.Post,
-            "api/v1/tasks",
-            new { title = "Con clave" },
-            headers: new Dictionary<string, string> { ["Idempotency-Key"] = Guid.NewGuid().ToString() });
-        keyed.Payload?.Dispose();
-        Assert.Equal(HttpStatusCode.Created, keyed.Status);
-        Assert.Equal(new OwnedRows(1, 1, 1, 1, 2, 1, 1), await _fixture.Services.OwnedRowsAsync(alice.AuthId));
 
         SessionResponse deleted = await alice.SendAsync(HttpMethod.Delete, "api/v1/users/me");
         deleted.Payload?.Dispose();
 
         Assert.Equal(HttpStatusCode.NoContent, deleted.Status);
-        Assert.Equal(OwnedRows.None, await _fixture.Services.OwnedRowsAsync(alice.AuthId));
+        Assert.Equal(1, await UserDeletedEventsAsync(_fixture.Services, alice.AuthId));
+    }
+
+    [Fact]
+    public async Task WhenAuthFailsAfterTheProfileIsDeleted_TheProfileStays_AndNoEventLeaves()
+    {
+        ApiPair api = _fixture.CreateIsolatedApi(new Dictionary<string, string>(), FailingAccountDeletion.Install);
+        TestSession alice = new(api.CreateClient());
+        await alice.RegisterAsync(TestAccounts.UniqueName("alice"));
+
+        SessionResponse failed = await alice.SendAsync(HttpMethod.Delete, "api/v1/users/me");
+
+        ProblemAssert.Problem(failed, HttpStatusCode.InternalServerError, "Http.Unexpected");
+        Assert.Equal(1, (await api.Monolith.Services.OwnedRowsAsync(alice.AuthId)).Profiles);
+        Assert.Equal(0, await UserDeletedEventsAsync(api.Monolith.Services, alice.AuthId));
     }
 
     [Fact]
@@ -82,4 +86,8 @@ public sealed class DeleteUserTests : IClassFixture<ApiFixture>
         Assert.Equal(HttpStatusCode.NoContent, deleted.Status);
         Assert.Equal(0, await _fixture.IdempotencyKeyCountAsync(alice.AuthId));
     }
+
+    private static Task<long> UserDeletedEventsAsync(IServiceProvider services, string authId) =>
+        services.CountAsync(
+            $"""SELECT count(*) AS "Value" FROM users."OutboxMessages" WHERE "Type" = 'users.user-deleted' AND "Payload"->>'authId' = {authId}""");
 }

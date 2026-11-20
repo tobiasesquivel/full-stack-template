@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
 using Npgsql;
 using TemplateApp.Features.Tasks.Persistence;
+using TemplateApp.Features.Users.Persistence;
 using TemplateApp.Infrastructure.Messaging;
 using Xunit;
 
@@ -26,6 +27,8 @@ internal sealed class IsolatedApi : IDisposable
     public FakeTimeProvider Clock { get; }
 
     public OutboxRelay Relay => Pair.Tasks.Services.GetRequiredKeyedService<OutboxRelay>(typeof(TasksDbContext));
+
+    public OutboxRelay UsersRelay => Pair.Monolith.Services.GetRequiredKeyedService<OutboxRelay>(typeof(UsersDbContext));
 
     public static async Task<IsolatedApi> StartAsync(
         string server,
@@ -86,6 +89,28 @@ internal sealed class IsolatedApi : IDisposable
         {
         }
     }
+
+    public async Task PublishUsersOutboxAsync()
+    {
+        while (await UsersRelay.RunOnceAsync(TestContext.Current.CancellationToken) > 0)
+        {
+        }
+    }
+
+    public async Task DrainUsersOutboxAsync()
+    {
+        await PublishUsersOutboxAsync();
+        long unconsumed = await Eventually.Async(UnconsumedUserEventsAsync, count => count == 0, TimeSpan.FromSeconds(30));
+        Assert.Equal(0, unconsumed);
+    }
+
+    private Task<long> UnconsumedUserEventsAsync() =>
+        Pair.Monolith.Services.CountAsync(
+            $"""
+            SELECT count(*) AS "Value" FROM users."OutboxMessages" AS o
+            WHERE o."ProcessedAt" IS NULL
+               OR NOT EXISTS (SELECT 1 FROM tasks."InboxMessages" AS i WHERE i."MessageId" = o."MessageId")
+            """);
 
     private Task<long> UnconsumedAsync() =>
         Pair.Monolith.Services.CountAsync(

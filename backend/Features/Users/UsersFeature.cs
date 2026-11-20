@@ -1,6 +1,8 @@
 using TemplateApp.Features.Users.Contracts;
+using TemplateApp.Features.Users.Domain.Events;
 using TemplateApp.Features.Users.Persistence;
 using TemplateApp.Infrastructure.Http;
+using TemplateApp.Infrastructure.Messaging;
 using TemplateApp.Infrastructure.Persistence;
 
 namespace TemplateApp.Features.Users;
@@ -12,6 +14,10 @@ internal static class UsersFeature
     public static IServiceCollection AddUsersFeature(this IServiceCollection services)
     {
         services.AddMigratedDbContext<UsersDbContext>(UsersDbContext.Schema, adoptsLegacyTables: true);
+        services.AddOutbox<UsersDbContext>();
+        services.AddOutboxEvent<UserDeleted>(UserEvents.Deleted, UserEvents.Version);
+        services.AddIntegrationEventPublication<PublishUserEvents.UserDeletedIntegrationEvent>(UserEvents.Deleted, UserEvents.Version, UserEvents.Exchange);
+        services.AddEventHandler<UserDeleted, PublishUserEvents.UserEventPublisher>();
         services.AddScoped<IUsersModule, UsersModule>();
         services.AddRemoteClient<OwnedTasksClient>(TasksService);
         services.AddScoped<GetUser.GetUser>();
