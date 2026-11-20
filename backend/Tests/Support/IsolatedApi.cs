@@ -117,6 +117,7 @@ internal sealed class IsolatedApi : IDisposable
             $"""
             SELECT count(*) AS "Value" FROM tasks."OutboxMessages" AS o
             WHERE o."ProcessedAt" IS NOT NULL
+              AND o."Type" LIKE 'tasks.task-%'
               AND NOT EXISTS (SELECT 1 FROM projects."InboxMessages" AS i WHERE i."MessageId" = o."MessageId")
             """);
 

@@ -24,6 +24,10 @@ internal static class TaskErrors
         code: "Task.OwnerDeleted",
         description: "The account that would own the task was deleted.");
 
+    public static readonly Error OwnerClosing = Error.Conflict(
+        code: "Task.OwnerClosing",
+        description: "The account that would own the task is being closed.");
+
     public static readonly Error ProjectArchived = Error.Conflict(
         code: "Task.ProjectArchived",
         description: "A task cannot be added to an archived project.");

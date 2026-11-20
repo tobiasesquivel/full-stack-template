@@ -7,7 +7,8 @@ internal sealed class TaskEventPublisher :
     IEventHandler<TaskCreated>,
     IEventHandler<TaskCompleted>,
     IEventHandler<TaskReopened>,
-    IEventHandler<TaskDeleted>
+    IEventHandler<TaskDeleted>,
+    IEventHandler<OwnerTasksHeld>
 {
     private readonly IntegrationEventPublisher _broker;
 
@@ -27,4 +28,7 @@ internal sealed class TaskEventPublisher :
 
     public Task HandleAsync(TaskDeleted @event, EventContext context, CancellationToken ct) =>
         _broker.PublishAsync(new TaskDeletedIntegrationEvent(@event.TaskId, @event.OwnerId, @event.ProjectId, @event.WasCompleted), context, ct);
+
+    public Task HandleAsync(OwnerTasksHeld @event, EventContext context, CancellationToken ct) =>
+        _broker.PublishAsync(new OwnerTasksHeldIntegrationEvent(@event.ClosureId, @event.OwnerId, @event.HeldAt), context, ct);
 }

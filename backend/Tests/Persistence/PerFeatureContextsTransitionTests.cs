@@ -20,7 +20,7 @@ public sealed class PerFeatureContextsTransitionTests : IClassFixture<ApiFixture
     [
         ("auth", ["_InitialCreate", "_MoveAuthToSchema"]),
         ("users", ["_InitialCreate", "_MoveUsersToSchema", "_AddOutboxMessages"]),
-        ("tasks", ["_InitialCreate", "_MoveTasksToSchema", "_AddTaskProjectId", "_AddTaskProjectIdIndex", "_AddOutboxMessages", "_AddInboxMessages", "_AddDeletedOwners"]),
+        ("tasks", ["_InitialCreate", "_MoveTasksToSchema", "_AddTaskProjectId", "_AddTaskProjectIdIndex", "_AddOutboxMessages", "_AddInboxMessages", "_AddDeletedOwners", "_AddOwnerHolds"]),
         ("platform", ["_InitialCreate", "_MovePlatformToSchema"]),
         ("projects", ["_InitialCreate", "_AddProjectTaskCounters"]),
     ];
@@ -29,7 +29,7 @@ public sealed class PerFeatureContextsTransitionTests : IClassFixture<ApiFixture
         ["AspNetUsers", "AspNetUserRoles", "Sessions", "UserProfiles", "TaskItems", "IdempotencyKeys", "AuditEntries"];
     private static readonly string[] TablesBornInTheirFeatureSchema = ["projects.Projects"];
     private static readonly string[] TablesAddedAfterTheMove =
-        ["projects.InboxMessages", "projects.ProjectTaskCounters", "tasks.DeletedOwners", "tasks.InboxMessages", "tasks.OutboxMessages", "users.OutboxMessages"];
+        ["projects.InboxMessages", "projects.ProjectTaskCounters", "tasks.DeletedOwners", "tasks.InboxMessages", "tasks.OutboxMessages", "tasks.OwnerHolds", "users.OutboxMessages"];
     private static readonly string[] TablesInTheirFeatureSchema =
     [
         "auth.AspNetRoleClaims",
@@ -48,6 +48,7 @@ public sealed class PerFeatureContextsTransitionTests : IClassFixture<ApiFixture
         "tasks.DeletedOwners",
         "tasks.InboxMessages",
         "tasks.OutboxMessages",
+        "tasks.OwnerHolds",
         "tasks.TaskItems",
         "users.OutboxMessages",
         "users.UserProfiles",

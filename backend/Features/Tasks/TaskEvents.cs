@@ -7,5 +7,6 @@ internal static class TaskEvents
     public const string Completed = "tasks.task-completed";
     public const string Reopened = "tasks.task-reopened";
     public const string Deleted = "tasks.task-deleted";
+    public const string OwnerTasksHeld = "tasks.owner-tasks-held";
     public const int Version = 1;
 }
