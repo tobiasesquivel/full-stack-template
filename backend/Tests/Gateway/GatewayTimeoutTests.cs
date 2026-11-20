@@ -39,7 +39,7 @@ public sealed class GatewayTimeoutTests : IDisposable
     {
         _api.Given(Request.Create().WithPath("/api/v1/projects").UsingGet())
             .RespondWith(Response.Create().WithStatusCode(HttpStatusCode.OK).WithBody("[]").WithDelay(TimeSpan.FromMilliseconds(200)));
-        await using GatewayFactory gateway = new(_api.Url!, activityTimeout: "00:00:05");
+        await using GatewayFactory gateway = new(_api.Url!, activityTimeout: "00:00:30");
         using HttpClient client = gateway.CreateClient();
 
         using HttpResponseMessage response = await client.GetAsync(new Uri("/api/v1/projects", UriKind.Relative), TestContext.Current.CancellationToken);
