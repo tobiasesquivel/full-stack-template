@@ -50,14 +50,15 @@ internal static class TasksFeature
         services.AddScoped<TaskAccess>();
         services.AddMediatorHandler<CreateTask.CreateTask.Handler>();
         services.AddSingleton<IValidator<CreateTask.CreateTaskCommand>, CreateTask.CreateTaskCommandValidator>();
-        services.AddScoped<ListTasks.ListTasks>();
-        services.AddScoped<GetTask.GetTask>();
-        services.AddScoped<UpdateTask.UpdateTask>();
-        services.AddScoped<DeleteTask.DeleteTask>();
+        services.AddMediatorHandler<ListTasks.ListTasks.Handler>();
+        services.AddMediatorHandler<GetTask.GetTask.Handler>();
+        services.AddMediatorHandler<UpdateTask.UpdateTask.Handler>();
+        services.AddSingleton<IValidator<UpdateTask.UpdateTaskCommand>, UpdateTask.UpdateTaskCommandValidator>();
+        services.AddMediatorHandler<DeleteTask.DeleteTask.Handler>();
+        services.AddMediatorHandler<SnapshotTaskCounts.SnapshotTaskCounts.Handler>();
         services.AddScoped<DeleteOwnedTasks.DeleteOwnedTasks>();
         services.AddScoped<HoldOwnerTasks.HoldOwnerTasks>();
         services.AddScoped<ReleaseOwnerTasks.ReleaseOwnerTasks>();
-        services.AddScoped<SnapshotTaskCounts.SnapshotTaskCounts>();
         return services;
     }
 

@@ -1,5 +1,8 @@
 using System.Security.Claims;
+using ErrorOr;
+using TemplateApp.Features.Tasks.Access;
 using TemplateApp.Shared.Http;
+using Wolverine;
 
 namespace TemplateApp.Features.Tasks.UpdateTask;
 
@@ -10,11 +13,13 @@ internal static class UpdateTaskEndpoint
     private static async Task<IResult> HandleAsync(
         Guid id,
         UpdateTaskRequest request,
-        UpdateTask slice,
+        IMessageBus bus,
+        TaskAccess access,
         ClaimsPrincipal user,
         CancellationToken ct)
     {
-        var result = await slice.ExecuteAsync(user.GetCallerId(), id, request, ct);
+        var command = new UpdateTaskCommand(access.CallerOf(user), id, request.Title, request.IsCompleted, request.Version);
+        var result = await bus.InvokeAsync<ErrorOr<TaskResponse>>(command, ct);
         return ApiResults.ToResult(result, value => Results.Ok(value));
     }
 }

@@ -2,6 +2,7 @@ using System.Net;
 using ErrorOr;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using TemplateApp.Features.Tasks.Access;
 using TemplateApp.Features.Tasks.Domain;
 using TemplateApp.Features.Tasks.Persistence;
 using TemplateApp.Tests.Support;
@@ -81,8 +82,8 @@ public sealed class GetTaskTests : IClassFixture<ApiFixture>
 
         using IServiceScope scope = services.CreateScope();
         commands.Reset();
-        ErrorOr<TaskResponse> read = await scope.ServiceProvider.GetRequiredService<GetTask>()
-            .ExecuteAsync(alice.AuthId, Guid.Parse(id), TestContext.Current.CancellationToken);
+        ErrorOr<TaskResponse> read = await ActivatorUtilities.CreateInstance<GetTask.Handler>(scope.ServiceProvider)
+            .Handle(new GetTaskCommand(new Caller(alice.AuthId, new HashSet<string>()), Guid.Parse(id)), TestContext.Current.CancellationToken);
 
         Assert.False(read.IsError);
         Assert.Equal("Sin rastreo", read.Value.Title);

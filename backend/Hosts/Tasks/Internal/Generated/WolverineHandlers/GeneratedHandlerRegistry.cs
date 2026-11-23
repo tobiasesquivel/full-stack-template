@@ -9,7 +9,7 @@ namespace Internal.Generated.WolverineHandlers
     {
         public override System.Type[] HandlerTypes()
         {
-            return new System.Type[] { typeof(TemplateApp.Features.Tasks.CreateTask.CreateTask.Handler) };
+            return new System.Type[] { typeof(TemplateApp.Features.Tasks.CreateTask.CreateTask.Handler), typeof(TemplateApp.Features.Tasks.DeleteTask.DeleteTask.Handler), typeof(TemplateApp.Features.Tasks.GetTask.GetTask.Handler), typeof(TemplateApp.Features.Tasks.ListTasks.ListTasks.Handler), typeof(TemplateApp.Features.Tasks.SnapshotTaskCounts.SnapshotTaskCounts.Handler), typeof(TemplateApp.Features.Tasks.UpdateTask.UpdateTask.Handler) };
         }
 
         public override System.Type[] MessageTypes()
@@ -29,7 +29,17 @@ namespace Internal.Generated.WolverineHandlers
         [global::System.Runtime.CompilerServices.ModuleInitializer]
         [global::System.Diagnostics.CodeAnalysis.DynamicDependency(global::System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.All, typeof(global::Internal.Generated.WolverineHandlers.GeneratedHandlerRegistry))]
         [global::System.Diagnostics.CodeAnalysis.DynamicDependency(global::System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.All, typeof(global::Internal.Generated.WolverineHandlers.CreateTaskCommandHandler776868131))]
+        [global::System.Diagnostics.CodeAnalysis.DynamicDependency(global::System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.All, typeof(global::Internal.Generated.WolverineHandlers.DeleteTaskCommandHandler438427183))]
+        [global::System.Diagnostics.CodeAnalysis.DynamicDependency(global::System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.All, typeof(global::Internal.Generated.WolverineHandlers.GetTaskCommandHandler1718681577))]
+        [global::System.Diagnostics.CodeAnalysis.DynamicDependency(global::System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.All, typeof(global::Internal.Generated.WolverineHandlers.ListTasksCommandHandler1919163223))]
+        [global::System.Diagnostics.CodeAnalysis.DynamicDependency(global::System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.All, typeof(global::Internal.Generated.WolverineHandlers.SnapshotTaskCountsCommandHandler803088419))]
+        [global::System.Diagnostics.CodeAnalysis.DynamicDependency(global::System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.All, typeof(global::Internal.Generated.WolverineHandlers.UpdateTaskCommandHandler1399984815))]
         [global::System.Diagnostics.CodeAnalysis.DynamicDependency(global::System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.All, typeof(global::TemplateApp.Features.Tasks.CreateTask.CreateTask.Handler))]
+        [global::System.Diagnostics.CodeAnalysis.DynamicDependency(global::System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.All, typeof(global::TemplateApp.Features.Tasks.DeleteTask.DeleteTask.Handler))]
+        [global::System.Diagnostics.CodeAnalysis.DynamicDependency(global::System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.All, typeof(global::TemplateApp.Features.Tasks.GetTask.GetTask.Handler))]
+        [global::System.Diagnostics.CodeAnalysis.DynamicDependency(global::System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.All, typeof(global::TemplateApp.Features.Tasks.ListTasks.ListTasks.Handler))]
+        [global::System.Diagnostics.CodeAnalysis.DynamicDependency(global::System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.All, typeof(global::TemplateApp.Features.Tasks.SnapshotTaskCounts.SnapshotTaskCounts.Handler))]
+        [global::System.Diagnostics.CodeAnalysis.DynamicDependency(global::System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.All, typeof(global::TemplateApp.Features.Tasks.UpdateTask.UpdateTask.Handler))]
         public static void Pin()
         {
             // Intentionally empty. The [DynamicDependency] attributes above are the payload: they root the generated types for Native AOT, and [ModuleInitializer] guarantees this method is itself an ILC root.

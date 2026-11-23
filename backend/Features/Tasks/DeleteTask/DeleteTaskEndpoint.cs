@@ -1,6 +1,8 @@
 using System.Security.Claims;
 using ErrorOr;
+using TemplateApp.Features.Tasks.Access;
 using TemplateApp.Shared.Http;
+using Wolverine;
 
 namespace TemplateApp.Features.Tasks.DeleteTask;
 
@@ -10,11 +12,13 @@ internal static class DeleteTaskEndpoint
 
     private static async Task<IResult> HandleAsync(
         Guid id,
-        DeleteTask slice,
+        IMessageBus bus,
+        TaskAccess access,
         ClaimsPrincipal user,
         CancellationToken ct)
     {
-        ErrorOr<Success> result = await slice.ExecuteAsync(user.GetCallerId(), id, ct);
+        var command = new DeleteTaskCommand(access.CallerOf(user), id);
+        ErrorOr<Success> result = await bus.InvokeAsync<ErrorOr<Success>>(command, ct);
         return ApiResults.ToResult(result, _ => Results.NoContent());
     }
 }
