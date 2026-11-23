@@ -13,6 +13,7 @@ otel-export/
 **/.playwright-mcp/
 **/Generated/
 !backend/Internal/Generated/
+!backend/Hosts/Tasks/Internal/Generated/
 **/.vs/
 **/.idea/
 *.log

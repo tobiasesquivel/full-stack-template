@@ -1,6 +1,5 @@
 using System.Transactions;
 using ErrorOr;
-using TemplateApp.Features.Tasks.Access;
 using TemplateApp.Features.Tasks.Domain;
 using TemplateApp.Features.Tasks.Persistence;
 using TemplateApp.Infrastructure.Persistence;
@@ -8,56 +7,57 @@ using TemplateApp.Shared.Http;
 
 namespace TemplateApp.Features.Tasks.CreateTask;
 
-internal sealed class CreateTask
+internal static class CreateTask
 {
-    private static readonly CreateTaskRequestValidator Validator = new();
-
-    private readonly TasksDbContext _db;
-    private readonly TaskAccess _access;
-    private readonly TimeProvider _clock;
-    private readonly TaskMetrics _metrics;
-    private readonly ProjectsClient _projects;
-
-    public CreateTask(TasksDbContext db, TaskAccess access, TimeProvider clock, TaskMetrics metrics, ProjectsClient projects)
+    public sealed class Handler
     {
-        _db = db;
-        _access = access;
-        _projects = projects;
-        _clock = clock;
-        _metrics = metrics;
-    }
+        private static readonly CreateTaskRequestValidator Validator = new();
 
-    public async Task<ErrorOr<TaskResponse>> ExecuteAsync(string callerId, CreateTaskRequest request, CancellationToken ct)
-    {
-        var validation = await Validator.ValidateAsync(request, ct);
-        if (!validation.IsValid)
-            return ValidationErrors.From(validation);
+        private readonly TasksDbContext _db;
+        private readonly TimeProvider _clock;
+        private readonly TaskMetrics _metrics;
+        private readonly ProjectsClient _projects;
 
-        if (!_access.HasPermission(TaskPermissions.Create))
-            return TaskErrors.Forbidden;
-
-        if (request.ProjectId is Guid projectId)
+        public Handler(TasksDbContext db, TimeProvider clock, TaskMetrics metrics, ProjectsClient projects)
         {
-            ProjectAssignment? project = await _projects.FindAssignableAsync(callerId, projectId, ct);
-            if (project is null)
-                return TaskErrors.ProjectNotAssignable;
-
-            if (project.IsArchived)
-                return TaskErrors.ProjectArchived;
+            _db = db;
+            _projects = projects;
+            _clock = clock;
+            _metrics = metrics;
         }
 
-        using TransactionScope transaction = CrossContextTransaction.Begin();
-        ErrorOr<LiveOwner> owner = await OwnerTombstones.FindLiveAsync(_db, callerId, ct);
-        if (owner.IsError)
-            return owner.Errors;
+        public async Task<ErrorOr<TaskResponse>> Handle(CreateTaskCommand command, CancellationToken ct)
+        {
+            var validation = await Validator.ValidateAsync(new CreateTaskRequest(command.Title, command.ProjectId), ct);
+            if (!validation.IsValid)
+                return ValidationErrors.From(validation);
 
-        var item = TaskItem.Create(owner.Value, TaskItem.NormalizeTitle(request.Title), request.ProjectId, _clock.GetUtcNow());
+            if (!command.Caller.HasPermission(TaskPermissions.Create))
+                return TaskErrors.Forbidden;
 
-        _db.TaskItems.Add(item);
-        await _db.SaveChangesAsync(ct);
-        transaction.Complete();
-        _metrics.TaskCreated();
+            if (command.ProjectId is Guid projectId)
+            {
+                ProjectAssignment? project = await _projects.FindAssignableAsync(command.Caller.Id, projectId, ct);
+                if (project is null)
+                    return TaskErrors.ProjectNotAssignable;
 
-        return TaskResponses.From(item);
+                if (project.IsArchived)
+                    return TaskErrors.ProjectArchived;
+            }
+
+            using TransactionScope transaction = CrossContextTransaction.Begin();
+            ErrorOr<LiveOwner> owner = await OwnerTombstones.FindLiveAsync(_db, command.Caller.Id, ct);
+            if (owner.IsError)
+                return owner.Errors;
+
+            var item = TaskItem.Create(owner.Value, TaskItem.NormalizeTitle(command.Title), command.ProjectId, _clock.GetUtcNow());
+
+            _db.TaskItems.Add(item);
+            await _db.SaveChangesAsync(ct);
+            transaction.Complete();
+            _metrics.TaskCreated();
+
+            return TaskResponses.From(item);
+        }
     }
 }

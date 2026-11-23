@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <Compile Include="*.cs" />
+    <Compile Include="Internal/Generated/**/*.cs" />
     <Compile Include="$(BackendRoot)/Features/Tasks/**/*.cs" />
     <Compile Include="$(BackendRoot)/Features/Health/**/*.cs" />
     <Compile Remove="$(BackendRoot)/Features/**/*Tests.cs" />

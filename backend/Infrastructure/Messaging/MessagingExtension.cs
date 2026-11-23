@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using JasperFx.CodeGeneration;
+using JasperFx.CodeGeneration.Model;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Npgsql;
@@ -26,6 +27,7 @@ internal sealed class MessagingExtension : IWolverineExtension
     private readonly IReadOnlyList<IntegrationCommandType> _commands;
     private readonly IReadOnlyList<SagaType> _sagas;
     private readonly IReadOnlyList<SagaSubscription> _sagaMessages;
+    private readonly IReadOnlyList<MediatorHandlerType> _mediatorHandlers;
 
     public MessagingExtension(
         IOptions<MessagingOptions> options,
@@ -34,7 +36,8 @@ internal sealed class MessagingExtension : IWolverineExtension
         IEnumerable<IntegrationEventSubscription> subscriptions,
         IEnumerable<IntegrationCommandType> commands,
         IEnumerable<SagaType> sagas,
-        IEnumerable<SagaSubscription> sagaMessages)
+        IEnumerable<SagaSubscription> sagaMessages,
+        IEnumerable<MediatorHandlerType> mediatorHandlers)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(environment);
@@ -45,6 +48,7 @@ internal sealed class MessagingExtension : IWolverineExtension
         _commands = commands.ToList();
         _sagas = sagas.ToList();
         _sagaMessages = sagaMessages.ToList();
+        _mediatorHandlers = mediatorHandlers.ToList();
     }
 
     public void Configure(WolverineOptions options)
@@ -52,6 +56,7 @@ internal sealed class MessagingExtension : IWolverineExtension
         ArgumentNullException.ThrowIfNull(options);
         options.CodeGeneration.TypeLoadMode = TypeLoadMode.Static;
         options.Discovery.DisableConventionalDiscovery();
+        options.ServiceLocationPolicy = ServiceLocationPolicy.AlwaysAllowed;
         options.Durability.UseSyncRetryBlock = true;
         options.UseSystemTextJsonForSerialization(json => json.PropertyNamingPolicy = JsonNamingPolicy.CamelCase);
         options.Policies.OnException<UnreadableMessageException>().MoveToErrorQueue();
@@ -87,6 +92,9 @@ internal sealed class MessagingExtension : IWolverineExtension
             options.PublishMessage(type.ClrType).ToRabbitRoutingKey(Named(type.Exchange), type.Name).SendInline();
         }
 
+        foreach (MediatorHandlerType handler in _mediatorHandlers)
+            IncludeMediatorHandler(options, handler.ClrType);
+
         if (_sagas.Count > 0)
             ConfigureSagas(options, rabbit);
     }
@@ -116,6 +124,17 @@ internal sealed class MessagingExtension : IWolverineExtension
                 .UseDurableOutbox()
                 .CustomizeOutgoing(envelope => Stamp(envelope, type));
         }
+    }
+
+    private static void IncludeMediatorHandler(WolverineOptions options, Type handler)
+    {
+        options.Discovery.IncludeType(handler);
+        IEnumerable<Type> hidden = handler.GetConstructors()
+            .SelectMany(constructor => constructor.GetParameters())
+            .Select(parameter => parameter.ParameterType)
+            .Where(type => !type.IsVisible);
+        foreach (Type dependency in hidden)
+            options.CodeGeneration.AlwaysUseServiceLocationFor(dependency);
     }
 
     private RabbitMqListenerConfiguration Listen(WolverineOptions options, RabbitMqTransportExpression rabbit, IntegrationEventType message, string queue)

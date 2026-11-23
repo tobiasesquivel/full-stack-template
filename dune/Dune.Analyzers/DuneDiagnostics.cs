@@ -83,7 +83,7 @@ internal static class DuneDiagnostics
         category: "Dune",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
-        description: "Los comentarios se prohíben en backend y dune salvo el código generado por herramientas: las migraciones EF de Infrastructure y de cada feature, y desde el paso 27 los handlers que Wolverine genera con codegen write en backend/Internal/Generated/WolverineHandlers/.");
+        description: "Los comentarios se prohíben en backend y dune salvo el código generado por herramientas: las migraciones EF de Infrastructure y de cada feature, y desde el paso 27 los handlers que Wolverine genera con codegen write en backend/Internal/Generated/WolverineHandlers/ (monolito) y, desde el paso 29.1, en backend/Hosts/Tasks/Internal/Generated/WolverineHandlers/ (Tasks).");
 
     public static readonly DiagnosticDescriptor OneTypePerFile = new(
         id: "DUNE0010",

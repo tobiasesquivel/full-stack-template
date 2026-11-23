@@ -47,7 +47,7 @@ internal static class TasksFeature
 
         services.AddSingleton<TaskMetrics>();
         services.AddScoped<TaskAccess>();
-        services.AddScoped<CreateTask.CreateTask>();
+        services.AddMediatorHandler<CreateTask.CreateTask.Handler>();
         services.AddScoped<ListTasks.ListTasks>();
         services.AddScoped<GetTask.GetTask>();
         services.AddScoped<UpdateTask.UpdateTask>();

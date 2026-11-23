@@ -59,6 +59,10 @@ public static class MessagingRegistration
         return services.AddSingleton(new SagaType(typeof(TSaga)));
     }
 
+    public static IServiceCollection AddMediatorHandler<THandler>(this IServiceCollection services)
+        where THandler : class =>
+        services.AddSingleton(new MediatorHandlerType(typeof(THandler)));
+
     public static IServiceCollection AddSagaMessage<TMessage>(this IServiceCollection services, string name, int version, string exchange, string queue)
         where TMessage : class =>
         services.AddSingleton(new SagaSubscription(new IntegrationEventType(typeof(TMessage), name, version, exchange), queue));
