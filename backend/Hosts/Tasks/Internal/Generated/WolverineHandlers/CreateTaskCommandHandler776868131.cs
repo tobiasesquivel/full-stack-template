@@ -28,11 +28,16 @@ namespace Internal.Generated.WolverineHandlers
             var taskMetrics = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService<TemplateApp.Features.Tasks.TaskMetrics>(serviceScope.ServiceProvider);
             // This service has been marked as requiring service location independent of Wolverine's ability to use constructor injection of everything else
             var tasksDbContext = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService<TemplateApp.Features.Tasks.Persistence.TasksDbContext>(serviceScope.ServiceProvider);
+            // This service has been marked as requiring service location independent of Wolverine's ability to use constructor injection of everything else
+            var failureActionOfCreateTaskCommand = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService<Wolverine.FluentValidation.IFailureAction<TemplateApp.Features.Tasks.CreateTask.CreateTaskCommand>>(serviceScope.ServiceProvider);
+            // This service has been marked as requiring service location independent of Wolverine's ability to use constructor injection of everything else
+            var validatorOfCreateTaskCommand = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService<FluentValidation.IValidator<TemplateApp.Features.Tasks.CreateTask.CreateTaskCommand>>(serviceScope.ServiceProvider);
             // The actual message body
             var createTaskCommand = (TemplateApp.Features.Tasks.CreateTask.CreateTaskCommand)context.Envelope.Message;
 
             Wolverine.Runtime.WolverineTracing.MessageActivity(context.Envelope)?.SetTag("message.handler", "TemplateApp.Features.Tasks.CreateTask.CreateTask.Handler");
             Wolverine.Runtime.WolverineTracing.MessageActivity(context.Envelope)?.SetTag("handler.type", "TemplateApp.Features.Tasks.CreateTask.CreateTask.Handler");
+            await Wolverine.FluentValidation.Internals.FluentValidationExecutor.ExecuteOne<TemplateApp.Features.Tasks.CreateTask.CreateTaskCommand>(validatorOfCreateTaskCommand, failureActionOfCreateTaskCommand, createTaskCommand).ConfigureAwait(false);
             var handler = new TemplateApp.Features.Tasks.CreateTask.CreateTask.Handler(tasksDbContext, _timeProvider, taskMetrics, projectsClient);
             
             // The actual message execution

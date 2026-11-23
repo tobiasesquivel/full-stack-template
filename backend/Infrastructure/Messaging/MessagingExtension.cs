@@ -2,12 +2,10 @@ using System.Globalization;
 using System.Text.Json;
 using JasperFx.CodeGeneration;
 using JasperFx.CodeGeneration.Model;
-using Microsoft.EntityFrameworkCore;
+using FluentValidation;
 using Microsoft.Extensions.Options;
-using Npgsql;
 using Wolverine;
-using Wolverine.ErrorHandling;
-using Wolverine.Persistence.Sagas;
+using Wolverine.FluentValidation;
 using Wolverine.RabbitMQ;
 using Wolverine.RabbitMQ.Internal;
 
@@ -15,11 +13,6 @@ namespace TemplateApp.Infrastructure.Messaging;
 
 internal sealed class MessagingExtension : IWolverineExtension
 {
-    private static readonly TimeSpan[] Cooldowns = [TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(30)];
-    private static readonly TimeSpan Pause = TimeSpan.FromMinutes(1);
-    private static readonly TimeSpan[] BugCooldowns = [TimeSpan.FromMilliseconds(200), TimeSpan.FromSeconds(1)];
-    private static readonly TimeSpan[] ConcurrencyCooldowns = [TimeSpan.FromMilliseconds(100), TimeSpan.FromMilliseconds(250), TimeSpan.FromSeconds(1)];
-
     private readonly MessagingOptions _options;
     private readonly string _connectionName;
     private readonly IReadOnlyList<IntegrationEventType> _published;
@@ -59,14 +52,9 @@ internal sealed class MessagingExtension : IWolverineExtension
         options.ServiceLocationPolicy = ServiceLocationPolicy.AlwaysAllowed;
         options.Durability.UseSyncRetryBlock = true;
         options.UseSystemTextJsonForSerialization(json => json.PropertyNamingPolicy = JsonNamingPolicy.CamelCase);
-        options.Policies.OnException<UnreadableMessageException>().MoveToErrorQueue();
-        options.Policies.OnException<ConsumerUnavailableException>()
-            .Or<NpgsqlException>()
-            .Or<TimeoutException>()
-            .RetryWithCooldown(Cooldowns)
-            .Then.RequeueIndefinitely().AndPauseProcessing(Pause);
-        options.Policies.OnException<SagaConcurrencyException>().Or<DbUpdateConcurrencyException>().RetryWithCooldown(ConcurrencyCooldowns);
-        options.Policies.OnException<Exception>().RetryWithCooldown(BugCooldowns);
+        options.Policies.Add(new MessagingChainPolicy(
+            _sagas.Select(saga => saga.ClrType).ToHashSet(),
+            _mediatorHandlers.Select(handler => handler.ClrType).ToHashSet()));
 
         RabbitMqTransportExpression rabbit = options.UseRabbitMq(_options.RabbitMqUri!)
             .AutoProvision()
@@ -82,7 +70,9 @@ internal sealed class MessagingExtension : IWolverineExtension
             IntegrationEventNaming.Register(subscription.Event);
             options.RegisterMessageType(subscription.Event.ClrType, subscription.Event.Name);
             Listen(options, rabbit, subscription.Event, subscription.Queue).ProcessInline();
-            options.AddMessageHandler(subscription.Event.ClrType, CreateHandler(subscription));
+            Wolverine.Runtime.Handlers.MessageHandler handler = CreateHandler(subscription);
+            options.AddMessageHandler(subscription.Event.ClrType, handler);
+            QueueFailureRules.Apply(handler.Chain!);
         }
 
         foreach (IntegrationEventType type in _published)
@@ -129,9 +119,12 @@ internal sealed class MessagingExtension : IWolverineExtension
     private static void IncludeMediatorHandler(WolverineOptions options, Type handler)
     {
         options.Discovery.IncludeType(handler);
+        Type message = handler.GetMethod("Handle")!.GetParameters()[0].ParameterType;
         IEnumerable<Type> hidden = handler.GetConstructors()
             .SelectMany(constructor => constructor.GetParameters())
             .Select(parameter => parameter.ParameterType)
+            .Append(typeof(IValidator<>).MakeGenericType(message))
+            .Append(typeof(IFailureAction<>).MakeGenericType(message))
             .Where(type => !type.IsVisible);
         foreach (Type dependency in hidden)
             options.CodeGeneration.AlwaysUseServiceLocationFor(dependency);

@@ -3,7 +3,6 @@ using ErrorOr;
 using TemplateApp.Features.Tasks.Domain;
 using TemplateApp.Features.Tasks.Persistence;
 using TemplateApp.Infrastructure.Persistence;
-using TemplateApp.Shared.Http;
 
 namespace TemplateApp.Features.Tasks.CreateTask;
 
@@ -11,8 +10,6 @@ internal static class CreateTask
 {
     public sealed class Handler
     {
-        private static readonly CreateTaskRequestValidator Validator = new();
-
         private readonly TasksDbContext _db;
         private readonly TimeProvider _clock;
         private readonly TaskMetrics _metrics;
@@ -28,10 +25,6 @@ internal static class CreateTask
 
         public async Task<ErrorOr<TaskResponse>> Handle(CreateTaskCommand command, CancellationToken ct)
         {
-            var validation = await Validator.ValidateAsync(new CreateTaskRequest(command.Title, command.ProjectId), ct);
-            if (!validation.IsValid)
-                return ValidationErrors.From(validation);
-
             if (!command.Caller.HasPermission(TaskPermissions.Create))
                 return TaskErrors.Forbidden;
 

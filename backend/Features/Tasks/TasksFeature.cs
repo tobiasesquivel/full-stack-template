@@ -1,3 +1,4 @@
+using FluentValidation;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using TemplateApp.Features.Tasks.Access;
 using TemplateApp.Features.Tasks.Domain.Events;
@@ -48,6 +49,7 @@ internal static class TasksFeature
         services.AddSingleton<TaskMetrics>();
         services.AddScoped<TaskAccess>();
         services.AddMediatorHandler<CreateTask.CreateTask.Handler>();
+        services.AddSingleton<IValidator<CreateTask.CreateTaskCommand>, CreateTask.CreateTaskCommandValidator>();
         services.AddScoped<ListTasks.ListTasks>();
         services.AddScoped<GetTask.GetTask>();
         services.AddScoped<UpdateTask.UpdateTask>();

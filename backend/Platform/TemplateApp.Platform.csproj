@@ -32,6 +32,7 @@
     <PackageReference Include="WolverineFx.EntityFrameworkCore" Version="6.64.2" />
     <PackageReference Include="WolverineFx.Postgresql" Version="6.64.2" />
     <PackageReference Include="WolverineFx.RuntimeCompilation" Version="6.64.2" />
+    <PackageReference Include="WolverineFx.FluentValidation" Version="6.64.2" />
   </ItemGroup>
 
   <ItemGroup>

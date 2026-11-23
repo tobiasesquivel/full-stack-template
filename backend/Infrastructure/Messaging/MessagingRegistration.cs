@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Wolverine;
+using Wolverine.FluentValidation;
 using Wolverine.HealthChecks;
 
 namespace TemplateApp.Infrastructure.Messaging;
@@ -19,6 +20,7 @@ public static class MessagingRegistration
         services.AddWolverine(ExtensionDiscovery.ManualOnly, options =>
         {
             options.ApplicationAssembly = application ?? typeof(MessagingRegistration).Assembly;
+            options.UseFluentValidation(RegistrationBehavior.ExplicitRegistration);
             if (storesSagas)
                 SagaStorage.Configure(options);
         });
