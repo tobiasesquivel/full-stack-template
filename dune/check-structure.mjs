@@ -145,11 +145,17 @@ const HOSTS = [
   },
 ];
 
+function plainPath(value) {
+  return !value.includes('$(') && !/^(?:[A-Za-z]:)?\//.test(value) && !value.split('/').some((segment) => segment === '.' || segment === '..');
+}
+
 function hostCompiles(include, compilesFeature) {
-  if (!include.split('/').includes('..') && !include.includes('$(') && !/^(?:[A-Za-z]:)?\//.test(include)) return true;
+  if (/tests\.cs$/i.test(include)) return false;
+  const own = /^\$\(MSBuild(?:ProjectDirectory\)\/|ThisFileDirectory\))(.*)$/.exec(include);
+  if (plainPath(own === null ? include : own[1])) return true;
   const rooted = /^(?:\$\(BackendRoot\)|\.\.\/\.\.)\/(.*)$/.exec(include);
-  if (rooted === null || rooted[1].includes('$(') || rooted[1].split('/').includes('..')) return false;
-  const feature = /^Features\/([^/]+)\//.exec(path.posix.normalize(rooted[1]));
+  if (rooted === null || !plainPath(rooted[1])) return false;
+  const feature = /^Features\/([^/]+)\//.exec(rooted[1]);
   return feature !== null && compilesFeature(feature[1]);
 }
 
@@ -164,8 +170,11 @@ async function checkDeploymentBoundary() {
     checkOnlyReferencesPlatform(host.project, text);
     for (const include of msbuildValues(text, 'Compile', 'Include')) {
       if (!hostCompiles(include, host.compilesFeature)) {
-        fail(`${DEPLOYMENT_RULE}: ${host.project} compila ${include}; ${host.scope}, y el resto llega por ${PLATFORM_PROJECT}`);
+        fail(`${DEPLOYMENT_RULE}: ${host.project} compila ${include}; ${host.scope}, sin tests, y el resto llega por ${PLATFORM_PROJECT}`);
       }
+    }
+    if (!msbuildValues(text, 'Compile', 'Remove').some((value) => value.endsWith('Features/**/*Tests.cs'))) {
+      fail(`${host.project} no excluye tests del producto: falta Compile Remove "$(BackendRoot)/Features/**/*Tests.cs"`);
     }
   }
   const files = [];

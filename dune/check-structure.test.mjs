@@ -177,7 +177,7 @@ describe('check-structure', () => {
     }
   });
 
-  it('acepta un monolito con barras invertidas y ./ en las rutas', async () => {
+  it('acepta un monolito con barras invertidas y la carpeta propia por propiedad', async () => {
     const repo = await makeRepo();
     try {
       await seedValid(repo);
@@ -185,7 +185,8 @@ describe('check-structure', () => {
         'backend/Hosts/Monolith/TemplateApp.csproj',
         monolithProject('', [
           '<Compile Include="*.cs" />',
-          String.raw`<Compile Include="..\..\.\Features\**\*.cs" />`,
+          '<Compile Include="$(MSBuildProjectDirectory)/Internal/Generated/**/*.cs" />',
+          String.raw`<Compile Include="..\..\Features\**\*.cs" />`,
           String.raw`<Compile Remove="..\..\Features\Tasks\**" />`,
           String.raw`<Compile Remove="..\..\Features\**\*Tests.cs" />`,
         ]),
@@ -291,6 +292,30 @@ describe('check-structure', () => {
       'backend/Hosts/Monolith/TemplateApp.csproj',
       monolithProject('<Compile Include="../../Tests/**/*.cs" />'),
       /límite de despliegue: backend\/Hosts\/Monolith\/TemplateApp\.csproj compila \.\.\/\.\.\/Tests/,
+    ],
+    [
+      'el host de Tasks que agrega Features/./Tasks en un target antes de compilar',
+      'backend/Hosts/Tasks/TemplateApp.Tasks.csproj',
+      tasksHostProject().replace('</Project>', '<Target Name="Probe" BeforeTargets="CoreCompile"><ItemGroup><Compile Include="$(BackendRoot)/Features/./Tasks/ProbeHelper.cs" /></ItemGroup></Target></Project>'),
+      /límite de despliegue: backend\/Hosts\/Tasks\/TemplateApp\.Tasks\.csproj compila \$\(BackendRoot\)\/Features\/\.\/Tasks\/ProbeHelper\.cs/,
+    ],
+    [
+      'el host de Tasks que agrega un test en un target antes de compilar',
+      'backend/Hosts/Tasks/TemplateApp.Tasks.csproj',
+      tasksHostProject().replace('</Project>', '<Target Name="Probe" BeforeTargets="CoreCompile"><ItemGroup><Compile Include="$(BackendRoot)/Features/Tasks/BoundaryProbeTests.cs" /></ItemGroup></Target></Project>'),
+      /límite de despliegue: backend\/Hosts\/Tasks\/TemplateApp\.Tasks\.csproj compila \$\(BackendRoot\)\/Features\/Tasks\/BoundaryProbeTests\.cs/,
+    ],
+    [
+      'el host de Tasks que no quita los tests',
+      'backend/Hosts/Tasks/TemplateApp.Tasks.csproj',
+      tasksHostProject({ compile: TASKS_HOST_COMPILE.slice(0, 3) }),
+      /TemplateApp\.Tasks\.csproj no excluye tests del producto: falta Compile Remove/,
+    ],
+    [
+      'el monolito que no quita los tests',
+      'backend/Hosts/Monolith/TemplateApp.csproj',
+      monolithProject('', MONOLITH_COMPILE.filter((item) => !item.includes('Tests.cs'))),
+      /backend\/Hosts\/Monolith\/TemplateApp\.csproj no excluye tests del producto: falta Compile Remove/,
     ],
     [
       'un test junto al Program.cs del monolito, aunque termine en .CS',
