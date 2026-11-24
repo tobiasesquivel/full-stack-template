@@ -109,7 +109,6 @@ async function checkSlicesHaveTests() {
 }
 
 const DEPLOYMENT_RULE = 'límite de despliegue';
-const TASKS_HOST_FEATURES = new Set(['tasks', 'health']);
 
 function msbuildValues(text, element, attribute) {
   const pattern = new RegExp(String.raw`<${element}\b[^>]*?\b${attribute}\s*=\s*["']([^"']+)["']`, 'g');
@@ -133,111 +132,15 @@ function checkOnlyReferencesPlatform(project, text) {
   }
 }
 
-function withoutComments(text) {
-  return text.replace(/<!--[\s\S]*?-->/g, '');
-}
-
-function itemPath(value) {
-  return path.posix.normalize(normalizeItem(value));
-}
-
-function isLocal(value) {
-  return !value.split('/').includes('..') && !value.includes('$(') && !/^(?:[A-Za-z]:)?\//.test(value);
-}
-
-function backendRelative(value) {
-  const rooted = /^(?:\$\(BackendRoot\)|\.\.\/\.\.)\/(.*)$/.exec(itemPath(value));
-  return rooted === null || rooted[1].split('/').includes('..') ? null : rooted[1];
-}
-
-function featureOf(value) {
-  const relative = backendRelative(value);
-  const feature = relative === null ? null : /^Features\/([^/]+)\//i.exec(relative);
-  return feature === null ? null : feature[1];
-}
-
-function coversSeveralFeatures(value) {
-  const feature = featureOf(value);
-  return feature !== null && /[*?[]/.test(feature);
-}
-
-function hostCompiles(include, compilesFeature) {
-  if (isLocal(itemPath(include))) return true;
-  const feature = featureOf(include);
-  return feature !== null && compilesFeature(feature.toLowerCase());
-}
-
-function compileItems(text) {
-  const pattern = /<Compile\b[^>]*?\b(Include|Remove)\s*=\s*["']([^"']+)["']/g;
-  return [...text.matchAll(pattern)].flatMap((match) =>
-    match[2].split(';').map((value) => ({ kind: match[1], value: normalizeItem(value) })),
-  );
-}
-
-function removedAfterIncluded(text, removes, includes, { onlyIfIncluded = false } = {}) {
-  const items = compileItems(text);
-  const lastRemove = items.findLastIndex((item) => item.kind === 'Remove' && removes(backendRelative(item.value)));
-  const lastInclude = items.findLastIndex((item) => item.kind === 'Include' && includes(item.value));
-  if (onlyIfIncluded && lastInclude < 0) return true;
-  return lastRemove >= 0 && lastRemove > lastInclude;
-}
-
-const removesTests = (relative) => relative === 'Features/**/*Tests.cs';
-const removesTasks = (relative) => relative !== null && /^Features\/Tasks\/\*\*(?:\/\*(?:\.cs)?)?$/i.test(relative);
-
-const HOSTS = [
-  {
-    project: MONOLITH_PROJECT,
-    compilesFeature: (feature) => feature !== 'tasks',
-    forbids: /(^|\/)Features\/Tasks(\/|$)/i,
-    scope: 'el monolito compila solo sus archivos y Features salvo Features/Tasks',
-  },
-  {
-    project: TASKS_HOST_PROJECT,
-    compilesFeature: (feature) => TASKS_HOST_FEATURES.has(feature),
-    scope: 'el host de Tasks compila solo sus archivos, Features/Tasks y Features/Health',
-  },
-];
-
-function checkHostProjectShape(project, text) {
-  if (/<Import\b/.test(text)) {
-    fail(`${DEPLOYMENT_RULE}: ${project} importa otro archivo de MSBuild; el límite se lee solo en el .csproj del host`);
-  }
-  if (/<Compile\b[^>]*\bCondition\s*=/.test(text) || /<ItemGroup\b[^>]*\bCondition\s*=[^>]*>(?:(?!<\/ItemGroup>)[\s\S])*<Compile\b/.test(text)) {
-    fail(`${DEPLOYMENT_RULE}: ${project} tiene un Compile con Condition; el límite no acepta ítems condicionales`);
-  }
-}
-
-async function checkNoTestsInHosts() {
-  const files = [];
-  await collectFiles(path.join(backend, 'Hosts'), files);
-  const tests = files.map(toPosix).filter((file) => file.endsWith('Tests.cs'));
-  if (tests.length > 0) fail(`tests en la carpeta de un host, que compila sus *.cs: ${tests.join(', ')}`);
-}
-
 async function checkDeploymentBoundary() {
-  for (const host of HOSTS) {
-    const file = path.join(root, host.project);
+  for (const project of [MONOLITH_PROJECT, TASKS_HOST_PROJECT]) {
+    const file = path.join(root, project);
     if (!(await exists(file))) {
-      fail(`${DEPLOYMENT_RULE}: falta ${host.project}`);
+      fail(`${DEPLOYMENT_RULE}: falta ${project}`);
       continue;
     }
-    const text = withoutComments(await readText(file));
-    checkOnlyReferencesPlatform(host.project, text);
-    checkHostProjectShape(host.project, text);
-    for (const include of msbuildValues(text, 'Compile', 'Include')) {
-      if (!hostCompiles(include, host.compilesFeature) || host.forbids?.test(itemPath(include))) {
-        fail(`${DEPLOYMENT_RULE}: ${host.project} compila ${include}; ${host.scope}, y el resto llega por ${PLATFORM_PROJECT}`);
-      }
-    }
-    if (!removedAfterIncluded(text, removesTests, (include) => featureOf(include) !== null)) {
-      fail(`${host.project} no excluye tests del producto: falta Compile Remove "$(BackendRoot)/Features/**/*Tests.cs" después de incluir Features`);
-    }
-    if (host.project === MONOLITH_PROJECT && !removedAfterIncluded(text, removesTasks, coversSeveralFeatures, { onlyIfIncluded: true })) {
-      fail(`${DEPLOYMENT_RULE}: ${MONOLITH_PROJECT} no quita $(BackendRoot)/Features/Tasks/** después de incluir varias features con un comodín; Tasks se compila solo en ${TASKS_HOST_PROJECT}`);
-    }
+    checkOnlyReferencesPlatform(project, await readText(file));
   }
-  await checkNoTestsInHosts();
 }
 
 async function checkTestsReferenceTheProduct() {

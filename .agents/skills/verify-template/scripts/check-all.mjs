@@ -69,6 +69,8 @@ const GATES = [
   { name: 'dotnet-build', cmd: 'dotnet', args: ['build', 'TemplateApp.slnx', '--configuration', 'Release'] },
   { name: 'check-codegen', ...node('dune/check-codegen.mjs', '--release') },
   { name: 'check-codegen-test', ...node('--test', 'dune/check-codegen.test.mjs') },
+  { name: 'check-host-items', ...node('dune/check-host-items.mjs') },
+  { name: 'check-host-items-test', ...node('--test', 'dune/check-host-items.test.mjs') },
   { name: 'dotnet-test', cmd: 'dotnet', args: ['test', 'TemplateApp.slnx', '--configuration', 'Release'] },
   { name: 'comment-verifier', cmd: 'dotnet', args: ['run', '--project', 'dune/Dune.CommentVerifier', '--', '--root', '.'] },
   { name: 'check-structure', ...node('dune/check-structure.mjs') },
