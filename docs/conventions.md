@@ -153,7 +153,7 @@ Excepciones (la lista es cerrada):
 - El instrumento se llama como el Meter en minúsculas más el hecho (`templateapp.tasks.created`), sin `_total`, con unidad UCUM (`{task}`, `s`).
 - Una etiqueta sale solo de un enum cerrado de la feature, que `<Feature>Metrics` traduce a un texto fijo (`LoginOutcome` → `templateapp.auth.login.outcome`). Ids, títulos, usuarios y emails nunca son etiquetas.
 - Se mide después de confirmar el hecho: un replay de idempotencia o un 409 no cuentan. Dentro de un `TransactionScope` (el del filtro de idempotencia), `SaveChangesAsync` no confirma: confirma `Complete()`, al salir del filtro. Por eso `templateapp.tasks.created`, que se mide después del `SaveChangesAsync` de `CreateTask`, todavía cuenta una tarea que el filtro revierte después (pendiente del paso 24, en `progreso.md`).
-- Las pruebas escuchan con `RecordedMeasurements` (`backend/Tests/Support`), que filtra por el `IMeterFactory` del host del test: las clases de test corren en paralelo en el mismo proceso.
+- Las pruebas escuchan con `RecordedMeasurements` (`backend/Tests/Support/Probes`), que filtra por el `IMeterFactory` del host del test: las clases de test corren en paralelo en el mismo proceso.
 
 ## Seguridad
 
@@ -170,7 +170,14 @@ Excepciones (la lista es cerrada):
 ## Pruebas
 
 - Las pruebas de una slice cruzan HTTP con `WebApplicationFactory` y PostgreSQL real (Testcontainers). No se usa EF InMemory ni mocks que solo repiten respuestas.
-- El soporte compartido de pruebas vive en `backend/Tests/Support`. Los helpers no se copian entre archivos de test.
+- El soporte compartido de pruebas vive en `backend/Tests/Support`, en una carpeta por rol; el namespace sigue a la carpeta. Los helpers no se copian entre archivos de test.
+  - `Hosts/`: lo que levanta la app y su infraestructura (`ApiFixture`, `ApiPair`, `IsolatedApi`, `PostgresFixture`, `RabbitMqFixture`, `TestDatabases`).
+  - `Clients/`: el cliente HTTP del test (`TestSession`, `TestAccounts`, `ProblemAssert`).
+  - `Probes/`: sondas que se instalan en el host o en la base para observar (`CapturedLogs`, `CapturedCommands`, `RecordedMeasurements`, `QueryPlan`, los `*Probe`).
+  - `Faults/`: fallas y esperas provocadas (`FailAfterSaving`, `PauseBeforeSaving`, `HeldOwnerLock`, `RemoteFault`, `SilentServer`, `LoopbackWireMock`).
+  - `Rows/`: lectores de filas de la base (`DatabaseRows`, `AuditLog`, `OutboxLog`, `TaskCounterRows` y sus filas).
+  - `Bus/`: dobles del bus (`MonolithListener`, `TasksListener`, `FastScheduledMessages`).
+  - En la raíz quedan los que combinan varios roles: `Eventually`, `HandlerCalls` y `TaskCounterScenario`.
 - Las pruebas de `Infrastructure/` y del arranque del host viven en `backend/Tests/<Área>/`, por ejemplo `backend/Tests/Startup/`.
 - Se prueba por comportamiento: autorización, transacciones, sesión revocada o vencida, antiforgery, cascadas, health y exportación de señales.
 - Las reglas de Dune se prueban con una fixture válida y una violación deliberada, observando diagnósticos o códigos de salida.

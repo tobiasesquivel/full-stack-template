@@ -13,8 +13,8 @@ public sealed class OneTypePerFileAnalyzerTests
         var diagnostics = await AnalyzerHost.AnalyzeAsync(
             new List<(string, string)>
             {
-                ("backend/Tests/Support/TestSession.cs", """
-                    namespace TemplateApp.Tests.Support;
+                ("backend/Tests/Support/Clients/TestSession.cs", """
+                    namespace TemplateApp.Tests.Support.Clients;
                     internal sealed class TestSession
                     {
                         public string Read() => new CookieParser().Parse() + new Pending().Name;
@@ -56,8 +56,8 @@ public sealed class OneTypePerFileAnalyzerTests
         var diagnostics = await AnalyzerHost.AnalyzeAsync(
             new List<(string, string)>
             {
-                ("backend/Tests/Support/TestSession.cs", """
-                    namespace TemplateApp.Tests.Support;
+                ("backend/Tests/Support/Clients/TestSession.cs", """
+                    namespace TemplateApp.Tests.Support.Clients;
                     internal sealed record SessionResponse(int Status);
                     internal sealed class TestSession { }
                     internal interface ISessionClock { }

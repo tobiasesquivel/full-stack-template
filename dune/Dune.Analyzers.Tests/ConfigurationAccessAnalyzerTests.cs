@@ -51,8 +51,8 @@ public sealed class ConfigurationAccessAnalyzerTests
                     public string? Current() => GetConnectionString();
                 }
                 """),
-            ("backend/Tests/Support/PostgresFixture.cs", """
-                namespace TemplateApp.Tests.Support;
+            ("backend/Tests/Support/Hosts/PostgresFixture.cs", """
+                namespace TemplateApp.Tests.Support.Hosts;
                 public static class PostgresFixture
                 {
                     public static string? External() => System.Environment.GetEnvironmentVariable("TEST_POSTGRES_CONNECTION");
