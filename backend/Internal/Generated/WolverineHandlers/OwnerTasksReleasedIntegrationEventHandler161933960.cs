@@ -50,7 +50,7 @@ namespace Internal.Generated.WolverineHandlers
             {
                 // Application-specific Open Telemetry auditing
                 Wolverine.Runtime.WolverineTracing.MessageActivity(context.Envelope)?.SetTag("ClosureId", ownerTasksReleasedIntegrationEvent.ClosureId);
-                TemplateApp.Infrastructure.Messaging.IntegrationEnvelopeCheck.Before(context.Envelope);
+                TemplateApp.Infrastructure.Messaging.Bus.IntegrationEnvelopeCheck.Before(context.Envelope);
                 Wolverine.Runtime.WolverineTracing.MessageActivity(context.Envelope)?.SetTag("message.handler", "TemplateApp.Features.Users.OrchestrateAccountClosure.AccountClosureSaga");
                 Wolverine.Runtime.WolverineTracing.MessageActivity(context.Envelope)?.SetTag("handler.type", "TemplateApp.Features.Users.OrchestrateAccountClosure.AccountClosureSaga");
                 System.Guid sagaId = ownerTasksReleasedIntegrationEvent.ClosureId;

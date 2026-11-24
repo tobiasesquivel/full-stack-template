@@ -4,7 +4,7 @@ using Npgsql;
 using TemplateApp.Features.Auth.Persistence;
 using TemplateApp.Features.Tasks.Persistence;
 using TemplateApp.Features.Users.Persistence;
-using TemplateApp.Infrastructure.Messaging;
+using TemplateApp.Infrastructure.Messaging.Outbox;
 using Xunit;
 
 namespace TemplateApp.Tests.Support;

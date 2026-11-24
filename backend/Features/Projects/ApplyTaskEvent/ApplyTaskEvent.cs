@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using TemplateApp.Features.Projects.Persistence;
 using TemplateApp.Infrastructure.Messaging;
+using TemplateApp.Infrastructure.Messaging.Inbox;
 
 namespace TemplateApp.Features.Projects.ApplyTaskEvent;
 

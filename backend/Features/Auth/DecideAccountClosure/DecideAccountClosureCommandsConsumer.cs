@@ -1,5 +1,6 @@
 using TemplateApp.Features.Auth.Contracts;
 using TemplateApp.Infrastructure.Messaging;
+using TemplateApp.Infrastructure.Messaging.Bus;
 
 namespace TemplateApp.Features.Auth.DecideAccountClosure;
 

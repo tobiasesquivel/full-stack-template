@@ -4,7 +4,7 @@ Registro vivo del [plan](plan.md). El agente lo actualiza al cerrar cada paso.
 
 ## Paso actual
 
-**Paso 30: Pasarela de pago detrás de un puerto propio.** Estado: bloqueado por la decisión de Tobi (proveedor y modalidad, regla 5). El paso 29.2 cerró el 2026-11-24 en modo autónomo. El modo autónomo sigue para la reorganización de carpetas (`AGENTS.md`, "Modo autónomo"); desde el paso 30 rige la regla 11.
+**Paso 30: Pasarela de pago detrás de un puerto propio.** Estado: bloqueado por la decisión de Tobi (proveedor y modalidad, regla 5). El paso 29.2 cerró el 2026-11-24 en modo autónomo. El modo autónomo sigue para la reorganización de carpetas (`AGENTS.md`, "Modo autónomo"), que va en partes, una por PR: la parte 1 (`Infrastructure/Messaging`) cerró el 2026-11-24 y las siguientes están en "Pendientes fuera de alcance". Desde el paso 30 rige la regla 11.
 
 La Fase 0 va antes del paso 2. El paso 1 (línea base) ya cerró y sirve de referencia para la Fase 0.
 
@@ -87,6 +87,7 @@ Estados: `pendiente`, `en curso`, `cerrado`, `bloqueado (⏸ decisión de Tobi)`
 | 29 | Resiliencia en los clientes HTTP salientes | cerrado | `artifacts/verify-template/paso29-rojo/` (cada test y regla nueva en rojo sin su arreglo: r1 pipeline con solo el timeout por intento 7 de 13, r2 sin el mapeo a 503 y sin el timeout del gateway 4 de 8, r3 DUNE0027 rompe el build con `AddHttpClient` en `TasksFeature`, r4 el gate rechaza `Polly.Core` directo, r5 Vitest sin el 504 1 de 58, r6 sin el handler del cuerpo, sin 429 → 503 y sin el total 3 de 3), `paso29-cierre-2/` (`check-all` con e2e: 29 etapas PASS, .NET 527/527, Vitest 58/58, launch, doctor y smoke de la API PASS; e2e 39 pasan, 2 no corren y falla la conocida de `projects.spec.ts`) |
 | 29.1 | Wolverine como mediator | cerrado | `artifacts/verify-template/paso29-1-spike/` (spike: `CreateTaskTests` 18/18 con el handler anidado; Tasks y mensajería 89/89), `paso29-1-rojo/` (cada test y regla nueva en rojo sin su arreglo: `mediator-no-retry` con las reglas globales el handler corre 4 veces y tarda 37 s, `mediator-contract` sin un handler registrado y sin un validador 3 de 4, `handler-tests-before-slices` los tests directos no compilan contra el commit anterior, `dune0025` 3 de 5, `dune0028` sin el analyzer no compila, `check-structure-bus` la fixture válida rechazada, `dune0009-tasks-generated`, `check-codegen-tasks`), `paso29-1-codigo/` (`check-all` sin e2e: 29 etapas PASS, .NET 550/550, launch, doctor y smoke de la API PASS), `paso29-1-docs/` (`check-all --gates-only` con los docs). E2E `NOT_RUN`: el contrato HTTP no cambia; revisión independiente (las reglas globales de reintento vuelven para los handlers internos de Wolverine; el mediator corta con `CustomAction`): `paso29-1-revision/` (rojo: con `MoveToErrorQueue` el handler corrió 4 veces, 3 fallas), `paso29-1-revision-2/` (2 fallas del monolito por puertos efímeros, que pasan solas 8/8 en `paso29-1-revision-2b/`), `paso29-1-revision-3/` (PASS, .NET 550/550, e2e NOT_RUN) |
 | 29.2 | Las slices del monolito como handlers, con Wolverine dueño de la transacción | cerrado | `artifacts/verify-template/paso29-2-rojos/` (cada test o regla nueva en rojo sin su arreglo: `01` `UpdateProfile` registrado sin transacción deja el perfil cambiado; `02` sin la política, el test de política falla; `03` sin el corte por error, `UpdateProject` responde 500 en vez de 409; `04` `RegisterUser` sin transacción deja identidad y perfil (3 tests); `05` DUNE0029 frena un `SaveChangesAsync` suelto en el `UpdateProfile` real; `06` con `UseDurableLocalQueues` las colas de los comandos son durables), `paso29-2-c1/` (spike: .NET 297/297), `paso29-2-projects/` y `paso29-2-auth/` (`check-all` sin e2e: FAIL en `dotnet-test` por "too many clients" de PostgreSQL, que en `main` da 0; causa: una cola local durable por comando; arreglado), `paso29-2-colas/` (29 etapas PASS, .NET 561/561 sin "too many clients", launch, doctor y smoke de la API PASS; después del commit de docs, `paso29-2-docs-2/` (`--gates-only`: 25 etapas PASS, .NET 561/561). `paso29-2-docs/` dio 2 fallas de `RemoteResilienceTests` (WireMock, código que el paso no toca), que aisladas pasan 5 de 5 (`paso29-2-docs/remote-resilience-aislado.log`)). E2E `NOT_RUN`: el paso no cambia frontend ni contratos HTTP |
+| R1 | Reorganización, parte 1: `Infrastructure/Messaging` en una carpeta por mecanismo | cerrado | `artifacts/verify-template/reorg-1-linea-base/` (build de `main`: 0 errores, 1058 advertencias), `reorg-1-dune0023-rojo/` (con la regla vieja, la llamada plantada en `OutboxInterceptor` compila y `ACallOutsideTheRelayIsRejected` falla), `reorg-1-dune0023-verde/` (Dune 258/258; la llamada plantada rompe el build con DUNE0023), `reorg-1-ef/` (`has-pending-model-changes`: sin cambios en los cuatro contextos), `reorg-1-check/` (sin e2e, 29 etapas PASS, `dotnet test` 562/562), `reorg-1-revision/` (arreglos de la revisión: Dune 258/258; build con las mismas 1058 advertencias y los mismos códigos que `main`). E2e `NOT_RUN`: no cambia frontend ni contrato HTTP |
 | 30 | Pasarela de pago detrás de un puerto propio | pendiente | |
 | 31 | Máquina de estados de pago + conciliación programada | pendiente | |
 | 32 | Integración por archivo (SFTP o CSV) con cuarentena | pendiente | |
@@ -99,6 +100,16 @@ Estados: `pendiente`, `en curso`, `cerrado`, `bloqueado (⏸ decisión de Tobi)`
 
 Cosas vistas durante un paso que no le corresponden. Cada una espera su paso.
 
+- Reorganización de carpetas, partes que siguen (modo autónomo, una por PR, en este orden). Vistas en la parte 1:
+  - Parte 2: `Infrastructure/Persistence` (24 archivos sueltos) en `Audit/`, `Idempotency/`, `Initialization/`, `Health/` y `Transactions/`. DUNE0021 y el analyzer de propiedad de datos nombran rutas de ahí.
+  - Parte 3: `Infrastructure/Http` (15 sueltos) en `Remote/` (clientes, resiliencia, `OnBehalfOf`) y `RateLimiting/`; `Middlewares/` (un solo archivo) y `DependencyInjection/` se integran donde corresponda. DUNE0011, DUNE0027 y `check-structure` nombran rutas de ahí.
+  - Parte 4: la raíz de cada feature (12 a 16 sueltos): los nombres de los mensajes del bus (`AuthEvents`, `UserEvents`, `TaskEvents`, `TaskCommands`, `AuthCommands`) a una carpeta técnica propia. Cambia el punto 5 del ADR-0004 y las reglas que distinguen slice de carpeta técnica.
+  - Parte 5: `backend/Tests/Support` (43 sueltos) por rol: hosts y fixtures, sondas, lectores de filas y dobles del bus.
+  - Parte 6: el host del monolito a `backend/Hosts/Monolith/`, igual que `Hosts/Tasks`. Toca Dockerfile, Compose, CI, `check-codegen` y `check-structure`; es la de más riesgo.
+  - Parte 7: `backend/docs/agents/` (3 docs para agentes) a `docs/agents/`.
+  - Parte 8: los 7 `informe-*.md` de `docs/evolucion/` a `docs/evolucion/informes/`, con sus links.
+  - Parte 9: los gates Node de `dune/` y sus tests a `dune/gates/`, con `check-all`, CI y README.
+  - El frontend no tiene parte: ya está por feature y por propósito (paso 0.13).
 - El build Release muestra 218 warnings de analyzers (CA2007, CA1707, RS2008, RS1036, CS8602 y otros). Nadie decidió si cada uno se corrige o se baja a `suggestion`. Sin paso asignado: proponer uno.
 - Desde el paso 12 la política `auth` es por IP, pero en `verify-template` el proxy de `ng serve` y el smoke llegan a la API desde `127.0.0.1`: comparten el balde de 20 por minuto. Un recorrido de navegador seguido del smoke da 429. Por eso siguen la espera de 65 s de `check-all.mjs` y `waitForAuthRoom()`. Salidas: un límite de auth alto para `verify-template` por variable de entorno (`AuthRateLimiting__PermitLimit`), o forwarded headers. Va con el pendiente de e2e en CI. Sin paso asignado.
 - Hay una carpeta vacía y sin versionar, `backend/Features/Health/Test/`, de antes de este paso. Git la ignora. Borrarla es decisión de Tobi.
@@ -321,6 +332,13 @@ Cosas vistas durante un paso que no le corresponden. Cada una espera su paso.
 - No se midió el costo del `SaveChangesAsync` sin cambios que Wolverine llama al final de cada lectura `None` (paso 29.2). Sin paso asignado.
 
 ## Cierres
+
+### Reorganización, parte 1 — 2026-11-24
+- Enseñado: modo autónomo: sin explicación previa.
+- Preguntas: ninguna (modo autónomo).
+- Qué cambió: 44 de los 52 archivos de `backend/Infrastructure/Messaging` pasan a `Outbox/`, `Inbox/`, `Bus/`, `Mediator/` y `Sagas/`, con `git mv`; el namespace sigue a la carpeta. La clase `Inbox` pasa a `InboxAcceptance`. Un script reescribió los `using` de 91 archivos según los tipos y métodos de extensión que nombra cada uno; el código generado de Wolverine cambia en 5 nombres calificados, y `codegen write` lo reproduce igual. DUNE0023 pasa al namespace y la ruta nuevos. `architecture.md` describe la carpeta. Los snapshots de EF no cambian.
+- Decisiones: filas "Reorganización, parte 1" en `docs/decisions.tsv`. Hallazgos de la revisión aplicados: rutas de las fixtures de Dune en las subcarpetas y dos `using` que sobraban. No aplicado: mover `SagaStorage` a `Mediator/` (configura el almacén durable que activa `storesSagas`; las políticas del mediator cuelgan de ahí porque solo ese host deja la transacción a Wolverine). Las referencias a rutas viejas en `decisions.tsv` y en `investigacion/` quedan: son registro histórico.
+- Evidencia: fila R1 de la tabla. Revisión independiente (Codex `gpt-6.2-sol`): sin hallazgos altos ni medios, 3 bajos. `NOT_RUN`: e2e (no cambia frontend ni contrato HTTP).
 
 ### Paso 29.2 — 2026-11-24
 - Enseñado: modo autónomo: sin explicación previa.

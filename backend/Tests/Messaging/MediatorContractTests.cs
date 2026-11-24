@@ -8,7 +8,7 @@ using TemplateApp.Features.Tasks.GetTask;
 using TemplateApp.Features.Tasks.ListTasks;
 using TemplateApp.Features.Tasks.UpdateTask;
 using TemplateApp.Hosts.Tasks;
-using TemplateApp.Infrastructure.Messaging;
+using TemplateApp.Infrastructure.Messaging.Mediator;
 using TemplateApp.Tests.Support;
 using Wolverine;
 using Wolverine.Runtime.Handlers;

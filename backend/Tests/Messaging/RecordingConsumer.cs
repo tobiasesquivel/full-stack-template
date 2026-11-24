@@ -3,6 +3,8 @@ using Microsoft.EntityFrameworkCore.Storage;
 using TemplateApp.Features.Tasks.Domain.Events;
 using TemplateApp.Features.Tasks.Persistence;
 using TemplateApp.Infrastructure.Messaging;
+using TemplateApp.Infrastructure.Messaging.Inbox;
+using TemplateApp.Infrastructure.Messaging.Outbox;
 
 namespace TemplateApp.Tests.Messaging;
 

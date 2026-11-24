@@ -5,6 +5,7 @@ using TemplateApp.Features.Auth.Access;
 using TemplateApp.Features.Auth.Domain;
 using TemplateApp.Features.Auth.Persistence;
 using TemplateApp.Infrastructure.Messaging;
+using TemplateApp.Infrastructure.Messaging.Inbox;
 
 namespace TemplateApp.Features.Auth.DecideAccountClosure;
 

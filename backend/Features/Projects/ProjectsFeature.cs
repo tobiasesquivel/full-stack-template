@@ -3,6 +3,7 @@ using TemplateApp.Features.Projects.Contracts;
 using TemplateApp.Features.Projects.Persistence;
 using TemplateApp.Infrastructure.Http;
 using TemplateApp.Infrastructure.Messaging;
+using TemplateApp.Infrastructure.Messaging.Mediator;
 using TemplateApp.Infrastructure.Persistence;
 
 namespace TemplateApp.Features.Projects;

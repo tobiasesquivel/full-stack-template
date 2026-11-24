@@ -1,6 +1,8 @@
 using TemplateApp.Features.Auth.Contracts;
 using TemplateApp.Features.Auth.Domain.Events;
 using TemplateApp.Infrastructure.Messaging;
+using TemplateApp.Infrastructure.Messaging.Bus;
+using TemplateApp.Infrastructure.Messaging.Outbox;
 
 namespace TemplateApp.Features.Auth.PublishAuthEvents;
 
