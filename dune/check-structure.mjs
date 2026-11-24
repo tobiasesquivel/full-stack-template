@@ -48,7 +48,7 @@ function toPosix(target) {
   return path.relative(root, target).replaceAll(path.sep, '/');
 }
 
-const MONOLITH_PROJECT = 'backend/TemplateApp.csproj';
+const MONOLITH_PROJECT = 'backend/Hosts/Monolith/TemplateApp.csproj';
 const PLATFORM_PROJECT = 'backend/Platform/TemplateApp.Platform.csproj';
 const TASKS_HOST_PROJECT = 'backend/Hosts/Tasks/TemplateApp.Tasks.csproj';
 
@@ -58,10 +58,7 @@ async function productSources() {
   await collectFiles(path.join(backend, 'Shared'), all);
   await collectFiles(path.join(backend, 'Infrastructure'), all);
   await collectFiles(path.join(backend, 'Hosts'), all);
-  for (const project of [MONOLITH_PROJECT, PLATFORM_PROJECT]) {
-    if (await exists(path.join(root, project))) all.push(path.join(root, project));
-  }
-  if (await exists(path.join(backend, 'Program.cs'))) all.push(path.join(backend, 'Program.cs'));
+  if (await exists(path.join(root, PLATFORM_PROJECT))) all.push(path.join(root, PLATFORM_PROJECT));
   return all
     .filter((file) => file.endsWith('.cs') || file.endsWith('.csproj'))
     .filter((file) => !toPosix(file).includes('/Tests/') && !file.endsWith('Tests.cs'));
@@ -136,60 +133,70 @@ function checkOnlyReferencesPlatform(project, text) {
   }
 }
 
-function tasksHostCompiles(include) {
+function hostCompiles(include, compilesFeature) {
   const rooted = /^(?:\$\(BackendRoot\)|\.\.\/\.\.)\/(.*)$/.exec(include);
   if (rooted === null) return !include.includes('..') && !include.includes('$(');
   const feature = /^Features\/([^/]+)\//.exec(rooted[1]);
-  return feature !== null && TASKS_HOST_FEATURES.has(feature[1]);
+  return feature !== null && compilesFeature(feature[1]);
 }
+
+function removes(text, pattern) {
+  return msbuildValues(text, 'Compile', 'Remove').some((value) => value.endsWith(pattern));
+}
+
+function compileItems(text) {
+  const pattern = /<Compile\b[^>]*?\b(Include|Remove)\s*=\s*["']([^"']+)["']/g;
+  return [...text.matchAll(pattern)].flatMap((match) =>
+    match[2].split(';').map((value) => ({ kind: match[1], value: normalizeItem(value) })),
+  );
+}
+
+function removesTasksAfterEveryFeatureGlob(text) {
+  const items = compileItems(text);
+  const lastRemove = items.findLastIndex((item) => item.kind === 'Remove' && item.value.endsWith('Features/Tasks/**'));
+  const lastGlob = items.findLastIndex((item) => item.kind === 'Include' && /(^|\/)Features\/\*\*\//.test(item.value));
+  return lastGlob < 0 || lastRemove > lastGlob;
+}
+
+const HOSTS = [
+  {
+    project: MONOLITH_PROJECT,
+    compilesFeature: (feature) => feature !== 'Tasks',
+    forbids: /(^|\/)Features\/Tasks(\/|$)/,
+    scope: 'el monolito compila solo sus archivos y Features salvo Features/Tasks',
+  },
+  {
+    project: TASKS_HOST_PROJECT,
+    compilesFeature: (feature) => TASKS_HOST_FEATURES.has(feature),
+    scope: 'el host de Tasks compila solo sus archivos, Features/Tasks y Features/Health',
+  },
+];
 
 async function checkDeploymentBoundary() {
-  const monolith = path.join(root, MONOLITH_PROJECT);
-  if (await exists(monolith)) {
-    const text = await readText(monolith);
-    checkOnlyReferencesPlatform(MONOLITH_PROJECT, text);
-    const excludes = [
-      ...[...text.matchAll(/<DefaultItemExcludes>([^<]*)<\/DefaultItemExcludes>/g)].flatMap((match) => match[1].split(';')),
-      ...msbuildValues(text, 'Compile', 'Remove'),
-    ].map(normalizeItem);
-    for (const include of msbuildValues(text, 'Compile', 'Include').map(normalizeItem)) {
-      if (/(^|\/)Features\/Tasks(\/|$)/.test(include)) {
-        fail(`${DEPLOYMENT_RULE}: ${MONOLITH_PROJECT} compila ${include}; Tasks se compila solo en ${TASKS_HOST_PROJECT}`);
+  for (const host of HOSTS) {
+    const file = path.join(root, host.project);
+    if (!(await exists(file))) {
+      fail(`${DEPLOYMENT_RULE}: falta ${host.project}`);
+      continue;
+    }
+    const text = await readText(file);
+    checkOnlyReferencesPlatform(host.project, text);
+    for (const include of msbuildValues(text, 'Compile', 'Include')) {
+      if (!hostCompiles(include, host.compilesFeature) || host.forbids?.test(include)) {
+        fail(`${DEPLOYMENT_RULE}: ${host.project} compila ${include}; ${host.scope}, y el resto llega por ${PLATFORM_PROJECT}`);
       }
     }
-    if (!excludes.some((value) => value === 'Features/Tasks/**' || value.startsWith('Features/Tasks/**/'))) {
-      fail(`${DEPLOYMENT_RULE}: ${MONOLITH_PROJECT} no excluye Features/Tasks/**; Tasks se compila solo en ${TASKS_HOST_PROJECT}`);
+    if (!removes(text, 'Features/**/*Tests.cs')) {
+      fail(`${host.project} no excluye tests del producto: falta Compile Remove "Features/**/*Tests.cs"`);
     }
   }
-  const host = path.join(root, TASKS_HOST_PROJECT);
-  if (!(await exists(host))) {
-    fail(`${DEPLOYMENT_RULE}: falta ${TASKS_HOST_PROJECT}`);
-    return;
-  }
-  const text = await readText(host);
-  checkOnlyReferencesPlatform(TASKS_HOST_PROJECT, text);
-  for (const include of msbuildValues(text, 'Compile', 'Include')) {
-    if (!tasksHostCompiles(include)) {
-      fail(`${DEPLOYMENT_RULE}: ${TASKS_HOST_PROJECT} compila ${include}; el host de Tasks compila solo sus archivos, Features/Tasks y Features/Health, y el resto llega por ${PLATFORM_PROJECT}`);
-    }
-  }
-  if (!msbuildValues(text, 'Compile', 'Remove').some((value) => value.endsWith('Features/**/*Tests.cs'))) {
-    fail('TemplateApp.Tasks.csproj no excluye tests del producto: falta Compile Remove "Features/**/*Tests.cs"');
+  const monolith = path.join(root, MONOLITH_PROJECT);
+  if ((await exists(monolith)) && !removesTasksAfterEveryFeatureGlob(await readText(monolith))) {
+    fail(`${DEPLOYMENT_RULE}: ${MONOLITH_PROJECT} no quita Features/Tasks/** después de incluir Features/**; Tasks se compila solo en ${TASKS_HOST_PROJECT}`);
   }
 }
 
-async function checkProductExcludesTests() {
-  const csproj = path.join(backend, 'TemplateApp.csproj');
-  if (!(await exists(csproj))) {
-    fail('falta backend/TemplateApp.csproj');
-    return;
-  }
-  const text = await readText(csproj);
-  for (const pattern of ['Features/**/*Tests.cs', 'Tests/**/*.cs']) {
-    if (!text.includes(pattern)) {
-      fail(`TemplateApp.csproj no excluye tests del producto: falta Compile Remove "${pattern}"`);
-    }
-  }
+async function checkTestsReferenceTheProduct() {
   const testsCsproj = path.join(backend, 'Tests', 'TemplateApp.Tests.csproj');
   if (!(await exists(testsCsproj))) {
     fail('falta backend/Tests/TemplateApp.Tests.csproj');
@@ -572,7 +579,7 @@ async function checkGatewayIsTheOnlyEntrance() {
 }
 
 await checkSlicesHaveTests();
-await checkProductExcludesTests();
+await checkTestsReferenceTheProduct();
 await checkDeploymentBoundary();
 await checkInternalsOnlyForTests();
 await checkNoBus();

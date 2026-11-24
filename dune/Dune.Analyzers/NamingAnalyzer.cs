@@ -150,11 +150,6 @@ public sealed class NamingAnalyzer : DiagnosticAnalyzer
 
     private static bool IsHostProgram(string path)
     {
-        if (path.EndsWith("backend/Program.cs", System.StringComparison.Ordinal))
-        {
-            return true;
-        }
-
         var marker = path.IndexOf("backend/Hosts/", System.StringComparison.Ordinal);
         if (marker < 0)
         {

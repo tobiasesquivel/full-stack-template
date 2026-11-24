@@ -47,7 +47,7 @@ internal static class DuneDiagnostics
         category: "Dune",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
-        description: "El namespace de todo tipo de primer nivel (clase, struct, record, record struct, interface, enum y delegate) coincide con la ruta relativa de la feature. Solo el Program.cs de cada host (backend/Program.cs y backend/Hosts/<Host>/Program.cs) queda en el namespace global.");
+        description: "El namespace de todo tipo de primer nivel (clase, struct, record, record struct, interface, enum y delegate) coincide con la ruta relativa de la feature. Solo el Program.cs de cada host (backend/Hosts/<Host>/Program.cs) queda en el namespace global.");
 
     public static readonly DiagnosticDescriptor DbSetShadow = new(
         id: "DUNE0006",
@@ -83,7 +83,7 @@ internal static class DuneDiagnostics
         category: "Dune",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
-        description: "Los comentarios se prohíben en backend y dune salvo el código generado por herramientas: las migraciones EF de Infrastructure y de cada feature, y desde el paso 27 los handlers que Wolverine genera con codegen write en backend/Internal/Generated/WolverineHandlers/ (monolito) y, desde el paso 29.1, en backend/Hosts/Tasks/Internal/Generated/WolverineHandlers/ (Tasks).");
+        description: "Los comentarios se prohíben en backend y dune salvo el código generado por herramientas: las migraciones EF de Infrastructure y de cada feature, y desde el paso 27 los handlers que Wolverine genera con codegen write en backend/Hosts/Monolith/Internal/Generated/WolverineHandlers/ (monolito) y, desde el paso 29.1, en backend/Hosts/Tasks/Internal/Generated/WolverineHandlers/ (Tasks).");
 
     public static readonly DiagnosticDescriptor OneTypePerFile = new(
         id: "DUNE0010",
