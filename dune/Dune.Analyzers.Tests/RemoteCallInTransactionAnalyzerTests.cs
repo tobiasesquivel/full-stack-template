@@ -189,6 +189,135 @@ public sealed class RemoteCallInTransactionAnalyzerTests
         Assert.Empty(Locations(diagnostics));
     }
 
+    private const string Mediator = """
+        namespace TemplateApp.Infrastructure.Messaging
+        {
+            public enum MediatorTransaction
+            {
+                None,
+                Atomic,
+                Eager,
+            }
+
+            public static class MessagingRegistration
+            {
+                public static object AddMediatorHandler<THandler>(this object services, MediatorTransaction transaction)
+                    where THandler : class => services;
+            }
+        }
+        namespace TemplateApp.Features.Users
+        {
+            public static class UsersFeature
+            {
+                public static object AddUsersFeature(object services)
+                {
+                    TemplateApp.Infrastructure.Messaging.MessagingRegistration.AddMediatorHandler<UpdateProfile.UpdateProfile.Handler>(services, TemplateApp.Infrastructure.Messaging.MediatorTransaction.Atomic);
+                    TemplateApp.Infrastructure.Messaging.MessagingRegistration.AddMediatorHandler<DeleteUser.DeleteUser.Handler>(services, TemplateApp.Infrastructure.Messaging.MediatorTransaction.Eager);
+                    TemplateApp.Infrastructure.Messaging.MessagingRegistration.AddMediatorHandler<GetUser.GetUser.Handler>(services, TemplateApp.Infrastructure.Messaging.MediatorTransaction.None);
+                    return services;
+                }
+            }
+        }
+        """;
+
+    [Fact]
+    public async Task AHandlerWithoutTransaction_MayCallAnotherProcess_AndAnAtomicHandlerThatDoesNot_IsAccepted()
+    {
+        var diagnostics = await AnalyzeAsync(
+            ("backend/Features/Users/GetUser/GetUser.cs", """
+                using System.Threading;
+                using System.Threading.Tasks;
+                namespace TemplateApp.Features.Users.GetUser;
+                public static class GetUser
+                {
+                    public sealed class Handler(OwnedTasksClient tasks)
+                    {
+                        public Task Handle(string authId, CancellationToken ct) => tasks.DeleteOwnedTasksAsync(authId, ct);
+                    }
+                }
+                """),
+            ("backend/Features/Users/UpdateProfile/UpdateProfile.cs", """
+                using System.Threading;
+                using System.Threading.Tasks;
+                namespace TemplateApp.Features.Users.UpdateProfile;
+                public static class UpdateProfile
+                {
+                    public sealed class Handler(LocalProjects projects)
+                    {
+                        public Task Handle(string authId, CancellationToken ct) => projects.DeleteOwnedProjectsAsync(authId, ct);
+                    }
+                }
+                """),
+            ("backend/Features/Users/DeleteUser/DeleteUser.cs", """
+                namespace TemplateApp.Features.Users.DeleteUser;
+                public static class DeleteUser
+                {
+                    public sealed class Handler
+                    {
+                        public int Handle(string authId) => authId.Length;
+                    }
+                }
+                """),
+            ("backend/Features/Users/Mediator.cs", Mediator));
+
+        Assert.Empty(Locations(diagnostics));
+    }
+
+    [Fact]
+    public async Task ARemoteCall_AnywhereInAnAtomicOrEagerHandler_IsRejected()
+    {
+        var diagnostics = await AnalyzeAsync(
+            ("backend/Features/Users/UpdateProfile/UpdateProfile.cs", """
+                using System.Threading;
+                using System.Threading.Tasks;
+                namespace TemplateApp.Features.Users.UpdateProfile;
+                public static class UpdateProfile
+                {
+                    public sealed class Handler(OwnedTasksClient tasks)
+                    {
+                        public Task Handle(string authId, CancellationToken ct) => tasks.DeleteOwnedTasksAsync(authId, ct);
+                    }
+                }
+                """),
+            ("backend/Features/Users/DeleteUser/DeleteUser.cs", """
+                using System.Net.Http;
+                using System.Threading;
+                using System.Threading.Tasks;
+                namespace TemplateApp.Features.Users.DeleteUser;
+                public static class DeleteUser
+                {
+                    public sealed class Handler(HttpClient http)
+                    {
+                        public async Task Handle(string authId, CancellationToken ct)
+                        {
+                            await Ping(ct);
+                        }
+
+                        private Task Ping(CancellationToken ct) => http.GetAsync("internal/v1/ping", ct);
+                    }
+                }
+                """),
+            ("backend/Features/Users/GetUser/GetUser.cs", """
+                namespace TemplateApp.Features.Users.GetUser;
+                public static class GetUser
+                {
+                    public sealed class Handler
+                    {
+                        public int Handle(string authId) => authId.Length;
+                    }
+                }
+                """),
+            ("backend/Features/Users/Mediator.cs", Mediator));
+
+        Assert.Equal(
+            new[]
+            {
+                ("backend/Features/Users/DeleteUser/DeleteUser.cs", 14),
+                ("backend/Features/Users/UpdateProfile/UpdateProfile.cs", 8),
+            },
+            Locations(diagnostics));
+    }
+
     private static Task<System.Collections.Immutable.ImmutableArray<Diagnostic>> AnalyzeAsync(
         params (string Path, string Source)[] files) =>
         AnalyzerHost.AnalyzeAsync(

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using System.Linq;
 using Microsoft.CodeAnalysis;
@@ -15,18 +16,56 @@ public sealed class RemoteCallInTransactionAnalyzer : DiagnosticAnalyzer
     private const string TransactionNamespace = "TemplateApp.Infrastructure.Persistence";
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
-        ImmutableArray.Create(DuneDiagnostics.RemoteCallInTransaction);
+        ImmutableArray.Create(DuneDiagnostics.RemoteCallInTransaction, DuneDiagnostics.RemoteCallInMediatorTransaction);
 
     public override void Initialize(AnalysisContext context)
     {
         context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
         context.EnableConcurrentExecution();
-        context.RegisterOperationAction(AnalyzeInvocation, OperationKind.Invocation);
+        context.RegisterCompilationStartAction(start =>
+        {
+            var transactional = new ConcurrentDictionary<INamedTypeSymbol, string>(SymbolEqualityComparer.Default);
+            var remoteCalls = new ConcurrentBag<(INamedTypeSymbol Type, Location Location, string Call, string Remote)>();
+
+            start.RegisterOperationAction(
+                operation => AnalyzeInvocation(operation, transactional, remoteCalls),
+                OperationKind.Invocation);
+
+            start.RegisterCompilationEndAction(end =>
+            {
+                foreach (var call in remoteCalls)
+                {
+                    if (transactional.TryGetValue(call.Type, out var transaction))
+                    {
+                        end.ReportDiagnostic(Diagnostic.Create(
+                            DuneDiagnostics.RemoteCallInMediatorTransaction,
+                            call.Location,
+                            call.Call,
+                            call.Remote,
+                            call.Type.Name,
+                            transaction));
+                    }
+                }
+            });
+        });
     }
 
-    private static void AnalyzeInvocation(OperationAnalysisContext context)
+    private static void AnalyzeInvocation(
+        OperationAnalysisContext context,
+        ConcurrentDictionary<INamedTypeSymbol, string> transactional,
+        ConcurrentBag<(INamedTypeSymbol, Location, string, string)> remoteCalls)
     {
         var invocation = (IInvocationOperation)context.Operation;
+        if (MediatorRegistrations.TryRead(invocation, out var handler, out var transaction))
+        {
+            if (transaction is MediatorRegistrations.Atomic or MediatorRegistrations.Eager)
+            {
+                transactional.TryAdd(handler, transaction);
+            }
+
+            return;
+        }
+
         var path = DunePaths.Normalize(invocation.Syntax.SyntaxTree.FilePath);
         if (!DunePaths.IsBackendFile(path) || DunePaths.IsMigration(path) || DunePaths.IsTestsFile(path))
         {
@@ -34,16 +73,25 @@ public sealed class RemoteCallInTransactionAnalyzer : DiagnosticAnalyzer
         }
 
         var remote = RemoteReceiver(invocation);
-        if (remote is null || invocation.SemanticModel is not { } model || !InsideTransaction(invocation.Syntax, model))
+        if (remote is null || invocation.SemanticModel is not { } model)
         {
             return;
         }
 
-        context.ReportDiagnostic(Diagnostic.Create(
-            DuneDiagnostics.RemoteCallInTransaction,
-            invocation.Syntax.GetLocation(),
-            invocation.TargetMethod.Name,
-            remote.Name));
+        if (InsideTransaction(invocation.Syntax, model))
+        {
+            context.ReportDiagnostic(Diagnostic.Create(
+                DuneDiagnostics.RemoteCallInTransaction,
+                invocation.Syntax.GetLocation(),
+                invocation.TargetMethod.Name,
+                remote.Name));
+            return;
+        }
+
+        if (MediatorRegistrations.EnclosingType(invocation) is { } type && !SymbolEqualityComparer.Default.Equals(type, remote))
+        {
+            remoteCalls.Add((type, invocation.Syntax.GetLocation(), invocation.TargetMethod.Name, remote.Name));
+        }
     }
 
     private static ITypeSymbol? RemoteReceiver(IInvocationOperation invocation)
