@@ -475,9 +475,9 @@ El paso 0.28 se agregó el 2026-10-17, a pedido de Tobi, con otro pendiente del 
 
 **29.2. Las slices del monolito como handlers, con Wolverine dueño de la transacción.**
 **Concepto**: middleware de transacciones: Wolverine abre la transacción, guarda y confirma alrededor de cada handler (`AutoApplyTransactions`), y la slice deja de hacerlo a mano.
-**Cambia**: las slices de Auth, Users y Projects pasan a ser handlers; salen sus `SaveChangesAsync` y sus `TransactionScope`; una solución para las slices de dos contextos (`RegisterUser`, `WithdrawAccountClosure`).
+**Cambia**: las slices de Auth, Users y Projects pasan a ser handlers; salen sus `SaveChangesAsync` y sus `TransactionScope`; una solución para las slices de dos contextos (`RegisterUser`, `WithdrawAccountClosure`). Excepción (choque 1 de la investigación): `CreateProject` y `UpdateProject` conservan un `SaveChangesAsync` dentro de un `try` que traduce `DbUpdateException` a `409` (`NameTaken`, `Conflict`); si guardara Wolverine, la excepción saldría como `500`. Confirmar sigue siendo de Wolverine.
 **Verifica**: tests HTTP de las slices migradas sin cambios; test de que un fallo a mitad del handler no deja nada guardado; el monolito arranca con todas las slices registradas.
-**Nota**: Tobi eligió partir el mediator en dos pasos y que Wolverine sea el dueño de la transacción en el monolito (2026-11-23).
+**Nota**: Tobi eligió partir el mediator en dos pasos y que Wolverine sea el dueño de la transacción en el monolito (2026-11-23). La investigación es [paso-29-2-wolverine-transacciones.md](investigacion/paso-29-2-wolverine-transacciones.md).
 
 **30. Pasarela de pago detrás de un puerto propio.**
 **Concepto**: ports & adapters, anti-corruption layer, webhook como fuente de verdad, PCI por checkout hospedado.
