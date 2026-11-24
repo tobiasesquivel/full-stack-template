@@ -127,6 +127,21 @@ describe('check-structure', () => {
     }
   });
 
+  it('no toma por slice una carpeta técnica con un *Endpoint.cs', async () => {
+    const repo = await makeRepo();
+    try {
+      await seedValid(repo);
+      await repo.write('backend/Features/Tasks/MessageNames/TaskEvents.cs', ' ');
+      await repo.write('backend/Features/Tasks/MessageNames/MessageNamesEndpoint.cs', ' ');
+      await repo.write('backend/Features/Tasks/Access/AccessEndpoint.cs', ' ');
+      const result = await runGate(repo.dir);
+      assert.equal(result.code, 0, result.output);
+      assert.doesNotMatch(result.output, /MessageNames|Tasks\/Access/);
+    } finally {
+      await repo.cleanup();
+    }
+  });
+
   it('rechaza una slice sin su test', async () => {
     const repo = await makeRepo();
     try {
@@ -419,6 +434,11 @@ describe('check-structure', () => {
     ['using de Wolverine.Runtime en el endpoint de una slice', 'backend/Features/Tasks/CreateTask/CreateTaskEndpoint.cs', 'using Wolverine.Runtime;\n'],
     ['using de Wolverine en el handler de una slice', 'backend/Features/Tasks/CreateTask/CreateTask.cs', 'using Wolverine;\n'],
     ['using de Wolverine en un endpoint fuera de una slice', 'backend/Features/Tasks/TasksEndpoint.cs', 'using Wolverine;\n'],
+    ['using de Wolverine en un *Endpoint.cs de la carpeta técnica MessageNames/', 'backend/Features/Tasks/MessageNames/MessageNamesEndpoint.cs', 'using Wolverine;\n'],
+    ['using de Wolverine en un *Endpoint.cs de la carpeta técnica Access/', 'backend/Features/Tasks/Access/AccessEndpoint.cs', 'using Wolverine;\n'],
+    ['using de Wolverine en un *Endpoint.cs de la carpeta técnica Contracts/', 'backend/Features/Tasks/Contracts/ContractsEndpoint.cs', 'using Wolverine;\n'],
+    ['using de Wolverine en un *Endpoint.cs de la carpeta técnica Domain/', 'backend/Features/Tasks/Domain/DomainEndpoint.cs', 'using Wolverine;\n'],
+    ['using de Wolverine en un *Endpoint.cs de la carpeta técnica Persistence/', 'backend/Features/Tasks/Persistence/PersistenceEndpoint.cs', 'using Wolverine;\n'],
     ['WolverineFx.FluentValidation en el host de Tasks', 'backend/Hosts/Tasks/TemplateApp.Tasks.csproj', tasksHostProject().replace('</Project>', '<ItemGroup><PackageReference Include="WolverineFx.FluentValidation" Version="6.64.2" /></ItemGroup></Project>')],
     ['using de JasperFx fuera de Messaging', 'backend/Infrastructure/Observability/Bus.cs', 'using JasperFx.Core;\n'],
     ['MediatR dentro de Messaging', 'backend/Infrastructure/Messaging/Mediator.cs', 'using MediatR;\n'],

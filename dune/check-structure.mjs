@@ -78,7 +78,7 @@ async function listFeatures() {
   return entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort();
 }
 
-const FEATURE_FOLDERS = new Set(['Contracts', 'Domain', 'Persistence']);
+const FEATURE_FOLDERS = new Set(['Contracts', 'Domain', 'Persistence', 'Access', 'MessageNames']);
 
 async function checkSlicesHaveTests() {
   const features = await listFeatures();
@@ -230,8 +230,13 @@ const CHOSEN_BUS_PACKAGES = [
 const CHOSEN_BUS_NAMESPACES = ['Wolverine', 'JasperFx'];
 const BUS_HOME = 'backend/Infrastructure/Messaging/';
 const ORCHESTRATOR = /:\s*(?:global::)?(?:Wolverine\.)?(?:Saga|TimeoutMessage)\b/;
-const SLICE_ENDPOINT = /^backend\/Features\/[^/]+\/[^/]+\/[^/]+Endpoint\.cs$/;
+const SLICE_ENDPOINT = /^backend\/Features\/[^/]+\/([^/]+)\/[^/]+Endpoint\.cs$/;
 const MEDIATOR_NAMESPACE = 'Wolverine';
+
+function isSliceEndpoint(rel) {
+  const match = SLICE_ENDPOINT.exec(rel);
+  return match !== null && !FEATURE_FOLDERS.has(match[1]);
+}
 
 function isBusLibrary(name) {
   return BUS_LIBRARIES.some((library) => name === library || name.startsWith(`${library}.`));
@@ -245,7 +250,7 @@ function allowsBus(file, name, text) {
   const rel = toPosix(file);
   if (file.endsWith('.cs')) {
     const home = rel.startsWith(BUS_HOME) || (rel.startsWith('backend/Features/') && ORCHESTRATOR.test(text));
-    return (home && isChosenBusNamespace(name)) || (SLICE_ENDPOINT.test(rel) && name === MEDIATOR_NAMESPACE);
+    return (home && isChosenBusNamespace(name)) || (isSliceEndpoint(rel) && name === MEDIATOR_NAMESPACE);
   }
   return rel === PLATFORM_PROJECT && CHOSEN_BUS_PACKAGES.includes(name);
 }

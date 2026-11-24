@@ -78,8 +78,16 @@ public static class DunePaths
     public static bool IsSliceEndpoint(string normalizedPath) =>
         TryGetSlice(normalizedPath, out _) && normalizedPath.EndsWith("Endpoint.cs", StringComparison.Ordinal);
 
+    public const string MessageNamesFolder = "MessageNames";
+
     private static bool IsFeatureFolder(string folder) =>
-        folder is "Contracts" or "Domain" or "Persistence";
+        folder is "Contracts" or "Domain" or "Persistence" or "Access" or MessageNamesFolder;
+
+    public static bool IsMessageNamesFile(string normalizedPath, string feature)
+    {
+        var segments = FeatureSegments(normalizedPath, feature);
+        return segments.Length == 2 && segments[0].Equals(MessageNamesFolder, StringComparison.Ordinal);
+    }
 
     public static bool IsEndpointFile(string normalizedPath, string fileName)
     {

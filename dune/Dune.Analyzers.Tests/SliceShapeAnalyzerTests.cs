@@ -94,6 +94,19 @@ public sealed class SliceShapeAnalyzerTests
         Assert.Contains(diagnostics, diagnostic => diagnostic.Id == "DUNE0008");
     }
 
+    [Theory]
+    [InlineData("MessageNames")]
+    [InlineData("Access")]
+    public async Task EndpointInATechnicalFolderIsRejected(string folder)
+    {
+        var diagnostics = await AnalyzeAsync($"backend/Features/Tasks/{folder}/{folder}Endpoint.cs", $$"""
+            namespace TemplateApp.Features.Tasks.{{folder}};
+            public static class {{folder}}Endpoint { }
+            """);
+
+        Assert.Contains(diagnostics, diagnostic => diagnostic.Id == "DUNE0008");
+    }
+
     [Fact]
     public async Task EndpointOfAnotherSliceIsRejected()
     {

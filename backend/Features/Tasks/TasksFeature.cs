@@ -2,6 +2,7 @@ using FluentValidation;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using TemplateApp.Features.Tasks.Access;
 using TemplateApp.Features.Tasks.Domain.Events;
+using TemplateApp.Features.Tasks.MessageNames;
 using TemplateApp.Features.Tasks.Persistence;
 using TemplateApp.Infrastructure.Http;
 using TemplateApp.Infrastructure.Http.Remote;

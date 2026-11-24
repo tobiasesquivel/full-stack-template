@@ -171,6 +171,31 @@ public sealed class BusBoundaryAnalyzerTests
         Assert.Empty(Locations(diagnostics));
     }
 
+    [Theory]
+    [InlineData("MessageNames")]
+    [InlineData("Access")]
+    public async Task AnEndpointInATechnicalFolder_IsNotASliceEndpoint(string folder)
+    {
+        var path = $"backend/Features/Tasks/{folder}/{folder}Endpoint.cs";
+        var diagnostics = await AnalyzeAsync(
+            (path, $$"""
+                using System.Threading;
+                using System.Threading.Tasks;
+                using Wolverine;
+                namespace TemplateApp.Features.Tasks.{{folder}};
+                internal sealed record {{folder}}Command(string Title);
+                internal static class {{folder}}Endpoint
+                {
+                    public static Task<int> HandleAsync(IMessageBus bus, CancellationToken ct) =>
+                        bus.InvokeAsync<int>(new {{folder}}Command("Pan"), ct);
+                }
+                """));
+
+        Assert.Equal(
+            new[] { (path, 3), (path, 8), (path, 9), (path, 9) },
+            Locations(diagnostics));
+    }
+
     [Fact]
     public async Task ASliceEndpoint_NamesOnlyIMessageBus_AndCallsOnlyTheGenericInvokeAsync()
     {

@@ -449,4 +449,14 @@ internal static class DuneDiagnostics
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
         description: "Pasos 29.1 y 29.2 (ADR-0004 punto 9): las slices HTTP de Tasks, Projects, Users y Auth son handlers de Wolverine y su endpoint les llega por el mediator. En backend/Features/<Feature>/<Slice>/*Endpoint.cs de esas features es error no llamar nunca a IMessageBus.InvokeAsync<T> (la forma genérica: sin <T> la respuesta se pierde), llamarlo más de una vez, despachar un mensaje cuyo tipo no está declarado en la carpeta de la misma slice, y recibir por parámetro o construir con new un tipo de la feature que tiene un método Handle (el handler): así el endpoint no puede saltear el middleware. La lista de features vive en el analyzer y crece cuando otra feature migra: Tasks desde el paso 29.1, y Projects, Users y Auth en el 29.2. Auth/IssueCsrfToken queda exento: no tiene caso de uso, solo escribe la cookie de antiforgery. Los tests quedan fuera. Límite: no ve un handler pedido por service location ni un mensaje que llega en una variable de tipo object.");
+
+    public static readonly DiagnosticDescriptor BusNameOutsideMessageNames = new(
+        id: "DUNE0030",
+        title: "Nombre del bus fuera de MessageNames",
+        messageFormat: "'{0}' {1}: el nombre, la versión, el exchange y la clave de ruteo de un mensaje del bus salen de una constante de Features/<Feature>/MessageNames/, que solo guarda clases estáticas con constantes",
+        category: "Dune",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "Reorganización, parte 4 (ADR-0004 punto 5): el contrato entre dos despliegues que se hablan por el bus es el nombre estable y la versión de cada mensaje, y su exchange. Cada feature guarda esos nombres en su carpeta técnica MessageNames/, una clase estática por exchange (TaskEvents, TaskCommands, AuthEvents) solo con constantes. En backend/Features/<Feature>/ es error pasarle a un registro del bus (un método de TemplateApp.Infrastructure.Messaging con un parámetro name, version, exchange o routingKey: AddOutboxEvent, AddIntegrationEventPublication, AddIntegrationEventHandler, AddIntegrationCommand, AddSagaMessage, AddRetiredBinding) algo que no sea una constante de una clase de MessageNames/ de la misma feature: un literal, una constante de otra carpeta o de otra feature. También es error declarar en MessageNames/ un tipo que no sea una clase estática solo con constantes. La cola (queue) no es un nombre de mensaje: es del consumidor y queda junto a él. Si una compilación tiene MessageNames/ y ningún registro del bus, la regla avisa que quedó ciega (los registros se mudaron de namespace o cambiaron de parámetros). Los tests y las migraciones quedan fuera.",
+        customTags: WellKnownDiagnosticTags.CompilationEnd);
 }
