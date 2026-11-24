@@ -55,7 +55,7 @@
   "TemplateApp.Tests.Messaging.RetiredBindingsTests": 4.1,
   "TemplateApp.Tests.Messaging.TaskEventConsumerRetryTests": 39.5,
   "TemplateApp.Tests.Messaging.TaskEventConsumerTests": 24.1,
-  "TemplateApp.Tests.Messaging.TaskEventPublishingBrokerDownTests": 196.9,
+  "TemplateApp.Tests.Messaging.TaskEventPublishingBrokerDownTests": 55.1,
   "TemplateApp.Tests.Messaging.TaskEventPublishingTests": 2.9,
   "TemplateApp.Tests.Messaging.TaskEventsTests": 1.1,
   "TemplateApp.Tests.Persistence.DatabaseSearchPathTests": 0.4,

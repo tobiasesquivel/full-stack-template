@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  BACKEND_SHARDS: 3
+  BACKEND_SHARDS: 4
   DOTNET_NOLOGO: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
 
