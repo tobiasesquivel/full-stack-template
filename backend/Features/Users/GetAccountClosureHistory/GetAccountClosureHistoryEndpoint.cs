@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using ErrorOr;
 using TemplateApp.Shared.Http;
+using Wolverine;
 
 namespace TemplateApp.Features.Users.GetAccountClosureHistory;
 
@@ -9,9 +10,10 @@ internal static class GetAccountClosureHistoryEndpoint
     public static void Map(IEndpointRouteBuilder users) =>
         users.MapGet("/closures/{closureId:guid}/history", HandleAsync);
 
-    private static async Task<IResult> HandleAsync(Guid closureId, ClaimsPrincipal user, GetAccountClosureHistory slice, CancellationToken ct)
+    private static async Task<IResult> HandleAsync(Guid closureId, ClaimsPrincipal user, IMessageBus bus, CancellationToken ct)
     {
-        ErrorOr<AccountClosureHistoryResponse> result = await slice.ExecuteAsync(user.GetCallerId(), closureId, ct);
+        var command = new GetAccountClosureHistoryCommand(user.GetCallerId(), closureId);
+        var result = await bus.InvokeAsync<ErrorOr<AccountClosureHistoryResponse>>(command, ct);
         return ApiResults.ToResult(result, value => Results.Ok(value));
     }
 }

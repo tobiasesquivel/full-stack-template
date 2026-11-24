@@ -6,33 +6,37 @@ using TemplateApp.Features.Users.Persistence;
 
 namespace TemplateApp.Features.Users.GetAccountClosureHistory;
 
-internal sealed class GetAccountClosureHistory
+internal static class GetAccountClosureHistory
 {
-    private readonly UsersDbContext _db;
-    private readonly IAuthModule _auth;
-
-    public GetAccountClosureHistory(UsersDbContext db, IAuthModule auth)
+    public sealed class Handler
     {
-        _db = db;
-        _auth = auth;
-    }
+        private readonly UsersDbContext _db;
+        private readonly IAuthModule _auth;
 
-    public async Task<ErrorOr<AccountClosureHistoryResponse>> ExecuteAsync(string callerId, Guid closureId, CancellationToken ct)
-    {
-        var facts = await _db.AccountClosureHistory
-            .Where(e => e.ClosureId == closureId)
-            .OrderBy(e => e.Id)
-            .Select(e => new { e.UserId, Fact = new AccountClosureFactResponse(e.Kind, e.OccurredAt, e.Actor, e.Detail) })
-            .ToListAsync(ct);
-        string? ownerId = facts.Count > 0
-            ? facts[0].UserId
-            : await _db.AccountClosureSagas.Where(s => s.Id == closureId).Select(s => s.UserId).SingleOrDefaultAsync(ct);
-        if (ownerId is null)
-            return UserErrors.ClosureNotFound(closureId);
+        public Handler(UsersDbContext db, IAuthModule auth)
+        {
+            _db = db;
+            _auth = auth;
+        }
 
-        if (!await _auth.CanAccessAsync(callerId, new ClosureOwner(ownerId), UserPermissions.Read, ct))
-            return UserErrors.Forbidden;
+        public async Task<ErrorOr<AccountClosureHistoryResponse>> Handle(GetAccountClosureHistoryCommand command, CancellationToken ct)
+        {
+            Guid closureId = command.ClosureId;
+            var facts = await _db.AccountClosureHistory
+                .Where(e => e.ClosureId == closureId)
+                .OrderBy(e => e.Id)
+                .Select(e => new { e.UserId, Fact = new AccountClosureFactResponse(e.Kind, e.OccurredAt, e.Actor, e.Detail) })
+                .ToListAsync(ct);
+            string? ownerId = facts.Count > 0
+                ? facts[0].UserId
+                : await _db.AccountClosureSagas.Where(s => s.Id == closureId).Select(s => s.UserId).SingleOrDefaultAsync(ct);
+            if (ownerId is null)
+                return UserErrors.ClosureNotFound(closureId);
 
-        return new AccountClosureHistoryResponse(closureId, [.. facts.Select(f => f.Fact)]);
+            if (!await _auth.CanAccessAsync(command.CallerId, new ClosureOwner(ownerId), UserPermissions.Read, ct))
+                return UserErrors.Forbidden;
+
+            return new AccountClosureHistoryResponse(closureId, [.. facts.Select(f => f.Fact)]);
+        }
     }
 }

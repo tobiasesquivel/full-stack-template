@@ -53,6 +53,18 @@ public sealed class MediatorEndpointAnalyzerTests
         }
         """;
 
+    private const string UpdateProfileSlice = """
+        namespace TemplateApp.Features.Users.UpdateProfile;
+        internal sealed record UpdateProfileCommand(string DisplayName);
+        internal static class UpdateProfile
+        {
+            public sealed class Handler
+            {
+                public int Handle(UpdateProfileCommand command) => command.DisplayName.Length;
+            }
+        }
+        """;
+
     private const string UpdateTaskSlice = """
         namespace TemplateApp.Features.Tasks.UpdateTask;
         internal sealed record UpdateTaskCommand(string Title);
@@ -130,6 +142,13 @@ public sealed class MediatorEndpointAnalyzerTests
                 {
                     public static int Direct(CreateProject.Handler handler) => handler.Handle(new CreateProjectCommand("Mudanza"));
                 }
+                """),
+            ("backend/Features/Users/UpdateProfile/UpdateProfileEndpoint.cs", """
+                namespace TemplateApp.Features.Users.UpdateProfile;
+                internal static class UpdateProfileEndpoint
+                {
+                    public static int Direct(UpdateProfile.Handler handler) => handler.Handle(new UpdateProfileCommand("Alicia"));
+                }
                 """));
 
         Assert.Equal(
@@ -142,6 +161,8 @@ public sealed class MediatorEndpointAnalyzerTests
                 ("backend/Features/Tasks/CreateTask/CreateTaskEndpoint.cs", 8),
                 ("backend/Features/Tasks/UpdateTask/UpdateTaskEndpoint.cs", 8),
                 ("backend/Features/Tasks/UpdateTask/UpdateTaskEndpoint.cs", 10),
+                ("backend/Features/Users/UpdateProfile/UpdateProfileEndpoint.cs", 2),
+                ("backend/Features/Users/UpdateProfile/UpdateProfileEndpoint.cs", 4),
             },
             Locations(diagnostics));
     }
@@ -157,6 +178,7 @@ public sealed class MediatorEndpointAnalyzerTests
                 ("backend/Features/Tasks/UpdateTask/UpdateTaskCommand.cs", UpdateTaskSlice),
                 ("backend/Features/Projects/CreateProject/CreateProjectCommand.cs", CreateProjectSlice),
                 ("backend/Features/Projects/CreateProject/CreateProject.cs", CreateProjectHandler),
+                ("backend/Features/Users/UpdateProfile/UpdateProfileCommand.cs", UpdateProfileSlice),
             },
             AnalyzerHost.Only<MediatorEndpointAnalyzer>());
 
