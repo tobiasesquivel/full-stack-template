@@ -1,23 +1,24 @@
-using System.Security.Claims;
-
-using TemplateApp.Infrastructure.Http;
+using ErrorOr;
 
 namespace TemplateApp.Features.Auth.CloseSession;
 
-internal sealed class CloseSession
+internal static class CloseSession
 {
-    private readonly Sessions _sessions;
-
-    public CloseSession(Sessions sessions)
+    public sealed class Handler
     {
-        _sessions = sessions;
-    }
+        private readonly Sessions _sessions;
 
-    public async Task ExecuteAsync(ClaimsPrincipal caller, CancellationToken ct)
-    {
-        if (!SessionCookie.TryRead(caller, out _, out Guid sessionId))
-            return;
+        public Handler(Sessions sessions)
+        {
+            _sessions = sessions;
+        }
 
-        await _sessions.CloseAsync(sessionId, ct);
+        public async Task<ErrorOr<Success>> Handle(CloseSessionCommand command, CancellationToken ct)
+        {
+            if (command.SessionId is Guid sessionId)
+                await _sessions.CloseAsync(sessionId, ct);
+
+            return Result.Success;
+        }
     }
 }

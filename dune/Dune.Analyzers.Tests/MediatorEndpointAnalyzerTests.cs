@@ -96,6 +96,13 @@ public sealed class MediatorEndpointAnalyzerTests
                         bus.InvokeAsync<int>(new CreateProjectCommand("Mudanza"), ct);
                 }
                 """),
+            ("backend/Features/Auth/IssueCsrfToken/IssueCsrfTokenEndpoint.cs", """
+                namespace TemplateApp.Features.Auth.IssueCsrfToken;
+                internal static class IssueCsrfTokenEndpoint
+                {
+                    public static int HandleAsync() => 1;
+                }
+                """),
             ("backend/Features/Health/GetLiveness/GetLivenessEndpoint.cs", """
                 namespace TemplateApp.Features.Health.GetLiveness;
                 internal static class GetLivenessEndpoint
@@ -149,11 +156,19 @@ public sealed class MediatorEndpointAnalyzerTests
                 {
                     public static int Direct(UpdateProfile.Handler handler) => handler.Handle(new UpdateProfileCommand("Alicia"));
                 }
+                """),
+            ("backend/Features/Auth/OpenSession/OpenSessionEndpoint.cs", """
+                namespace TemplateApp.Features.Auth.OpenSession;
+                internal static class OpenSessionEndpoint
+                {
+                    public static int HandleAsync() => 1;
+                }
                 """));
 
         Assert.Equal(
             new[]
             {
+                ("backend/Features/Auth/OpenSession/OpenSessionEndpoint.cs", 2),
                 ("backend/Features/Projects/CreateProject/CreateProjectEndpoint.cs", 2),
                 ("backend/Features/Projects/CreateProject/CreateProjectEndpoint.cs", 4),
                 ("backend/Features/Tasks/CreateTask/CreateTaskEndpoint.cs", 5),

@@ -40,10 +40,10 @@ internal static class AuthFeature
         services.AddScoped<IDatabaseSeeder, RoleSeeder>();
         services.AddScoped<Sessions>();
         services.AddScoped<SessionHttpPolicy>();
-        services.AddScoped<RegisterUser.RegisterUser>();
-        services.AddScoped<OpenSession.OpenSession>();
-        services.AddScoped<CloseSession.CloseSession>();
-        services.AddScoped<CheckSession.CheckSession>();
+        services.AddMediatorHandler<RegisterUser.RegisterUser.Handler>(MediatorTransaction.Atomic);
+        services.AddMediatorHandler<OpenSession.OpenSession.Handler>(MediatorTransaction.None);
+        services.AddMediatorHandler<CloseSession.CloseSession.Handler>(MediatorTransaction.None);
+        services.AddMediatorHandler<CheckSession.CheckSession.Handler>(MediatorTransaction.None);
         services.AddScoped<DecideAccountClosure.DecideAccountClosure>();
 
         return services;

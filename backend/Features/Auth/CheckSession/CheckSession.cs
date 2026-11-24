@@ -3,23 +3,26 @@ using TemplateApp.Features.Auth.Access;
 
 namespace TemplateApp.Features.Auth.CheckSession;
 
-internal sealed class CheckSession
+internal static class CheckSession
 {
-    private readonly Sessions _sessions;
-    private readonly AccessPolicy _access;
-
-    public CheckSession(Sessions sessions, AccessPolicy access)
+    public sealed class Handler
     {
-        _sessions = sessions;
-        _access = access;
-    }
+        private readonly Sessions _sessions;
+        private readonly AccessPolicy _access;
 
-    public async Task<ErrorOr<CheckSessionResponse>> ExecuteAsync(CheckSessionRequest request, CancellationToken ct)
-    {
-        if (string.IsNullOrEmpty(request.UserId) || !await _sessions.IsActiveAsync(request.SessionId, request.UserId, ct))
-            return AuthErrors.SessionInactive;
+        public Handler(Sessions sessions, AccessPolicy access)
+        {
+            _sessions = sessions;
+            _access = access;
+        }
 
-        AccessGrant grant = await _access.GetGrantAsync(request.UserId, ct);
-        return new CheckSessionResponse([.. grant.Permissions.Order(StringComparer.Ordinal)]);
+        public async Task<ErrorOr<CheckSessionResponse>> Handle(CheckSessionCommand command, CancellationToken ct)
+        {
+            if (string.IsNullOrEmpty(command.UserId) || !await _sessions.IsActiveAsync(command.SessionId, command.UserId, ct))
+                return AuthErrors.SessionInactive;
+
+            AccessGrant grant = await _access.GetGrantAsync(command.UserId, ct);
+            return new CheckSessionResponse([.. grant.Permissions.Order(StringComparer.Ordinal)]);
+        }
     }
 }

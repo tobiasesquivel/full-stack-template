@@ -1,3 +1,7 @@
+using ErrorOr;
+using TemplateApp.Infrastructure.Http;
+using Wolverine;
+
 namespace TemplateApp.Features.Auth.CloseSession;
 
 internal static class CloseSessionEndpoint
@@ -7,11 +11,12 @@ internal static class CloseSessionEndpoint
 
     private static async Task<IResult> HandleAsync(
         HttpContext http,
-        CloseSession slice,
+        IMessageBus bus,
         SessionHttpPolicy policy,
         CancellationToken ct)
     {
-        await slice.ExecuteAsync(http.User, ct);
+        var command = new CloseSessionCommand(SessionCookie.TryRead(http.User, out _, out Guid sessionId) ? sessionId : null);
+        await bus.InvokeAsync<ErrorOr<Success>>(command, ct);
         await policy.SignOutAsync(http);
         return Results.NoContent();
     }
