@@ -12,6 +12,7 @@ using TemplateApp.Infrastructure.Messaging;
 using TemplateApp.Infrastructure.Messaging.Mediator;
 using TemplateApp.Infrastructure.Messaging.Outbox;
 using TemplateApp.Infrastructure.Persistence;
+using TemplateApp.Infrastructure.Persistence.Initialization;
 
 namespace TemplateApp.Features.Auth;
 

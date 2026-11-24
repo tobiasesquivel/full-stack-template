@@ -7,6 +7,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Primitives;
 using TemplateApp.Infrastructure.Persistence;
+using TemplateApp.Infrastructure.Persistence.Idempotency;
+using TemplateApp.Infrastructure.Persistence.Transactions;
 using TemplateApp.Shared.Http;
 
 namespace TemplateApp.Infrastructure.Http;

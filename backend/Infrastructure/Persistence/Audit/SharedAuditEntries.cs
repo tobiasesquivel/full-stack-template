@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 
-namespace TemplateApp.Infrastructure.Persistence;
+namespace TemplateApp.Infrastructure.Persistence.Audit;
 
 public static class SharedAuditEntries
 {

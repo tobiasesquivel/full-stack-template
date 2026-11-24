@@ -1,6 +1,6 @@
 using System.Transactions;
 
-namespace TemplateApp.Infrastructure.Persistence;
+namespace TemplateApp.Infrastructure.Persistence.Transactions;
 
 public static class CrossContextTransaction
 {

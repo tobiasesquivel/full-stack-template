@@ -2,7 +2,7 @@ using System.Transactions;
 using JasperFx.CodeGeneration;
 using JasperFx.CodeGeneration.Frames;
 using JasperFx.CodeGeneration.Model;
-using TemplateApp.Infrastructure.Persistence;
+using TemplateApp.Infrastructure.Persistence.Transactions;
 
 namespace TemplateApp.Infrastructure.Messaging.Mediator;
 

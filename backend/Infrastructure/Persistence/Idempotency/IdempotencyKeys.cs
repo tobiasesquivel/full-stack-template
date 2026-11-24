@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 
-namespace TemplateApp.Infrastructure.Persistence;
+namespace TemplateApp.Infrastructure.Persistence.Idempotency;
 
 public sealed class IdempotencyKeys
 {

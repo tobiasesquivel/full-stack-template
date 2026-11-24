@@ -6,6 +6,10 @@ using Microsoft.Extensions.Options;
 using TemplateApp.Infrastructure.Http;
 using TemplateApp.Infrastructure.Middlewares;
 using TemplateApp.Infrastructure.Persistence;
+using TemplateApp.Infrastructure.Persistence.Audit;
+using TemplateApp.Infrastructure.Persistence.Health;
+using TemplateApp.Infrastructure.Persistence.Idempotency;
+using TemplateApp.Infrastructure.Persistence.Initialization;
 using TemplateApp.Shared.Http;
 
 namespace TemplateApp.Infrastructure.DependencyInjection;

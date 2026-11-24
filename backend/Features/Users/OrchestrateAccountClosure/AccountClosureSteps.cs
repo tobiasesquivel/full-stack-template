@@ -1,4 +1,4 @@
-using TemplateApp.Infrastructure.Persistence;
+using TemplateApp.Infrastructure.Persistence.Transactions;
 
 namespace TemplateApp.Features.Users.OrchestrateAccountClosure;
 

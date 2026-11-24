@@ -9,7 +9,7 @@ namespace Dune.Analyzers.Tests;
 public sealed class PersistenceOwnershipAnalyzerTests
 {
     private const string AuditEntry = """
-        namespace TemplateApp.Infrastructure.Persistence;
+        namespace TemplateApp.Infrastructure.Persistence.Audit;
         public sealed class AuditEntry
         {
             public long Id { get; set; }
@@ -22,7 +22,7 @@ public sealed class PersistenceOwnershipAnalyzerTests
         var diagnostics = await AnalyzeAsync(
             ("backend/Features/Tasks/Persistence/TasksDbContext.cs", """
                 using Microsoft.EntityFrameworkCore;
-                using TemplateApp.Infrastructure.Persistence;
+                using TemplateApp.Infrastructure.Persistence.Audit;
                 namespace TemplateApp.Features.Tasks.Persistence;
                 internal sealed class TasksDbContext : DbContext
                 {
@@ -44,9 +44,9 @@ public sealed class PersistenceOwnershipAnalyzerTests
                 namespace TemplateApp.Infrastructure.Persistence;
                 internal sealed class AppDbContext : DbContext { }
                 """),
-            ("backend/Infrastructure/Persistence/SharedAuditEntries.cs", """
+            ("backend/Infrastructure/Persistence/Audit/SharedAuditEntries.cs", """
                 using Microsoft.EntityFrameworkCore;
-                namespace TemplateApp.Infrastructure.Persistence;
+                namespace TemplateApp.Infrastructure.Persistence.Audit;
                 public static class SharedAuditEntries
                 {
                     public static ModelBuilder MapSharedAuditEntries(this ModelBuilder modelBuilder)
@@ -56,9 +56,9 @@ public sealed class PersistenceOwnershipAnalyzerTests
                     }
                 }
                 """),
-            ("backend/Infrastructure/Persistence/CrossContextTransaction.cs", """
+            ("backend/Infrastructure/Persistence/Transactions/CrossContextTransaction.cs", """
                 using System.Transactions;
-                namespace TemplateApp.Infrastructure.Persistence;
+                namespace TemplateApp.Infrastructure.Persistence.Transactions;
                 public static class CrossContextTransaction
                 {
                     public static TransactionScope Begin() =>
@@ -152,7 +152,7 @@ public sealed class PersistenceOwnershipAnalyzerTests
         var diagnostics = await AnalyzeAsync(
             ("backend/Features/Tasks/Persistence/TasksDbContext.cs", """
                 using Microsoft.EntityFrameworkCore;
-                using TemplateApp.Infrastructure.Persistence;
+                using TemplateApp.Infrastructure.Persistence.Audit;
                 namespace TemplateApp.Features.Tasks.Persistence;
                 internal sealed class TasksDbContext : DbContext
                 {
@@ -166,7 +166,7 @@ public sealed class PersistenceOwnershipAnalyzerTests
                 internal static class AuditMapping
                 {
                     public static void Map(ModelBuilder modelBuilder) =>
-                        modelBuilder.Entity<TemplateApp.Infrastructure.Persistence.AuditEntry>().ToTable(t => t.ExcludeFromMigrations());
+                        modelBuilder.Entity<TemplateApp.Infrastructure.Persistence.Audit.AuditEntry>().ToTable(t => t.ExcludeFromMigrations());
                 }
                 """));
 
@@ -264,9 +264,9 @@ public sealed class PersistenceOwnershipAnalyzerTests
     public async Task TransactionScopeElsewhereInInfrastructurePersistenceIsRejected()
     {
         var diagnostics = await AnalyzeAsync(
-            ("backend/Infrastructure/Persistence/IdempotencyKeys.cs", """
+            ("backend/Infrastructure/Persistence/Idempotency/IdempotencyKeys.cs", """
                 using System.Transactions;
-                namespace TemplateApp.Infrastructure.Persistence;
+                namespace TemplateApp.Infrastructure.Persistence.Idempotency;
                 internal static class IdempotencyKeys
                 {
                     public static TransactionScope Begin() => new TransactionScope(TransactionScopeAsyncFlowOption.Enabled);
@@ -282,10 +282,11 @@ public sealed class PersistenceOwnershipAnalyzerTests
     public async Task AContextAppliesOnlyConfigurationsOfItsOwner()
     {
         var diagnostics = await AnalyzeAsync(
-            ("backend/Infrastructure/Persistence/IdempotencyKeyConfiguration.cs", """
+            ("backend/Infrastructure/Persistence/Idempotency/IdempotencyKeyConfiguration.cs", """
                 using Microsoft.EntityFrameworkCore;
                 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-                namespace TemplateApp.Infrastructure.Persistence;
+                using TemplateApp.Infrastructure.Persistence.Audit;
+                namespace TemplateApp.Infrastructure.Persistence.Idempotency;
                 public sealed class IdempotencyKeyConfiguration : IEntityTypeConfiguration<AuditEntry>
                 {
                     public void Configure(EntityTypeBuilder<AuditEntry> builder) { }
@@ -293,6 +294,7 @@ public sealed class PersistenceOwnershipAnalyzerTests
                 """),
             ("backend/Infrastructure/Persistence/PlatformDbContext.cs", """
                 using Microsoft.EntityFrameworkCore;
+                using TemplateApp.Infrastructure.Persistence.Idempotency;
                 namespace TemplateApp.Infrastructure.Persistence;
                 internal sealed class PlatformDbContext : DbContext
                 {
@@ -303,7 +305,7 @@ public sealed class PersistenceOwnershipAnalyzerTests
             ("backend/Features/Tasks/Persistence/TaskItemConfiguration.cs", """
                 using Microsoft.EntityFrameworkCore;
                 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-                using TemplateApp.Infrastructure.Persistence;
+                using TemplateApp.Infrastructure.Persistence.Audit;
                 namespace TemplateApp.Features.Tasks.Persistence;
                 internal sealed class TaskItemConfiguration : IEntityTypeConfiguration<AuditEntry>
                 {
@@ -312,7 +314,7 @@ public sealed class PersistenceOwnershipAnalyzerTests
                 """),
             ("backend/Features/Tasks/Persistence/TasksDbContext.cs", """
                 using Microsoft.EntityFrameworkCore;
-                using TemplateApp.Infrastructure.Persistence;
+                using TemplateApp.Infrastructure.Persistence.Idempotency;
                 namespace TemplateApp.Features.Tasks.Persistence;
                 internal sealed class TasksDbContext : DbContext
                 {
@@ -341,7 +343,7 @@ public sealed class PersistenceOwnershipAnalyzerTests
             ("backend/Infrastructure/Messaging/Outbox/OutboxMessageConfiguration.cs", """
                 using Microsoft.EntityFrameworkCore;
                 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-                using TemplateApp.Infrastructure.Persistence;
+                using TemplateApp.Infrastructure.Persistence.Audit;
                 namespace TemplateApp.Infrastructure.Messaging;
                 public sealed class OutboxMessageConfiguration : IEntityTypeConfiguration<AuditEntry>
                 {
@@ -351,7 +353,7 @@ public sealed class PersistenceOwnershipAnalyzerTests
             ("backend/Infrastructure/Messaging/Inbox/InboxMessageConfiguration.cs", """
                 using Microsoft.EntityFrameworkCore;
                 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-                using TemplateApp.Infrastructure.Persistence;
+                using TemplateApp.Infrastructure.Persistence.Audit;
                 namespace TemplateApp.Infrastructure.Messaging;
                 public sealed class InboxMessageConfiguration : IEntityTypeConfiguration<AuditEntry>
                 {
@@ -398,7 +400,7 @@ public sealed class PersistenceOwnershipAnalyzerTests
 
     private static Task<ImmutableArray<Diagnostic>> AnalyzeAsync(params (string Path, string Source)[] files) =>
         AnalyzerHost.AnalyzeAsync(
-            files.Append(("backend/Infrastructure/Persistence/AuditEntry.cs", AuditEntry)).ToList(),
+            files.Append(("backend/Infrastructure/Persistence/Audit/AuditEntry.cs", AuditEntry)).ToList(),
             AnalyzerHost.Only<PersistenceOwnershipAnalyzer>());
 
     private static string[] Findings(ImmutableArray<Diagnostic> diagnostics) =>

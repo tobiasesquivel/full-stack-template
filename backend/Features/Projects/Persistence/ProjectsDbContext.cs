@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using TemplateApp.Features.Projects.Domain;
 using TemplateApp.Infrastructure.Messaging;
-using TemplateApp.Infrastructure.Persistence;
+using TemplateApp.Infrastructure.Persistence.Audit;
 
 namespace TemplateApp.Features.Projects.Persistence;
 

@@ -198,9 +198,9 @@ public sealed class LayerAnalyzerTests
                     namespace TemplateApp.Features.Auth.Access;
                     public sealed class RoleSeeder { }
                     """),
-                ("backend/Infrastructure/Persistence/DatabaseInitializer.cs", """
+                ("backend/Infrastructure/Persistence/Initialization/DatabaseInitializer.cs", """
                     using TemplateApp.Features.Auth;
-                    namespace TemplateApp.Infrastructure.Persistence;
+                    namespace TemplateApp.Infrastructure.Persistence.Initialization;
                     public static class DatabaseInitializer
                     {
                         public static int Seed(string services) => services.AddAuthFeature();

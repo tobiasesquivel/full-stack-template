@@ -1,6 +1,6 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Identity;
-using TemplateApp.Infrastructure.Persistence;
+using TemplateApp.Infrastructure.Persistence.Initialization;
 
 namespace TemplateApp.Features.Auth.Access;
 

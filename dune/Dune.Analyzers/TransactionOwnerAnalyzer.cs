@@ -110,7 +110,7 @@ public sealed class TransactionOwnerAnalyzer : DiagnosticAnalyzer
         var owner = method.ContainingType;
         if (method.Name.Equals("Begin", StringComparison.Ordinal)
             && owner.Name.Equals("CrossContextTransaction", StringComparison.Ordinal)
-            && DuneSymbols.NamespaceOf(owner).Equals("TemplateApp.Infrastructure.Persistence", StringComparison.Ordinal))
+            && DuneSymbols.NamespaceOf(owner).Equals("TemplateApp.Infrastructure.Persistence.Transactions", StringComparison.Ordinal))
         {
             return "CrossContextTransaction.Begin";
         }

@@ -13,7 +13,7 @@ public sealed class RemoteCallInTransactionAnalyzerTests
         using System.Threading;
         using System.Threading.Tasks;
         using System.Transactions;
-        namespace TemplateApp.Infrastructure.Persistence
+        namespace TemplateApp.Infrastructure.Persistence.Transactions
         {
             public static class CrossContextTransaction
             {
@@ -58,7 +58,7 @@ public sealed class RemoteCallInTransactionAnalyzerTests
                 using System.Threading;
                 using System.Threading.Tasks;
                 using System.Transactions;
-                using TemplateApp.Infrastructure.Persistence;
+                using TemplateApp.Infrastructure.Persistence.Transactions;
                 namespace TemplateApp.Features.Users.DeleteUser;
                 public sealed class DeleteUser(OwnedTasksClient tasks, LocalProjects projects)
                 {
@@ -76,7 +76,7 @@ public sealed class RemoteCallInTransactionAnalyzerTests
                 using System.Threading;
                 using System.Threading.Tasks;
                 using System.Transactions;
-                using TemplateApp.Infrastructure.Persistence;
+                using TemplateApp.Infrastructure.Persistence.Transactions;
                 namespace TemplateApp.Features.Users.ArchiveUser;
                 public sealed class ArchiveUser(HttpClient http, LocalProjects projects)
                 {
@@ -103,7 +103,7 @@ public sealed class RemoteCallInTransactionAnalyzerTests
                 using System.Threading;
                 using System.Threading.Tasks;
                 using System.Transactions;
-                using TemplateApp.Infrastructure.Persistence;
+                using TemplateApp.Infrastructure.Persistence.Transactions;
                 namespace TemplateApp.Features.Users.DeleteUser;
                 public sealed class DeleteUser(OwnedTasksClient tasks, LocalProjects projects)
                 {
@@ -121,7 +121,7 @@ public sealed class RemoteCallInTransactionAnalyzerTests
                 using System.Threading;
                 using System.Threading.Tasks;
                 using System.Transactions;
-                using TemplateApp.Infrastructure.Persistence;
+                using TemplateApp.Infrastructure.Persistence.Transactions;
                 namespace TemplateApp.Features.Users.ArchiveUser;
                 public sealed class ArchiveUser(HttpClient http)
                 {
@@ -143,7 +143,7 @@ public sealed class RemoteCallInTransactionAnalyzerTests
                 using System.Threading;
                 using System.Threading.Tasks;
                 using System.Transactions;
-                using TemplateApp.Infrastructure.Persistence;
+                using TemplateApp.Infrastructure.Persistence.Transactions;
                 namespace TemplateApp.Infrastructure.Http;
                 public sealed class Forwarder(HttpClient http)
                 {
@@ -174,7 +174,7 @@ public sealed class RemoteCallInTransactionAnalyzerTests
                 using System.Threading;
                 using System.Threading.Tasks;
                 using System.Transactions;
-                using TemplateApp.Infrastructure.Persistence;
+                using TemplateApp.Infrastructure.Persistence.Transactions;
                 namespace TemplateApp.Features.Users.DeleteUser;
                 public sealed class DeleteUserTests(OwnedTasksClient tasks)
                 {

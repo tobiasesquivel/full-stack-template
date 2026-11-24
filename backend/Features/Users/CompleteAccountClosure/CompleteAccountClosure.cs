@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using TemplateApp.Features.Projects.Contracts;
 using TemplateApp.Features.Users.Domain;
 using TemplateApp.Features.Users.Persistence;
-using TemplateApp.Infrastructure.Persistence;
+using TemplateApp.Infrastructure.Persistence.Idempotency;
 
 namespace TemplateApp.Features.Users.CompleteAccountClosure;
 
