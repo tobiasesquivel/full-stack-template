@@ -283,6 +283,27 @@ public sealed class BusNameAnalyzerTests
     }
 
     [Fact]
+    public async Task WhenARegistrationRenamesOneOfItsNameParameters_TheRuleSaysItWentBlindForThatOne()
+    {
+        var diagnostics = await AnalyzeWithAsync(
+            RetiredBindingRegistration.Replace("string routingKey", "string key", System.StringComparison.Ordinal),
+            ("backend/Features/Tasks/TasksFeature.cs", """
+                using Stub.DependencyInjection;
+                using TemplateApp.Features.Tasks.MessageNames;
+                using TemplateApp.Infrastructure.Messaging.Bus;
+                namespace TemplateApp.Features.Tasks;
+                internal static class TasksFeature
+                {
+                    public static IServices AddTasksFeature(this IServices services) =>
+                        services.AddRetiredBinding(TaskEvents.Exchange, "tasks.task-created", "tasks.anything");
+                }
+                """));
+
+        Assert.Equal(new[] { (string.Empty, 0) }, Locations(diagnostics));
+        Assert.Contains("AddRetiredBinding", diagnostics.Single(diagnostic => diagnostic.Id == "DUNE0030").GetMessage(), System.StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task ASliceTestMayNameTheBusWithLiterals()
     {
         var diagnostics = await AnalyzeAsync(

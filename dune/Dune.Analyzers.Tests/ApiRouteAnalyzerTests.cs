@@ -186,6 +186,23 @@ public sealed class ApiRouteAnalyzerTests
     }
 
     [Fact]
+    public async Task ARouteInATechnicalFolderIsRejectedEvenIfTheFileLooksLikeAMigration()
+    {
+        var diagnostics = await AnalyzeAsync(
+            ("backend/Features/Tasks/Access/AccessModelSnapshotRoutes.cs", """
+                using Microsoft.AspNetCore.Builder;
+                using Microsoft.AspNetCore.Routing;
+                namespace TemplateApp.Features.Tasks.Access;
+                public static class AccessModelSnapshotRoutes
+                {
+                    public static void Map(RouteGroupBuilder tasks) => tasks.MapGet("/session", () => "ok");
+                }
+                """));
+
+        Assert.Equal(new[] { 6 }, Lines(diagnostics));
+    }
+
+    [Fact]
     public async Task SliceThatReceivesTheHostInsteadOfItsGroupIsRejected()
     {
         var diagnostics = await AnalyzeAsync(

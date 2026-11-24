@@ -38,7 +38,7 @@ public sealed class ApiRouteAnalyzer : DiagnosticAnalyzer
     {
         var invocation = (IInvocationOperation)context.Operation;
         var path = DunePaths.Normalize(invocation.Syntax.SyntaxTree.FilePath);
-        if (!DunePaths.IsBackendFile(path) || DunePaths.IsMigration(path) || DunePaths.IsTestsFile(path))
+        if (!DunePaths.IsBackendFile(path) || DunePaths.IsTestsFile(path))
         {
             return;
         }
@@ -47,6 +47,11 @@ public sealed class ApiRouteAnalyzer : DiagnosticAnalyzer
         if (IsAspNetMap(method) && DunePaths.TryGetTechnicalFolder(path, out var folder))
         {
             Report(context, invocation, $"{method.Name} va en una slice, no en la carpeta técnica {folder}/");
+            return;
+        }
+
+        if (DunePaths.IsMigration(path))
+        {
             return;
         }
 

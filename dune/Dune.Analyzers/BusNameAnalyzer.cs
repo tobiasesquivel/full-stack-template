@@ -16,14 +16,14 @@ public sealed class BusNameAnalyzer : DiagnosticAnalyzer
     private const string MessagingNamespace = "TemplateApp.Infrastructure.Messaging";
     private static readonly string[] NameParameters = { "name", "version", "exchange", "routingKey" };
 
-    private static readonly string[] Registrations =
+    private static readonly (string Method, string[] Parameters)[] Registrations =
     {
-        "AddOutboxEvent",
-        "AddIntegrationEventPublication",
-        "AddIntegrationEventHandler",
-        "AddIntegrationCommand",
-        "AddSagaMessage",
-        "AddRetiredBinding",
+        ("AddOutboxEvent", new[] { "name", "version" }),
+        ("AddIntegrationEventPublication", new[] { "name", "version", "exchange" }),
+        ("AddIntegrationEventHandler", new[] { "name", "version", "exchange" }),
+        ("AddIntegrationCommand", new[] { "name", "version", "exchange" }),
+        ("AddSagaMessage", new[] { "name", "version", "exchange" }),
+        ("AddRetiredBinding", new[] { "exchange", "routingKey" }),
     };
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
@@ -71,13 +71,13 @@ public sealed class BusNameAnalyzer : DiagnosticAnalyzer
                 }
 
                 var known = KnownRegistrations(end.Compilation);
-                foreach (var missing in Registrations.Where(registration => !known.Contains(registration)))
+                foreach (var (method, parameters) in Registrations.Where(registration => !known.Contains(Signature(registration.Method, registration.Parameters))))
                 {
                     end.ReportDiagnostic(Diagnostic.Create(
                         DuneDiagnostics.BusNameOutsideMessageNames,
                         Location.None,
-                        missing,
-                        "no está en " + MessagingNamespace + " con un parámetro name, version, exchange o routingKey: la regla quedó ciega para ese registro"));
+                        method,
+                        "no está en " + MessagingNamespace + " con los parámetros " + string.Join(", ", parameters) + ": la regla quedó ciega para ese registro"));
                 }
             });
         });
@@ -181,12 +181,22 @@ public sealed class BusNameAnalyzer : DiagnosticAnalyzer
             {
                 CollectRegistrations(nested, known);
             }
-            else if (member is IMethodSymbol method && method.Parameters.Any(IsNameParameter))
+            else if (member is IMethodSymbol method)
             {
-                known.Add(method.Name);
+                foreach (var (registration, parameters) in Registrations)
+                {
+                    if (method.Name.Equals(registration, StringComparison.Ordinal)
+                        && parameters.All(parameter => method.Parameters.Any(candidate => candidate.Name.Equals(parameter, StringComparison.Ordinal))))
+                    {
+                        known.Add(Signature(registration, parameters));
+                    }
+                }
             }
         }
     }
+
+    private static string Signature(string method, string[] parameters) =>
+        method + "(" + string.Join(",", parameters) + ")";
 
     private static bool IsBusMember(IMethodSymbol method) =>
         DuneSymbols.InNamespace(method.ContainingType, MessagingNamespace)
