@@ -78,7 +78,8 @@ public sealed class IdempotencyFilter<TRequest> : IEndpointFilter
             }
         }
 
-        await http.Response.Body.WriteAsync(body, ct);
+        if (body.Length > 0)
+            await http.Response.Body.WriteAsync(body, ct);
         return Results.Empty;
     }
 
@@ -106,7 +107,8 @@ public sealed class IdempotencyFilter<TRequest> : IEndpointFilter
         if (stored.Location is not null)
             response.Headers.Location = stored.Location;
         response.Headers[ReplayedHeader] = "true";
-        await response.Body.WriteAsync(stored.Body, ct);
+        if (stored.Body.Length > 0)
+            await response.Body.WriteAsync(stored.Body, ct);
         return Results.Empty;
     }
 
