@@ -75,6 +75,9 @@ public static class DunePaths
         return true;
     }
 
+    public static bool IsSliceEndpoint(string normalizedPath) =>
+        TryGetSlice(normalizedPath, out _) && normalizedPath.EndsWith("Endpoint.cs", StringComparison.Ordinal);
+
     private static bool IsFeatureFolder(string folder) =>
         folder is "Contracts" or "Domain" or "Persistence";
 

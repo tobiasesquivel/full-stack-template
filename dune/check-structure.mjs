@@ -225,10 +225,13 @@ const CHOSEN_BUS_PACKAGES = [
   'WolverineFx.EntityFrameworkCore',
   'WolverineFx.Postgresql',
   'WolverineFx.RuntimeCompilation',
+  'WolverineFx.FluentValidation',
 ];
 const CHOSEN_BUS_NAMESPACES = ['Wolverine', 'JasperFx'];
 const BUS_HOME = 'backend/Infrastructure/Messaging/';
 const ORCHESTRATOR = /:\s*(?:global::)?(?:Wolverine\.)?(?:Saga|TimeoutMessage)\b/;
+const SLICE_ENDPOINT = /^backend\/Features\/[^/]+\/[^/]+\/[^/]+Endpoint\.cs$/;
+const MEDIATOR_NAMESPACE = 'Wolverine';
 
 function isBusLibrary(name) {
   return BUS_LIBRARIES.some((library) => name === library || name.startsWith(`${library}.`));
@@ -242,7 +245,7 @@ function allowsBus(file, name, text) {
   const rel = toPosix(file);
   if (file.endsWith('.cs')) {
     const home = rel.startsWith(BUS_HOME) || (rel.startsWith('backend/Features/') && ORCHESTRATOR.test(text));
-    return home && isChosenBusNamespace(name);
+    return (home && isChosenBusNamespace(name)) || (SLICE_ENDPOINT.test(rel) && name === MEDIATOR_NAMESPACE);
   }
   return rel === PLATFORM_PROJECT && CHOSEN_BUS_PACKAGES.includes(name);
 }
@@ -303,7 +306,7 @@ async function checkNoBus() {
       if (isBusLibrary(match[1]) && !allowsBus(file, match[1], text)) hits.push(`${toPosix(file)} (${match[1]})`);
     }
   }
-  if (hits.length > 0) fail(`un solo bus, Wolverine, con sus paquetes solo en ${PLATFORM_PROJECT} y sus usings solo en ${BUS_HOME} o en el archivo de un orquestador de una feature (un tipo que hereda Saga o TimeoutMessage): ${hits.join(', ')}`);
+  if (hits.length > 0) fail(`un solo bus, Wolverine, con sus paquetes solo en ${PLATFORM_PROJECT} y sus usings solo en ${BUS_HOME}, en el archivo de un orquestador de una feature (un tipo que hereda Saga o TimeoutMessage) o, solo using Wolverine, en el *Endpoint.cs de una slice (mediator): ${hits.join(', ')}`);
 }
 
 const RESILIENCE_PACKAGE = 'Microsoft.Extensions.Http.Resilience';

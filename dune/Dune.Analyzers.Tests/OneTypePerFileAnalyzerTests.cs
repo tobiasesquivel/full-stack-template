@@ -29,6 +29,28 @@ public sealed class OneTypePerFileAnalyzerTests
     }
 
     [Fact]
+    public async Task ASliceWithItsPublicNestedMediatorHandlerIsOneType()
+    {
+        var diagnostics = await AnalyzerHost.AnalyzeAsync(
+            new List<(string, string)>
+            {
+                ("backend/Features/Tasks/CreateTask/CreateTask.cs", """
+                    namespace TemplateApp.Features.Tasks.CreateTask;
+                    internal static class CreateTask
+                    {
+                        public sealed class Handler
+                        {
+                            public int Handle(string title) => title.Length;
+                        }
+                    }
+                    """),
+            },
+            AnalyzerHost.Only<OneTypePerFileAnalyzer>());
+
+        Assert.DoesNotContain(diagnostics, diagnostic => diagnostic.Id == "DUNE0010");
+    }
+
+    [Fact]
     public async Task SecondTopLevelTypeIsRejected()
     {
         var diagnostics = await AnalyzerHost.AnalyzeAsync(
