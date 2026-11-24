@@ -303,7 +303,7 @@ Probar el gateway de punta a punta (un 504 a los 10 s) pide levantar YARP en el 
 - `docs/decisions.tsv` → la herramienta y cada decisión de la sección "Decisiones".
 - `docs/evolucion/plan.md:464-467` → nota del paso, como los demás.
 - `docs/evolucion/progreso.md:87` → el nombre del paso (hoy "Primer cliente HTTP saliente con resiliencia") y `:7` (choque 1).
-- `docs/evolucion/informe-dotnet-empresarial.md:147` → precisar el OSMF (choque 5).
+- `docs/evolucion/informes/informe-dotnet-empresarial.md:147` → precisar el OSMF (choque 5).
 - `CONTEXT.md`: nada. Es vocabulario del dominio (perfiles, tareas, cierres) `[CÓDIGO CONTEXT.md:1-3]`; la resiliencia es técnica.
 - `dune/check-structure.mjs`, `dune/Dune.Analyzers/`, `dune/Dune.props` (sección 9).
 
@@ -392,7 +392,7 @@ Detalles:
 - **Qué es:** el paquete de Microsoft "specifically for the HttpClient", sobre `Microsoft.Extensions.Resilience` y Polly ([FUENTE: Learn](https://learn.microsoft.com/en-us/dotnet/core/resilience/http-resilience)). Trae los predicados HTTP (qué es transitorio), el handler que aplica el pipeline a cada request, la integración con `IHttpClientFactory` y la telemetría con `error.type`.
 - **Quién lo mantiene:** Microsoft, en `dotnet/extensions`, con release mensual (10.2.0 a 10.11.0, de enero a octubre de 2026, [FUENTE: NuGet](https://www.nuget.org/packages/Microsoft.Extensions.Http.Resilience/10.11.0)).
 - **Encaje:** un paquete en `Platform`, la política en `Infrastructure/Http`, DUNE0027 y el gate.
-- **Gana:** las piezas del Concepto con defaults probados por Microsoft, cero código de máquina de estados propio, telemetría lista, y la vía que el repo ya eligió en el informe `[CÓDIGO docs/evolucion/informe-dotnet-empresarial.md:145-147,219]`. Fuera del OSMF por ser transitivo.
+- **Gana:** las piezas del Concepto con defaults probados por Microsoft, cero código de máquina de estados propio, telemetría lista, y la vía que el repo ya eligió en el informe `[CÓDIGO docs/evolucion/informes/informe-dotnet-empresarial.md:145-147,219]`. Fuera del OSMF por ser transitivo.
 - **Pierde:** una capa más entre el código y Polly (nombres como `HttpRetryStrategyOptions`); algunas APIs útiles son experimentales; la versión de Polly la decide Microsoft (hoy 8.4.2 como mínimo).
 
 ### Opción B: Polly v8 directo (`Polly.Core` + `Polly.Extensions` + `Polly.RateLimiting`)

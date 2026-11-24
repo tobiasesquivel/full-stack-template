@@ -207,7 +207,7 @@ Reparto entre componentes:
 
 ¿`httpResource` o `resource()`?
 
-- La guía del repo dice que la lectura async usa `resource()` y `httpResource()` (`docs/evolucion/informe-angular-moderno.md:59`). `httpResource` vuelve a pedir "whenever one of the signals it depends on changes" y cancela el pedido anterior ([angular.dev, httpResource](https://angular.dev/guide/http/http-resource)). `resource()` tiene `reload()` ([angular.dev, resource](https://angular.dev/guide/signals/resource)).
+- La guía del repo dice que la lectura async usa `resource()` y `httpResource()` (`docs/evolucion/informes/informe-angular-moderno.md:59`). `httpResource` vuelve a pedir "whenever one of the signals it depends on changes" y cancela el pedido anterior ([angular.dev, httpResource](https://angular.dev/guide/http/http-resource)). `resource()` tiene `reload()` ([angular.dev, resource](https://angular.dev/guide/signals/resource)).
 - Con la pila, la lectura dependería de `currentCursor = computed(() => cursors().at(-1))`. Encaja bien.
 - Pero hoy `Tasks` no usa ninguno: usa `load()` con `Promise`. Pasar a `resource()` quedó como paso opcional "D" en `informe-componentes-angular.md:217-219`, porque "puede cambiar comportamiento". Hacerlo en el paso 7 suma un segundo concepto (regla 1). Recomiendo mantener `load()` y anotar el `resource()` como pendiente. [INFERENCIA]
 

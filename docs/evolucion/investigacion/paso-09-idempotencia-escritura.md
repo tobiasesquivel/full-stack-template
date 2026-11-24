@@ -59,7 +59,7 @@
 | Azure | Headers `Repeatability-Request-ID` y `Repeatability-First-Sent` de OASIS, "YOU SHOULD" en `POST` ([Azure Guidelines](https://github.com/microsoft/api-guidelines/blob/vNext/azure/Guidelines.md)) | "the same response code and body", o re-ejecutar si el original dio 4xx o 5xx ([OASIS §5](https://docs.oasis-open.org/odata/repeatable-requests/v1.0/repeatable-requests-v1.0.html)) | "MAY return an error 400" (misma fuente) | No lo define | "at least 5 minutes" ([Azure Guidelines](https://github.com/microsoft/api-guidelines/blob/vNext/azure/Guidelines.md)) |
 
 - Azure además prefiere evitar el problema: "use PUT or PATCH to create a resource" ([Azure Guidelines](https://github.com/microsoft/api-guidelines/blob/vNext/azure/Guidelines.md)). Google permite que el cliente elija el id del recurso al crear, y un duplicado da `ALREADY_EXISTS` ([AIP-133](https://google.aip.dev/133)). Las dos son "idempotencia natural": el cliente manda `PUT /tasks/{id}` con un id que generó él.
-- El repo ya nombra la opción de Stripe: "clave de idempotencia al enviar (`Idempotency-Key`, Stripe la mantiene 24 h)" (`docs/evolucion/informe-dotnet-empresarial.md:285`), y la pone como respuesta al antipatrón "Retry sin idempotencia" (`informe-dotnet-empresarial.md:441`, `:451`).
+- El repo ya nombra la opción de Stripe: "clave de idempotencia al enviar (`Idempotency-Key`, Stripe la mantiene 24 h)" (`docs/evolucion/informes/informe-dotnet-empresarial.md:285`), y la pone como respuesta al antipatrón "Retry sin idempotencia" (`informe-dotnet-empresarial.md:441`, `:451`).
 
 | Opción | Qué ganás | Qué perdés |
 |---|---|---|

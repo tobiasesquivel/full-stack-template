@@ -4,13 +4,13 @@
 
 **Distinción de fuentes**: **[PRIMARIA]** = el equipo de Angular, IETF, OWASP, MDN o el código instalado. **[OPINIÓN]** = practicante o proveedor que interpreta a otros. **[INFERENCE]** = razonamiento mío sobre lo leído. **[REPO]** = observado en el código, con `archivo:línea`.
 
-**Términos**: uso **sesión** como en [CONTEXT.md](../../CONTEXT.md): un acceso autenticado que se renueva y se cierra. **Abrir**, **renovar** y **cerrar** siguen a las slices del backend: `OpenSession`, `RefreshSession` y `CloseSession`. **Restaurar** es recuperar la sesión al recargar la página.
+**Términos**: uso **sesión** como en [CONTEXT.md](../../../CONTEXT.md): un acceso autenticado que se renueva y se cierra. **Abrir**, **renovar** y **cerrar** siguen a las slices del backend: `OpenSession`, `RefreshSession` y `CloseSession`. **Restaurar** es recuperar la sesión al recargar la página.
 
 ---
 
 ## Conclusión
 
-1. **El diseño de seguridad del repo es aceptable y profesional.** El access token vive en memoria y el refresh en una cookie HttpOnly. Es el patrón que el RFC 10017 llama *token-mediating backend*: el segundo en seguridad. El más seguro es el BFF (todo por cookie, ningún token en el navegador). Pasar a BFF cambia el contrato HTTP: es **⏸ DECISIÓN DE TOBI**. [PRIMARIA + INFERENCE] **Tobi eligió BFF el 2026-10-17**: lo aplica el paso 0.26 del [plan](plan.md).
+1. **El diseño de seguridad del repo es aceptable y profesional.** El access token vive en memoria y el refresh en una cookie HttpOnly. Es el patrón que el RFC 10017 llama *token-mediating backend*: el segundo en seguridad. El más seguro es el BFF (todo por cookie, ningún token en el navegador). Pasar a BFF cambia el contrato HTTP: es **⏸ DECISIÓN DE TOBI**. [PRIMARIA + INFERENCE] **Tobi eligió BFF el 2026-10-17**: lo aplica el paso 0.26 del [plan](../plan.md).
 2. **Para una app de este tamaño, la práctica recomendada es un servicio `@Service()` con signals**, no NgRx SignalStore. El estado va en un `signal` privado; lo público son `computed` o `asReadonly()`. El repo ya hace eso a medias. [PRIMARIA]
 3. **El estado de la sesión debería ser uno solo, con tres valores**: `restoring`, `open` y `closed`. Hoy son tres piezas sueltas: `currentUser`, `initialized` y una `Promise` armada a mano. Con un solo estado no hay combinaciones imposibles. [INFERENCE sobre PRIMARIA]
 4. **El interceptor tiene un error de comportamiento.** Si la petición reintentada falla por cualquier motivo (404, 500, 400), cierra la sesión y manda a `/login`. Solo debería cerrarla si falla la renovación. [REPO]

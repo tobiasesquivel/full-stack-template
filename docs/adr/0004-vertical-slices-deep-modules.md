@@ -11,7 +11,7 @@ Este repo es un laboratorio de aprendizaje. El dominio (tareas) es trivial a pro
 
 La arquitectura anterior (ADR-0003) organizaba el backend en features con un módulo parcial por feature. Solo `Tasks` seguía esa forma. `Users` y `Auth` concentraban todo en un archivo. Había código de features en `Shared/` e `Infrastructure/`. Las features usaban el `Domain` de otras.
 
-La investigación está en [informe-vsa-deep-modules.md](../evolucion/informe-vsa-deep-modules.md), [informe-deep-mediators.md](../evolucion/informe-deep-mediators.md) e [informe-dotnet-empresarial.md](../evolucion/informe-dotnet-empresarial.md).
+La investigación está en [informe-vsa-deep-modules.md](../evolucion/informes/informe-vsa-deep-modules.md), [informe-deep-mediators.md](../evolucion/informes/informe-deep-mediators.md) e [informe-dotnet-empresarial.md](../evolucion/informes/informe-dotnet-empresarial.md).
 
 ## Decisión
 
