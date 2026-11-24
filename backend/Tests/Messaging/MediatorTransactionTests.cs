@@ -1,7 +1,10 @@
 using Microsoft.Extensions.DependencyInjection;
 using TemplateApp.Infrastructure.Messaging;
 using TemplateApp.Tests.Support;
+using Wolverine;
+using Wolverine.Configuration;
 using Wolverine.Persistence;
+using Wolverine.Runtime;
 using Wolverine.Runtime.Handlers;
 using Xunit;
 
@@ -65,6 +68,18 @@ public sealed class MediatorTransactionTests : IClassFixture<ApiFixture>
                     Assert.Equal(TransactionMiddlewareMode.Lightweight, mode);
                     break;
             }
+        });
+    }
+
+    [Fact]
+    public void AMonolithCommand_IsNeverQueuedDurably()
+    {
+        IWolverineRuntime runtime = _fixture.Services.GetRequiredService<IWolverineRuntime>();
+
+        Assert.All(_fixture.Services.GetServices<MediatorHandlerType>(), registered =>
+        {
+            Endpoint queue = runtime.Endpoints.EndpointFor(new Uri($"local://{MessageOf(registered.ClrType).FullName!.ToLowerInvariant()}"))!;
+            Assert.Equal(EndpointMode.BufferedInMemory, queue.Mode);
         });
     }
 
