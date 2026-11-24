@@ -177,7 +177,7 @@ describe('check-structure', () => {
     }
   });
 
-  it('acepta un monolito con barras invertidas y la carpeta propia por propiedad', async () => {
+  it('acepta un monolito con barras invertidas en las rutas', async () => {
     const repo = await makeRepo();
     try {
       await seedValid(repo);
@@ -185,7 +185,7 @@ describe('check-structure', () => {
         'backend/Hosts/Monolith/TemplateApp.csproj',
         monolithProject('', [
           '<Compile Include="*.cs" />',
-          '<Compile Include="$(MSBuildProjectDirectory)/Internal/Generated/**/*.cs" />',
+          String.raw`<Compile Include="Internal\Generated\**\*.cs" />`,
           String.raw`<Compile Include="..\..\Features\**\*.cs" />`,
           String.raw`<Compile Remove="..\..\Features\Tasks\**" />`,
           String.raw`<Compile Remove="..\..\Features\**\*Tests.cs" />`,
@@ -322,6 +322,42 @@ describe('check-structure', () => {
       'backend/Hosts/Monolith/ProbeTests.CS',
       ' ',
       /tests en la carpeta de un host, que compila sus \*\.cs: backend\/Hosts\/Monolith\/ProbeTests\.CS/,
+    ],
+    [
+      'el host de Tasks que agrega Users en un target con .. escrito %2e%2e',
+      'backend/Hosts/Tasks/TemplateApp.Tasks.csproj',
+      tasksHostProject().replace('</Project>', '<Target Name="Probe" BeforeTargets="CoreCompile"><ItemGroup><Compile Include="$(MSBuildThisFileDirectory)%2e%2e/%2e%2e/Features/Users/UpdateProfile/UpdateProfileRequest.cs" /></ItemGroup></Target></Project>'),
+      /límite de despliegue: backend\/Hosts\/Tasks\/TemplateApp\.Tasks\.csproj compila \$\(MSBuildThisFileDirectory\)%2e%2e/,
+    ],
+    [
+      'el host de Tasks que agrega una ruta absoluta escrita C%3a en un target',
+      'backend/Hosts/Tasks/TemplateApp.Tasks.csproj',
+      tasksHostProject().replace('</Project>', '<Target Name="Probe" BeforeTargets="CoreCompile"><ItemGroup><Compile Include="C%3a/tmp/branch..fixture/backend/Features/Users/UpdateProfile/UpdateProfileRequest.cs" /></ItemGroup></Target></Project>'),
+      /límite de despliegue: backend\/Hosts\/Tasks\/TemplateApp\.Tasks\.csproj compila C%3a/,
+    ],
+    [
+      'el monolito que llega a Features/Tasks desde Features/Health con %2e%2e',
+      'backend/Hosts/Monolith/TemplateApp.csproj',
+      monolithProject().replace('</Project>', '<Target Name="Probe" BeforeTargets="CoreCompile"><ItemGroup><Compile Include="$(BackendRoot)/Features/Health/%2e%2e/%2e%2e/Features/Tasks/UpdateTask/UpdateTaskRequest.cs" /></ItemGroup></Target></Project>'),
+      /límite de despliegue: backend\/Hosts\/Monolith\/TemplateApp\.csproj compila \$\(BackendRoot\)\/Features\/Health\/%2e%2e/,
+    ],
+    [
+      'el host de Tasks que agrega una lista indirecta en un target',
+      'backend/Hosts/Tasks/TemplateApp.Tasks.csproj',
+      tasksHostProject().replace('</Project>', '<Target Name="Probe" BeforeTargets="CoreCompile"><ItemGroup><Probe Include="$(BackendRoot)/Features/Users/UpdateProfile/UpdateProfileRequest.cs" /><Compile Include="@(Probe)" /></ItemGroup></Target></Project>'),
+      /límite de despliegue: backend\/Hosts\/Tasks\/TemplateApp\.Tasks\.csproj compila @\(Probe\)/,
+    ],
+    [
+      'el host de Tasks que importa un archivo de MSBuild',
+      'backend/Hosts/Tasks/TemplateApp.Tasks.csproj',
+      tasksHostProject().replace('</Project>', '<Import Project="Probe.targets" /></Project>'),
+      /límite de despliegue: backend\/Hosts\/Tasks\/TemplateApp\.Tasks\.csproj importa otro archivo de MSBuild/,
+    ],
+    [
+      'el monolito sin quitar Features/Tasks',
+      'backend/Hosts/Monolith/TemplateApp.csproj',
+      monolithProject('', MONOLITH_COMPILE.filter((item) => !item.includes('Features/Tasks/**'))),
+      /límite de despliegue: backend\/Hosts\/Monolith\/TemplateApp\.csproj no excluye Features\/Tasks\/\*\*/,
     ],
     [
       'un bus en el host de Tasks',

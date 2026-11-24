@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { realpathSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
@@ -36,8 +37,8 @@ export function violations(host, files) {
     .map((file) => `${RULE}: ${host.project} compila ${file}; ${host.scope}, sin tests, y el resto llega por backend/Platform/TemplateApp.Platform.csproj`);
 }
 
-function compiledFiles(root, project) {
-  const result = spawnSync('dotnet', ['msbuild', project, '-nologo', '-getItem:Compile', '-p:Configuration=Release'], {
+function compiledFiles(root, project, configuration) {
+  const result = spawnSync('dotnet', ['msbuild', project, '-nologo', '-getItem:Compile', `-p:Configuration=${configuration}`], {
     cwd: root,
     encoding: 'utf8',
     shell: process.platform === 'win32',
@@ -49,18 +50,20 @@ function compiledFiles(root, project) {
     throw new Error(`dotnet msbuild ${project} -getItem:Compile terminó con ${result.status}`);
   }
   const items = JSON.parse(result.stdout).Items?.Compile ?? [];
-  return items.map((item) => path.relative(root, item.FullPath).split(path.sep).join('/'));
+  return items.map((item) => path.relative(root, realpathSync.native(item.FullPath)).split(path.sep).join('/'));
 }
 
 function main() {
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
   const failures = [];
   const counts = [];
-  for (const host of HOSTS) {
-    const files = compiledFiles(root, host.project);
-    counts.push(`${host.project}: ${files.length} archivos`);
-    if (files.length === 0) failures.push(`${RULE}: ${host.project} no compila ningún archivo; el gate no tiene qué revisar`);
-    failures.push(...violations(host, files));
+  for (const configuration of ['Release', 'Debug']) {
+    for (const host of HOSTS) {
+      const files = compiledFiles(root, host.project, configuration);
+      counts.push(`${host.project} en ${configuration}: ${files.length} archivos`);
+      if (files.length === 0) failures.push(`${RULE}: ${host.project} no compila ningún archivo en ${configuration}; el gate no tiene qué revisar`);
+      failures.push(...violations(host, files));
+    }
   }
   console.log(`check-host-items: ${failures.length === 0 ? 'PASS' : 'FAIL'} (${counts.join(', ')})`);
   for (const failure of failures) console.log(`- ${failure}`);

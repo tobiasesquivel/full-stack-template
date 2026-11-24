@@ -136,6 +136,7 @@ const HOSTS = [
   {
     project: MONOLITH_PROJECT,
     compilesFeature: (feature) => !/^tasks$/i.test(feature),
+    forbids: /(^|\/)Features\/Tasks(\/|$)/i,
     scope: 'el monolito compila solo sus archivos y Features salvo Features/Tasks',
   },
   {
@@ -146,17 +147,16 @@ const HOSTS = [
 ];
 
 function plainPath(value) {
-  return !value.includes('$(') && !/^(?:[A-Za-z]:)?\//.test(value) && !value.split('/').some((segment) => segment === '.' || segment === '..');
+  return !/\$\(|@\(|%|:|\.\./.test(value) && !value.startsWith('/') && !value.split('/').includes('.');
 }
 
-function hostCompiles(include, compilesFeature) {
-  if (/tests\.cs$/i.test(include)) return false;
-  const own = /^\$\(MSBuild(?:ProjectDirectory\)\/|ThisFileDirectory\))(.*)$/.exec(include);
-  if (plainPath(own === null ? include : own[1])) return true;
+function hostCompiles(include, host) {
+  if (/tests\.cs$/i.test(include) || host.forbids?.test(include)) return false;
+  if (plainPath(include)) return true;
   const rooted = /^(?:\$\(BackendRoot\)|\.\.\/\.\.)\/(.*)$/.exec(include);
   if (rooted === null || !plainPath(rooted[1])) return false;
   const feature = /^Features\/([^/]+)\//.exec(rooted[1]);
-  return feature !== null && compilesFeature(feature[1]);
+  return feature !== null && host.compilesFeature(feature[1]);
 }
 
 async function checkDeploymentBoundary() {
@@ -168,8 +168,14 @@ async function checkDeploymentBoundary() {
     }
     const text = await readText(file);
     checkOnlyReferencesPlatform(host.project, text);
+    if (/<Import\b/.test(text)) {
+      fail(`${DEPLOYMENT_RULE}: ${host.project} importa otro archivo de MSBuild; el límite se lee en el .csproj del host`);
+    }
+    if (host.forbids && !msbuildValues(text, 'Compile', 'Remove').some((value) => value.endsWith('Features/Tasks/**'))) {
+      fail(`${DEPLOYMENT_RULE}: ${host.project} no excluye Features/Tasks/**; Tasks se compila solo en ${TASKS_HOST_PROJECT}`);
+    }
     for (const include of msbuildValues(text, 'Compile', 'Include')) {
-      if (!hostCompiles(include, host.compilesFeature)) {
+      if (!hostCompiles(include, host)) {
         fail(`${DEPLOYMENT_RULE}: ${host.project} compila ${include}; ${host.scope}, sin tests, y el resto llega por ${PLATFORM_PROJECT}`);
       }
     }
