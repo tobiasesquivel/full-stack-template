@@ -75,13 +75,13 @@ public sealed class GetProjectTests : IClassFixture<ApiFixture>, IDisposable
         string task = await alice.CreateTaskAsync("Embalar", id);
 
         Assert.Equal((0, 0), await CountersAsync(alice, id));
-        await api.Relay.RunOnceAsync(TestContext.Current.CancellationToken);
+        await api.DrainOutboxAsync();
         Assert.Equal((1, 0), await CountersAsync(alice, id));
 
         await TaskCounterScenario.SetCompletedAsync(alice, task, true);
 
         Assert.Equal((1, 0), await CountersAsync(alice, id));
-        await api.Relay.RunOnceAsync(TestContext.Current.CancellationToken);
+        await api.DrainOutboxAsync();
         Assert.Equal((1, 1), await CountersAsync(alice, id));
     }
 
