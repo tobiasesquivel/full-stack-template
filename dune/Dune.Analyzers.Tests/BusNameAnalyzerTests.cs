@@ -304,6 +304,26 @@ public sealed class BusNameAnalyzerTests
     }
 
     [Fact]
+    public async Task ARegistrationThatOnlyChangesTheCaseOfAParameter_IsStillCovered()
+    {
+        var diagnostics = await AnalyzeWithAsync(
+            RetiredBindingRegistration.Replace("string routingKey", "string RoutingKey", System.StringComparison.Ordinal),
+            ("backend/Features/Tasks/TasksFeature.cs", """
+                using Stub.DependencyInjection;
+                using TemplateApp.Features.Tasks.MessageNames;
+                using TemplateApp.Infrastructure.Messaging.Bus;
+                namespace TemplateApp.Features.Tasks;
+                internal static class TasksFeature
+                {
+                    public static IServices AddTasksFeature(this IServices services) =>
+                        services.AddRetiredBinding(TaskEvents.Exchange, "tasks.task-created", "tasks.anything");
+                }
+                """));
+
+        Assert.Equal(new[] { ("backend/Features/Tasks/TasksFeature.cs", 8) }, Locations(diagnostics));
+    }
+
+    [Fact]
     public async Task ASliceTestMayNameTheBusWithLiterals()
     {
         var diagnostics = await AnalyzeAsync(

@@ -186,7 +186,7 @@ public sealed class BusNameAnalyzer : DiagnosticAnalyzer
                 foreach (var (registration, parameters) in Registrations)
                 {
                     if (method.Name.Equals(registration, StringComparison.Ordinal)
-                        && parameters.All(parameter => method.Parameters.Any(candidate => candidate.Name.Equals(parameter, StringComparison.Ordinal))))
+                        && parameters.All(parameter => method.Parameters.Any(candidate => candidate.Name.Equals(parameter, StringComparison.OrdinalIgnoreCase))))
                     {
                         known.Add(Signature(registration, parameters));
                     }
