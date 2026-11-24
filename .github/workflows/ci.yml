@@ -152,18 +152,10 @@ jobs:
           ConnectionStrings__DefaultConnection: Host=localhost;Port=5432;Database=template_tests;Username=postgres;Password=template-ci;
       - name: Código generado de Wolverine al día (codegen write)
         run: node dune/check-codegen.mjs --release
-      - name: Tests del gate de codegen
-        run: node --test dune/check-codegen.test.mjs
       - name: Verificador de comentarios C#
         run: dotnet run --project dune/Dune.CommentVerifier -- --root .
       - name: Analyzer tests Dune
         run: dotnet test dune/Dune.Analyzers.Tests/Dune.Analyzers.Tests.csproj --configuration Release --no-build
-      - name: Gate de estructura
-        run: node dune/check-structure.mjs
-      - name: Tests del gate de estructura
-        run: node --test dune/check-structure.test.mjs
-      - name: Tests del reparto de backend en shards
-        run: node --test .github/scripts/backend-test-shards.test.mjs
 
   frontend:
     name: Frontend build y gates
@@ -184,13 +176,9 @@ jobs:
         run: npm run format:check
       - name: Tests de frontend (Vitest)
         run: npm test -- --watch=false
-      - name: Tests del gate de frontend
-        run: node --test ../dune/check-frontend.test.mjs
-      - name: Gate de frontend
-        run: node ../dune/check-frontend.mjs --root ..
 
-  comments:
-    name: Comentarios del codigo propio
+  node-gates:
+    name: Gates de Node, runbooks y reglas de Prometheus
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -202,31 +190,43 @@ jobs:
       - name: Instalar dependencias de analisis
         run: npm ci --prefix frontend
       - name: Tests del gate de comentarios
+        if: ${{ !cancelled() }}
         run: node --test dune/check-comments.test.mjs
       - name: Gate de comentarios
+        if: ${{ !cancelled() }}
         run: node dune/check-comments.mjs --root .
-
-  slos:
-    name: SLOs, alertas y runbooks
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 26.7.0
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-      - name: Instalar dependencias de analisis
-        run: npm ci --prefix frontend
+      - name: Tests del gate de frontend
+        if: ${{ !cancelled() }}
+        run: node --test dune/check-frontend.test.mjs
+      - name: Gate de frontend
+        if: ${{ !cancelled() }}
+        run: node dune/check-frontend.mjs --root .
+      - name: Gate de estructura
+        if: ${{ !cancelled() }}
+        run: node dune/check-structure.mjs
+      - name: Tests del gate de estructura
+        if: ${{ !cancelled() }}
+        run: node --test dune/check-structure.test.mjs
+      - name: Tests del gate de codegen
+        if: ${{ !cancelled() }}
+        run: node --test dune/check-codegen.test.mjs
+      - name: Tests del reparto de backend en shards
+        if: ${{ !cancelled() }}
+        run: node --test .github/scripts/backend-test-shards.test.mjs
       - name: Tests del gate de runbooks
+        if: ${{ !cancelled() }}
         run: node --test dune/check-runbooks.test.mjs
       - name: Toda alerta tiene su runbook
+        if: ${{ !cancelled() }}
         run: node dune/check-runbooks.mjs
       - name: Imagen de Prometheus de compose.yaml
+        if: ${{ !cancelled() }}
         run: echo "PROMETHEUS_IMAGE=$(grep -oE 'prom/prometheus:[^[:space:]]+' compose.yaml | head -n 1)" >> "$GITHUB_ENV"
       - name: Configuración y reglas de Prometheus (promtool, lint fatal)
+        if: ${{ !cancelled() }}
         run: docker run --rm --entrypoint promtool --volume "$PWD/deploy/prometheus:/etc/prometheus:ro" "$PROMETHEUS_IMAGE" check config --lint-fatal /etc/prometheus/prometheus.yml
       - name: Pruebas unitarias de las alertas (promtool)
+        if: ${{ !cancelled() }}
         run: docker run --rm --entrypoint promtool --volume "$PWD/deploy/prometheus:/etc/prometheus:ro" "$PROMETHEUS_IMAGE" test rules /etc/prometheus/rules/slo-api.test.yml
 
   security:
