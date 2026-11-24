@@ -2,9 +2,9 @@ using FluentValidation;
 
 namespace TemplateApp.Features.Projects.CreateProject;
 
-internal sealed class CreateProjectRequestValidator : AbstractValidator<CreateProjectRequest>
+internal sealed class CreateProjectCommandValidator : AbstractValidator<CreateProjectCommand>
 {
-    public CreateProjectRequestValidator()
+    public CreateProjectCommandValidator()
     {
         RuleFor(x => x.Name).ProjectName();
     }

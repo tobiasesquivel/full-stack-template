@@ -1,5 +1,7 @@
 using System.Security.Claims;
+using ErrorOr;
 using TemplateApp.Shared.Http;
+using Wolverine;
 
 namespace TemplateApp.Features.Projects.UpdateProject;
 
@@ -10,11 +12,12 @@ internal static class UpdateProjectEndpoint
     private static async Task<IResult> HandleAsync(
         Guid id,
         UpdateProjectRequest request,
-        UpdateProject slice,
+        IMessageBus bus,
         ClaimsPrincipal user,
         CancellationToken ct)
     {
-        var result = await slice.ExecuteAsync(user.GetCallerId(), id, request, ct);
+        var command = new UpdateProjectCommand(user.GetCallerId(), id, request.Name, request.IsArchived, request.Version);
+        var result = await bus.InvokeAsync<ErrorOr<ProjectResponse>>(command, ct);
         return ApiResults.ToResult(result, value => Results.Ok(value));
     }
 }

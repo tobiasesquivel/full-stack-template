@@ -2,9 +2,9 @@ using FluentValidation;
 
 namespace TemplateApp.Features.Projects.UpdateProject;
 
-internal sealed class UpdateProjectRequestValidator : AbstractValidator<UpdateProjectRequest>
+internal sealed class UpdateProjectCommandValidator : AbstractValidator<UpdateProjectCommand>
 {
-    public UpdateProjectRequestValidator()
+    public UpdateProjectCommandValidator()
     {
         RuleFor(x => x.Name).ProjectName();
         RuleFor(x => x.Version).NotNull();

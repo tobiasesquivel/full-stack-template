@@ -1,3 +1,4 @@
+using FluentValidation;
 using TemplateApp.Features.Projects.Contracts;
 using TemplateApp.Features.Projects.Persistence;
 using TemplateApp.Infrastructure.Http;
@@ -15,11 +16,13 @@ internal static class ProjectsFeature
         services.AddMigratedDbContext<ProjectsDbContext>(ProjectsDbContext.Schema, adoptsLegacyTables: false);
         services.AddScoped<IProjectsModule, ProjectsModule>();
         services.AddScoped<ProjectResponses>();
-        services.AddScoped<FindAssignableProject.FindAssignableProject>();
-        services.AddScoped<CreateProject.CreateProject>();
-        services.AddScoped<ListProjects.ListProjects>();
-        services.AddScoped<GetProject.GetProject>();
-        services.AddScoped<UpdateProject.UpdateProject>();
+        services.AddMediatorHandler<FindAssignableProject.FindAssignableProject.Handler>(MediatorTransaction.None);
+        services.AddMediatorHandler<CreateProject.CreateProject.Handler>(MediatorTransaction.Atomic);
+        services.AddSingleton<IValidator<CreateProject.CreateProjectCommand>, CreateProject.CreateProjectCommandValidator>();
+        services.AddMediatorHandler<ListProjects.ListProjects.Handler>(MediatorTransaction.None);
+        services.AddMediatorHandler<GetProject.GetProject.Handler>(MediatorTransaction.None);
+        services.AddMediatorHandler<UpdateProject.UpdateProject.Handler>(MediatorTransaction.Atomic);
+        services.AddSingleton<IValidator<UpdateProject.UpdateProjectCommand>, UpdateProject.UpdateProjectCommandValidator>();
         services.AddScoped<ApplyTaskEvent.ApplyTaskEvent>();
         services.AddIntegrationEventHandler<ApplyTaskEvent.TaskCreatedIntegrationEvent, ApplyTaskEvent.TaskEventsConsumer>(TaskEvents.Created, TaskEvents.Version, TaskEvents.Exchange, TaskCountersProjection.Consumer);
         services.AddIntegrationEventHandler<ApplyTaskEvent.TaskCompletedIntegrationEvent, ApplyTaskEvent.TaskEventsConsumer>(TaskEvents.Completed, TaskEvents.Version, TaskEvents.Exchange, TaskCountersProjection.Consumer);

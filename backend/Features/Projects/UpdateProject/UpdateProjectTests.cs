@@ -115,6 +115,23 @@ public sealed class UpdateProjectTests : IClassFixture<ApiFixture>
     }
 
     [Fact]
+    public async Task RestoreAndRenameToATakenName_Returns409NameTaken_AndLeavesItArchived()
+    {
+        var alice = await RegisteredAsync();
+        await alice.CreateProjectAsync("Mudanza");
+        string id = await alice.CreateProjectAsync("Viaje");
+        await PutOkAsync(alice, id, "Viaje", isArchived: true);
+        JsonElement archived = await alice.ProjectAsync(id);
+        int auditRows = (await OperationsAsync(id)).Length;
+
+        var taken = await alice.SendAsync(HttpMethod.Put, $"api/v1/projects/{id}", new { name = "Mudanza", isArchived = false, version = Version(archived) });
+
+        ProblemAssert.Problem(taken, HttpStatusCode.Conflict, "Project.NameTaken");
+        Assert.Equal(archived.GetRawText(), (await alice.ProjectAsync(id)).GetRawText());
+        Assert.Equal(auditRows, (await OperationsAsync(id)).Length);
+    }
+
+    [Fact]
     public async Task Rename_OnlyChangingCase_IsAllowed()
     {
         var alice = await RegisteredAsync();

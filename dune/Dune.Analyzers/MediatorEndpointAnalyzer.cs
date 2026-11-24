@@ -12,7 +12,7 @@ namespace Dune.Analyzers;
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class MediatorEndpointAnalyzer : DiagnosticAnalyzer
 {
-    private static readonly string[] MediatorFeatures = { "Tasks" };
+    private static readonly string[] MediatorFeatures = { "Tasks", "Projects" };
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
         ImmutableArray.Create(DuneDiagnostics.MediatorEndpoint);

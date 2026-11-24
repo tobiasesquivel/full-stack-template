@@ -9,7 +9,7 @@ namespace Internal.Generated.WolverineHandlers
     {
         public override System.Type[] HandlerTypes()
         {
-            return new System.Type[] { typeof(TemplateApp.Features.Users.OrchestrateAccountClosure.AccountClosureSaga), typeof(TemplateApp.Features.Users.ScheduleAccountClosure.AccountClosureGracePeriod), typeof(TemplateApp.Features.Users.UpdateProfile.UpdateProfile.Handler) };
+            return new System.Type[] { typeof(TemplateApp.Features.Projects.CreateProject.CreateProject.Handler), typeof(TemplateApp.Features.Projects.FindAssignableProject.FindAssignableProject.Handler), typeof(TemplateApp.Features.Projects.GetProject.GetProject.Handler), typeof(TemplateApp.Features.Projects.ListProjects.ListProjects.Handler), typeof(TemplateApp.Features.Projects.UpdateProject.UpdateProject.Handler), typeof(TemplateApp.Features.Users.OrchestrateAccountClosure.AccountClosureSaga), typeof(TemplateApp.Features.Users.ScheduleAccountClosure.AccountClosureGracePeriod), typeof(TemplateApp.Features.Users.UpdateProfile.UpdateProfile.Handler) };
         }
 
         public override System.Type[] MessageTypes()
@@ -33,9 +33,19 @@ namespace Internal.Generated.WolverineHandlers
         [global::System.Diagnostics.CodeAnalysis.DynamicDependency(global::System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.All, typeof(global::Internal.Generated.WolverineHandlers.AccountClosureRejectedInfoHandler257058265))]
         [global::System.Diagnostics.CodeAnalysis.DynamicDependency(global::System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.All, typeof(global::Internal.Generated.WolverineHandlers.AccountClosureReminderDueHandler927390583))]
         [global::System.Diagnostics.CodeAnalysis.DynamicDependency(global::System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.All, typeof(global::Internal.Generated.WolverineHandlers.AccountDeletedInfoHandler451093863))]
+        [global::System.Diagnostics.CodeAnalysis.DynamicDependency(global::System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.All, typeof(global::Internal.Generated.WolverineHandlers.CreateProjectCommandHandler902023101))]
+        [global::System.Diagnostics.CodeAnalysis.DynamicDependency(global::System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.All, typeof(global::Internal.Generated.WolverineHandlers.FindAssignableProjectCommandHandler738405187))]
+        [global::System.Diagnostics.CodeAnalysis.DynamicDependency(global::System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.All, typeof(global::Internal.Generated.WolverineHandlers.GetProjectCommandHandler417648577))]
+        [global::System.Diagnostics.CodeAnalysis.DynamicDependency(global::System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.All, typeof(global::Internal.Generated.WolverineHandlers.ListProjectsCommandHandler422227851))]
         [global::System.Diagnostics.CodeAnalysis.DynamicDependency(global::System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.All, typeof(global::Internal.Generated.WolverineHandlers.OwnerTasksHeldIntegrationEventHandler467166336))]
         [global::System.Diagnostics.CodeAnalysis.DynamicDependency(global::System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.All, typeof(global::Internal.Generated.WolverineHandlers.OwnerTasksReleasedIntegrationEventHandler161933960))]
         [global::System.Diagnostics.CodeAnalysis.DynamicDependency(global::System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.All, typeof(global::Internal.Generated.WolverineHandlers.UpdateProfileCommandHandler156792017))]
+        [global::System.Diagnostics.CodeAnalysis.DynamicDependency(global::System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.All, typeof(global::Internal.Generated.WolverineHandlers.UpdateProjectCommandHandler11328739))]
+        [global::System.Diagnostics.CodeAnalysis.DynamicDependency(global::System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.All, typeof(global::TemplateApp.Features.Projects.CreateProject.CreateProject.Handler))]
+        [global::System.Diagnostics.CodeAnalysis.DynamicDependency(global::System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.All, typeof(global::TemplateApp.Features.Projects.FindAssignableProject.FindAssignableProject.Handler))]
+        [global::System.Diagnostics.CodeAnalysis.DynamicDependency(global::System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.All, typeof(global::TemplateApp.Features.Projects.GetProject.GetProject.Handler))]
+        [global::System.Diagnostics.CodeAnalysis.DynamicDependency(global::System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.All, typeof(global::TemplateApp.Features.Projects.ListProjects.ListProjects.Handler))]
+        [global::System.Diagnostics.CodeAnalysis.DynamicDependency(global::System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.All, typeof(global::TemplateApp.Features.Projects.UpdateProject.UpdateProject.Handler))]
         [global::System.Diagnostics.CodeAnalysis.DynamicDependency(global::System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.All, typeof(global::TemplateApp.Features.Users.OrchestrateAccountClosure.AccountClosureSaga))]
         [global::System.Diagnostics.CodeAnalysis.DynamicDependency(global::System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.All, typeof(global::TemplateApp.Features.Users.ScheduleAccountClosure.AccountClosureGracePeriod))]
         [global::System.Diagnostics.CodeAnalysis.DynamicDependency(global::System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.All, typeof(global::TemplateApp.Features.Users.UpdateProfile.UpdateProfile.Handler))]

@@ -5,48 +5,51 @@ using TemplateApp.Shared.Http;
 
 namespace TemplateApp.Features.Projects.ListProjects;
 
-internal sealed class ListProjects
+internal static class ListProjects
 {
-    private readonly ProjectsDbContext _db;
-    private readonly ProjectResponses _responses;
-
-    public ListProjects(ProjectsDbContext db, ProjectResponses responses)
+    public sealed class Handler
     {
-        _db = db;
-        _responses = responses;
-    }
+        private readonly ProjectsDbContext _db;
+        private readonly ProjectResponses _responses;
 
-    public async Task<ErrorOr<ProjectListResponse>> ExecuteAsync(string callerId, string? cursor, int pageSize, CancellationToken ct)
-    {
-        if (!KeysetCursor.IsValidPageSize(pageSize))
-            return HttpErrors.InvalidPageSize;
-
-        var owned = _db.Projects.Where(p => p.OwnerId == callerId);
-        if (cursor is not null)
+        public Handler(ProjectsDbContext db, ProjectResponses responses)
         {
-            if (!KeysetCursor.TryDecode(cursor, out KeysetCursor after))
-                return HttpErrors.InvalidCursor;
-
-            owned = owned.Where(p => EF.Functions.LessThan(
-                ValueTuple.Create(p.CreatedAt, p.Id),
-                ValueTuple.Create(after.CreatedAt, after.Id)));
+            _db = db;
+            _responses = responses;
         }
 
-        List<ProjectRow> rows = await owned
-            .OrderByDescending(p => p.CreatedAt)
-            .ThenByDescending(p => p.Id)
-            .Take(pageSize + 1)
-            .Select(ProjectRows.Projection)
-            .AsNoTracking()
-            .ToListAsync(ct);
-
-        string? nextCursor = null;
-        if (rows.Count > pageSize)
+        public async Task<ErrorOr<ProjectListResponse>> Handle(ListProjectsCommand command, CancellationToken ct)
         {
-            rows.RemoveAt(pageSize);
-            nextCursor = KeysetCursor.Encode(rows[^1].CreatedAt, rows[^1].Id);
-        }
+            if (!KeysetCursor.IsValidPageSize(command.PageSize))
+                return HttpErrors.InvalidPageSize;
 
-        return new ProjectListResponse(await _responses.ComposeAsync(rows, ct), nextCursor);
+            var owned = _db.Projects.Where(p => p.OwnerId == command.CallerId);
+            if (command.Cursor is not null)
+            {
+                if (!KeysetCursor.TryDecode(command.Cursor, out KeysetCursor after))
+                    return HttpErrors.InvalidCursor;
+
+                owned = owned.Where(p => EF.Functions.LessThan(
+                    ValueTuple.Create(p.CreatedAt, p.Id),
+                    ValueTuple.Create(after.CreatedAt, after.Id)));
+            }
+
+            List<ProjectRow> rows = await owned
+                .OrderByDescending(p => p.CreatedAt)
+                .ThenByDescending(p => p.Id)
+                .Take(command.PageSize + 1)
+                .Select(ProjectRows.Projection)
+                .AsNoTracking()
+                .ToListAsync(ct);
+
+            string? nextCursor = null;
+            if (rows.Count > command.PageSize)
+            {
+                rows.RemoveAt(command.PageSize);
+                nextCursor = KeysetCursor.Encode(rows[^1].CreatedAt, rows[^1].Id);
+            }
+
+            return new ProjectListResponse(await _responses.ComposeAsync(rows, ct), nextCursor);
+        }
     }
 }
