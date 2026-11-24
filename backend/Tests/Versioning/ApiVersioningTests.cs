@@ -24,7 +24,7 @@ public sealed class ApiVersioningTests : IClassFixture<ApiFixture>
         SessionResponse live = await anonymous.SendAsync(HttpMethod.Get, "api/v1/health/live");
 
         Assert.Equal(HttpStatusCode.OK, live.Status);
-        Assert.Equal("1.0", Assert.Contains("api-supported-versions", live.Headers));
+        Assert.Equal("9.9", Assert.Contains("api-supported-versions", live.Headers));
     }
 
     [Theory]
