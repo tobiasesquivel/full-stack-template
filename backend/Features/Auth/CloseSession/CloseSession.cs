@@ -1,4 +1,5 @@
 using ErrorOr;
+using TemplateApp.Features.Auth.Access;
 
 namespace TemplateApp.Features.Auth.CloseSession;
 

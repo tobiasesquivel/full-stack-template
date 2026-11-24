@@ -20,7 +20,7 @@ namespace Internal.Generated.WolverineHandlers
             await using var serviceScope = _serviceScopeFactory.CreateAsyncScope();
             Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService<Wolverine.Runtime.ScopedMessageContextHolder>(serviceScope.ServiceProvider).Context = context;
             // This service has been marked as requiring service location independent of Wolverine's ability to use constructor injection of everything else
-            var sessions = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService<TemplateApp.Features.Auth.Sessions>(serviceScope.ServiceProvider);
+            var sessions = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService<TemplateApp.Features.Auth.Access.Sessions>(serviceScope.ServiceProvider);
             // The actual message body
             var closeSessionCommand = (TemplateApp.Features.Auth.CloseSession.CloseSessionCommand)context.Envelope.Message;
 

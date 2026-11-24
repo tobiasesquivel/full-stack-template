@@ -1,6 +1,6 @@
 using System.Diagnostics.Metrics;
 
-namespace TemplateApp.Features.Auth;
+namespace TemplateApp.Features.Auth.Telemetry;
 
 internal sealed class AuthMetrics
 {

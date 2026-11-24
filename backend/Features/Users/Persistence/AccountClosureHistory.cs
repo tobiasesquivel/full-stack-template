@@ -1,8 +1,7 @@
 using System.Transactions;
 using Microsoft.EntityFrameworkCore;
-using TemplateApp.Features.Users.Persistence;
 
-namespace TemplateApp.Features.Users;
+namespace TemplateApp.Features.Users.Persistence;
 
 internal sealed class AccountClosureHistory
 {

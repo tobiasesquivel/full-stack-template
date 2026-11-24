@@ -1,6 +1,6 @@
 using System.Diagnostics;
 
-namespace TemplateApp.Features.Tasks;
+namespace TemplateApp.Features.Users.Telemetry;
 
 internal static class AccountClosureTrace
 {

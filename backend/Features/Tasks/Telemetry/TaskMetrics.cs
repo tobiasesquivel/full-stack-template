@@ -1,6 +1,6 @@
 using System.Diagnostics.Metrics;
 
-namespace TemplateApp.Features.Tasks;
+namespace TemplateApp.Features.Tasks.Telemetry;
 
 internal sealed class TaskMetrics
 {

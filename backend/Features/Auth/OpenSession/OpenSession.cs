@@ -1,8 +1,10 @@
 using ErrorOr;
 using Microsoft.AspNetCore.Identity;
+using TemplateApp.Features.Auth.Access;
 using TemplateApp.Features.Auth.Contracts;
 using TemplateApp.Features.Auth.Domain;
 using TemplateApp.Features.Auth.Persistence;
+using TemplateApp.Features.Auth.Telemetry;
 using TemplateApp.Features.Users.Contracts;
 
 namespace TemplateApp.Features.Auth.OpenSession;

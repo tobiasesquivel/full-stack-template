@@ -1,6 +1,7 @@
 using ErrorOr;
 using Microsoft.EntityFrameworkCore;
 using TemplateApp.Features.Auth.Contracts;
+using TemplateApp.Features.Users.Access;
 using TemplateApp.Features.Users.Contracts;
 using TemplateApp.Features.Users.Persistence;
 

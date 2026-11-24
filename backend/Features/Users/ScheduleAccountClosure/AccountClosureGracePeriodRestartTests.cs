@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using TemplateApp.Features.Users.DeleteUser;
+using TemplateApp.Features.Users.Domain;
 using TemplateApp.Tests.Support.Bus;
 using TemplateApp.Tests.Support.Clients;
 using TemplateApp.Tests.Support.Hosts;

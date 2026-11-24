@@ -1,9 +1,11 @@
 using ErrorOr;
 using Microsoft.EntityFrameworkCore;
 using TemplateApp.Features.Auth.Contracts;
+using TemplateApp.Features.Users.Access;
 using TemplateApp.Features.Users.Contracts;
 using TemplateApp.Features.Users.Domain;
 using TemplateApp.Features.Users.Persistence;
+using TemplateApp.Features.Users.Telemetry;
 
 namespace TemplateApp.Features.Users.WithdrawAccountClosure;
 

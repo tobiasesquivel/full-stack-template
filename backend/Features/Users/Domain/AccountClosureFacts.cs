@@ -1,4 +1,4 @@
-namespace TemplateApp.Features.Users;
+namespace TemplateApp.Features.Users.Domain;
 
 internal static class AccountClosureFacts
 {

@@ -3,6 +3,7 @@ using System.Net;
 using System.Reflection;
 using TemplateApp.Features.Auth.Access;
 using TemplateApp.Features.Tasks;
+using TemplateApp.Features.Tasks.Access;
 using TemplateApp.Tests.Support;
 using TemplateApp.Tests.Support.Clients;
 using TemplateApp.Tests.Support.Faults;

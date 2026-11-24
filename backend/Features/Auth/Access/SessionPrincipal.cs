@@ -2,7 +2,7 @@ using System.Security.Claims;
 using TemplateApp.Features.Auth.Domain;
 using TemplateApp.Infrastructure.Http;
 
-namespace TemplateApp.Features.Auth;
+namespace TemplateApp.Features.Auth.Access;
 
 internal static class SessionPrincipal
 {

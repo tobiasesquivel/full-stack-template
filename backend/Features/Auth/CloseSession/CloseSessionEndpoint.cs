@@ -1,4 +1,5 @@
 using ErrorOr;
+using TemplateApp.Features.Auth.Access;
 using Wolverine;
 using TemplateApp.Infrastructure.Http;
 

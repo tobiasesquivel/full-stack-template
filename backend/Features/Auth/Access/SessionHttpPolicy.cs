@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using TemplateApp.Features.Auth.Domain;
 using TemplateApp.Infrastructure.Http;
 
-namespace TemplateApp.Features.Auth;
+namespace TemplateApp.Features.Auth.Access;
 
 internal sealed class SessionHttpPolicy
 {

@@ -8,6 +8,7 @@ using TemplateApp.Features.Users.Domain;
 using TemplateApp.Features.Users.OrchestrateAccountClosure;
 using TemplateApp.Features.Users.Persistence;
 using TemplateApp.Features.Users.ScheduleAccountClosure;
+using TemplateApp.Features.Users.Telemetry;
 using TemplateApp.Infrastructure.Messaging.Sagas;
 
 namespace TemplateApp.Features.Users.DeleteUser;

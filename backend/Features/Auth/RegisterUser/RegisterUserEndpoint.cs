@@ -1,4 +1,5 @@
 using ErrorOr;
+using TemplateApp.Features.Auth.Access;
 using TemplateApp.Features.Auth.Domain;
 using TemplateApp.Features.Users.Contracts;
 using TemplateApp.Shared.Http;
