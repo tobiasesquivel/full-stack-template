@@ -128,7 +128,7 @@ public sealed class ApiRouteAnalyzerTests
                 }
                 """),
             ("backend/Infrastructure/Http/Remote/OtherApi.cs", InternalGroup.Replace("class InternalApi", "class OtherApi", System.StringComparison.Ordinal)),
-            ("backend/Infrastructure/Http/Remote/Sub/InternalApi.cs", InternalGroup.Replace("/internal/v1", "/internal/v2", System.StringComparison.Ordinal)),
+            ("backend/Infrastructure/Http/Remote/Sub/InternalApi.cs", InternalGroup.Replace("Http.Remote;", "Http.Remote.Sub;", System.StringComparison.Ordinal)),
             ("backend/Infrastructure/Http/InternalApi.cs", InternalGroup.Replace("Http.Remote;", "Http;", System.StringComparison.Ordinal)));
 
         Assert.Empty(accepted);
