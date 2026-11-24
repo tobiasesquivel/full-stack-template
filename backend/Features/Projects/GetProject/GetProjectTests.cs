@@ -104,8 +104,8 @@ public sealed class GetProjectTests : IClassFixture<ApiFixture>, IDisposable
 
         using IServiceScope scope = services.CreateScope();
         commands.Reset();
-        ErrorOr<ProjectResponse> read = await scope.ServiceProvider.GetRequiredService<GetProject>()
-            .ExecuteAsync(alice.AuthId, Guid.Parse(id), TestContext.Current.CancellationToken);
+        ErrorOr<ProjectResponse> read = await scope.Handler<GetProject.Handler>()
+            .Handle(new GetProjectCommand(alice.AuthId, Guid.Parse(id)), TestContext.Current.CancellationToken);
 
         Assert.False(read.IsError);
         Assert.DoesNotContain("\"NormalizedName\"", Assert.Single(commands.Reading("Projects")).Text, StringComparison.Ordinal);

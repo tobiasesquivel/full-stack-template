@@ -1,3 +1,4 @@
+using FluentValidation;
 using TemplateApp.Features.Auth.Contracts;
 using TemplateApp.Features.Users.Contracts;
 using TemplateApp.Features.Users.Domain.Events;
@@ -32,12 +33,13 @@ internal static class UsersFeature
         services.AddSagaMessage<AccountClosureRejectedInfo>(AuthEvents.AccountClosureRejected, AuthEvents.Version, AuthEvents.Exchange, ClosuresConsumer);
         services.AddSingleton<UserMetrics>();
         services.AddScoped<IUsersModule, UsersModule>();
-        services.AddScoped<GetUser.GetUser>();
-        services.AddScoped<GetAccountClosure.GetAccountClosure>();
-        services.AddScoped<GetAccountClosureHistory.GetAccountClosureHistory>();
-        services.AddScoped<WithdrawAccountClosure.WithdrawAccountClosure>();
-        services.AddScoped<UpdateProfile.UpdateProfile>();
-        services.AddScoped<DeleteUser.DeleteUser>();
+        services.AddMediatorHandler<GetUser.GetUser.Handler>(MediatorTransaction.None);
+        services.AddMediatorHandler<GetAccountClosure.GetAccountClosure.Handler>(MediatorTransaction.None);
+        services.AddMediatorHandler<GetAccountClosureHistory.GetAccountClosureHistory.Handler>(MediatorTransaction.None);
+        services.AddMediatorHandler<WithdrawAccountClosure.WithdrawAccountClosure.Handler>(MediatorTransaction.Atomic);
+        services.AddMediatorHandler<UpdateProfile.UpdateProfile.Handler>(MediatorTransaction.Atomic);
+        services.AddSingleton<IValidator<UpdateProfile.UpdateProfileCommand>, UpdateProfile.UpdateProfileCommandValidator>();
+        services.AddMediatorHandler<DeleteUser.DeleteUser.Handler>(MediatorTransaction.Eager);
         services.AddScoped<CompleteAccountClosure.CompleteAccountClosure>();
         services.AddScoped<CancelAccountClosure.CancelAccountClosure>();
         services.AddAfterCommit<UsersDbContext>();

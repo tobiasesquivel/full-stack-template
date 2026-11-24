@@ -4,42 +4,36 @@ using TemplateApp.Features.Auth.Contracts;
 using TemplateApp.Features.Users.Contracts;
 using TemplateApp.Features.Users.Domain;
 using TemplateApp.Features.Users.Persistence;
-using TemplateApp.Shared.Http;
 
 namespace TemplateApp.Features.Users.UpdateProfile;
 
-internal sealed class UpdateProfile
+internal static class UpdateProfile
 {
-    private static readonly UpdateProfileRequestValidator Validator = new();
-
-    private readonly UsersDbContext _db;
-    private readonly IAuthModule _auth;
-
-    public UpdateProfile(UsersDbContext db, IAuthModule auth)
+    public sealed class Handler
     {
-        _db = db;
-        _auth = auth;
-    }
+        private readonly UsersDbContext _db;
+        private readonly IAuthModule _auth;
 
-    public async Task<ErrorOr<UserResponse>> ExecuteAsync(string callerId, UpdateProfileRequest request, CancellationToken ct)
-    {
-        var validation = await Validator.ValidateAsync(request, ct);
-        if (!validation.IsValid)
-            return ValidationErrors.From(validation);
+        public Handler(UsersDbContext db, IAuthModule auth)
+        {
+            _db = db;
+            _auth = auth;
+        }
 
-        UserProfile? profile = await _db.UserProfiles
-            .SingleOrDefaultAsync(p => p.AuthId == callerId, ct);
-        if (profile is null)
-            return UserErrors.NotFound(callerId);
+        public async Task<ErrorOr<UserResponse>> Handle(UpdateProfileCommand command, CancellationToken ct)
+        {
+            UserProfile? profile = await _db.UserProfiles
+                .SingleOrDefaultAsync(p => p.AuthId == command.CallerId, ct);
+            if (profile is null)
+                return UserErrors.NotFound(command.CallerId);
 
-        UserAccountDetails? account = await _auth.FindAccountAsync(callerId, ct);
-        if (account is null)
-            return UserErrors.NotFound(callerId);
+            UserAccountDetails? account = await _auth.FindAccountAsync(command.CallerId, ct);
+            if (account is null)
+                return UserErrors.NotFound(command.CallerId);
 
-        profile.DisplayName = UserProfile.NormalizeDisplayName(request.DisplayName);
-        profile.Timezone = request.Timezone;
-        await _db.SaveChangesAsync(ct);
-
-        return UserResponse.From(account, UsersModule.Describe(profile));
+            profile.DisplayName = UserProfile.NormalizeDisplayName(command.DisplayName);
+            profile.Timezone = command.Timezone;
+            return UserResponse.From(account, UsersModule.Describe(profile));
+        }
     }
 }

@@ -2,6 +2,7 @@ using System.Security.Claims;
 using ErrorOr;
 using TemplateApp.Features.Users.Contracts;
 using TemplateApp.Shared.Http;
+using Wolverine;
 
 namespace TemplateApp.Features.Users.UpdateProfile;
 
@@ -12,10 +13,11 @@ internal static class UpdateProfileEndpoint
     private static async Task<IResult> HandleAsync(
         UpdateProfileRequest request,
         ClaimsPrincipal user,
-        UpdateProfile slice,
+        IMessageBus bus,
         CancellationToken ct)
     {
-        ErrorOr<UserResponse> result = await slice.ExecuteAsync(user.GetCallerId(), request, ct);
+        var command = new UpdateProfileCommand(user.GetCallerId(), request.DisplayName, request.Timezone);
+        var result = await bus.InvokeAsync<ErrorOr<UserResponse>>(command, ct);
         return ApiResults.ToResult(result, value => Results.Ok(value));
     }
 }

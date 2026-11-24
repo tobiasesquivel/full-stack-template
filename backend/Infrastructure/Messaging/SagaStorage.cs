@@ -17,7 +17,7 @@ internal static class SagaStorage
             NpgsqlDataSource.Create(DatabaseSearchPath.Apply(provider.GetRequiredService<IOptions<DatabaseOptions>>().Value.DefaultConnection)));
         options.PersistMessagesWithPostgresqlUsingDataSourceFromContainer(provider => provider.GetRequiredKeyedService<NpgsqlDataSource>(Schema), Schema);
         options.UseEntityFrameworkCoreTransactions();
-        options.Policies.AutoApplyTransactions();
-        options.Policies.UseDurableLocalQueues();
+        options.Policies.Add(new MediatorTransactionPolicy());
+        options.Policies.Add(new DurableLocalQueuesPolicy());
     }
 }

@@ -1,28 +1,29 @@
 using Microsoft.EntityFrameworkCore;
-using Wolverine.EntityFrameworkCore;
+using Wolverine;
 
 namespace TemplateApp.Infrastructure.Messaging;
 
 public sealed class SagaOutbox<TContext>
     where TContext : DbContext
 {
-    private readonly IDbContextOutbox<TContext> _outbox;
+    private readonly TContext _db;
+    private readonly IMessageBus _bus;
 
-    public SagaOutbox(IDbContextOutbox<TContext> outbox)
+    public SagaOutbox(TContext db, IMessageBus bus)
     {
-        _outbox = outbox;
+        _db = db;
+        _bus = bus;
     }
 
-    public async Task StartAndCommitAsync(object saga, IEnumerable<object> messages, CancellationToken ct)
+    public async Task StartAsync(object saga, IEnumerable<object> messages)
     {
         ArgumentNullException.ThrowIfNull(saga);
         ArgumentNullException.ThrowIfNull(messages);
-        if (_outbox.DbContext.Database.CurrentTransaction is null)
-            throw new InvalidOperationException("A saga starts inside the transaction of its first step: open it with Database.BeginTransactionAsync first.");
+        if (_db.Database.CurrentTransaction is null)
+            throw new InvalidOperationException("A saga starts inside the Eager transaction that Wolverine opens around the handler of its first step.");
 
-        _outbox.DbContext.Add(saga);
+        _db.Add(saga);
         foreach (object message in messages)
-            await _outbox.PublishAsync(message);
-        await _outbox.SaveChangesAndFlushMessagesAsync(ct);
+            await _bus.PublishAsync(message);
     }
 }

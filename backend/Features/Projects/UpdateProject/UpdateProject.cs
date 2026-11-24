@@ -4,80 +4,76 @@ using TemplateApp.Features.Auth.Contracts;
 using TemplateApp.Features.Projects.Contracts;
 using TemplateApp.Features.Projects.Domain;
 using TemplateApp.Features.Projects.Persistence;
-using TemplateApp.Shared.Http;
 
 namespace TemplateApp.Features.Projects.UpdateProject;
 
-internal sealed class UpdateProject
+internal static class UpdateProject
 {
-    private static readonly UpdateProjectRequestValidator Validator = new();
-
-    private readonly ProjectsDbContext _db;
-    private readonly IAuthModule _auth;
-    private readonly TimeProvider _clock;
-    private readonly ProjectResponses _responses;
-
-    public UpdateProject(ProjectsDbContext db, IAuthModule auth, TimeProvider clock, ProjectResponses responses)
+    public sealed class Handler
     {
-        _db = db;
-        _auth = auth;
-        _clock = clock;
-        _responses = responses;
-    }
+        private readonly ProjectsDbContext _db;
+        private readonly IAuthModule _auth;
+        private readonly TimeProvider _clock;
+        private readonly ProjectResponses _responses;
 
-    public async Task<ErrorOr<ProjectResponse>> ExecuteAsync(string callerId, Guid id, UpdateProjectRequest request, CancellationToken ct)
-    {
-        var validation = await Validator.ValidateAsync(request, ct);
-        if (!validation.IsValid)
-            return ValidationErrors.From(validation);
+        public Handler(ProjectsDbContext db, IAuthModule auth, TimeProvider clock, ProjectResponses responses)
+        {
+            _db = db;
+            _auth = auth;
+            _clock = clock;
+            _responses = responses;
+        }
 
-        Project? project = await _db.Projects.SingleOrDefaultAsync(p => p.Id == id, ct);
-        if (project is null)
-            return ProjectErrors.NotFound(id);
+        public async Task<ErrorOr<ProjectResponse>> Handle(UpdateProjectCommand command, CancellationToken ct)
+        {
+            Project? project = await _db.Projects.SingleOrDefaultAsync(p => p.Id == command.Id, ct);
+            if (project is null)
+                return ProjectErrors.NotFound(command.Id);
 
-        if (!await _auth.CanAccessAsync(callerId, project, ProjectPermissions.Update, ct))
-            return ProjectErrors.Forbidden;
+            if (!await _auth.CanAccessAsync(command.CallerId, project, ProjectPermissions.Update, ct))
+                return ProjectErrors.Forbidden;
 
-        string name = Project.NormalizeName(request.Name);
-        if (project.Version != request.Version)
-            return project.Name == name && project.IsArchived == request.IsArchived
-                ? await _responses.ComposeAsync(ProjectRows.From(project), ct)
-                : ProjectErrors.Conflict;
+            string name = Project.NormalizeName(command.Name);
+            if (project.Version != command.Version)
+                return project.Name == name && project.IsArchived == command.IsArchived
+                    ? await _responses.ComposeAsync(ProjectRows.From(project), ct)
+                    : ProjectErrors.Conflict;
 
-        string storedKey = project.NormalizedName;
-        DateTimeOffset now = _clock.GetUtcNow();
-        bool changed = !request.IsArchived && project.Restore(now) == ProjectChange.Changed;
+            string storedKey = project.NormalizedName;
+            DateTimeOffset now = _clock.GetUtcNow();
+            bool changed = !command.IsArchived && project.Restore(now) == ProjectChange.Changed;
 
-        ProjectChange renamed = project.Rename(name, now);
-        if (renamed == ProjectChange.RejectedArchived)
-            return ProjectErrors.Archived;
+            ProjectChange renamed = project.Rename(name, now);
+            if (renamed == ProjectChange.RejectedArchived)
+                return ProjectErrors.Archived;
 
-        changed |= renamed == ProjectChange.Changed;
-        if (request.IsArchived)
-            changed |= project.Archive(now) == ProjectChange.Changed;
+            changed |= renamed == ProjectChange.Changed;
+            if (command.IsArchived)
+                changed |= project.Archive(now) == ProjectChange.Changed;
 
-        if (!changed)
+            if (!changed)
+                return await _responses.ComposeAsync(ProjectRows.From(project), ct);
+
+            string ownerId = project.OwnerId;
+            string key = project.NormalizedName;
+            if (key != storedKey && await _db.Projects.AnyAsync(p => p.OwnerId == ownerId && p.NormalizedName == key, ct))
+                return ProjectErrors.NameTaken;
+
+            _db.Entry(project).Property(p => p.Version).OriginalValue = command.Version.Value;
+            try
+            {
+                await _db.SaveChangesAsync(ct);
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                return ProjectErrors.Conflict;
+            }
+            catch (DbUpdateException exception) when (ProjectNameUniqueness.IsViolatedBy(exception))
+            {
+                return ProjectErrors.NameTaken;
+            }
+
             return await _responses.ComposeAsync(ProjectRows.From(project), ct);
-
-        string ownerId = project.OwnerId;
-        string key = project.NormalizedName;
-        if (key != storedKey && await _db.Projects.AnyAsync(p => p.OwnerId == ownerId && p.NormalizedName == key, ct))
-            return ProjectErrors.NameTaken;
-
-        _db.Entry(project).Property(p => p.Version).OriginalValue = request.Version.Value;
-        try
-        {
-            await _db.SaveChangesAsync(ct);
         }
-        catch (DbUpdateConcurrencyException)
-        {
-            return ProjectErrors.Conflict;
-        }
-        catch (DbUpdateException exception) when (ProjectNameUniqueness.IsViolatedBy(exception))
-        {
-            return ProjectErrors.NameTaken;
-        }
-
-        return await _responses.ComposeAsync(ProjectRows.From(project), ct);
     }
 }

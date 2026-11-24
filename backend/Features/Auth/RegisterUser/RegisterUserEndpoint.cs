@@ -1,5 +1,8 @@
+using ErrorOr;
+using TemplateApp.Features.Auth.Domain;
 using TemplateApp.Features.Users.Contracts;
 using TemplateApp.Shared.Http;
+using Wolverine;
 
 namespace TemplateApp.Features.Auth.RegisterUser;
 
@@ -11,12 +14,13 @@ internal static class RegisterUserEndpoint
     private static async Task<IResult> HandleAsync(
         RegisterUserRequest request,
         HttpContext http,
-        RegisterUser slice,
+        IMessageBus bus,
         SessionHttpPolicy policy,
         LinkGenerator links,
         CancellationToken ct)
     {
-        var result = await slice.ExecuteAsync(request, ct);
+        var command = new RegisterUserCommand(request.UserName, request.Email, request.Password, request.DisplayName);
+        var result = await bus.InvokeAsync<ErrorOr<(UserResponse User, Session Session)>>(command, ct);
         if (result.IsError)
             return ApiResults.ToResult(result, _ => Results.Created());
 

@@ -24,12 +24,9 @@ namespace Internal.Generated.WolverineHandlers
             * Concrete type TemplateApp.Features.Users.ScheduleAccountClosure.AccountClosureGraceSteps is not public, so requires service location
             */
             var accountClosureGraceSteps = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService<TemplateApp.Features.Users.ScheduleAccountClosure.IAccountClosureGraceSteps>(serviceScope.ServiceProvider);
-            
-            /*
-            * Concrete type TemplateApp.Features.Users.Persistence.UsersDbContext is not public, so requires service location
-            */
-            var usersDbContext = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService<TemplateApp.Features.Users.Persistence.UsersDbContext>(serviceScope.ServiceProvider);
             var domainEventScraperIEnumerable = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService<System.Collections.Generic.IEnumerable<Wolverine.EntityFrameworkCore.IDomainEventScraper>>(serviceScope.ServiceProvider);
+            // This service has been marked as requiring service location independent of Wolverine's ability to use constructor injection of everything else
+            var usersDbContext = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService<TemplateApp.Features.Users.Persistence.UsersDbContext>(serviceScope.ServiceProvider);
             // The actual message body
             var accountClosureReminderDue = (TemplateApp.Features.Users.ScheduleAccountClosure.AccountClosureReminderDue)context.Envelope.Message;
 

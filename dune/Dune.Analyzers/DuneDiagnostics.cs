@@ -364,7 +364,17 @@ internal static class DuneDiagnostics
         category: "Dune",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
-        description: "Un TransactionScope abarca solo las conexiones a la base de este proceso. Si la transacción se revierte, lo que hizo el otro proceso queda hecho; mientras la request espera, la transacción mantiene abiertas la conexión y sus candados. Cuenta como llamada remota una invocación sobre HttpClient o HttpMessageInvoker, sobre un cliente tipado (un tipo con un HttpClient en su constructor) o un método de extensión de HttpClient como SendRemoteAsync. Límite: mira solo el método que abre la transacción. No ve a través de un filtro de endpoint: IdempotencyFilter abre el scope y la slice corre adentro.");
+        description: "Un TransactionScope abarca solo las conexiones a la base de este proceso. Si la transacción se revierte, lo que hizo el otro proceso queda hecho; mientras la request espera, la transacción mantiene abiertas la conexión y sus candados. Cuenta como llamada remota una invocación sobre HttpClient o HttpMessageInvoker, sobre un cliente tipado (un tipo con un HttpClient en su constructor) o un método de extensión de HttpClient como SendRemoteAsync. Límite: mira solo el método que abre la transacción, y la transacción que Wolverine abre alrededor de un handler del mediator (paso 29.2, el otro diagnóstico DUNE0022). No ve a través de un filtro de endpoint: IdempotencyFilter abre el scope y la slice corre adentro.");
+
+    public static readonly DiagnosticDescriptor RemoteCallInMediatorTransaction = new(
+        id: "DUNE0022",
+        title: "Llamada remota dentro de la transacción de un handler del mediator",
+        messageFormat: "'{0}' llama por HTTP a otro proceso ({1}) dentro de '{2}', un handler registrado con MediatorTransaction.{3}: Wolverine abre la transacción antes del handler y la confirma después, así que la llamada queda adentro; registralo con MediatorTransaction.None o sacá la llamada del handler",
+        category: "Dune",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "Paso 29.2: en el monolito, un handler registrado con AddMediatorHandler<T>(MediatorTransaction.Atomic) o (MediatorTransaction.Eager) corre entero dentro de la transacción que abre Wolverine (MediatorTransactionPolicy). Una llamada remota en cualquier método del tipo del handler queda dentro de esa transacción, con los mismos riesgos que dentro de CrossContextTransaction.Begin(). Cuenta como llamada remota lo mismo que el otro diagnóstico DUNE0022. Límite: no ve una llamada remota hecha a través de otro servicio que el handler recibe.",
+        customTags: WellKnownDiagnosticTags.CompilationEnd);
 
     public static readonly DiagnosticDescriptor EventHandlerCalledDirectly = new(
         id: "DUNE0023",
@@ -421,6 +431,16 @@ internal static class DuneDiagnostics
         isEnabledByDefault: true,
         description: "Paso 29: todo cliente saliente pasa por la misma política (bulkhead, timeout total, reintento, circuit breaker y timeout por intento), que vive en backend/Infrastructure/Http/RemoteServices. Fuera de esa carpeta es error crear un HttpClient, un HttpMessageInvoker o un HttpMessageHandler (HttpClientHandler, SocketsHttpHandler o un DelegatingHandler propio), llamar a los registros de IHttpClientFactory (AddHttpClient, ConfigureHttpClientDefaults, ConfigurePrimaryHttpMessageHandler, AddHttpMessageHandler y los demás de HttpClientFactoryServiceCollectionExtensions y HttpClientBuilderExtensions) o a los de Microsoft.Extensions.Http.Resilience (AddResilienceHandler, AddStandardResilienceHandler), nombrar IHttpClientFactory (que da clientes sin la política) y nombrar un símbolo de los namespaces Polly o Microsoft.Extensions.Http.Resilience. Así ninguna slice arma un cliente sin resiliencia ni conoce Polly: un circuito abierto le llega como RemoteServiceUnavailableException. Los tests y las migraciones quedan fuera, y el gateway también (no está en backend/ y YARP trae su cliente). Límite: no ve un HttpClient pedido por constructor en un tipo que no se registró con AddRemoteClient (desde .NET 8, IHttpClientFactory registra un HttpClient por defecto sin la política); lo cubre la revisión.");
 
+    public static readonly DiagnosticDescriptor TransactionOwner = new(
+        id: "DUNE0029",
+        title: "La slice no maneja la transacción",
+        messageFormat: "'{0}' llama {1}: en Auth, Users y Projects la transacción de un handler del mediator es de Wolverine; la slice no abre, confirma ni revierte, y llama SaveChangesAsync solo con await dentro de un try cuyo catch atrapa DbUpdateException",
+        category: "Dune",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "Paso 29.2 (ADR-0004 punto 9): Wolverine abre, guarda y confirma alrededor de cada handler del monolito, según la clase con que se registra (AddMediatorHandler<T>(MediatorTransaction.Atomic | Eager | None)). En backend/Features/{Auth,Users,Projects}, dentro del tipo de un handler registrado, es error llamar CrossContextTransaction.Begin, DatabaseFacade.BeginTransaction(Async), CommitTransaction(Async), RollbackTransaction(Async), UseTransaction(Async), IDbContextTransaction.Commit(Async) o Rollback(Async), crear un TransactionScope, y llamar SaveChanges o SaveChangesAsync de un DbContext. La única excepción es el flush para traducir una restricción: await SaveChangesAsync dentro del bloque try de un try cuyo catch atrapa DbUpdateException o una subclase (CreateProject, UpdateProject). Quedan fuera las puertas <Feature>Module, los pasos de la saga, los consumidores del broker, Tasks (que corre en su propio proceso y maneja su transacción) y los tests. Límite: no ve SaveChanges llamado a través de otro servicio que el handler recibe.",
+        customTags: WellKnownDiagnosticTags.CompilationEnd);
+
     public static readonly DiagnosticDescriptor MediatorEndpoint = new(
         id: "DUNE0028",
         title: "Endpoint de una slice que no despacha su comando por el mediator",
@@ -428,5 +448,5 @@ internal static class DuneDiagnostics
         category: "Dune",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
-        description: "Paso 29.1 (ADR-0004 punto 9): las slices HTTP de Tasks son handlers de Wolverine y su endpoint les llega por el mediator. En backend/Features/Tasks/<Slice>/*Endpoint.cs es error no llamar nunca a IMessageBus.InvokeAsync<T> (la forma genérica: sin <T> la respuesta se pierde), llamarlo más de una vez, despachar un mensaje cuyo tipo no está declarado en la carpeta de la misma slice, y recibir por parámetro o construir con new un tipo de la feature que tiene un método Handle (el handler): así el endpoint no puede saltear el middleware. La lista de features vive en el analyzer (hoy solo Tasks) y crece cuando otra feature migra (paso 29.2). Los tests quedan fuera. Límite: no ve un handler pedido por service location ni un mensaje que llega en una variable de tipo object.");
+        description: "Pasos 29.1 y 29.2 (ADR-0004 punto 9): las slices HTTP de Tasks, Projects, Users y Auth son handlers de Wolverine y su endpoint les llega por el mediator. En backend/Features/<Feature>/<Slice>/*Endpoint.cs de esas features es error no llamar nunca a IMessageBus.InvokeAsync<T> (la forma genérica: sin <T> la respuesta se pierde), llamarlo más de una vez, despachar un mensaje cuyo tipo no está declarado en la carpeta de la misma slice, y recibir por parámetro o construir con new un tipo de la feature que tiene un método Handle (el handler): así el endpoint no puede saltear el middleware. La lista de features vive en el analyzer y crece cuando otra feature migra: Tasks desde el paso 29.1, y Projects, Users y Auth en el 29.2. Auth/IssueCsrfToken queda exento: no tiene caso de uso, solo escribe la cookie de antiforgery. Los tests quedan fuera. Límite: no ve un handler pedido por service location ni un mensaje que llega en una variable de tipo object.");
 }

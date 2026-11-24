@@ -12,7 +12,9 @@ namespace Dune.Analyzers;
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class MediatorEndpointAnalyzer : DiagnosticAnalyzer
 {
-    private static readonly string[] MediatorFeatures = { "Tasks" };
+    private static readonly string[] MediatorFeatures = { "Tasks", "Projects", "Users", "Auth" };
+
+    private static readonly string[] SlicesWithoutCommand = { "/Features/Auth/IssueCsrfToken/" };
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
         ImmutableArray.Create(DuneDiagnostics.MediatorEndpoint);
@@ -31,7 +33,8 @@ public sealed class MediatorEndpointAnalyzer : DiagnosticAnalyzer
         if (!DunePaths.IsSliceEndpoint(path)
             || DunePaths.IsTestsFile(path)
             || !DunePaths.TryGetFeature(path, out var feature)
-            || Array.IndexOf(MediatorFeatures, feature) < 0)
+            || Array.IndexOf(MediatorFeatures, feature) < 0
+            || SlicesWithoutCommand.Any(slice => path.IndexOf(slice, StringComparison.Ordinal) >= 0))
         {
             return;
         }

@@ -3,6 +3,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
 
 namespace Internal.Generated.WolverineHandlers
 {
@@ -12,12 +13,14 @@ namespace Internal.Generated.WolverineHandlers
     {
         private readonly Microsoft.Extensions.DependencyInjection.IServiceScopeFactory _serviceScopeFactory;
         private readonly Microsoft.Extensions.Logging.ILogger<TemplateApp.Features.Users.OrchestrateAccountClosure.AccountClosureSaga> _loggerOfAccountClosureSaga;
+        private readonly System.Collections.Generic.IEnumerable<Wolverine.EntityFrameworkCore.IDomainEventScraper> _domainEventScraperIEnumerable;
         private readonly System.TimeProvider _timeProvider;
 
-        public AccountClosureRejectedInfoHandler257058265(Microsoft.Extensions.DependencyInjection.IServiceScopeFactory serviceScopeFactory, Microsoft.Extensions.Logging.ILogger<TemplateApp.Features.Users.OrchestrateAccountClosure.AccountClosureSaga> loggerOfAccountClosureSaga, System.TimeProvider timeProvider)
+        public AccountClosureRejectedInfoHandler257058265(Microsoft.Extensions.DependencyInjection.IServiceScopeFactory serviceScopeFactory, Microsoft.Extensions.Logging.ILogger<TemplateApp.Features.Users.OrchestrateAccountClosure.AccountClosureSaga> loggerOfAccountClosureSaga, System.Collections.Generic.IEnumerable<Wolverine.EntityFrameworkCore.IDomainEventScraper> domainEventScraperIEnumerable, System.TimeProvider timeProvider)
         {
             _serviceScopeFactory = serviceScopeFactory;
             _loggerOfAccountClosureSaga = loggerOfAccountClosureSaga;
+            _domainEventScraperIEnumerable = domainEventScraperIEnumerable;
             _timeProvider = timeProvider;
         }
 
@@ -25,18 +28,14 @@ namespace Internal.Generated.WolverineHandlers
         {
             await using var serviceScope = _serviceScopeFactory.CreateAsyncScope();
             Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService<Wolverine.Runtime.ScopedMessageContextHolder>(serviceScope.ServiceProvider).Context = context;
-            
-            /*
-            * Concrete type TemplateApp.Features.Users.Persistence.UsersDbContext is not public, so requires service location
-            */
+            // This service has been marked as requiring service location independent of Wolverine's ability to use constructor injection of everything else
             var usersDbContext = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService<TemplateApp.Features.Users.Persistence.UsersDbContext>(serviceScope.ServiceProvider);
-            var domainEventScraperIEnumerable = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService<System.Collections.Generic.IEnumerable<Wolverine.EntityFrameworkCore.IDomainEventScraper>>(serviceScope.ServiceProvider);
             // The actual message body
             var accountClosureRejectedInfo = (TemplateApp.Features.Auth.Contracts.AccountClosureRejectedInfo)context.Envelope.Message;
 
             
             // Enroll the DbContext & IMessagingContext in the outgoing Wolverine outbox transaction
-            var efCoreEnvelopeTransaction = new Wolverine.EntityFrameworkCore.Internals.EfCoreEnvelopeTransaction(usersDbContext, context, domainEventScraperIEnumerable);
+            var efCoreEnvelopeTransaction = new Wolverine.EntityFrameworkCore.Internals.EfCoreEnvelopeTransaction(usersDbContext, context, _domainEventScraperIEnumerable);
             await context.EnlistInOutboxAsync(efCoreEnvelopeTransaction).ConfigureAwait(false);
             // Start the actual database transaction if one does not already exist
             if (usersDbContext.Database.CurrentTransaction == null)

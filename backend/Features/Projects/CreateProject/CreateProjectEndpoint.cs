@@ -1,6 +1,8 @@
 using System.Security.Claims;
+using ErrorOr;
 using TemplateApp.Infrastructure.Http;
 using TemplateApp.Shared.Http;
+using Wolverine;
 
 namespace TemplateApp.Features.Projects.CreateProject;
 
@@ -10,13 +12,14 @@ internal static class CreateProjectEndpoint
 
     private static async Task<IResult> HandleAsync(
         CreateProjectRequest request,
-        CreateProject slice,
+        IMessageBus bus,
         ClaimsPrincipal user,
         HttpContext http,
         LinkGenerator links,
         CancellationToken ct)
     {
-        var result = await slice.ExecuteAsync(user.GetCallerId(), request, ct);
+        var command = new CreateProjectCommand(user.GetCallerId(), request.Name);
+        var result = await bus.InvokeAsync<ErrorOr<ProjectResponse>>(command, ct);
         return ApiResults.ToResult(result, value => Results.Created(links.GetPathByName(http, ProjectEndpointNames.GetProject, new { id = value.Id }), value));
     }
 }
