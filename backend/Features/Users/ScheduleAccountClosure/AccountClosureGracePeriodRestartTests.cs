@@ -1,6 +1,8 @@
 using System.Diagnostics;
 using TemplateApp.Features.Users.DeleteUser;
-using TemplateApp.Tests.Support;
+using TemplateApp.Tests.Support.Bus;
+using TemplateApp.Tests.Support.Clients;
+using TemplateApp.Tests.Support.Hosts;
 using Xunit;
 
 namespace TemplateApp.Features.Users.ScheduleAccountClosure;

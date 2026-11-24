@@ -4,7 +4,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using TemplateApp.Features.Projects.Domain;
 using TemplateApp.Features.Projects.Persistence;
-using TemplateApp.Tests.Support;
+using TemplateApp.Tests.Support.Clients;
+using TemplateApp.Tests.Support.Hosts;
+using TemplateApp.Tests.Support.Rows;
 using Xunit;
 
 namespace TemplateApp.Features.Projects.CreateProject;

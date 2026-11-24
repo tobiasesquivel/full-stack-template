@@ -5,7 +5,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Npgsql;
 using TemplateApp.Infrastructure.Messaging;
-using TemplateApp.Tests.Support;
+using TemplateApp.Tests.Support.Faults;
+using TemplateApp.Tests.Support.Hosts;
+using TemplateApp.Tests.Support.Probes;
 using Xunit;
 
 namespace TemplateApp.Features.Health.GetReadiness;

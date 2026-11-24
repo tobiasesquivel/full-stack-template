@@ -4,7 +4,8 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using TemplateApp.Infrastructure.Persistence;
-using TemplateApp.Tests.Support;
+using TemplateApp.Tests.Support.Clients;
+using TemplateApp.Tests.Support.Hosts;
 using Xunit;
 
 namespace TemplateApp.Features.Auth.CheckSession;

@@ -10,6 +10,11 @@ using TemplateApp.Features.Tasks.Domain.Events;
 using TemplateApp.Features.Tasks.Persistence;
 using TemplateApp.Infrastructure.Messaging.Outbox;
 using TemplateApp.Tests.Support;
+using TemplateApp.Tests.Support.Clients;
+using TemplateApp.Tests.Support.Faults;
+using TemplateApp.Tests.Support.Hosts;
+using TemplateApp.Tests.Support.Probes;
+using TemplateApp.Tests.Support.Rows;
 using Xunit;
 
 namespace TemplateApp.Tests.Messaging;

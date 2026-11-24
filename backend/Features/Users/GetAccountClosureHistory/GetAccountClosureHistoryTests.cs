@@ -3,7 +3,8 @@ using System.Text.Json;
 using Npgsql;
 using TemplateApp.Features.Users.DeleteUser;
 using TemplateApp.Features.Users.ScheduleAccountClosure;
-using TemplateApp.Tests.Support;
+using TemplateApp.Tests.Support.Clients;
+using TemplateApp.Tests.Support.Hosts;
 using Xunit;
 
 namespace TemplateApp.Features.Users.GetAccountClosureHistory;

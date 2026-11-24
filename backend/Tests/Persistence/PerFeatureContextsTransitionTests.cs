@@ -7,7 +7,8 @@ using Npgsql;
 using TemplateApp.Features.Projects.Domain;
 using TemplateApp.Features.Projects.Persistence;
 using TemplateApp.Infrastructure.Persistence;
-using TemplateApp.Tests.Support;
+using TemplateApp.Tests.Support.Hosts;
+using TemplateApp.Tests.Support.Rows;
 using Xunit;
 
 namespace TemplateApp.Tests.Persistence;

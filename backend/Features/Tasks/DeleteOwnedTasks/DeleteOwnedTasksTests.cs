@@ -3,6 +3,10 @@ using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using TemplateApp.Infrastructure.Messaging;
 using TemplateApp.Tests.Support;
+using TemplateApp.Tests.Support.Clients;
+using TemplateApp.Tests.Support.Faults;
+using TemplateApp.Tests.Support.Hosts;
+using TemplateApp.Tests.Support.Rows;
 using Xunit;
 
 namespace TemplateApp.Features.Tasks.DeleteOwnedTasks;

@@ -1,6 +1,9 @@
 using System.Diagnostics;
-using Testcontainers.RabbitMq;
 using TemplateApp.Tests.Support;
+using TemplateApp.Tests.Support.Clients;
+using TemplateApp.Tests.Support.Hosts;
+using TemplateApp.Tests.Support.Rows;
+using Testcontainers.RabbitMq;
 using Xunit;
 
 namespace TemplateApp.Tests.Messaging;

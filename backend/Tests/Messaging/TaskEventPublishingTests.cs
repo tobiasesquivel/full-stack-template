@@ -1,6 +1,9 @@
 using System.Text;
 using RabbitMQ.Client;
 using TemplateApp.Tests.Support;
+using TemplateApp.Tests.Support.Clients;
+using TemplateApp.Tests.Support.Hosts;
+using TemplateApp.Tests.Support.Rows;
 using Xunit;
 
 namespace TemplateApp.Tests.Messaging;

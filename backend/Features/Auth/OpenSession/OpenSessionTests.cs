@@ -1,6 +1,8 @@
 using System.Net;
 using System.Text.Json;
-using TemplateApp.Tests.Support;
+using TemplateApp.Tests.Support.Clients;
+using TemplateApp.Tests.Support.Hosts;
+using TemplateApp.Tests.Support.Probes;
 using Xunit;
 
 namespace TemplateApp.Features.Auth.OpenSession;

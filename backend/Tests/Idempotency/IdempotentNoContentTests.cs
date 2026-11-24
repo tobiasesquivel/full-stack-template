@@ -2,7 +2,9 @@ using System.Net;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using TemplateApp.Features.Users.DeleteUser;
-using TemplateApp.Tests.Support;
+using TemplateApp.Tests.Support.Clients;
+using TemplateApp.Tests.Support.Hosts;
+using TemplateApp.Tests.Support.Probes;
 using Xunit;
 
 namespace TemplateApp.Tests.Idempotency;
