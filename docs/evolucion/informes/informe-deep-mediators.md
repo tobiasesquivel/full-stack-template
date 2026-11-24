@@ -1,8 +1,8 @@
 # Informe: módulos deep/shallow y mediators/buses en .NET
 
-> **Nota 2026-10-16**: investigación conservada como referencia. [ADR-0004](../adr/0004-vertical-slices-deep-modules.md) reemplaza sus recomendaciones de diseño: ya no rige "ya está aplicado (no tocar)" ni "no partir `TasksModule`". Cada slice pasa a ser una clase propia. Las citas a OpenSpec y las líneas de código citadas pueden estar desactualizadas.
+> **Nota 2026-10-16**: investigación conservada como referencia. [ADR-0004](../../adr/0004-vertical-slices-deep-modules.md) reemplaza sus recomendaciones de diseño: ya no rige "ya está aplicado (no tocar)" ni "no partir `TasksModule`". Cada slice pasa a ser una clase propia. Las citas a OpenSpec y las líneas de código citadas pueden estar desactualizadas.
 
-> **Nota 2026-11-23 (paso 29.1)**: la conclusión de este informe ("no adoptar mediator ni bus") ya no rige. Desde el paso 25 el repo usa Wolverine como bus, y desde el paso 29.1 también como mediator: las slices HTTP de Tasks son handlers de Wolverine y su endpoint les despacha el comando con `IMessageBus.InvokeAsync<T>`. Lo decidió Tobi para aprender el patrón ([ADR-0004](../adr/0004-vertical-slices-deep-modules.md), punto 9, y [paso-29-1-wolverine-mediator.md](investigacion/paso-29-1-wolverine-mediator.md)). El análisis de módulos profundos sigue valiendo.
+> **Nota 2026-11-23 (paso 29.1)**: la conclusión de este informe ("no adoptar mediator ni bus") ya no rige. Desde el paso 25 el repo usa Wolverine como bus, y desde el paso 29.1 también como mediator: las slices HTTP de Tasks son handlers de Wolverine y su endpoint les despacha el comando con `IMessageBus.InvokeAsync<T>`. Lo decidió Tobi para aprender el patrón ([ADR-0004](../../adr/0004-vertical-slices-deep-modules.md), punto 9, y [paso-29-1-wolverine-mediator.md](../investigacion/paso-29-1-wolverine-mediator.md)). El análisis de módulos profundos sigue valiendo.
 
 **Alcance**: solo lectura. No modifiqué archivos, no compilé, no ejecuté gates. Leí el código y la documentación de este repo, las skills locales y fuentes web primarias. Al final está la lista exacta de lo verificado y lo no verificado.
 
