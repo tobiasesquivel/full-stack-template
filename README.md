@@ -88,29 +88,29 @@ Desde la raíz:
 
 ```sh
 dotnet build TemplateApp.slnx --configuration Release
-node dune/check-codegen.mjs --release
-node --test dune/check-codegen.test.mjs
-node dune/check-host-items.mjs
-node --test dune/check-host-items.test.mjs
+node dune/gates/check-codegen.mjs --release
+node --test dune/gates/check-codegen.test.mjs
+node dune/gates/check-host-items.mjs
+node --test dune/gates/check-host-items.test.mjs
 dotnet test TemplateApp.slnx --configuration Release
 dotnet run --project dune/Dune.CommentVerifier -- --root .
-node dune/check-structure.mjs
-node --test dune/check-structure.test.mjs
-node dune/check-secrets.mjs
-node --test dune/check-secrets.test.mjs
+node dune/gates/check-structure.mjs
+node --test dune/gates/check-structure.test.mjs
+node dune/gates/check-secrets.mjs
+node --test dune/gates/check-secrets.test.mjs
 node --test .agents/skills/verify-template/scripts/check-otel-export.test.mjs
 dotnet restore TemplateApp.slnx --force "-warnaserror:NU1903;NU1904"
 npm ci --prefix frontend
 npm audit --prefix frontend --omit=dev --audit-level=high
-node dune/check-comments.mjs --root .
-node --test dune/check-comments.test.mjs
-node dune/check-runbooks.mjs
-node --test dune/check-runbooks.test.mjs
+node dune/gates/check-comments.mjs --root .
+node --test dune/gates/check-comments.test.mjs
+node dune/gates/check-runbooks.mjs
+node --test dune/gates/check-runbooks.test.mjs
 docker run --rm --entrypoint promtool --volume "$PWD/deploy/prometheus:/etc/prometheus:ro" prom/prometheus:v3.13.5 check config --lint-fatal /etc/prometheus/prometheus.yml
 docker run --rm --entrypoint promtool --volume "$PWD/deploy/prometheus:/etc/prometheus:ro" prom/prometheus:v3.13.5 test rules /etc/prometheus/rules/slo-api.test.yml
 ```
 
-Backend usa Microsoft Testing Platform (MTP): `dotnet test` ejecuta el runner MTP de `backend/Tests/TemplateApp.Tests.csproj` y de `dune/Dune.Analyzers.Tests/Dune.Analyzers.Tests.csproj` (xunit.v3). No hay `vstest` ni adaptador clásico; los proyectos Dune viven bajo `dune/`, no bajo `backend/`. La política MSBuild central vive en `dune/Dune.props`; `Directory.Build.props` solo la importa. Los símbolos prohibidos viven en `dune/BannedSymbols.txt`.
+Backend usa Microsoft Testing Platform (MTP): `dotnet test` ejecuta el runner MTP de `backend/Tests/TemplateApp.Tests.csproj` y de `dune/Dune.Analyzers.Tests/Dune.Analyzers.Tests.csproj` (xunit.v3). No hay `vstest` ni adaptador clásico; los proyectos Dune viven bajo `dune/`, no bajo `backend/`, y los gates de Node con sus tests, en `dune/gates/`. La política MSBuild central vive en `dune/Dune.props`; `Directory.Build.props` solo la importa. Los símbolos prohibidos viven en `dune/BannedSymbols.txt`.
 
 `npm run format:check` corre `prettier --check .` con `frontend/.prettierrc`: falla si un archivo del frontend no tiene el formato de Prettier. `npm run format` lo arregla. El frontend tiene una suite de Vitest con jsdom: funciones puras y componentes de presentación, cada spec junto a su archivo (`*.spec.ts`). No reemplaza la prueba en el navegador contra la API: registro, login, restauración tras recargar, perfil, tareas y logout. Desde `frontend`, compilá, corré la suite y el gate:
 
@@ -118,8 +118,8 @@ Backend usa Microsoft Testing Platform (MTP): `dotnet test` ejecuta el runner MT
 npm run build
 npm run format:check
 npm test -- --watch=false
-node --test ../dune/check-frontend.test.mjs
-node ../dune/check-frontend.mjs --root ..
+node --test ../dune/gates/check-frontend.test.mjs
+node ../dune/gates/check-frontend.mjs --root ..
 ```
 
 Para levantar una instancia aislada y probar la API real, usá la skill `verify-template` ([SKILL.md](.agents/skills/verify-template/SKILL.md)): `launch`, `doctor`, `api` y `cleanup`. `launch` arranca la API con un período de gracia de 20 segundos y recordatorios a los 5 y 10, para que el smoke y las e2e vean el cierre completo. Con el conjunto Docker iniciado, el escenario HTTP también corre directo desde la raíz; el smoke cierra cuentas de punta a punta y falla si el período de gracia pasa de 2 minutos, así que levantá Compose con `ACCOUNT_CLOSURE_GRACE_SECONDS=20`, `ACCOUNT_CLOSURE_FIRST_REMINDER_SECONDS=5` y `ACCOUNT_CLOSURE_SECOND_REMINDER_SECONDS=10`, como hace el job `compose` de CI:

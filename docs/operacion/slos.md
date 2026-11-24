@@ -79,7 +79,7 @@ Alertas multiventana de burn rate, la forma que recomienda el SRE Workbook de Go
 ## Cómo se prueba
 
 - `promtool test rules deploy/prometheus/rules/slo-api.test.yml`: series sintéticas prueban que la caída total pagina, que una instancia nueva que solo responde 5xx también, que un pico corto no, que una quema media pagina por la ventana de 6h, que las quemas lentas abren ticket por la de 1d y por la de 3d, que los 503 de readiness, los 4xx y los 429 no cuentan, y que los requests lentos disparan la alerta de latencia.
-- `node dune/check-runbooks.mjs`: toda alerta enlaza su runbook, el runbook existe y tiene sus secciones, y no hay runbooks huérfanos.
+- `node dune/gates/check-runbooks.mjs`: toda alerta enlaza su runbook, el runbook existe y tiene sus secciones, y no hay runbooks huérfanos.
 - `node .agents/skills/verify-template/scripts/check-slo-alerts.mjs`: con el stack de Compose arriba, consulta cada SLI en Prometheus, manda 200 requests sanos, congela la base para producir requests lentos y la para para producir 5xx, y espera cada alerta en `firing`.
 
 Revisión: 2027-05-17, o antes si cambia el tráfico.
