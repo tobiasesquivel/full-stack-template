@@ -86,7 +86,25 @@ public static class DunePaths
     public static bool IsMessageNamesFile(string normalizedPath, string feature)
     {
         var segments = FeatureSegments(normalizedPath, feature);
-        return segments.Length == 2 && segments[0].Equals(MessageNamesFolder, StringComparison.Ordinal);
+        return segments.Length >= 2 && segments[0].Equals(MessageNamesFolder, StringComparison.Ordinal);
+    }
+
+    public static bool TryGetTechnicalFolder(string normalizedPath, out string folder)
+    {
+        folder = string.Empty;
+        if (!TryGetFeature(normalizedPath, out var feature))
+        {
+            return false;
+        }
+
+        var segments = FeatureSegments(normalizedPath, feature);
+        if (segments.Length < 2 || !IsFeatureFolder(segments[0]))
+        {
+            return false;
+        }
+
+        folder = segments[0];
+        return true;
     }
 
     public static bool IsEndpointFile(string normalizedPath, string fileName)

@@ -8,11 +8,17 @@ namespace Dune.Analyzers.Tests;
 
 public sealed class BusNameAnalyzerTests
 {
-    private const string Messaging = """
+    private const string Services = """
         namespace Stub.DependencyInjection
         {
-            public interface IServices { }
+            public interface IServices
+            {
+                IServices AddSingleton(object instance);
+            }
         }
+        """;
+
+    private const string Registrations = """
         namespace TemplateApp.Infrastructure.Messaging
         {
             using Stub.DependencyInjection;
@@ -20,7 +26,8 @@ public sealed class BusNameAnalyzerTests
             {
                 public static IServices AddIntegrationEventPublication<TEvent>(this IServices services, string name, int version, string exchange) => services;
                 public static IServices AddIntegrationEventHandler<TEvent, THandler>(this IServices services, string name, int version, string exchange, string queue) => services;
-                public static IServices AddRetiredBinding(this IServices services, string exchange, string routingKey, string queue) => services;
+                public static IServices AddIntegrationCommand<TCommand>(this IServices services, string name, int version, string exchange) => services;
+                public static IServices AddSagaMessage<TMessage>(this IServices services, string name, int version, string exchange, string queue) => services;
                 public static IServices AddMessaging(this IServices services, string queue) => services;
             }
         }
@@ -32,11 +39,37 @@ public sealed class BusNameAnalyzerTests
                 public static IServices AddOutboxEvent<TEvent>(this IServices services, string name, int version) => services;
             }
         }
+        namespace TemplateApp.Infrastructure.Messaging.Bus
+        {
+            public sealed record RetiredBinding(string Exchange, string RoutingKey, string Queue);
+        }
+        """;
+
+    private const string RetiredBindingRegistration = """
+        namespace TemplateApp.Infrastructure.Messaging.Bus
+        {
+            using Stub.DependencyInjection;
+            public static class RetiredBindingRegistration
+            {
+                public static IServices AddRetiredBinding(this IServices services, string exchange, string routingKey, string queue) => services;
+            }
+        }
+        """;
+
+    private const string RetiredBindingMovedOut = """
+        namespace TemplateApp.Infrastructure.Topology
+        {
+            using Stub.DependencyInjection;
+            public static class RetiredBindingRegistration
+            {
+                public static IServices AddRetiredBinding(this IServices services, string exchange, string routingKey, string queue) => services;
+            }
+        }
         """;
 
     private const string TaskEvents = """
         namespace TemplateApp.Features.Tasks.MessageNames;
-        internal static class TaskEvents
+        internal static partial class TaskEvents
         {
             public const string Exchange = "tasks.task-events";
             public const string Created = "tasks.task-created";
@@ -61,10 +94,11 @@ public sealed class BusNameAnalyzerTests
         }
         """;
 
-    private const string Events = """
+    private const string Messages = """
         namespace TemplateApp.Features.Tasks;
         internal sealed record TaskCreated;
         internal sealed record TaskCreatedIntegrationEvent;
+        internal sealed record HoldOwnerTasksIntegrationCommand;
         internal sealed class TaskEventsConsumer { }
         """;
 
@@ -76,6 +110,7 @@ public sealed class BusNameAnalyzerTests
                 using Stub.DependencyInjection;
                 using TemplateApp.Features.Tasks.MessageNames;
                 using TemplateApp.Infrastructure.Messaging;
+                using TemplateApp.Infrastructure.Messaging.Bus;
                 using TemplateApp.Infrastructure.Messaging.Outbox;
                 namespace TemplateApp.Features.Tasks;
                 internal static class TasksFeature
@@ -85,7 +120,10 @@ public sealed class BusNameAnalyzerTests
                         services.AddOutboxEvent<TaskCreated>(TaskEvents.Created, TaskEvents.Version);
                         services.AddIntegrationEventPublication<TaskCreatedIntegrationEvent>(TaskEvents.Created, TaskEvents.Version, TaskEvents.Exchange);
                         services.AddIntegrationEventHandler<TaskCreatedIntegrationEvent, TaskEventsConsumer>(TaskEvents.Created, TaskEvents.Version, TaskEvents.Exchange, OwnerTombstones.Consumer);
+                        services.AddIntegrationCommand<HoldOwnerTasksIntegrationCommand>(TaskEvents.Created, TaskEvents.Version, TaskEvents.Exchange);
+                        services.AddSagaMessage<TaskCreatedIntegrationEvent>(TaskEvents.Created, TaskEvents.Version, TaskEvents.Exchange, OwnerTombstones.Consumer);
                         services.AddRetiredBinding(UserEvents.Exchange, UserEvents.AccountClosureRequested, OwnerTombstones.Consumer);
+                        services.AddSingleton(new RetiredBinding(UserEvents.Exchange, UserEvents.AccountClosureRequested, "tasks.anything"));
                         return services.AddMessaging("tasks.anything");
                     }
                 }
@@ -95,7 +133,7 @@ public sealed class BusNameAnalyzerTests
     }
 
     [Fact]
-    public async Task ALiteral_OrAConstantOutsideTheFeaturesMessageNames_IsRejected()
+    public async Task ALiteral_AnExplicitConversion_OrAConstantOutsideTheFeaturesMessageNames_IsRejected()
     {
         var diagnostics = await AnalyzeAsync(
             ("backend/Features/Tasks/LegacyEvents.cs", """
@@ -103,6 +141,13 @@ public sealed class BusNameAnalyzerTests
                 internal static class LegacyEvents
                 {
                     public const string Deleted = "tasks.task-deleted";
+                }
+                """),
+            ("backend/Features/Tasks/TaskEventsRoot.cs", """
+                namespace TemplateApp.Features.Tasks.MessageNames;
+                internal static partial class TaskEvents
+                {
+                    public const string Reopened = "tasks.task-reopened";
                 }
                 """),
             ("backend/Features/Users/MessageNames/UserEvents.cs", """
@@ -116,6 +161,7 @@ public sealed class BusNameAnalyzerTests
                 using Stub.DependencyInjection;
                 using TemplateApp.Features.Tasks.MessageNames;
                 using TemplateApp.Infrastructure.Messaging;
+                using TemplateApp.Infrastructure.Messaging.Bus;
                 using TemplateApp.Infrastructure.Messaging.Outbox;
                 namespace TemplateApp.Features.Tasks;
                 internal static class TasksFeature
@@ -125,6 +171,9 @@ public sealed class BusNameAnalyzerTests
                     {
                         services.AddOutboxEvent<TaskCreated>("tasks.task-created", LocalVersion);
                         services.AddIntegrationEventPublication<TaskCreatedIntegrationEvent>(LegacyEvents.Deleted, 1, TemplateApp.Features.Users.MessageNames.UserEvents.Exchange);
+                        services.AddIntegrationCommand<HoldOwnerTasksIntegrationCommand>(TaskEvents.Reopened, unchecked((byte)TaskEvents.Version), TaskEvents.Exchange);
+                        services.AddSagaMessage<TaskCreatedIntegrationEvent>(TaskEvents.Created, TaskEvents.Version, "tasks.task-events", OwnerTombstones.Consumer);
+                        services.AddSingleton(new RetiredBinding("tasks.task-events", TaskEvents.Created, "tasks.anything"));
                         return services.AddRetiredBinding(exchange: TaskEvents.Exchange, routingKey: TaskEvents.Created + "-v2", queue: "tasks.anything");
                     }
                 }
@@ -133,18 +182,22 @@ public sealed class BusNameAnalyzerTests
         Assert.Equal(
             new[]
             {
-                ("backend/Features/Tasks/TasksFeature.cs", 11),
-                ("backend/Features/Tasks/TasksFeature.cs", 11),
-                ("backend/Features/Tasks/TasksFeature.cs", 12),
                 ("backend/Features/Tasks/TasksFeature.cs", 12),
                 ("backend/Features/Tasks/TasksFeature.cs", 12),
                 ("backend/Features/Tasks/TasksFeature.cs", 13),
+                ("backend/Features/Tasks/TasksFeature.cs", 13),
+                ("backend/Features/Tasks/TasksFeature.cs", 13),
+                ("backend/Features/Tasks/TasksFeature.cs", 14),
+                ("backend/Features/Tasks/TasksFeature.cs", 14),
+                ("backend/Features/Tasks/TasksFeature.cs", 15),
+                ("backend/Features/Tasks/TasksFeature.cs", 16),
+                ("backend/Features/Tasks/TasksFeature.cs", 17),
             },
             Locations(diagnostics));
     }
 
     [Fact]
-    public async Task MessageNames_HoldsOnlyStaticClassesOfConstants()
+    public async Task MessageNames_HoldsOnlyTopLevelStaticClassesOfConstants_InEverySubfolder()
     {
         var diagnostics = await AnalyzeAsync(
             ("backend/Features/Tasks/MessageNames/TaskCommands.cs", """
@@ -155,9 +208,9 @@ public sealed class BusNameAnalyzerTests
                     public static readonly string HoldOwnerTasks = "tasks.hold-owner-tasks";
                 }
                 """),
-            ("backend/Features/Tasks/MessageNames/HoldOwnerTasksIntegrationCommand.cs", """
+            ("backend/Features/Tasks/MessageNames/HoldOwnerTasksCommand.cs", """
                 namespace TemplateApp.Features.Tasks.MessageNames;
-                internal sealed record HoldOwnerTasksIntegrationCommand(string OwnerId);
+                internal sealed record HoldOwnerTasksCommand(string OwnerId);
                 """),
             ("backend/Features/Tasks/MessageNames/QueueNames.cs", """
                 namespace TemplateApp.Features.Tasks.MessageNames;
@@ -173,6 +226,13 @@ public sealed class BusNameAnalyzerTests
                     public static string Send() => TaskEvents.Created;
                 }
                 """),
+            ("backend/Features/Tasks/MessageNames/Legacy/Worker.cs", """
+                namespace TemplateApp.Features.Tasks.MessageNames.Legacy;
+                internal sealed class Worker
+                {
+                    public string Run() => "work";
+                }
+                """),
             ("backend/Features/Tasks/TasksFeature.cs", """
                 using Stub.DependencyInjection;
                 using TemplateApp.Features.Tasks.MessageNames;
@@ -188,7 +248,8 @@ public sealed class BusNameAnalyzerTests
         Assert.Equal(
             new[]
             {
-                ("backend/Features/Tasks/MessageNames/HoldOwnerTasksIntegrationCommand.cs", 2),
+                ("backend/Features/Tasks/MessageNames/HoldOwnerTasksCommand.cs", 2),
+                ("backend/Features/Tasks/MessageNames/Legacy/Worker.cs", 2),
                 ("backend/Features/Tasks/MessageNames/MessageNamesEndpoint.cs", 2),
                 ("backend/Features/Tasks/MessageNames/QueueNames.cs", 2),
                 ("backend/Features/Tasks/MessageNames/TaskCommands.cs", 2),
@@ -197,55 +258,42 @@ public sealed class BusNameAnalyzerTests
     }
 
     [Fact]
-    public async Task WithMessageNamesAndNoBusRegistration_TheRuleSaysItWentBlind()
+    public async Task WhenOneRegistrationMovesOutOfMessaging_TheRuleSaysItWentBlindForThatOne()
     {
-        var diagnostics = await AnalyzeAsync(
-            ("backend/Features/Tasks/TasksFeature.cs", """
-                using Stub.DependencyInjection;
-                using TemplateApp.Features.Tasks.MessageNames;
-                using TemplateApp.Infrastructure.Bus;
-                namespace TemplateApp.Features.Tasks;
-                internal static class TasksFeature
-                {
-                    public static IServices AddTasksFeature(this IServices services) =>
-                        services.AddMovedOutboxEvent<TaskCreated>(TaskEvents.Created, TaskEvents.Version);
-                }
-                """),
-            ("backend/Infrastructure/Bus/MovedRegistration.cs", """
-                using Stub.DependencyInjection;
-                namespace TemplateApp.Infrastructure.Bus;
-                public static class MovedRegistration
-                {
-                    public static IServices AddMovedOutboxEvent<TEvent>(this IServices services, string name, int version) => services;
-                }
-                """));
-
-        Assert.Equal(new[] { (string.Empty, 0) }, Locations(diagnostics));
-    }
-
-    [Fact]
-    public async Task TestsMayNameTheBusWithLiterals()
-    {
-        var diagnostics = await AnalyzeAsync(
-            ("backend/Tests/Messaging/RetiredBindingsTests.cs", """
-                using Stub.DependencyInjection;
-                using TemplateApp.Infrastructure.Messaging;
-                namespace TemplateApp.Tests.Messaging;
-                internal static class RetiredBindingsTests
-                {
-                    public static IServices Arrange(IServices services) =>
-                        services.AddRetiredBinding("tasks.task-events", "tasks.task-created", "tests.queue");
-                }
-                """),
+        var diagnostics = await AnalyzeWithAsync(
+            RetiredBindingMovedOut,
             ("backend/Features/Tasks/TasksFeature.cs", """
                 using Stub.DependencyInjection;
                 using TemplateApp.Features.Tasks.MessageNames;
                 using TemplateApp.Infrastructure.Messaging.Outbox;
+                using TemplateApp.Infrastructure.Topology;
                 namespace TemplateApp.Features.Tasks;
                 internal static class TasksFeature
                 {
-                    public static IServices AddTasksFeature(this IServices services) =>
+                    public static IServices AddTasksFeature(this IServices services)
+                    {
                         services.AddOutboxEvent<TaskCreated>(TaskEvents.Created, TaskEvents.Version);
+                        return services.AddRetiredBinding("tasks.task-events", "tasks.task-created", "tasks.anything");
+                    }
+                }
+                """));
+
+        Assert.Equal(new[] { (string.Empty, 0) }, Locations(diagnostics));
+        Assert.Contains("AddRetiredBinding", diagnostics.Single(diagnostic => diagnostic.Id == "DUNE0030").GetMessage(), System.StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ASliceTestMayNameTheBusWithLiterals()
+    {
+        var diagnostics = await AnalyzeAsync(
+            ("backend/Features/Tasks/CreateTask/CreateTaskTests.cs", """
+                using Stub.DependencyInjection;
+                using TemplateApp.Infrastructure.Messaging.Bus;
+                namespace TemplateApp.Features.Tasks.CreateTask;
+                internal static class CreateTaskTests
+                {
+                    public static IServices Arrange(IServices services) =>
+                        services.AddRetiredBinding("tasks.task-events", "tasks.task-created", "tests.queue");
                 }
                 """));
 
@@ -254,14 +302,21 @@ public sealed class BusNameAnalyzerTests
 
     private static Task<System.Collections.Immutable.ImmutableArray<Diagnostic>> AnalyzeAsync(
         params (string Path, string Source)[] files) =>
+        AnalyzeWithAsync(RetiredBindingRegistration, files);
+
+    private static Task<System.Collections.Immutable.ImmutableArray<Diagnostic>> AnalyzeWithAsync(
+        string retiredBinding,
+        params (string Path, string Source)[] files) =>
         AnalyzerHost.AnalyzeAsync(
             new List<(string, string)>(files)
             {
-                ("packages/Messaging.cs", Messaging),
+                ("packages/Services.cs", Services),
+                ("packages/Messaging.cs", Registrations),
+                ("packages/RetiredBinding.cs", retiredBinding),
                 ("backend/Features/Tasks/MessageNames/TaskEvents.cs", TaskEvents),
                 ("backend/Features/Tasks/MessageNames/UserEvents.cs", UserEvents),
                 ("backend/Features/Tasks/OwnerTombstones.cs", OwnerTombstones),
-                ("backend/Features/Tasks/Events.cs", Events),
+                ("backend/Features/Tasks/Messages.cs", Messages),
             },
             AnalyzerHost.Only<BusNameAnalyzer>());
 

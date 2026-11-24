@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
@@ -15,6 +16,16 @@ public sealed class BusNameAnalyzer : DiagnosticAnalyzer
     private const string MessagingNamespace = "TemplateApp.Infrastructure.Messaging";
     private static readonly string[] NameParameters = { "name", "version", "exchange", "routingKey" };
 
+    private static readonly string[] Registrations =
+    {
+        "AddOutboxEvent",
+        "AddIntegrationEventPublication",
+        "AddIntegrationEventHandler",
+        "AddIntegrationCommand",
+        "AddSagaMessage",
+        "AddRetiredBinding",
+    };
+
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
         ImmutableArray.Create(DuneDiagnostics.BusNameOutsideMessageNames);
 
@@ -25,16 +36,19 @@ public sealed class BusNameAnalyzer : DiagnosticAnalyzer
         context.RegisterCompilationStartAction(start =>
         {
             var findings = new ConcurrentBag<Diagnostic>();
-            var registrations = 0;
             var messageNamesFiles = 0;
 
             start.RegisterOperationAction(operation =>
             {
-                if (AnalyzeRegistration((IInvocationOperation)operation.Operation, findings))
+                if (operation.Operation is IInvocationOperation invocation)
                 {
-                    Interlocked.Increment(ref registrations);
+                    AnalyzeArguments(invocation.TargetMethod, invocation.Arguments, invocation.Syntax, findings);
                 }
-            }, OperationKind.Invocation);
+                else if (operation.Operation is IObjectCreationOperation { Constructor: { } constructor } creation)
+                {
+                    AnalyzeArguments(constructor, creation.Arguments, creation.Syntax, findings);
+                }
+            }, OperationKind.Invocation, OperationKind.ObjectCreation);
 
             start.RegisterSymbolAction(symbol =>
             {
@@ -51,31 +65,39 @@ public sealed class BusNameAnalyzer : DiagnosticAnalyzer
                     end.ReportDiagnostic(finding);
                 }
 
-                if (messageNamesFiles > 0 && registrations == 0)
+                if (messageNamesFiles == 0)
+                {
+                    return;
+                }
+
+                var known = KnownRegistrations(end.Compilation);
+                foreach (var missing in Registrations.Where(registration => !known.Contains(registration)))
                 {
                     end.ReportDiagnostic(Diagnostic.Create(
                         DuneDiagnostics.BusNameOutsideMessageNames,
                         Location.None,
-                        MessagingNamespace,
-                        "no tiene ningún registro del bus en las features aunque hay MessageNames/: si los registros se mudaron, la regla quedó ciega"));
+                        missing,
+                        "no está en " + MessagingNamespace + " con un parámetro name, version, exchange o routingKey: la regla quedó ciega para ese registro"));
                 }
             });
         });
     }
 
-    private static bool AnalyzeRegistration(IInvocationOperation invocation, ConcurrentBag<Diagnostic> findings)
+    private static void AnalyzeArguments(
+        IMethodSymbol method,
+        ImmutableArray<IArgumentOperation> arguments,
+        SyntaxNode syntax,
+        ConcurrentBag<Diagnostic> findings)
     {
-        var path = DunePaths.Normalize(invocation.Syntax.SyntaxTree.FilePath);
-        var method = invocation.TargetMethod;
+        var path = DunePaths.Normalize(syntax.SyntaxTree.FilePath);
         if (!IsChecked(path)
             || !DunePaths.TryGetFeature(path, out var feature)
-            || !DuneSymbols.InNamespace(method.ContainingType, MessagingNamespace)
-            || !method.Parameters.Any(IsNameParameter))
+            || !IsBusMember(method))
         {
-            return false;
+            return;
         }
 
-        foreach (var argument in invocation.Arguments.Where(argument => argument.Parameter is { } parameter && IsNameParameter(parameter)))
+        foreach (var argument in arguments.Where(argument => argument.Parameter is { } parameter && IsNameParameter(parameter)))
         {
             if (!IsMessageNameConstant(argument.Value, feature))
             {
@@ -83,11 +105,9 @@ public sealed class BusNameAnalyzer : DiagnosticAnalyzer
                     DuneDiagnostics.BusNameOutsideMessageNames,
                     argument.Syntax.GetLocation(),
                     argument.Syntax.ToString(),
-                    "en " + method.Name + " no es una constante de Features/" + feature + "/" + DunePaths.MessageNamesFolder + "/"));
+                    "en " + method.ContainingType.Name + "." + method.Name + " no es una constante de Features/" + feature + "/" + DunePaths.MessageNamesFolder + "/"));
             }
         }
-
-        return true;
     }
 
     private static bool AnalyzeMessageNames(INamedTypeSymbol type, ConcurrentBag<Diagnostic> findings)
@@ -95,7 +115,6 @@ public sealed class BusNameAnalyzer : DiagnosticAnalyzer
         var location = type.Locations.FirstOrDefault(candidate => candidate.IsInSource);
         var path = DunePaths.Normalize(location?.SourceTree?.FilePath);
         if (location is null
-            || type.ContainingType is not null
             || !IsChecked(path)
             || !DunePaths.TryGetFeature(path, out var feature)
             || !DunePaths.IsMessageNamesFile(path, feature))
@@ -103,7 +122,8 @@ public sealed class BusNameAnalyzer : DiagnosticAnalyzer
             return false;
         }
 
-        var onlyConstants = type.TypeKind == TypeKind.Class
+        var onlyConstants = type.ContainingType is null
+            && type.TypeKind == TypeKind.Class
             && type.IsStatic
             && type.GetMembers().Where(member => !member.IsImplicitlyDeclared).All(member => member is IFieldSymbol { IsConst: true });
         if (!onlyConstants)
@@ -112,7 +132,7 @@ public sealed class BusNameAnalyzer : DiagnosticAnalyzer
                 DuneDiagnostics.BusNameOutsideMessageNames,
                 location,
                 type.Name,
-                "vive en " + DunePaths.MessageNamesFolder + "/ y no es una clase estática solo con constantes"));
+                "vive en " + DunePaths.MessageNamesFolder + "/ y no es una clase estática de primer nivel solo con constantes"));
         }
 
         return true;
@@ -120,13 +140,14 @@ public sealed class BusNameAnalyzer : DiagnosticAnalyzer
 
     private static bool IsMessageNameConstant(IOperation value, string feature)
     {
-        while (value is IConversionOperation conversion)
+        while (value is IConversionOperation { IsImplicit: true } conversion)
         {
             value = conversion.Operand;
         }
 
         return value is IFieldReferenceOperation { Field: { IsConst: true } field }
-            && field.ContainingType.DeclaringSyntaxReferences.Any(reference =>
+            && field.DeclaringSyntaxReferences.Length > 0
+            && field.DeclaringSyntaxReferences.All(reference =>
             {
                 var declared = DunePaths.Normalize(reference.SyntaxTree.FilePath);
                 return DunePaths.TryGetFeature(declared, out var owner)
@@ -135,8 +156,44 @@ public sealed class BusNameAnalyzer : DiagnosticAnalyzer
             });
     }
 
+    private static HashSet<string> KnownRegistrations(Compilation compilation)
+    {
+        var known = new HashSet<string>(StringComparer.Ordinal);
+        var root = compilation.GlobalNamespace;
+        foreach (var part in MessagingNamespace.Split('.'))
+        {
+            root = root?.GetNamespaceMembers().FirstOrDefault(member => member.Name.Equals(part, StringComparison.Ordinal));
+        }
+
+        if (root is not null)
+        {
+            CollectRegistrations(root, known);
+        }
+
+        return known;
+    }
+
+    private static void CollectRegistrations(INamespaceOrTypeSymbol container, HashSet<string> known)
+    {
+        foreach (var member in container.GetMembers())
+        {
+            if (member is INamespaceOrTypeSymbol nested)
+            {
+                CollectRegistrations(nested, known);
+            }
+            else if (member is IMethodSymbol method && method.Parameters.Any(IsNameParameter))
+            {
+                known.Add(method.Name);
+            }
+        }
+    }
+
+    private static bool IsBusMember(IMethodSymbol method) =>
+        DuneSymbols.InNamespace(method.ContainingType, MessagingNamespace)
+        && method.Parameters.Any(IsNameParameter);
+
     private static bool IsNameParameter(IParameterSymbol parameter) =>
-        Array.IndexOf(NameParameters, parameter.Name) >= 0;
+        NameParameters.Any(name => name.Equals(parameter.Name, StringComparison.OrdinalIgnoreCase));
 
     private static bool IsChecked(string path) =>
         DunePaths.IsBackendFile(path) && !DunePaths.IsMigration(path) && !DunePaths.IsTestsFile(path);

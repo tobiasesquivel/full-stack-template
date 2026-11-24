@@ -160,6 +160,31 @@ public sealed class ApiRouteAnalyzerTests
         Assert.Equal(new[] { 8, 9, 10, 11, 12, 13 }, Lines(diagnostics));
     }
 
+    [Theory]
+    [InlineData("Access")]
+    [InlineData("MessageNames")]
+    [InlineData("Contracts")]
+    public async Task ARouteOnTheFeatureGroupInATechnicalFolderIsRejected(string folder)
+    {
+        var diagnostics = await AnalyzeAsync(
+            ($"backend/Features/Tasks/{folder}/{folder}Endpoint.cs", $$"""
+                using Microsoft.AspNetCore.Builder;
+                using Microsoft.AspNetCore.Routing;
+                namespace TemplateApp.Features.Tasks.{{folder}};
+                public static class {{folder}}Routes
+                {
+                    public static void Map(RouteGroupBuilder tasks)
+                    {
+                        tasks.MapGet("/session", () => "ok");
+                        tasks.MapPost("/session", () => "ok");
+                        tasks.MapGroup("/sessions");
+                    }
+                }
+                """));
+
+        Assert.Equal(new[] { 8, 9, 10 }, Lines(diagnostics));
+    }
+
     [Fact]
     public async Task SliceThatReceivesTheHostInsteadOfItsGroupIsRejected()
     {
