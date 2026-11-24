@@ -36,11 +36,18 @@ jobs:
         run: dotnet build backend/Tests/TemplateApp.Tests.csproj --configuration Release -p:RunAnalyzers=false -p:EnforceCodeStyleInBuild=false
         env:
           ConnectionStrings__DefaultConnection: Host=localhost;Port=5432;Database=template_tests;Username=postgres;Password=template-ci;
-      - name: Lista de clases y de tests del ensamblado sin repartir
+      - name: Lista de clases y de tests del ensamblado sin repartir (al listar, el código 8 es "ningún test corrió")
         run: |
           mkdir -p backend/Tests/bin/Release/listing
-          dotnet backend/Tests/bin/Release/net10.0/TemplateApp.Tests.dll --xunit-list classes > backend/Tests/bin/Release/listing/classes.txt || true
-          dotnet backend/Tests/bin/Release/net10.0/TemplateApp.Tests.dll --xunit-list full > backend/Tests/bin/Release/listing/full.txt || true
+          for kind in classes full; do
+            code=0
+            dotnet backend/Tests/bin/Release/net10.0/TemplateApp.Tests.dll --xunit-list "$kind" > "backend/Tests/bin/Release/listing/$kind.txt" || code=$?
+            if [ "$code" != 0 ] && [ "$code" != 8 ]; then
+              cat "backend/Tests/bin/Release/listing/$kind.txt"
+              echo "::error::--xunit-list $kind terminó con el código $code"
+              exit 1
+            fi
+          done
           grep -c "Test method:" backend/Tests/bin/Release/listing/full.txt
       - name: Tiempos por clase de la última corrida completa de main
         env:
