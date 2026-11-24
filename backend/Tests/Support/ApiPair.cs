@@ -16,13 +16,16 @@ public sealed class ApiPair : IDisposable
 
     private readonly MonolithFactory _monolith;
     private readonly TasksFactory _tasks;
+    private readonly bool _kestrel;
 
     public ApiPair(
         string connectionString,
         IReadOnlyDictionary<string, string> settings,
         Action<IServiceCollection> configureServices,
-        Func<HttpRequestMessage, HttpMessageHandler, HttpMessageHandler?>? interceptRemote = null)
+        Func<HttpRequestMessage, HttpMessageHandler, HttpMessageHandler?>? interceptRemote = null,
+        bool kestrel = false)
     {
+        _kestrel = kestrel;
         _monolith = new MonolithFactory(connectionString, settings, services =>
         {
             configureServices(services);
@@ -39,8 +42,9 @@ public sealed class ApiPair : IDisposable
 
     public WebApplicationFactory<TasksHost> Tasks => _tasks;
 
-    public HttpClient CreateClient() =>
-        new(new InMemoryRoutes(request => request.RequestUri!.AbsolutePath.StartsWith(TasksPrefix, StringComparison.OrdinalIgnoreCase)
+    public HttpClient CreateClient() => _kestrel
+        ? _monolith.CreateDefaultClient()
+        : new(new InMemoryRoutes(request => request.RequestUri!.AbsolutePath.StartsWith(TasksPrefix, StringComparison.OrdinalIgnoreCase)
             ? _tasks.Server
             : _monolith.Server))
         {
@@ -53,6 +57,12 @@ public sealed class ApiPair : IDisposable
 
     public void Start()
     {
+        if (_kestrel)
+        {
+            _monolith.UseKestrel(0);
+            _monolith.StartServer();
+        }
+
         _ = _monolith.Services;
         _ = _tasks.Services;
     }

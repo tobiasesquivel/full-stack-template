@@ -38,14 +38,16 @@ internal sealed class IsolatedApi : IDisposable
         Uri broker,
         Action<IServiceCollection>? configure = null,
         Func<HttpRequestMessage, HttpMessageHandler, HttpMessageHandler?>? interceptRemote = null,
-        IReadOnlyDictionary<string, string>? settings = null) =>
+        IReadOnlyDictionary<string, string>? settings = null,
+        bool kestrel = false) =>
         StartOn(
             new NpgsqlConnectionStringBuilder(await TestDatabases.CreateEmptyAsync(server)) { Pooling = false }.ConnectionString,
             broker,
             NewPrefix(),
             configure,
             interceptRemote,
-            settings);
+            settings,
+            kestrel);
 
     public static string NewPrefix() => $"t{Guid.NewGuid():N}"[..13];
 
@@ -55,7 +57,8 @@ internal sealed class IsolatedApi : IDisposable
         string prefix,
         Action<IServiceCollection>? configure = null,
         Func<HttpRequestMessage, HttpMessageHandler, HttpMessageHandler?>? interceptRemote = null,
-        IReadOnlyDictionary<string, string>? settings = null)
+        IReadOnlyDictionary<string, string>? settings = null,
+        bool kestrel = false)
     {
         FakeTimeProvider clock = new(DateTimeOffset.FromUnixTimeSeconds(DateTimeOffset.UtcNow.ToUnixTimeSeconds()));
         Dictionary<string, string> all = new(settings ?? new Dictionary<string, string>())
@@ -71,7 +74,8 @@ internal sealed class IsolatedApi : IDisposable
                 services.AddSingleton<TimeProvider>(clock);
                 configure?.Invoke(services);
             },
-            interceptRemote);
+            interceptRemote,
+            kestrel);
         pair.Start();
         return new IsolatedApi(database, prefix, pair, clock);
     }
