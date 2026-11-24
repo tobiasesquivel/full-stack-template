@@ -177,7 +177,7 @@ Excepciones (la lista es cerrada):
   - `Faults/`: fallas y esperas provocadas (`ErrorProbe`, `FailAfterSaving`, `PauseBeforeSaving`, `HeldOwnerLock`, `RemoteFault`, `SilentServer`, `LoopbackWireMock`).
   - `Rows/`: lectores de filas de la base (`DatabaseRows`, `AuditLog`, `OutboxLog`, `TaskCounterRows` y sus filas).
   - `Bus/`: dobles del bus (`MonolithListener`, `TasksListener`, `FastScheduledMessages`).
-  - En la raíz quedan los que combinan varios roles: `Eventually`, `HandlerCalls` y `TaskCounterScenario`.
+  - En la raíz quedan los que no encajan en un rol: `Eventually` (espera una condición), `HandlerCalls` (llama a un handler sin HTTP) y `TaskCounterScenario` (un escenario con hosts y clientes).
 - Las pruebas de `Infrastructure/` y del arranque del host viven en `backend/Tests/<Área>/`, por ejemplo `backend/Tests/Startup/`.
 - Se prueba por comportamiento: autorización, transacciones, sesión revocada o vencida, antiforgery, cascadas, health y exportación de señales.
 - Las reglas de Dune se prueban con una fixture válida y una violación deliberada, observando diagnósticos o códigos de salida.
