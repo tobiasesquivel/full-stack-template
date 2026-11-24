@@ -5,7 +5,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const require = createRequire(path.join(here, '..', 'frontend', 'package.json'));
+const require = createRequire(path.join(here, '..', '..', 'frontend', 'package.json'));
 const ts = require('typescript');
 const postcss = require('postcss');
 const YAML = require('yaml');
@@ -53,7 +53,7 @@ function isJsonPath(rel) {
 
 export function resolveRoot(input) {
   if (input) return path.resolve(input);
-  return path.resolve(here, '..');
+  return path.resolve(here, '..', '..');
 }
 
 async function collectFiles(root) {
@@ -459,7 +459,7 @@ async function main(argv) {
     return 2;
   }
   if (args.help) {
-    console.log('usage: node dune/check-comments.mjs [--root <dir>] [--format text|json] [--fix|--dry-run]');
+    console.log('usage: node dune/gates/check-comments.mjs [--root <dir>] [--format text|json] [--fix|--dry-run]');
     return 0;
   }
   if (args.fix || args.dryRun) {

@@ -54,7 +54,7 @@ function compiledFiles(root, project, configuration) {
 }
 
 function main() {
-  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
   const failures = [];
   const counts = [];
   for (const configuration of ['Release', 'Debug']) {

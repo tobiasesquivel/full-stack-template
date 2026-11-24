@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const require = createRequire(path.join(here, '..', 'frontend', 'package.json'));
+const require = createRequire(path.join(here, '..', '..', 'frontend', 'package.json'));
 const ts = require('typescript');
 
 export const RULES = ['FRONT001', 'FRONT002', 'FRONT003', 'FRONT004', 'FRONT005', 'FRONT006', 'FRONT007', 'FRONT008', 'FRONT009', 'FRONT010', 'FRONT011', 'FRONT012', 'FRONT013', 'FRONT014', 'FRONT015', 'FRONT016'];
@@ -532,7 +532,7 @@ async function checkCliDefaults(file, rel, report) {
 
 export function resolveRoot(input) {
   if (input) return path.resolve(input);
-  return path.resolve(here, '..');
+  return path.resolve(here, '..', '..');
 }
 
 export function resolveProject(root, input) {
@@ -698,7 +698,7 @@ async function main(argv) {
     return 2;
   }
   if (args.help) {
-    console.log('usage: node dune/check-frontend.mjs [--root <dir>] [--project <tsconfig>] [--format text|json]');
+    console.log('usage: node dune/gates/check-frontend.mjs [--root <dir>] [--project <tsconfig>] [--format text|json]');
     return 0;
   }
   let result;

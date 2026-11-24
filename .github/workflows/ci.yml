@@ -162,9 +162,9 @@ jobs:
         env:
           ConnectionStrings__DefaultConnection: Host=localhost;Port=5432;Database=template_tests;Username=postgres;Password=template-ci;
       - name: Código generado de Wolverine al día (codegen write)
-        run: node dune/check-codegen.mjs --release
+        run: node dune/gates/check-codegen.mjs --release
       - name: Límite de despliegue sobre los archivos que evalúa MSBuild en cada host
-        run: node dune/check-host-items.mjs
+        run: node dune/gates/check-host-items.mjs
       - name: Verificador de comentarios C#
         run: dotnet run --project dune/Dune.CommentVerifier -- --root .
       - name: Analyzer tests Dune
@@ -206,37 +206,37 @@ jobs:
         run: npm ci --prefix frontend
       - name: Tests del gate de comentarios
         if: ${{ !cancelled() }}
-        run: node --test dune/check-comments.test.mjs
+        run: node --test dune/gates/check-comments.test.mjs
       - name: Gate de comentarios
         if: ${{ !cancelled() }}
-        run: node dune/check-comments.mjs --root .
+        run: node dune/gates/check-comments.mjs --root .
       - name: Tests del gate de frontend
         if: ${{ !cancelled() }}
-        run: node --test dune/check-frontend.test.mjs
+        run: node --test dune/gates/check-frontend.test.mjs
       - name: Gate de frontend
         if: ${{ !cancelled() }}
-        run: node dune/check-frontend.mjs --root .
+        run: node dune/gates/check-frontend.mjs --root .
       - name: Gate de estructura
         if: ${{ !cancelled() }}
-        run: node dune/check-structure.mjs
+        run: node dune/gates/check-structure.mjs
       - name: Tests del gate de estructura
         if: ${{ !cancelled() }}
-        run: node --test dune/check-structure.test.mjs
+        run: node --test dune/gates/check-structure.test.mjs
       - name: Tests del gate de codegen
         if: ${{ !cancelled() }}
-        run: node --test dune/check-codegen.test.mjs
+        run: node --test dune/gates/check-codegen.test.mjs
       - name: Tests del gate de archivos de cada host
         if: ${{ !cancelled() }}
-        run: node --test dune/check-host-items.test.mjs
+        run: node --test dune/gates/check-host-items.test.mjs
       - name: Tests del reparto de backend en shards
         if: ${{ !cancelled() }}
         run: node --test .github/scripts/backend-test-shards.test.mjs
       - name: Tests del gate de runbooks
         if: ${{ !cancelled() }}
-        run: node --test dune/check-runbooks.test.mjs
+        run: node --test dune/gates/check-runbooks.test.mjs
       - name: Toda alerta tiene su runbook
         if: ${{ !cancelled() }}
-        run: node dune/check-runbooks.mjs
+        run: node dune/gates/check-runbooks.mjs
       - name: Imagen de Prometheus de compose.yaml
         if: ${{ !cancelled() }}
         run: echo "PROMETHEUS_IMAGE=$(grep -oE 'prom/prometheus:[^[:space:]]+' compose.yaml | head -n 1)" >> "$GITHUB_ENV"
@@ -282,9 +282,9 @@ jobs:
           tar -xzf "$RUNNER_TEMP/gitleaks.tar.gz" -C "$RUNNER_TEMP/gitleaks" gitleaks
           echo "$RUNNER_TEMP/gitleaks" >> "$GITHUB_PATH"
       - name: Secretos en el historial alcanzable desde HEAD
-        run: node dune/check-secrets.mjs
+        run: node dune/gates/check-secrets.mjs
       - name: Tests del gate de secretos
-        run: node --test dune/check-secrets.test.mjs
+        run: node --test dune/gates/check-secrets.test.mjs
       - name: Auditoría NuGet (alta y crítica fallan)
         run: dotnet restore TemplateApp.slnx "-warnaserror:NU1903;NU1904"
       - name: Auditoría npm de producción (alta y crítica fallan)

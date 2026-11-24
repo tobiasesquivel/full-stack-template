@@ -60,7 +60,7 @@ El código actual todavía no cumple todas estas reglas. La Fase 0 del [plan](ev
 
 No se escriben comentarios en el código. El porqué de una decisión va en un ADR, en `docs/` o en el mensaje de commit. Si el código necesita un comentario para entenderse, se renombra o se reestructura.
 
-La regla cubre C#, TypeScript, JavaScript, HTML, CSS, XML, YAML y Dockerfile. La hacen cumplir DUNE0009, `Dune.CommentVerifier` y `dune/check-comments.mjs`.
+La regla cubre C#, TypeScript, JavaScript, HTML, CSS, XML, YAML y Dockerfile. La hacen cumplir DUNE0009, `Dune.CommentVerifier` y `dune/gates/check-comments.mjs`.
 
 Excepciones (la lista es cerrada):
 - Las migraciones generadas por EF, en `backend/Infrastructure/Persistence/Migrations/` o en `backend/Features/<Feature>/Persistence/Migrations/`. Una carpeta `Migrations/` en otro lugar no queda exenta.
@@ -164,7 +164,7 @@ Excepciones (la lista es cerrada):
 - Toda request de la API pasa por el limiter global de `Infrastructure/Http/RateLimiting/ApiRateLimiting`: un endpoint nuevo queda limitado sin pedirlo. La única salida es `DisableRateLimiting`, y `check-structure.mjs` la permite solo en `backend/Features/Health/` y en el grupo `/internal/v1` de `backend/Infrastructure/Http/Remote/InternalApi.cs`. Un límite propio de una feature es una política con nombre en esa feature, como `AuthFeature.RateLimitPolicy`, y su clave de partición no viene del cliente (id de sesión o IP del socket).
 - No se loguean bodies, `Authorization`, `Cookie`, contraseñas ni tokens. Ids y títulos no se usan como etiquetas de métricas.
 - Toda respuesta de la API lleva las cabeceras de `Infrastructure/Http/ApiSecurityHeaders`, y `UseApiSecurityHeaders()` es el primer middleware de `Program.cs`. Ninguna slice escribe esas cabeceras ni pide otra política por endpoint; si una ruta necesitara otra (una página HTML, por ejemplo), es una decisión nueva. `SecurityHeadersTests` falla si el middleware falta o queda detrás del limiter.
-- No se versionan secretos ni connection strings con credenciales. `dune/check-secrets.mjs` corre gitleaks sobre todo el historial alcanzable desde `HEAD` y sobre los cambios sin commitear, en CI (job `security`) y en `check-all`. Un falso positivo se resuelve con una entrada en `.gitleaks.toml` que tenga `description` y una regex lo más chica posible, nunca con `gitleaks:allow` suelto. Un secreto real que entró se revoca y se rota primero: borrarlo no lo saca del historial.
+- No se versionan secretos ni connection strings con credenciales. `dune/gates/check-secrets.mjs` corre gitleaks sobre todo el historial alcanzable desde `HEAD` y sobre los cambios sin commitear, en CI (job `security`) y en `check-all`. Un falso positivo se resuelve con una entrada en `.gitleaks.toml` que tenga `description` y una regex lo más chica posible, nunca con `gitleaks:allow` suelto. Un secreto real que entró se revoca y se rota primero: borrarlo no lo saca del historial.
 - Una dependencia de producción con un aviso de seguridad alto o crítico frena el CI: NuGetAudit (`NU1903`, `NU1904`) para el backend y `npm audit --omit=dev --audit-level=high` para el frontend. Una excepción NuGet va con `NuGetAuditSuppress` y su porqué en `docs/decisions.tsv`.
 
 ## Pruebas
