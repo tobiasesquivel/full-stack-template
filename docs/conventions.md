@@ -178,7 +178,7 @@ Excepciones (la lista es cerrada):
 
 ## Cambios
 
-- Un paso del plan = una rama y un PR, con un solo cambio observable. El merge lo hace Tobi.
+- Un paso del plan = una rama y un PR, con un solo cambio observable. Quién mergea y cuándo está en la regla 6 de `AGENTS.md`.
 - Si cambia un contrato HTTP, el PR incluye backend, frontend y tests.
 - No se desactivan analyzers, no se omiten tests y CI no usa `continue-on-error`.
 - Una regla de Dune no se cambia para tapar una falla. Sí se cambia si ese cambio es el objetivo del paso: con un ADR o una línea en `decisions.tsv`, y con su fixture válida y su violación deliberada.

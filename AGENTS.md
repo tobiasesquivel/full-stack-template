@@ -39,7 +39,7 @@ El dominio (tareas) es simple a propósito: importa el rigor técnico. **Todo el
 3. **Si un paso cambia un contrato HTTP, va completo:** backend, frontend y tests juntos.
 4. **Toda regla nueva se hace ejecutable** en Dune, con una fixture válida y una violación deliberada.
 5. **Las decisiones de herramienta o licencia son de Tobi.** Los pasos marcados `⏸ DECISIÓN DE TOBI` se bloquean hasta que elija. No elijas por él.
-6. **Cada paso va en su rama y su PR.** Push y PR solo de esa rama. El merge a `main` lo hace Tobi.
+6. **Cada paso va en su rama y su PR.** Push y PR solo de esa rama. Cuando el CI da verde y la revisión independiente de Codex pasó, el hilo mergea su PR a `main` sin preguntar y lo dice en el cierre. Mergear no cierra el paso: fuera del modo autónomo, el paso sigue `en curso` hasta la respuesta de Tobi (regla 11). Tobi, 2026-11-23, eligió "Los dos repos (Recomendado)": "Al terminar, el hilo integra su rama a main y lo dice en el informe. En full-stack-template, con el CI en verde y la revisión de Codex pasada. Se deshace con un revert."
 7. **No amplíes el alcance del paso.** Si ves algo para mejorar fuera de él, anotalo como pendiente en `progreso.md`.
 8. **No adelantes pasos.** Si el plan parece equivocado, discutilo antes de ejecutar.
 9. **No cambies un gate, analyzer o test para tapar una falla.** Sí podés cambiarlo si ese cambio es el objetivo declarado del paso: con un ADR o una línea en `docs/decisions.tsv`, y con su fixture válida y su violación deliberada.
@@ -54,7 +54,7 @@ Tobi lo pidió el 2026-11-16: "yo ahora voy a saltearme la parte de aprender, lo
 - **Regla 11 en pausa.** El paso no para a explicar ni a esperar a Tobi. En "Cierres", `Enseñado` dice "modo autónomo: sin explicación previa" y `Preguntas` dice "ninguna (modo autónomo)".
 - **Cada elección la toma el agente con su recomendación** ("Las opciones que él naturalmente me preguntaría van a ser siempre las que él recomiende"). La anota como decisión. Si es de diseño, va en `docs/decisions.tsv`.
 - **Excepción: herramientas y tecnologías.** Si el paso tiene que elegir una herramienta, una librería o una tecnología, el hilo frena y le pregunta a Tobi en ese hilo ("siempre que pregunten por elegir una herramienta, yo quiero responder"). La regla 5 sigue igual.
-- **Regla 6, el merge:** el orquestador mergea a `main` el PR de cada paso cuando su CI da verde, y el paso siguiente sale de `main` (Tobi eligió "Yo mergeo cada PR" el 2026-11-16).
+- **Regla 6, el merge:** el hilo del paso mergea su PR como dice la regla 6 (CI en verde y revisión de Codex pasada). El orquestador espera ese merge antes de abrir el paso siguiente, que sale de `main`. Antes del 2026-11-23 mergeaba el orquestador (Tobi eligió "Yo mergeo cada PR" el 2026-11-16).
 
 ## Cómo enseñar
 
