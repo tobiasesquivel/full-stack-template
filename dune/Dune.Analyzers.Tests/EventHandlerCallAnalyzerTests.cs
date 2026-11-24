@@ -18,9 +18,11 @@ public sealed class EventHandlerCallAnalyzerTests
         }
         namespace TemplateApp.Infrastructure.Messaging
         {
-            using TemplateApp.Shared.Domain;
-
             public sealed record EventContext(Guid MessageId, string Consumer);
+        }
+        namespace TemplateApp.Infrastructure.Messaging.Outbox
+        {
+            using TemplateApp.Shared.Domain;
 
             public interface IEventHandler<in TEvent>
                 where TEvent : class, IDomainEvent
@@ -38,6 +40,7 @@ public sealed class EventHandlerCallAnalyzerTests
         {
             using TemplateApp.Features.Tasks.Domain.Events;
             using TemplateApp.Infrastructure.Messaging;
+            using TemplateApp.Infrastructure.Messaging.Outbox;
 
             public sealed class TaskCounter : IEventHandler<TaskCreated>
             {
@@ -50,13 +53,13 @@ public sealed class EventHandlerCallAnalyzerTests
     public async Task OnlyTheRelayCallsAConsumer()
     {
         var diagnostics = await AnalyzeAsync(
-            ("backend/Infrastructure/Messaging/OutboxRelay.cs", """
+            ("backend/Infrastructure/Messaging/Outbox/OutboxRelay.cs", """
                 using System;
                 using System.Threading;
                 using System.Threading.Tasks;
                 using TemplateApp.Infrastructure.Messaging;
                 using TemplateApp.Shared.Domain;
-                namespace TemplateApp.Infrastructure.Messaging;
+                namespace TemplateApp.Infrastructure.Messaging.Outbox;
                 public sealed class OutboxRelay
                 {
                     public static Task DispatchAsync<TEvent, THandler>(Func<THandler> resolve, IDomainEvent @event, EventContext context, CancellationToken ct)
@@ -68,7 +71,7 @@ public sealed class EventHandlerCallAnalyzerTests
             ("backend/Features/Tasks/TasksFeature.cs", """
                 using System;
                 using TemplateApp.Features.Tasks.Domain.Events;
-                using TemplateApp.Infrastructure.Messaging;
+                using TemplateApp.Infrastructure.Messaging.Outbox;
                 namespace TemplateApp.Features.Tasks;
                 public static class TasksFeature
                 {
@@ -104,6 +107,7 @@ public sealed class EventHandlerCallAnalyzerTests
                 using System.Threading.Tasks;
                 using TemplateApp.Features.Tasks.Domain.Events;
                 using TemplateApp.Infrastructure.Messaging;
+                using TemplateApp.Infrastructure.Messaging.Outbox;
                 namespace TemplateApp.Features.Tasks.CreateTask;
                 public sealed class CreateTask(IEventHandler<TaskCreated> consumer)
                 {
@@ -130,12 +134,13 @@ public sealed class EventHandlerCallAnalyzerTests
                     }
                 }
                 """),
-            ("backend/Infrastructure/Messaging/OutboxInterceptor.cs", """
+            ("backend/Infrastructure/Messaging/Outbox/OutboxInterceptor.cs", """
                 using System;
                 using System.Threading;
                 using System.Threading.Tasks;
+                using TemplateApp.Infrastructure.Messaging;
                 using TemplateApp.Shared.Domain;
-                namespace TemplateApp.Infrastructure.Messaging;
+                namespace TemplateApp.Infrastructure.Messaging.Outbox;
                 public sealed class OutboxInterceptor
                 {
                     public static Task PublishAsync<TEvent, THandler>(THandler handler, TEvent @event, CancellationToken ct)
@@ -148,10 +153,10 @@ public sealed class EventHandlerCallAnalyzerTests
         Assert.Equal(
             new[]
             {
-                ("backend/Features/Tasks/CreateTask/CreateTask.cs", 13),
+                ("backend/Features/Tasks/CreateTask/CreateTask.cs", 14),
                 ("backend/Features/Tasks/DeleteTask/DeleteTask.cs", 10),
                 ("backend/Features/Tasks/DeleteTask/DeleteTask.cs", 11),
-                ("backend/Infrastructure/Messaging/OutboxInterceptor.cs", 11),
+                ("backend/Infrastructure/Messaging/Outbox/OutboxInterceptor.cs", 12),
             },
             Locations(diagnostics));
     }

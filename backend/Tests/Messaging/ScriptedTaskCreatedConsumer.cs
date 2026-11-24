@@ -1,5 +1,6 @@
 using TemplateApp.Features.Projects.ApplyTaskEvent;
 using TemplateApp.Infrastructure.Messaging;
+using TemplateApp.Infrastructure.Messaging.Bus;
 
 namespace TemplateApp.Tests.Messaging;
 

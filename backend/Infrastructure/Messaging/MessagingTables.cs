@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using TemplateApp.Infrastructure.Messaging.Inbox;
+using TemplateApp.Infrastructure.Messaging.Outbox;
 
 namespace TemplateApp.Infrastructure.Messaging;
 

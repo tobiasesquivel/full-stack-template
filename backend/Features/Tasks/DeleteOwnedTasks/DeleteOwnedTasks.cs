@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore.Storage;
 using TemplateApp.Features.Tasks.Domain;
 using TemplateApp.Features.Tasks.Persistence;
 using TemplateApp.Infrastructure.Messaging;
+using TemplateApp.Infrastructure.Messaging.Inbox;
 
 namespace TemplateApp.Features.Tasks.DeleteOwnedTasks;
 

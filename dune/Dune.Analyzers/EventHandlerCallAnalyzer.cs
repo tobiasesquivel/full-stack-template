@@ -11,8 +11,8 @@ namespace Dune.Analyzers;
 public sealed class EventHandlerCallAnalyzer : DiagnosticAnalyzer
 {
     private const string HandlerName = "IEventHandler";
-    private const string MessagingNamespace = "TemplateApp.Infrastructure.Messaging";
-    private const string RelayFile = "backend/Infrastructure/Messaging/OutboxRelay.cs";
+    private const string OutboxNamespace = "TemplateApp.Infrastructure.Messaging.Outbox";
+    private const string RelayFile = "backend/Infrastructure/Messaging/Outbox/OutboxRelay.cs";
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
         ImmutableArray.Create(DuneDiagnostics.EventHandlerCalledDirectly);
@@ -73,5 +73,5 @@ public sealed class EventHandlerCallAnalyzer : DiagnosticAnalyzer
     private static bool IsHandlerInterface(ITypeSymbol type) =>
         type is INamedTypeSymbol { Arity: 1 } named
         && named.Name.Equals(HandlerName, StringComparison.Ordinal)
-        && DuneSymbols.NamespaceOf(named.OriginalDefinition).Equals(MessagingNamespace, StringComparison.Ordinal);
+        && DuneSymbols.NamespaceOf(named.OriginalDefinition).Equals(OutboxNamespace, StringComparison.Ordinal);
 }

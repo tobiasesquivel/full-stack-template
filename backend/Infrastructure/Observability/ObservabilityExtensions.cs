@@ -7,7 +7,7 @@ using OpenTelemetry.Trace;
 using Serilog;
 using Serilog.Events;
 using Serilog.Sinks.OpenTelemetry;
-using TemplateApp.Infrastructure.Messaging;
+using TemplateApp.Infrastructure.Messaging.Outbox;
 
 namespace TemplateApp.Infrastructure.Observability;
 

@@ -5,6 +5,8 @@ using TemplateApp.Features.Tasks.Domain.Events;
 using TemplateApp.Features.Tasks.Persistence;
 using TemplateApp.Infrastructure.Http;
 using TemplateApp.Infrastructure.Messaging;
+using TemplateApp.Infrastructure.Messaging.Mediator;
+using TemplateApp.Infrastructure.Messaging.Outbox;
 using TemplateApp.Infrastructure.Persistence;
 
 namespace TemplateApp.Features.Tasks;

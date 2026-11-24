@@ -3,7 +3,7 @@ using ErrorOr;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using TemplateApp.Features.Tasks.Persistence;
-using TemplateApp.Infrastructure.Messaging;
+using TemplateApp.Infrastructure.Messaging.Outbox;
 
 namespace TemplateApp.Features.Tasks.SnapshotTaskCounts;
 

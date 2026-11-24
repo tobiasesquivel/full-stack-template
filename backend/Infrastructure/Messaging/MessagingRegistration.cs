@@ -5,6 +5,9 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Wolverine;
 using Wolverine.FluentValidation;
 using Wolverine.HealthChecks;
+using TemplateApp.Infrastructure.Messaging.Bus;
+using TemplateApp.Infrastructure.Messaging.Mediator;
+using TemplateApp.Infrastructure.Messaging.Sagas;
 
 namespace TemplateApp.Infrastructure.Messaging;
 

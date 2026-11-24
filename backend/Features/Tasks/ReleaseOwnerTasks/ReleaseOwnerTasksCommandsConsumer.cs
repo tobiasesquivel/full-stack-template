@@ -1,4 +1,5 @@
 using TemplateApp.Infrastructure.Messaging;
+using TemplateApp.Infrastructure.Messaging.Bus;
 
 namespace TemplateApp.Features.Tasks.ReleaseOwnerTasks;
 

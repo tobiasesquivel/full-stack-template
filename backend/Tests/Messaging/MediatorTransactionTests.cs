@@ -1,5 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
-using TemplateApp.Infrastructure.Messaging;
+using TemplateApp.Infrastructure.Messaging.Mediator;
 using TemplateApp.Tests.Support;
 using Wolverine;
 using Wolverine.Configuration;

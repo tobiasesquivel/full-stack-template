@@ -5,6 +5,8 @@ using TemplateApp.Features.Users.Domain.Events;
 using TemplateApp.Features.Users.OrchestrateAccountClosure;
 using TemplateApp.Features.Users.Persistence;
 using TemplateApp.Infrastructure.Messaging;
+using TemplateApp.Infrastructure.Messaging.Mediator;
+using TemplateApp.Infrastructure.Messaging.Outbox;
 using TemplateApp.Infrastructure.Persistence;
 
 namespace TemplateApp.Features.Users;

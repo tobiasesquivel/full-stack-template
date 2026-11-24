@@ -1,5 +1,7 @@
 using TemplateApp.Features.Users.Domain.Events;
 using TemplateApp.Infrastructure.Messaging;
+using TemplateApp.Infrastructure.Messaging.Bus;
+using TemplateApp.Infrastructure.Messaging.Outbox;
 
 namespace TemplateApp.Features.Users.PublishUserEvents;
 
