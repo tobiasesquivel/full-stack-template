@@ -4,6 +4,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using TemplateApp.Gateway;
+using TemplateApp.Tests.Support;
 using WireMock.RequestBuilders;
 using WireMock.ResponseBuilders;
 using WireMock.Server;
@@ -13,7 +14,7 @@ namespace TemplateApp.Tests.Gateway;
 
 public sealed class GatewayTimeoutTests : IDisposable
 {
-    private readonly WireMockServer _api = WireMockServer.Start();
+    private readonly WireMockServer _api = LoopbackWireMock.Start();
 
     [Fact]
     public async Task ApiSilentLongerThanTheActivityTimeout_TheGatewayAnswers504ProblemDetails_AtTheTimeout()
