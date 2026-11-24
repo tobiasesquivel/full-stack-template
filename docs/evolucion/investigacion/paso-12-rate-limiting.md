@@ -8,8 +8,8 @@
   - Las e2e esperan la ventana del limiter con `waitForAuthRoom()` y `check-all.mjs` espera 65 s antes de las e2e (`docs/decisions.tsv:86`, `docs/conventions.md:111`).
   - Todo error sale como ProblemDetails por `UseStatusCodePages`, también el rechazo del limiter (`docs/conventions.md:77`).
   - La configuración entra solo por options validadas (`docs/conventions.md:67`, DUNE0013).
-  - La política `"auth"` vive en `AddAuthFeature()` porque nombra a la feature (`docs/evolucion/informe-vsa-deep-modules.md:80`).
-  - El limiter nativo de ASP.NET Core, sin dependencia externa (`docs/evolucion/informe-dotnet-empresarial.md:111`).
+  - La política `"auth"` vive en `AddAuthFeature()` porque nombra a la feature (`docs/evolucion/informes/informe-vsa-deep-modules.md:80`).
+  - El limiter nativo de ASP.NET Core, sin dependencia externa (`docs/evolucion/informes/informe-dotnet-empresarial.md:111`).
 - Método: solo fuentes primarias. Son Microsoft Learn (ASP.NET Core 10), el código de `dotnet/aspnetcore` en la rama `release/10.0` (middleware de rate limiting, TestHost, StatusCodePages, `WebApplicationBuilder`, ForwardedHeaders), el código de `dotnet/runtime` en `release/10.0` (`System.Threading.RateLimiting`), la muestra oficial `dotnet/AspNetCore.Docs.Samples`, RFC 6585, RFC 9110, el borrador IETF `ratelimit-headers`, OWASP y la documentación de nginx y de GitHub. Cada afirmación lleva su link. Lo que es deducción mía va marcado [INFERENCIA].
 - Evidencia propia: un experimento descartable fuera del repo.
   - "Experimento": una app .NET 10 de un solo archivo (`dotnet run rl.cs`, SDK 10.0.401, runtime `Microsoft.AspNetCore.App` 10.0.12, el mismo que usa el repo) con `TestServer` (`Microsoft.AspNetCore.TestHost` 10.0.12). Tiene `AddProblemDetails` + `UseStatusCodePages` como el repo y un esquema de autenticación de prueba que toma el usuario de un header. Corre 6 casos (E1 a E6). Después borré el archivo.

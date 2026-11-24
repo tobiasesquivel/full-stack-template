@@ -46,7 +46,7 @@ Registro en DI [REPO]:
 
 ### 1.3 Propuesta
 
-**Auth: juntar las dos interfaces en `IAuthModule`.** Lo piden la decisión de Tobi (una puerta por feature) y las dos fuentes. Antes, [informe-vsa-deep-modules.md](../informe-vsa-deep-modules.md) ya había fusionado `PermissionService` y `ResourceAuthorizer` en `IAccessPolicy` por la misma razón: una sola cosa que aprender. [REPO]
+**Auth: juntar las dos interfaces en `IAuthModule`.** Lo piden la decisión de Tobi (una puerta por feature) y las dos fuentes. Antes, [informe-vsa-deep-modules.md](../informes/informe-vsa-deep-modules.md) ya había fusionado `PermissionService` y `ResourceAuthorizer` en `IAccessPolicy` por la misma razón: una sola cosa que aprender. [REPO]
 
 ```csharp
 public interface IAuthModule

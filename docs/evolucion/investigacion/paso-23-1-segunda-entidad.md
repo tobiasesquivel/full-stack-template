@@ -416,7 +416,7 @@ Rigen la regla 10 de `AGENTS.md`. No los resuelvo: los dejo para Tobi, con la re
 - PostgreSQL 18, [CREATE INDEX](https://www.postgresql.org/docs/18/sql-createindex.html): `CONCURRENTLY` no va en transacción; `UNIQUE` y los `NULL`.
 - Vaughn Vernon, [Effective Aggregate Design, Part I](https://dddcommunity.org/wp-content/uploads/files/pdf_articles/Vernon_2011_1.pdf) y [Part II](https://dddcommunity.org/wp-content/uploads/files/pdf_articles/Vernon_2011_2.pdf): citados por la guía de Microsoft; **no leídos** (el PDF no devolvió texto).
 - Concurrencia con `xmin`: [Npgsql, Concurrency tokens](https://www.npgsql.org/efcore/modeling/concurrency.html) (ya usada en el informe del paso 20).
-- Repo: `docs/evolucion/investigacion/paso-20-lectura-dedicada.md`, `paso-22-dbcontext-por-feature.md`, `paso-22-1-schema-por-feature.md`; `docs/evolucion/informe-componentes-angular.md` (sección 6); `docs/evolucion/informe-vsa-deep-modules.md`.
+- Repo: `docs/evolucion/investigacion/paso-20-lectura-dedicada.md`, `paso-22-dbcontext-por-feature.md`, `paso-22-1-schema-por-feature.md`; `docs/evolucion/informes/informe-componentes-angular.md` (sección 6); `docs/evolucion/informes/informe-vsa-deep-modules.md`.
 
 ---
 
