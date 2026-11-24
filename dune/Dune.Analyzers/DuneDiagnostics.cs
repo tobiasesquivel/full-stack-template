@@ -83,7 +83,7 @@ internal static class DuneDiagnostics
         category: "Dune",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
-        description: "Los comentarios se prohíben en backend y dune salvo el código generado por herramientas: las migraciones EF de Infrastructure y de cada feature, y desde el paso 27 los handlers que Wolverine genera con codegen write en backend/Internal/Generated/WolverineHandlers/.");
+        description: "Los comentarios se prohíben en backend y dune salvo el código generado por herramientas: las migraciones EF de Infrastructure y de cada feature, y desde el paso 27 los handlers que Wolverine genera con codegen write en backend/Internal/Generated/WolverineHandlers/ (monolito) y, desde el paso 29.1, en backend/Hosts/Tasks/Internal/Generated/WolverineHandlers/ (Tasks).");
 
     public static readonly DiagnosticDescriptor OneTypePerFile = new(
         id: "DUNE0010",
@@ -387,12 +387,12 @@ internal static class DuneDiagnostics
 
     public static readonly DiagnosticDescriptor BusOutsideMessaging = new(
         id: "DUNE0025",
-        title: "Wolverine fuera de Infrastructure/Messaging o como mediator",
-        messageFormat: "'{0}' usa Wolverine {1}: el bus es transporte y vive en backend/Infrastructure/Messaging; una feature publica con IntegrationEventPublisher, consume con IIntegrationEventHandler<T> y solo nombra Wolverine en el archivo de un orquestador (un tipo que hereda Wolverine.Saga o Wolverine.TimeoutMessage)",
+        title: "Wolverine fuera de Infrastructure/Messaging o mediator fuera del endpoint",
+        messageFormat: "'{0}' usa Wolverine {1}: el bus vive en backend/Infrastructure/Messaging; una feature publica con IntegrationEventPublisher, consume con IIntegrationEventHandler<T>, nombra Wolverine en el archivo de un orquestador (un tipo que hereda Wolverine.Saga o Wolverine.TimeoutMessage) y, en el *Endpoint.cs de una slice, solo nombra IMessageBus para despachar con InvokeAsync<T>",
         category: "Dune",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
-        description: "Pasos 25 y 27 (ADR-0004 punto 9): Wolverine es el bus elegido. Un nombre que resuelve a un namespace Wolverine o JasperFx (un using, un tipo, un miembro o un método de extensión) solo aparece en backend/Infrastructure/Messaging/ y, desde el paso 27, en el archivo de un orquestador: el que declara un tipo que hereda Wolverine.Saga (la saga orquestada, con estado persistido) o Wolverine.TimeoutMessage (su plazo). Ninguna otra slice conoce el bus. Además, nadie llama a un método Invoke* de un tipo de Wolverine (IMessageBus.InvokeAsync y sus variantes), ni siquiera Infrastructure/Messaging: es el modo mediator de Wolverine, que ADR-0004 descarta. Los tests y las migraciones quedan fuera. Límite: no ve un tipo de Wolverine usado por reflexión ni detrás de var sin nombrarlo, por ejemplo el resultado de un método del repo que devuelve IMessageBus.");
+        description: "Pasos 25 y 27 (ADR-0004 punto 9): Wolverine es el bus elegido. Un nombre que resuelve a un namespace Wolverine o JasperFx (un using, un tipo, un miembro o un método de extensión) solo aparece en backend/Infrastructure/Messaging/ y, desde el paso 27, en el archivo de un orquestador: el que declara un tipo que hereda Wolverine.Saga (la saga orquestada, con estado persistido) o Wolverine.TimeoutMessage (su plazo). Desde el paso 29.1, el *Endpoint.cs de una slice puede nombrar el namespace Wolverine en su using, el tipo IMessageBus y su InvokeAsync<T> genérico sin DeliveryOptions: es el modo mediator, y el endpoint despacha así el comando de su slice. Ninguna otra slice conoce el bus. Cualquier otro método Invoke* de un tipo de Wolverine (InvokeAsync sin <T>, con DeliveryOptions, InvokeForTenantAsync) es error en todo el producto, ni siquiera Infrastructure/Messaging lo llama, y fuera de un *Endpoint.cs también InvokeAsync<T>: un handler nunca invoca a otro handler. Los tests y las migraciones quedan fuera. Límite: no ve un tipo de Wolverine usado por reflexión ni detrás de var sin nombrarlo, por ejemplo el resultado de un método del repo que devuelve IMessageBus.");
 
     public static readonly DiagnosticDescriptor AppendOnlyWrite = new(
         id: "DUNE0026",
@@ -420,4 +420,13 @@ internal static class DuneDiagnostics
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
         description: "Paso 29: todo cliente saliente pasa por la misma política (bulkhead, timeout total, reintento, circuit breaker y timeout por intento), que vive en backend/Infrastructure/Http/RemoteServices. Fuera de esa carpeta es error crear un HttpClient, un HttpMessageInvoker o un HttpMessageHandler (HttpClientHandler, SocketsHttpHandler o un DelegatingHandler propio), llamar a los registros de IHttpClientFactory (AddHttpClient, ConfigureHttpClientDefaults, ConfigurePrimaryHttpMessageHandler, AddHttpMessageHandler y los demás de HttpClientFactoryServiceCollectionExtensions y HttpClientBuilderExtensions) o a los de Microsoft.Extensions.Http.Resilience (AddResilienceHandler, AddStandardResilienceHandler), nombrar IHttpClientFactory (que da clientes sin la política) y nombrar un símbolo de los namespaces Polly o Microsoft.Extensions.Http.Resilience. Así ninguna slice arma un cliente sin resiliencia ni conoce Polly: un circuito abierto le llega como RemoteServiceUnavailableException. Los tests y las migraciones quedan fuera, y el gateway también (no está en backend/ y YARP trae su cliente). Límite: no ve un HttpClient pedido por constructor en un tipo que no se registró con AddRemoteClient (desde .NET 8, IHttpClientFactory registra un HttpClient por defecto sin la política); lo cubre la revisión.");
+
+    public static readonly DiagnosticDescriptor MediatorEndpoint = new(
+        id: "DUNE0028",
+        title: "Endpoint de una slice que no despacha su comando por el mediator",
+        messageFormat: "'{0}' {1}: en una feature que usa el mediator, el *Endpoint.cs de cada slice despacha con IMessageBus.InvokeAsync<T> exactamente un comando declarado en la carpeta de su slice, y nunca recibe ni construye el handler",
+        category: "Dune",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "Paso 29.1 (ADR-0004 punto 9): las slices HTTP de Tasks son handlers de Wolverine y su endpoint les llega por el mediator. En backend/Features/Tasks/<Slice>/*Endpoint.cs es error no llamar nunca a IMessageBus.InvokeAsync<T> (la forma genérica: sin <T> la respuesta se pierde), llamarlo más de una vez, despachar un mensaje cuyo tipo no está declarado en la carpeta de la misma slice, y recibir por parámetro o construir con new un tipo de la feature que tiene un método Handle (el handler): así el endpoint no puede saltear el middleware. La lista de features vive en el analyzer (hoy solo Tasks) y crece cuando otra feature migra (paso 29.2). Los tests quedan fuera. Límite: no ve un handler pedido por service location ni un mensaje que llega en una variable de tipo object.");
 }

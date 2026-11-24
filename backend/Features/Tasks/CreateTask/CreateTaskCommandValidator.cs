@@ -2,9 +2,9 @@ using FluentValidation;
 
 namespace TemplateApp.Features.Tasks.CreateTask;
 
-internal sealed class CreateTaskRequestValidator : AbstractValidator<CreateTaskRequest>
+internal sealed class CreateTaskCommandValidator : AbstractValidator<CreateTaskCommand>
 {
-    public CreateTaskRequestValidator()
+    public CreateTaskCommandValidator()
     {
         RuleFor(x => x.Title).TaskTitle();
     }

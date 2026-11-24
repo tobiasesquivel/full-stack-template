@@ -1,4 +1,3 @@
-using JasperFx.CodeGeneration.Model;
 using Microsoft.Extensions.Options;
 using Npgsql;
 using TemplateApp.Infrastructure.Persistence;
@@ -17,7 +16,6 @@ internal static class SagaStorage
         options.Services.AddKeyedSingleton(Schema, (provider, _) =>
             NpgsqlDataSource.Create(DatabaseSearchPath.Apply(provider.GetRequiredService<IOptions<DatabaseOptions>>().Value.DefaultConnection)));
         options.PersistMessagesWithPostgresqlUsingDataSourceFromContainer(provider => provider.GetRequiredKeyedService<NpgsqlDataSource>(Schema), Schema);
-        options.ServiceLocationPolicy = ServiceLocationPolicy.AlwaysAllowed;
         options.UseEntityFrameworkCoreTransactions();
         options.Policies.AutoApplyTransactions();
         options.Policies.UseDurableLocalQueues();

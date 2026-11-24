@@ -1,7 +1,9 @@
+using FluentValidation;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Microsoft.AspNetCore.DataProtection.Repositories;
 using Microsoft.Extensions.Options;
+using TemplateApp.Infrastructure.Http;
 using TemplateApp.Infrastructure.Middlewares;
 using TemplateApp.Infrastructure.Persistence;
 using TemplateApp.Shared.Http;
@@ -18,8 +20,9 @@ public static class BackendInfrastructure
             context.ProblemDetails.Extensions.TryAdd(
                 "code",
                 HttpErrors.CodeFor(context.ProblemDetails.Status ?? context.HttpContext.Response.StatusCode)));
+        services.AddExceptionHandler<ValidationExceptionHandler>();
         services.AddExceptionHandler<GlobalExceptionHandler>();
-        services.Configure<ExceptionHandlerOptions>(options => options.SuppressDiagnosticsCallback = _ => false);
+        services.Configure<ExceptionHandlerOptions>(options => options.SuppressDiagnosticsCallback = context => context.Exception is ValidationException);
 
         services.AddOptionsWithValidateOnStart<DatabaseOptions, DatabaseOptionsValidator>()
             .BindConfiguration(DatabaseOptions.Section);

@@ -14,7 +14,7 @@ try
 
     builder.Services.AddBackendInfrastructure(migratesPlatformSchema: false);
     builder.Services.AddTemplateObservability(builder.Environment, "templateapp-tasks");
-    builder.Services.AddMessaging();
+    builder.Services.AddMessaging(typeof(TemplateApp.Hosts.Tasks.TasksHost).Assembly);
     builder.Services.AddTasksFeature();
     builder.Services.AddHealthFeature();
     builder.Services.AddVersionedApi();
@@ -44,8 +44,7 @@ try
     app.MapInternalApi()
         .MapTasksInternalEndpoints();
 
-    await app.RunAsync();
-    return 0;
+    return await app.RunWithMessagingCommandsAsync(args);
 }
 catch (Exception ex) when (ex is not HostAbortedException)
 {

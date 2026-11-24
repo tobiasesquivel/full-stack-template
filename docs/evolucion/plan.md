@@ -467,6 +467,18 @@ El paso 0.28 se agregó el 2026-10-17, a pedido de Tobi, con otro pendiente del 
 **Verifica**: test con fallo transitorio que termina en éxito, y con fallo persistente que abre el circuito; prueba de que el timeout interno es menor que el externo.
 **Nota**: la investigación es [paso-29-resiliencia-http.md](investigacion/paso-29-resiliencia-http.md). Se hizo en modo autónomo. Tobi eligió las herramientas (regla 5, 2026-11-20): `Microsoft.Extensions.Http.Resilience` 10.11.1 y `WireMock.Net.Minimal` 2.32.0. `AddRemoteClient<TClient>(servicio, RemoteRetry)` arma una política propia (bulkhead, timeout total 5 s, 2 reintentos con backoff y jitter, circuit breaker por cliente, timeout por intento 2 s) y `SendRemoteAsync` traduce sus rechazos a 503. El nivel externo de la cascada es el `ActivityTimeout` de 15 s de cada cluster de YARP, que responde 504 `Http.GatewayTimeout` (contrato nuevo: texto en el frontend). Regla nueva: DUNE0027 (un cliente HTTP solo se arma en `Infrastructure/Http`) y el gate de paquetes de resiliencia. Las elecciones están en `docs/decisions.tsv`.
 
+**29.1. Wolverine como mediator.**
+**Concepto**: mediator (= un despachador en el medio): el endpoint no llama a la clase del caso de uso, le pasa un comando a `IMessageBus.InvokeAsync<T>` y Wolverine busca el handler. Lo que gana (middleware alrededor de cada handler, endpoints finos) y lo que cuesta (el compilador ya no muestra quién atiende la llamada, código generado en el stack trace).
+**Cambia**: todas las slices de Tasks (escrituras y lecturas) pasan a ser handlers de Wolverine; sus endpoints de minimal API despachan por `IMessageBus.InvokeAsync<T>`. La validación pasa a middleware con `WolverineFx.FluentValidation`. El host de Tasks suma código generado y su comando `codegen`. ADR-0004 punto 9, `architecture.md`, `conventions.md`, DUNE0025 y una regla nueva de Dune que haga ejecutable la convención. Tobi eligió el alcance y el paquete el 2026-11-23 (sin `WolverineFx.Http`).
+**Verifica**: tests HTTP de las slices migradas sin cambios; test de cada handler llamado directo; test de que un error de base no reintenta dentro del request; test de que el handler nunca devuelve un éxito vacío; la regla nueva con fixture válida y violación deliberada.
+**Nota**: lo pidió Tobi el 2026-11-23 ("quiero que hayan handlers del mediator de wolverine que tenemos"). La investigación es [paso-29-1-wolverine-mediator.md](investigacion/paso-29-1-wolverine-mediator.md).
+
+**29.2. Las slices del monolito como handlers, con Wolverine dueño de la transacción.**
+**Concepto**: middleware de transacciones: Wolverine abre la transacción, guarda y confirma alrededor de cada handler (`AutoApplyTransactions`), y la slice deja de hacerlo a mano.
+**Cambia**: las slices de Auth, Users y Projects pasan a ser handlers; salen sus `SaveChangesAsync` y sus `TransactionScope`; una solución para las slices de dos contextos (`RegisterUser`, `WithdrawAccountClosure`).
+**Verifica**: tests HTTP de las slices migradas sin cambios; test de que un fallo a mitad del handler no deja nada guardado; el monolito arranca con todas las slices registradas.
+**Nota**: Tobi eligió partir el mediator en dos pasos y que Wolverine sea el dueño de la transacción en el monolito (2026-11-23).
+
 **30. Pasarela de pago detrás de un puerto propio.**
 **Concepto**: ports & adapters, anti-corruption layer, webhook como fuente de verdad, PCI por checkout hospedado.
 **Cambia**: feature nueva con Domain/Contracts/Persistence/Tests, tabla de eventos de webhook, `smoke-api.mjs` con caso de webhook firmado. ⏸ **DECISIÓN DE TOBI (pendiente, bloquea el paso)**: proveedor (p. ej. Stripe vs MercadoPago) y modalidad (checkout hospedado vs propio, con implicancia PCI).

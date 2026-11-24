@@ -3,18 +3,21 @@ import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
-export const GENERATED = 'backend/Internal/Generated';
+export const TARGETS = [
+  { project: 'backend/TemplateApp.csproj', generated: 'backend/Internal/Generated' },
+  { project: 'backend/Hosts/Tasks/TemplateApp.Tasks.csproj', generated: 'backend/Hosts/Tasks/Internal/Generated' },
+];
 
-export function verdict(porcelain) {
+export function verdict(target, porcelain) {
   const stale = porcelain
     .split(/\r?\n/)
     .map((line) => line.trimEnd())
     .filter((line) => line.length > 2 && line[1] !== ' ');
   return stale.length === 0
-    ? { ok: true, message: `${GENERATED} coincide con lo que genera codegen write` }
+    ? { ok: true, message: `${target.generated} coincide con lo que genera codegen write` }
     : {
         ok: false,
-        message: `${GENERATED} no coincide con lo que genera codegen write: corré "dotnet run --project backend/TemplateApp.csproj -- codegen write" y versioná el resultado (${stale.join(', ')})`,
+        message: `${target.generated} no coincide con lo que genera codegen write: corré "dotnet run --project ${target.project} -- codegen write" y versioná el resultado (${stale.join(', ')})`,
       };
 }
 
@@ -28,23 +31,25 @@ function run(root, cmd, args, env) {
   return result.stdout;
 }
 
-function main() {
-  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-  const configuration = process.argv.includes('--release') ? 'Release' : 'Debug';
-  run(root, 'dotnet', ['run', '--project', 'backend/TemplateApp.csproj', '--configuration', configuration, '--no-build', '--', 'codegen', 'write'], {
+function check(root, configuration, target) {
+  run(root, 'dotnet', ['run', '--project', target.project, '--configuration', configuration, '--no-build', '--', 'codegen', 'write'], {
     ConnectionStrings__DefaultConnection: 'Host=localhost;Database=codegen;Username=codegen;Password=codegen',
     Messaging__RabbitMqUri: 'amqp://localhost:5672/',
   });
   const lines = (args, status) => run(root, 'git', args).split(/\r?\n/).filter(Boolean).map((file) => `${status} ${file}`);
-  const result = verdict([
-    ...lines(['diff', '--name-only', '--', GENERATED], ' M'),
-    ...lines(['ls-files', '--others', '--exclude-standard', '--', GENERATED], '??'),
+  return verdict(target, [
+    ...lines(['diff', '--name-only', '--', target.generated], ' M'),
+    ...lines(['ls-files', '--others', '--exclude-standard', '--', target.generated], '??'),
   ].join('\n'));
-  console.log(`check-codegen: ${result.ok ? 'PASS' : 'FAIL'}`);
-  if (!result.ok) {
-    console.log(`- ${result.message}`);
-    process.exit(1);
-  }
+}
+
+function main() {
+  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+  const configuration = process.argv.includes('--release') ? 'Release' : 'Debug';
+  const failures = TARGETS.map((target) => check(root, configuration, target)).filter((result) => !result.ok);
+  console.log(`check-codegen: ${failures.length === 0 ? 'PASS' : 'FAIL'}`);
+  for (const result of failures) console.log(`- ${result.message}`);
+  if (failures.length > 0) process.exit(1);
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main();

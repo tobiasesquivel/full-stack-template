@@ -2,9 +2,9 @@ using FluentValidation;
 
 namespace TemplateApp.Features.Tasks.UpdateTask;
 
-internal sealed class UpdateTaskRequestValidator : AbstractValidator<UpdateTaskRequest>
+internal sealed class UpdateTaskCommandValidator : AbstractValidator<UpdateTaskCommand>
 {
-    public UpdateTaskRequestValidator()
+    public UpdateTaskCommandValidator()
     {
         RuleFor(x => x.Title).TaskTitle();
         RuleFor(x => x.Version).NotNull();

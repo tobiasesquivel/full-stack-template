@@ -1,34 +1,34 @@
 using ErrorOr;
 using Microsoft.EntityFrameworkCore;
-using TemplateApp.Features.Tasks.Access;
 using TemplateApp.Features.Tasks.Persistence;
 
 namespace TemplateApp.Features.Tasks.DeleteTask;
 
-internal sealed class DeleteTask
+internal static class DeleteTask
 {
-    private readonly TasksDbContext _db;
-    private readonly TaskAccess _access;
-
-    public DeleteTask(TasksDbContext db, TaskAccess access)
+    public sealed class Handler
     {
-        _db = db;
-        _access = access;
-    }
+        private readonly TasksDbContext _db;
 
-    public async Task<ErrorOr<Success>> ExecuteAsync(string callerId, Guid id, CancellationToken ct)
-    {
-        var item = await _db.TaskItems.SingleOrDefaultAsync(t => t.Id == id, ct);
-        if (item is null)
-            return TaskErrors.NotFound(id);
+        public Handler(TasksDbContext db)
+        {
+            _db = db;
+        }
 
-        if (!_access.CanAccess(callerId, item, TaskPermissions.Delete))
-            return TaskErrors.Forbidden;
+        public async Task<ErrorOr<Success>> Handle(DeleteTaskCommand command, CancellationToken ct)
+        {
+            var item = await _db.TaskItems.SingleOrDefaultAsync(t => t.Id == command.Id, ct);
+            if (item is null)
+                return TaskErrors.NotFound(command.Id);
 
-        item.MarkDeleted();
-        _db.TaskItems.Remove(item);
-        await _db.SaveChangesAsync(ct);
+            if (!command.Caller.CanAccess(item, TaskPermissions.Delete))
+                return TaskErrors.Forbidden;
 
-        return Result.Success;
+            item.MarkDeleted();
+            _db.TaskItems.Remove(item);
+            await _db.SaveChangesAsync(ct);
+
+            return Result.Success;
+        }
     }
 }

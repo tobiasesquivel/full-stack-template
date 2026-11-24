@@ -10,7 +10,7 @@ public static class ApiResults
     public static IResult Problem(Error error) =>
         Results.Problem(statusCode: StatusFor(error), title: error.Description, extensions: Code(error));
 
-    private static IResult Problem(List<Error> errors)
+    public static IResult Problem(List<Error> errors)
     {
         if (!errors.All(e => e.Type == ErrorType.Validation))
             return Problem(errors[0]);

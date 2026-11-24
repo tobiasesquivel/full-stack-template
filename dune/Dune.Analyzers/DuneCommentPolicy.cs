@@ -11,7 +11,8 @@ public static class DuneCommentPolicy
     public static bool IsExemptPath(string normalizedPath) =>
         DunePaths.ContainsOrdinal(normalizedPath, "backend/Infrastructure/Persistence/Migrations/")
         || IsFeatureMigration(normalizedPath)
-        || DunePaths.ContainsOrdinal(normalizedPath, "backend/Internal/Generated/WolverineHandlers/");
+        || DunePaths.ContainsOrdinal(normalizedPath, "backend/Internal/Generated/WolverineHandlers/")
+        || DunePaths.ContainsOrdinal(normalizedPath, "backend/Hosts/Tasks/Internal/Generated/WolverineHandlers/");
 
     private static bool IsFeatureMigration(string normalizedPath) =>
         DunePaths.TryGetFeature(normalizedPath, out var feature)

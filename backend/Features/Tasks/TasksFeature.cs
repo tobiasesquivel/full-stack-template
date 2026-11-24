@@ -1,3 +1,4 @@
+using FluentValidation;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using TemplateApp.Features.Tasks.Access;
 using TemplateApp.Features.Tasks.Domain.Events;
@@ -47,15 +48,17 @@ internal static class TasksFeature
 
         services.AddSingleton<TaskMetrics>();
         services.AddScoped<TaskAccess>();
-        services.AddScoped<CreateTask.CreateTask>();
-        services.AddScoped<ListTasks.ListTasks>();
-        services.AddScoped<GetTask.GetTask>();
-        services.AddScoped<UpdateTask.UpdateTask>();
-        services.AddScoped<DeleteTask.DeleteTask>();
+        services.AddMediatorHandler<CreateTask.CreateTask.Handler>();
+        services.AddSingleton<IValidator<CreateTask.CreateTaskCommand>, CreateTask.CreateTaskCommandValidator>();
+        services.AddMediatorHandler<ListTasks.ListTasks.Handler>();
+        services.AddMediatorHandler<GetTask.GetTask.Handler>();
+        services.AddMediatorHandler<UpdateTask.UpdateTask.Handler>();
+        services.AddSingleton<IValidator<UpdateTask.UpdateTaskCommand>, UpdateTask.UpdateTaskCommandValidator>();
+        services.AddMediatorHandler<DeleteTask.DeleteTask.Handler>();
+        services.AddMediatorHandler<SnapshotTaskCounts.SnapshotTaskCounts.Handler>();
         services.AddScoped<DeleteOwnedTasks.DeleteOwnedTasks>();
         services.AddScoped<HoldOwnerTasks.HoldOwnerTasks>();
         services.AddScoped<ReleaseOwnerTasks.ReleaseOwnerTasks>();
-        services.AddScoped<SnapshotTaskCounts.SnapshotTaskCounts>();
         return services;
     }
 

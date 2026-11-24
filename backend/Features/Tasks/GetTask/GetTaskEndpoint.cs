@@ -1,5 +1,8 @@
 using System.Security.Claims;
+using ErrorOr;
+using TemplateApp.Features.Tasks.Access;
 using TemplateApp.Shared.Http;
+using Wolverine;
 
 namespace TemplateApp.Features.Tasks.GetTask;
 
@@ -9,11 +12,13 @@ internal static class GetTaskEndpoint
 
     private static async Task<IResult> HandleAsync(
         Guid id,
-        GetTask slice,
+        IMessageBus bus,
+        TaskAccess access,
         ClaimsPrincipal user,
         CancellationToken ct)
     {
-        var result = await slice.ExecuteAsync(user.GetCallerId(), id, ct);
+        var command = new GetTaskCommand(access.CallerOf(user), id);
+        var result = await bus.InvokeAsync<ErrorOr<TaskResponse>>(command, ct);
         return ApiResults.ToResult(result, value => Results.Ok(value));
     }
 }

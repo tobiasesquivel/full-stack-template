@@ -21,6 +21,8 @@ public sealed class BusBoundaryAnalyzerTests
                 Task PublishAsync<T>(T message, DeliveryOptions? options = null);
                 Task InvokeAsync(object message, CancellationToken ct = default);
                 Task<T> InvokeAsync<T>(object message, CancellationToken ct = default);
+                Task<T> InvokeAsync<T>(object message, DeliveryOptions options, CancellationToken ct = default);
+                Task<T> InvokeForTenantAsync<T>(string tenantId, object message, CancellationToken ct = default);
             }
             public class MessageContext { public Envelope? Envelope { get; set; } }
             public abstract class Saga { }
@@ -142,10 +144,76 @@ public sealed class BusBoundaryAnalyzerTests
                 ("backend/Features/Projects/ApplyTaskEvent/TaskEventsHandler.cs", 6),
                 ("backend/Features/Tasks/CreateTask/CreateTaskEndpoint.cs", 5),
                 ("backend/Features/Tasks/CreateTask/CreateTaskEndpoint.cs", 5),
-                ("backend/Features/Tasks/CreateTask/CreateTaskEndpoint.cs", 5),
                 ("backend/Infrastructure/Messaging/IntegrationEventPublisher.cs", 6),
                 ("backend/Infrastructure/Observability/BusRegistration.cs", 1),
                 ("backend/Infrastructure/Observability/BusRegistration.cs", 5),
+            },
+            Locations(diagnostics));
+    }
+
+    [Fact]
+    public async Task ASliceEndpoint_DispatchesItsCommandWithTheGenericInvokeAsync()
+    {
+        var diagnostics = await AnalyzeAsync(
+            ("backend/Features/Tasks/CreateTask/CreateTaskEndpoint.cs", """
+                using System.Threading;
+                using System.Threading.Tasks;
+                using Wolverine;
+                namespace TemplateApp.Features.Tasks.CreateTask;
+                internal sealed record CreateTaskCommand(string Title);
+                internal static class CreateTaskEndpoint
+                {
+                    public static Task<int> HandleAsync(IMessageBus bus, CancellationToken ct) =>
+                        bus.InvokeAsync<int>(new CreateTaskCommand("Pan"), ct);
+                }
+                """));
+
+        Assert.Empty(Locations(diagnostics));
+    }
+
+    [Fact]
+    public async Task ASliceEndpoint_NamesOnlyIMessageBus_AndCallsOnlyTheGenericInvokeAsync()
+    {
+        var diagnostics = await AnalyzeAsync(
+            ("backend/Features/Tasks/UpdateTask/UpdateTaskEndpoint.cs", """
+                using System.Threading;
+                using System.Threading.Tasks;
+                using Wolverine;
+                namespace TemplateApp.Features.Tasks.UpdateTask;
+                internal static class UpdateTaskEndpoint
+                {
+                    public static System.Guid IdOf(Envelope envelope) => envelope.Id;
+                    public static Task PublishAsync(IMessageBus bus) => bus.PublishAsync(new object());
+                    public static Task<int> WithOptionsAsync(IMessageBus bus, CancellationToken ct) => bus.InvokeAsync<int>(new object(), new DeliveryOptions(), ct);
+                    public static Task<int> ForTenantAsync(IMessageBus bus, CancellationToken ct) => bus.InvokeForTenantAsync<int>("t", new object(), ct);
+                }
+                """),
+            ("backend/Features/Tasks/UpdateTask/UpdateTask.cs", """
+                using System.Threading;
+                using System.Threading.Tasks;
+                using Wolverine;
+                namespace TemplateApp.Features.Tasks.UpdateTask;
+                internal static class UpdateTask
+                {
+                    public static Task<int> HandleAsync(IMessageBus bus, CancellationToken ct) => bus.InvokeAsync<int>(new object(), ct);
+                }
+                """));
+
+        Assert.Equal(
+            new[]
+            {
+                ("backend/Features/Tasks/UpdateTask/UpdateTask.cs", 3),
+                ("backend/Features/Tasks/UpdateTask/UpdateTask.cs", 7),
+                ("backend/Features/Tasks/UpdateTask/UpdateTask.cs", 7),
+                ("backend/Features/Tasks/UpdateTask/UpdateTask.cs", 7),
+                ("backend/Features/Tasks/UpdateTask/UpdateTaskEndpoint.cs", 7),
+                ("backend/Features/Tasks/UpdateTask/UpdateTaskEndpoint.cs", 7),
+                ("backend/Features/Tasks/UpdateTask/UpdateTaskEndpoint.cs", 8),
+                ("backend/Features/Tasks/UpdateTask/UpdateTaskEndpoint.cs", 9),
+                ("backend/Features/Tasks/UpdateTask/UpdateTaskEndpoint.cs", 9),
+                ("backend/Features/Tasks/UpdateTask/UpdateTaskEndpoint.cs", 9),
+                ("backend/Features/Tasks/UpdateTask/UpdateTaskEndpoint.cs", 10),
+                ("backend/Features/Tasks/UpdateTask/UpdateTaskEndpoint.cs", 10),
             },
             Locations(diagnostics));
     }

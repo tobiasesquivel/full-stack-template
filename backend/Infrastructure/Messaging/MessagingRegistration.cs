@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Wolverine;
+using Wolverine.FluentValidation;
 using Wolverine.HealthChecks;
 
 namespace TemplateApp.Infrastructure.Messaging;
@@ -19,6 +20,7 @@ public static class MessagingRegistration
         services.AddWolverine(ExtensionDiscovery.ManualOnly, options =>
         {
             options.ApplicationAssembly = application ?? typeof(MessagingRegistration).Assembly;
+            options.UseFluentValidation(RegistrationBehavior.ExplicitRegistration);
             if (storesSagas)
                 SagaStorage.Configure(options);
         });
@@ -58,6 +60,10 @@ public static class MessagingRegistration
         services.TryAddScoped<SagaOutbox<TContext>>();
         return services.AddSingleton(new SagaType(typeof(TSaga)));
     }
+
+    public static IServiceCollection AddMediatorHandler<THandler>(this IServiceCollection services)
+        where THandler : class =>
+        services.AddSingleton(new MediatorHandlerType(typeof(THandler)));
 
     public static IServiceCollection AddSagaMessage<TMessage>(this IServiceCollection services, string name, int version, string exchange, string queue)
         where TMessage : class =>
