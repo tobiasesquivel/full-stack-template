@@ -54,13 +54,22 @@ const VALID_GATEWAY_PROJECT = '<Project Sdk="Microsoft.NET.Sdk.Web"><ItemGroup>'
   + '<PackageReference Include="Yarp.ReverseProxy" Version="2.3.0" />'
   + '</ItemGroup></Project>';
 
-const MONOLITH_EXCLUDES = '<PropertyGroup><DefaultItemExcludes>$(DefaultItemExcludes);Tests/**;Platform/**;Hosts/**;Infrastructure/**;Shared/**;Features/Tasks/**</DefaultItemExcludes></PropertyGroup>';
+const HOST_PROPERTIES = '<PropertyGroup><EnableDefaultCompileItems>false</EnableDefaultCompileItems>'
+  + "<BackendRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../..'))</BackendRoot></PropertyGroup>";
 
-const PLATFORM_REFERENCE = '<ItemGroup><ProjectReference Include="Platform/TemplateApp.Platform.csproj" /></ItemGroup>';
+const PLATFORM_REFERENCE = '<ItemGroup><ProjectReference Include="../../Platform/TemplateApp.Platform.csproj" /></ItemGroup>';
 
-function monolithProject(extra = '') {
-  return `<Project Sdk="Microsoft.NET.Sdk.Web">${MONOLITH_EXCLUDES}${PLATFORM_REFERENCE}`
-    + `<ItemGroup><Compile Remove="Features/**/*Tests.cs" /><Compile Remove="Tests/**/*.cs" />${extra}</ItemGroup></Project>`;
+const MONOLITH_COMPILE = [
+  '<Compile Include="*.cs" />',
+  '<Compile Include="Internal/Generated/**/*.cs" />',
+  '<Compile Include="$(BackendRoot)/Features/**/*.cs" />',
+  '<Compile Remove="$(BackendRoot)/Features/Tasks/**" />',
+  '<Compile Remove="$(BackendRoot)/Features/**/*Tests.cs" />',
+];
+
+function monolithProject(extra = '', compile = MONOLITH_COMPILE) {
+  return `<Project Sdk="Microsoft.NET.Sdk.Web">${HOST_PROPERTIES}${PLATFORM_REFERENCE}`
+    + `<ItemGroup>${compile.join('')}${extra}</ItemGroup></Project>`;
 }
 
 const PLATFORM_PROJECT = '<Project Sdk="Microsoft.NET.Sdk.Web"><PropertyGroup><OutputType>Library</OutputType>'
@@ -88,14 +97,14 @@ async function seedValid(repo) {
     await repo.write(`backend/Features/${feature}/Ping${feature}/Ping${feature}Endpoint.cs`, ' ');
     await repo.write(`backend/Features/${feature}/Ping${feature}/Ping${feature}Tests.cs`, ' ');
   }
-  await repo.write('backend/Program.cs', ' ');
-  await repo.write('backend/TemplateApp.csproj', monolithProject());
+  await repo.write('backend/Hosts/Monolith/Program.cs', ' ');
+  await repo.write('backend/Hosts/Monolith/TemplateApp.csproj', monolithProject());
   await repo.write('backend/Platform/TemplateApp.Platform.csproj', PLATFORM_PROJECT);
   await repo.write('backend/Hosts/Tasks/TemplateApp.Tasks.csproj', tasksHostProject());
   await repo.write('backend/Hosts/Tasks/Program.cs', ' ');
   await repo.write(
     'backend/Tests/TemplateApp.Tests.csproj',
-    '<Project><ItemGroup><ProjectReference Include="../TemplateApp.csproj" />'
+    '<Project><ItemGroup><ProjectReference Include="../Hosts/Monolith/TemplateApp.csproj" />'
       + '<Compile Include="..\\Features\\**\\*Tests.cs" />'
       + '</ItemGroup></Project>',
   );
@@ -168,14 +177,22 @@ describe('check-structure', () => {
     }
   });
 
-  it('rechaza producto que compila tests', async () => {
+  it('acepta un monolito con barras invertidas en las rutas', async () => {
     const repo = await makeRepo();
     try {
       await seedValid(repo);
-      await repo.write('backend/TemplateApp.csproj', '<Project></Project>');
+      await repo.write(
+        'backend/Hosts/Monolith/TemplateApp.csproj',
+        monolithProject('', [
+          '<Compile Include="*.cs" />',
+          String.raw`<Compile Include="Internal\Generated\**\*.cs" />`,
+          String.raw`<Compile Include="..\..\Features\**\*.cs" />`,
+          String.raw`<Compile Remove="..\..\Features\Tasks\**" />`,
+          String.raw`<Compile Remove="..\..\Features\**\*Tests.cs" />`,
+        ]),
+      );
       const result = await runGate(repo.dir);
-      assert.equal(result.code, 1);
-      assert.match(result.output, /no excluye tests del producto/);
+      assert.equal(result.code, 0, result.output);
     } finally {
       await repo.cleanup();
     }
@@ -206,15 +223,15 @@ describe('check-structure', () => {
   for (const [name, rel, content, expected] of [
     [
       'el monolito que referencia el host de Tasks',
-      'backend/TemplateApp.csproj',
-      monolithProject('<ProjectReference Include="Hosts/Tasks/TemplateApp.Tasks.csproj" />'),
-      /límite de despliegue: backend\/TemplateApp\.csproj referencia backend\/Hosts\/Tasks\/TemplateApp\.Tasks\.csproj/,
+      'backend/Hosts/Monolith/TemplateApp.csproj',
+      monolithProject('<ProjectReference Include="../Tasks/TemplateApp.Tasks.csproj" />'),
+      /límite de despliegue: backend\/Hosts\/Monolith\/TemplateApp\.csproj referencia backend\/Hosts\/Tasks\/TemplateApp\.Tasks\.csproj/,
     ],
     [
       'el host de Tasks que referencia el monolito',
       'backend/Hosts/Tasks/TemplateApp.Tasks.csproj',
-      tasksHostProject({ references: ['../../Platform/TemplateApp.Platform.csproj', '../../TemplateApp.csproj'] }),
-      /límite de despliegue: backend\/Hosts\/Tasks\/TemplateApp\.Tasks\.csproj referencia backend\/TemplateApp\.csproj/,
+      tasksHostProject({ references: ['../../Platform/TemplateApp.Platform.csproj', '../Monolith/TemplateApp.csproj'] }),
+      /límite de despliegue: backend\/Hosts\/Tasks\/TemplateApp\.Tasks\.csproj referencia backend\/Hosts\/Monolith\/TemplateApp\.csproj/,
     ],
     [
       'el host de Tasks que compila Features/Users',
@@ -229,22 +246,130 @@ describe('check-structure', () => {
       /límite de despliegue: backend\/Hosts\/Tasks\/TemplateApp\.Tasks\.csproj compila \$\(BackendRoot\)\/Infrastructure/,
     ],
     [
-      'el monolito que vuelve a incluir Features/Tasks con un Compile Include',
-      'backend/TemplateApp.csproj',
-      monolithProject('<Compile Include="Features/Tasks/**/*.cs" Exclude="Features/Tasks/**/*Tests.cs" />'),
-      /límite de despliegue: backend\/TemplateApp\.csproj compila Features\/Tasks\/\*\*\/\*\.cs/,
+      'el host de Tasks que compila Infrastructure con una propiedad y /..',
+      'backend/Hosts/Tasks/TemplateApp.Tasks.csproj',
+      tasksHostProject({ compile: [...TASKS_HOST_COMPILE, '<Compile Include="$(ProbeInfra)/../ContextRegistration.cs" />'] }),
+      /límite de despliegue: backend\/Hosts\/Tasks\/TemplateApp\.Tasks\.csproj compila \$\(ProbeInfra\)\/\.\.\/ContextRegistration\.cs/,
     ],
     [
-      'el monolito sin excluir Features/Tasks',
-      'backend/TemplateApp.csproj',
-      `<Project>${PLATFORM_REFERENCE}<ItemGroup><Compile Remove="Features/**/*Tests.cs" /><Compile Remove="Tests/**/*.cs" /></ItemGroup></Project>`,
-      /límite de despliegue: backend\/TemplateApp\.csproj no excluye Features\/Tasks\/\*\*/,
+      'el host de Tasks que compila una carpeta hermana con otras mayúsculas',
+      'backend/Hosts/Tasks/TemplateApp.Tasks.csproj',
+      tasksHostProject({ compile: [...TASKS_HOST_COMPILE, '<Compile Include="../tasks/*.cs" />'] }),
+      /límite de despliegue: backend\/Hosts\/Tasks\/TemplateApp\.Tasks\.csproj compila \.\.\/tasks\/\*\.cs/,
+    ],
+    [
+      'el host de Tasks que compila Features/Users con una condición',
+      'backend/Hosts/Tasks/TemplateApp.Tasks.csproj',
+      tasksHostProject({ compile: [...TASKS_HOST_COMPILE, `<Compile Condition="'$(SolutionName)' == 'TemplateApp'" Include="$(BackendRoot)/Features/Users/**/*.cs" />`] }),
+      /límite de despliegue: backend\/Hosts\/Tasks\/TemplateApp\.Tasks\.csproj compila \$\(BackendRoot\)\/Features\/Users/,
+    ],
+    [
+      'el monolito que agrega Features/Tasks en un target antes de compilar',
+      'backend/Hosts/Monolith/TemplateApp.csproj',
+      monolithProject().replace('</Project>', '<Target Name="Probe" BeforeTargets="CoreCompile"><ItemGroup><Compile Include="$(BackendRoot)/Features/Tasks/**/*.cs" /></ItemGroup></Target></Project>'),
+      /límite de despliegue: backend\/Hosts\/Monolith\/TemplateApp\.csproj compila \$\(BackendRoot\)\/Features\/Tasks/,
+    ],
+    [
+      'el monolito que incluye Features/./Tasks',
+      'backend/Hosts/Monolith/TemplateApp.csproj',
+      monolithProject('<Compile Include="$(BackendRoot)/Features/./Tasks/**/*.cs" />'),
+      /límite de despliegue: backend\/Hosts\/Monolith\/TemplateApp\.csproj compila \$\(BackendRoot\)\/Features\/\.\/Tasks/,
+    ],
+    [
+      'el monolito que incluye Features/tasks en minúsculas',
+      'backend/Hosts/Monolith/TemplateApp.csproj',
+      monolithProject('<Compile Include="$(BackendRoot)/Features/tasks/**/*.cs" />'),
+      /límite de despliegue: backend\/Hosts\/Monolith\/TemplateApp\.csproj compila \$\(BackendRoot\)\/Features\/tasks/,
+    ],
+    [
+      'el monolito que incluye Infrastructure con una ruta absoluta',
+      'backend/Hosts/Monolith/TemplateApp.csproj',
+      monolithProject('<Compile Include="C:/repo/backend/Infrastructure/**/*.cs" />'),
+      /límite de despliegue: backend\/Hosts\/Monolith\/TemplateApp\.csproj compila C:\/repo\/backend\/Infrastructure/,
+    ],
+    [
+      'el monolito que compila los tests del backend',
+      'backend/Hosts/Monolith/TemplateApp.csproj',
+      monolithProject('<Compile Include="../../Tests/**/*.cs" />'),
+      /límite de despliegue: backend\/Hosts\/Monolith\/TemplateApp\.csproj compila \.\.\/\.\.\/Tests/,
+    ],
+    [
+      'el host de Tasks que agrega Features/./Tasks en un target antes de compilar',
+      'backend/Hosts/Tasks/TemplateApp.Tasks.csproj',
+      tasksHostProject().replace('</Project>', '<Target Name="Probe" BeforeTargets="CoreCompile"><ItemGroup><Compile Include="$(BackendRoot)/Features/./Tasks/ProbeHelper.cs" /></ItemGroup></Target></Project>'),
+      /límite de despliegue: backend\/Hosts\/Tasks\/TemplateApp\.Tasks\.csproj compila \$\(BackendRoot\)\/Features\/\.\/Tasks\/ProbeHelper\.cs/,
+    ],
+    [
+      'el host de Tasks que agrega un test en un target antes de compilar',
+      'backend/Hosts/Tasks/TemplateApp.Tasks.csproj',
+      tasksHostProject().replace('</Project>', '<Target Name="Probe" BeforeTargets="CoreCompile"><ItemGroup><Compile Include="$(BackendRoot)/Features/Tasks/BoundaryProbeTests.cs" /></ItemGroup></Target></Project>'),
+      /límite de despliegue: backend\/Hosts\/Tasks\/TemplateApp\.Tasks\.csproj compila \$\(BackendRoot\)\/Features\/Tasks\/BoundaryProbeTests\.cs/,
     ],
     [
       'el host de Tasks que no quita los tests',
       'backend/Hosts/Tasks/TemplateApp.Tasks.csproj',
       tasksHostProject({ compile: TASKS_HOST_COMPILE.slice(0, 3) }),
-      /TemplateApp\.Tasks\.csproj no excluye tests del producto: falta Compile Remove "Features\/\*\*\/\*Tests\.cs"/,
+      /TemplateApp\.Tasks\.csproj no excluye tests del producto: falta Compile Remove/,
+    ],
+    [
+      'el monolito que no quita los tests',
+      'backend/Hosts/Monolith/TemplateApp.csproj',
+      monolithProject('', MONOLITH_COMPILE.filter((item) => !item.includes('Tests.cs'))),
+      /backend\/Hosts\/Monolith\/TemplateApp\.csproj no excluye tests del producto: falta Compile Remove/,
+    ],
+    [
+      'un test junto al Program.cs del monolito, aunque termine en .CS',
+      'backend/Hosts/Monolith/ProbeTests.CS',
+      ' ',
+      /tests en la carpeta de un host, que compila sus \*\.cs: backend\/Hosts\/Monolith\/ProbeTests\.CS/,
+    ],
+    [
+      'el host de Tasks que agrega Users en un target con .. escrito %2e%2e',
+      'backend/Hosts/Tasks/TemplateApp.Tasks.csproj',
+      tasksHostProject().replace('</Project>', '<Target Name="Probe" BeforeTargets="CoreCompile"><ItemGroup><Compile Include="$(MSBuildThisFileDirectory)%2e%2e/%2e%2e/Features/Users/UpdateProfile/UpdateProfileRequest.cs" /></ItemGroup></Target></Project>'),
+      /límite de despliegue: backend\/Hosts\/Tasks\/TemplateApp\.Tasks\.csproj compila \$\(MSBuildThisFileDirectory\)%2e%2e/,
+    ],
+    [
+      'el host de Tasks que agrega una ruta absoluta escrita C%3a en un target',
+      'backend/Hosts/Tasks/TemplateApp.Tasks.csproj',
+      tasksHostProject().replace('</Project>', '<Target Name="Probe" BeforeTargets="CoreCompile"><ItemGroup><Compile Include="C%3a/tmp/branch..fixture/backend/Features/Users/UpdateProfile/UpdateProfileRequest.cs" /></ItemGroup></Target></Project>'),
+      /límite de despliegue: backend\/Hosts\/Tasks\/TemplateApp\.Tasks\.csproj compila C%3a/,
+    ],
+    [
+      'el monolito que llega a Features/Tasks desde Features/Health con %2e%2e',
+      'backend/Hosts/Monolith/TemplateApp.csproj',
+      monolithProject().replace('</Project>', '<Target Name="Probe" BeforeTargets="CoreCompile"><ItemGroup><Compile Include="$(BackendRoot)/Features/Health/%2e%2e/%2e%2e/Features/Tasks/UpdateTask/UpdateTaskRequest.cs" /></ItemGroup></Target></Project>'),
+      /límite de despliegue: backend\/Hosts\/Monolith\/TemplateApp\.csproj compila \$\(BackendRoot\)\/Features\/Health\/%2e%2e/,
+    ],
+    [
+      'el host de Tasks que agrega una lista indirecta en un target',
+      'backend/Hosts/Tasks/TemplateApp.Tasks.csproj',
+      tasksHostProject().replace('</Project>', '<Target Name="Probe" BeforeTargets="CoreCompile"><ItemGroup><Probe Include="$(BackendRoot)/Features/Users/UpdateProfile/UpdateProfileRequest.cs" /><Compile Include="@(Probe)" /></ItemGroup></Target></Project>'),
+      /límite de despliegue: backend\/Hosts\/Tasks\/TemplateApp\.Tasks\.csproj compila @\(Probe\)/,
+    ],
+    [
+      'el host de Tasks que importa un archivo de MSBuild',
+      'backend/Hosts/Tasks/TemplateApp.Tasks.csproj',
+      tasksHostProject().replace('</Project>', '<Import Project="Probe.targets" /></Project>'),
+      /límite de despliegue: backend\/Hosts\/Tasks\/TemplateApp\.Tasks\.csproj importa otro archivo de MSBuild/,
+    ],
+    [
+      'el monolito que quita una Features/Tasks de otra carpeta',
+      'backend/Hosts/Monolith/TemplateApp.csproj',
+      monolithProject('', MONOLITH_COMPILE.map((item) => item.replace('$(BackendRoot)/Features/Tasks/**', '$(BackendRoot)/Unused/Features/Tasks/**'))),
+      /límite de despliegue: backend\/Hosts\/Monolith\/TemplateApp\.csproj no excluye Features\/Tasks\/\*\*/,
+    ],
+    [
+      'el host de Tasks que quita los tests de otra carpeta',
+      'backend/Hosts/Tasks/TemplateApp.Tasks.csproj',
+      tasksHostProject({ compile: [...TASKS_HOST_COMPILE.slice(0, 3), '<Compile Remove="$(BackendRoot)/Unused/Features/**/*Tests.cs" />'] }),
+      /TemplateApp\.Tasks\.csproj no excluye tests del producto/,
+    ],
+    [
+      'el monolito sin quitar Features/Tasks',
+      'backend/Hosts/Monolith/TemplateApp.csproj',
+      monolithProject('', MONOLITH_COMPILE.filter((item) => !item.includes('Features/Tasks/**'))),
+      /límite de despliegue: backend\/Hosts\/Monolith\/TemplateApp\.csproj no excluye Features\/Tasks\/\*\*/,
     ],
     [
       'un bus en el host de Tasks',
@@ -277,10 +402,24 @@ describe('check-structure', () => {
     const repo = await makeRepo();
     try {
       await seedValid(repo);
-      await rm(path.join(repo.dir, 'backend/Hosts'), { recursive: true, force: true });
+      await rm(path.join(repo.dir, 'backend/Hosts/Tasks'), { recursive: true, force: true });
       const result = await runGate(repo.dir);
       assert.equal(result.code, 1);
       assert.match(result.output, /límite de despliegue: falta backend\/Hosts\/Tasks\/TemplateApp\.Tasks\.csproj/);
+    } finally {
+      await repo.cleanup();
+    }
+  });
+
+  it('rechaza un repo con el monolito fuera de backend/Hosts/Monolith', async () => {
+    const repo = await makeRepo();
+    try {
+      await seedValid(repo);
+      await rm(path.join(repo.dir, 'backend/Hosts/Monolith'), { recursive: true, force: true });
+      await repo.write('backend/TemplateApp.csproj', monolithProject('<Compile Include="Features/Tasks/**/*.cs" />'));
+      const result = await runGate(repo.dir);
+      assert.equal(result.code, 1);
+      assert.match(result.output, /límite de despliegue: falta backend\/Hosts\/Monolith\/TemplateApp\.csproj/);
     } finally {
       await repo.cleanup();
     }
@@ -291,7 +430,7 @@ describe('check-structure', () => {
     try {
       await seedValid(repo);
       await repo.write(
-        'backend/TemplateApp.csproj',
+        'backend/Hosts/Monolith/TemplateApp.csproj',
         monolithProject(
           '<PackageReference Include="FluentValidation" Version="12.0.0" />'
             + '<PackageReference Include="MediatorKit" Version="1.0.0" />',
@@ -378,7 +517,7 @@ describe('check-structure', () => {
     try {
       await seedValid(repo);
       await repo.write(
-        'backend/TemplateApp.csproj',
+        'backend/Hosts/Monolith/TemplateApp.csproj',
         monolithProject('<InternalsVisibleTo Include="TemplateApp.Tests" />'),
       );
       const result = await runGate(repo.dir);
@@ -389,14 +528,14 @@ describe('check-structure', () => {
   });
 
   for (const [name, rel, content] of [
-    ['InternalsVisibleTo a otro ensamblado en el csproj', 'backend/TemplateApp.csproj', monolithProject('<InternalsVisibleTo Include="TemplateApp.Tools" />')],
+    ['InternalsVisibleTo a otro ensamblado en el csproj', 'backend/Hosts/Monolith/TemplateApp.csproj', monolithProject('<InternalsVisibleTo Include="TemplateApp.Tools" />')],
     ['InternalsVisibleTo como AssemblyAttribute en Directory.Build.props', 'Directory.Build.props', '<Project><ItemGroup><AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo"><_Parameter1>DynamicProxyGenAssembly2</_Parameter1></AssemblyAttribute></ItemGroup></Project>'],
     ['atributo InternalsVisibleTo en el código', 'backend/Infrastructure/AssemblyInfo.cs', '[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("TemplateApp.Benchmarks")]\n'],
-    ['atributo InternalsVisibleTo en Properties/', 'backend/Properties/AssemblyInfo.cs', '[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("TemplateApp.Benchmarks")]\n'],
+    ['atributo InternalsVisibleTo en Properties/', 'backend/Hosts/Monolith/Properties/AssemblyInfo.cs', '[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("TemplateApp.Benchmarks")]\n'],
     ['InternalsVisibleTo en un props importado por el backend', 'backend/Build/Internals.props', '<Project><ItemGroup><InternalsVisibleTo Include="TemplateApp.Tools" /></ItemGroup></Project>'],
-    ['InternalsVisibleTo con otro atributo antes de Include', 'backend/TemplateApp.csproj', monolithProject('<InternalsVisibleTo Condition="true" Include="TemplateApp.Tools" />')],
-    ['InternalsVisibleTo con comillas simples', 'backend/TemplateApp.csproj', monolithProject('<InternalsVisibleTo Include=\'TemplateApp.Tools\' />')],
-    ['AssemblyAttribute con _Parameter1 como atributo', 'backend/TemplateApp.csproj', monolithProject('<AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo" _Parameter1="TemplateApp.Tools" />')],
+    ['InternalsVisibleTo con otro atributo antes de Include', 'backend/Hosts/Monolith/TemplateApp.csproj', monolithProject('<InternalsVisibleTo Condition="true" Include="TemplateApp.Tools" />')],
+    ['InternalsVisibleTo con comillas simples', 'backend/Hosts/Monolith/TemplateApp.csproj', monolithProject('<InternalsVisibleTo Include=\'TemplateApp.Tools\' />')],
+    ['AssemblyAttribute con _Parameter1 como atributo', 'backend/Hosts/Monolith/TemplateApp.csproj', monolithProject('<AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo" _Parameter1="TemplateApp.Tools" />')],
     ['atributo InternalsVisibleTo con argumento con nombre', 'backend/Infrastructure/AssemblyInfo.cs', '[assembly: System.Runtime.CompilerServices.InternalsVisibleTo(assemblyName: "TemplateApp.Benchmarks")]\n'],
     ['atributo InternalsVisibleTo con una constante', 'backend/Infrastructure/AssemblyInfo.cs', '[assembly: System.Runtime.CompilerServices.InternalsVisibleTo(Names.Benchmarks)]\n'],
   ]) {
@@ -415,17 +554,17 @@ describe('check-structure', () => {
   }
 
   for (const [name, rel, content] of [
-    ['paquete MediatR en el producto', 'backend/TemplateApp.csproj', monolithProject('<PackageReference Include="MediatR" Version="12.0.0" />')],
+    ['paquete MediatR en el producto', 'backend/Hosts/Monolith/TemplateApp.csproj', monolithProject('<PackageReference Include="MediatR" Version="12.0.0" />')],
     ['paquete MassTransit en Directory.Build.props', 'Directory.Build.props', '<Project><ItemGroup><PackageReference Include="MassTransit.RabbitMQ" Version="8.0.0" /></ItemGroup></Project>'],
     ['paquete Wolverine en Dune.props', 'dune/Dune.props', '<Project><ItemGroup><PackageReference Include="WolverineFx" Version="3.0.0" /></ItemGroup></Project>'],
-    ['global using de NServiceBus en el csproj', 'backend/TemplateApp.csproj', monolithProject('<Using Include="NServiceBus" />')],
+    ['global using de NServiceBus en el csproj', 'backend/Hosts/Monolith/TemplateApp.csproj', monolithProject('<Using Include="NServiceBus" />')],
     ['using de Wolverine en el código', 'backend/Infrastructure/Composition.cs', 'using Wolverine;\n'],
     ['global using de Rebus en el código', 'backend/Shared/GlobalUsings.cs', 'global using Rebus.Bus;\n'],
     ['alias de MediatR en el código', 'backend/Features/Tasks/TaskModule.cs', 'using Bus = MediatR.IMediator;\n'],
     ['Wolverine en el host de Tasks', 'backend/Hosts/Tasks/TemplateApp.Tasks.csproj', tasksHostProject().replace('</Project>', '<ItemGroup><PackageReference Include="WolverineFx" Version="6.64.2" /></ItemGroup></Project>')],
-    ['WolverineFx.RabbitMQ en el monolito', 'backend/TemplateApp.csproj', monolithProject('<PackageReference Include="WolverineFx.RabbitMQ" Version="6.64.2" />')],
+    ['WolverineFx.RabbitMQ en el monolito', 'backend/Hosts/Monolith/TemplateApp.csproj', monolithProject('<PackageReference Include="WolverineFx.RabbitMQ" Version="6.64.2" />')],
     ['un paquete de Wolverine no elegido en Platform', 'backend/Platform/TemplateApp.Platform.csproj', PLATFORM_PROJECT.replace('</Project>', '<ItemGroup><PackageReference Include="WolverineFx.Marten" Version="6.64.2" /></ItemGroup></Project>')],
-    ['WolverineFx.Postgresql en el monolito', 'backend/TemplateApp.csproj', monolithProject('<PackageReference Include="WolverineFx.Postgresql" Version="6.64.2" />')],
+    ['WolverineFx.Postgresql en el monolito', 'backend/Hosts/Monolith/TemplateApp.csproj', monolithProject('<PackageReference Include="WolverineFx.Postgresql" Version="6.64.2" />')],
     ['using de Wolverine en una slice que solo nombra Saga en un texto', 'backend/Features/Users/DeleteUser/DeleteUser.cs', 'using Wolverine;\nnamespace TemplateApp.Features.Users.DeleteUser;\ninternal sealed class DeleteUser { private const string Kind = "Saga"; }\n'],
     ['using de Wolverine en un orquestador fuera de backend/Features', 'backend/Shared/ClosureSaga.cs', 'using Wolverine;\npublic sealed class ClosureSaga : Saga { }\n'],
     ['MassTransit en Platform', 'backend/Platform/TemplateApp.Platform.csproj', PLATFORM_PROJECT.replace('</Project>', '<ItemGroup><PackageReference Include="MassTransit.RabbitMQ" Version="8.0.0" /></ItemGroup></Project>')],
@@ -473,11 +612,11 @@ describe('check-structure', () => {
   });
 
   for (const [name, rel, content, expected] of [
-    ['la librería de resiliencia en el monolito', 'backend/TemplateApp.csproj', monolithProject('<PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.11.1" />'), /backend\/TemplateApp\.csproj \(Microsoft\.Extensions\.Http\.Resilience\)/],
+    ['la librería de resiliencia en el monolito', 'backend/Hosts/Monolith/TemplateApp.csproj', monolithProject('<PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.11.1" />'), /backend\/Hosts\/Monolith\/TemplateApp\.csproj \(Microsoft\.Extensions\.Http\.Resilience\)/],
     ['Polly.Core directo en Platform', 'backend/Platform/TemplateApp.Platform.csproj', PLATFORM_PROJECT.replace('</Project>', '<ItemGroup><PackageReference Include="Polly.Core" Version="8.9.1" /></ItemGroup></Project>'), /TemplateApp\.Platform\.csproj \(Polly\.Core\)/],
     ['Polly en el gateway', 'gateway/TemplateApp.Gateway.csproj', VALID_GATEWAY_PROJECT.replace('</ItemGroup>', '<PackageReference Include="Polly" Version="8.9.1" /></ItemGroup>'), /gateway\/TemplateApp\.Gateway\.csproj \(Polly\)/],
     ['el paquete deprecado Microsoft.Extensions.Http.Polly en Directory.Build.props', 'Directory.Build.props', '<Project><ItemGroup><PackageReference Include="Microsoft.Extensions.Http.Polly" Version="10.0.0" /></ItemGroup></Project>', /Directory\.Build\.props \(Microsoft\.Extensions\.Http\.Polly\)/],
-    ['Polly.Core con comillas simples y espacios en el monolito', 'backend/TemplateApp.csproj', monolithProject("<PackageReference Version='8.9.1' Include = 'Polly.Core' />"), /backend\/TemplateApp\.csproj \(Polly\.Core\)/],
+    ['Polly.Core con comillas simples y espacios en el monolito', 'backend/Hosts/Monolith/TemplateApp.csproj', monolithProject("<PackageReference Version='8.9.1' Include = 'Polly.Core' />"), /backend\/Hosts\/Monolith\/TemplateApp\.csproj \(Polly\.Core\)/],
     ['Polly en un Directory.Build.props del host de Tasks', 'backend/Hosts/Tasks/Directory.Build.props', '<Project><ItemGroup><PackageReference Include="Polly" Version="8.9.1" /></ItemGroup></Project>', /backend\/Hosts\/Tasks\/Directory\.Build\.props \(Polly\)/],
     ['Microsoft.Extensions.Resilience directo en el host de Tasks', 'backend/Hosts/Tasks/TemplateApp.Tasks.csproj', tasksHostProject().replace('</Project>', '<ItemGroup><PackageReference Include="Microsoft.Extensions.Resilience" Version="10.11.1" /></ItemGroup></Project>'), /TemplateApp\.Tasks\.csproj \(Microsoft\.Extensions\.Resilience\)/],
   ]) {
@@ -514,12 +653,12 @@ describe('check-structure', () => {
   });
 
   for (const [name, rel, content] of [
-    ['paquete de HybridCache en el producto', 'backend/TemplateApp.csproj', monolithProject('<PackageReference Include="Microsoft.Extensions.Caching.Hybrid" Version="10.0.0" />')],
+    ['paquete de HybridCache en el producto', 'backend/Hosts/Monolith/TemplateApp.csproj', monolithProject('<PackageReference Include="Microsoft.Extensions.Caching.Hybrid" Version="10.0.0" />')],
     ['paquete de FusionCache en Directory.Build.props', 'Directory.Build.props', '<Project><ItemGroup><PackageReference Include="ZiggyCreatures.FusionCache" Version="2.0.0" /></ItemGroup></Project>'],
     ['using de IMemoryCache en AccessPolicy', 'backend/Features/Auth/Access/AccessPolicy.cs', 'using Microsoft.Extensions.Caching.Memory;\npublic sealed class AccessPolicy { }\n'],
     ['IMemoryCache con nombre completo', 'backend/Features/Auth/Access/AccessPolicy.cs', 'public sealed class AccessPolicy(Microsoft.Extensions.Caching.Memory.IMemoryCache cache) { }\n'],
     ['registro de AddMemoryCache', 'backend/Features/Auth/AuthFeature.cs', 'services.AddMemoryCache();\n'],
-    ['registro de AddHybridCache', 'backend/Program.cs', 'builder.Services.AddHybridCache();\n'],
+    ['registro de AddHybridCache', 'backend/Hosts/Monolith/Program.cs', 'builder.Services.AddHybridCache();\n'],
     ['caché de salida en un endpoint', 'backend/Features/Tasks/ListTasks/ListTasksEndpoint.cs', 'tasks.MapGet("/", Handle).CacheOutput();\n'],
   ]) {
     it(`rechaza ${name}`, async () => {
@@ -569,7 +708,7 @@ describe('check-structure', () => {
     ['DisableRateLimiting en un endpoint de Tasks', 'backend/Features/Tasks/ListTasks/ListTasksEndpoint.cs', 'tasks.MapGet("/", Handle).DisableRateLimiting();\n'],
     ['el atributo [DisableRateLimiting] en Users', 'backend/Features/Users/GetUser/GetUserEndpoint.cs', '[DisableRateLimiting]\npublic static class GetUserEndpoint { }\n'],
     ['DisableRateLimitingAttribute en Infrastructure', 'backend/Infrastructure/Http/VersionedApi.cs', 'group.WithMetadata(new DisableRateLimitingAttribute());\n'],
-    ['DisableRateLimiting en Program.cs', 'backend/Program.cs', 'app.MapGroup("/api").DisableRateLimiting();\n'],
+    ['DisableRateLimiting en Program.cs', 'backend/Hosts/Monolith/Program.cs', 'app.MapGroup("/api").DisableRateLimiting();\n'],
   ]) {
     it(`rechaza ${name}`, async () => {
       const repo = await makeRepo();
@@ -643,7 +782,7 @@ describe('check-structure', () => {
     [
       'un gateway que referencia el backend',
       'gateway/TemplateApp.Gateway.csproj',
-      '<Project><ItemGroup><ProjectReference Include="../backend/TemplateApp.csproj" /></ItemGroup></Project>',
+      '<Project><ItemGroup><ProjectReference Include="../backend/Hosts/Monolith/TemplateApp.csproj" /></ItemGroup></Project>',
       /el gateway reparte requests y no compila código de features/,
     ],
   ]) {

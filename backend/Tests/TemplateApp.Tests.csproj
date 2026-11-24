@@ -26,7 +26,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\TemplateApp.csproj" />
+    <ProjectReference Include="..\Hosts\Monolith\TemplateApp.csproj" />
     <ProjectReference Include="..\Hosts\Tasks\TemplateApp.Tasks.csproj" />
     <ProjectReference Include="..\..\gateway\TemplateApp.Gateway.csproj" />
   </ItemGroup>

@@ -1,5 +1,5 @@
 <Solution>
-  <Project Path="backend/TemplateApp.csproj" />
+  <Project Path="backend/Hosts/Monolith/TemplateApp.csproj" />
   <Project Path="backend/Platform/TemplateApp.Platform.csproj" />
   <Project Path="backend/Hosts/Tasks/TemplateApp.Tasks.csproj" />
   <Project Path="backend/Tests/TemplateApp.Tests.csproj" />

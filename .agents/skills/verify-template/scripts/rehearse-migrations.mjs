@@ -133,6 +133,11 @@ async function waitFor(label, check, timeoutMs = 120000) {
   throw new Error(`${label} not reached in ${timeoutMs} ms${last ? `: ${last.message}` : ''}`);
 }
 
+function monolithProject(source) {
+  const moved = path.join(source, 'backend', 'Hosts', 'Monolith', 'TemplateApp.csproj');
+  return existsSync(moved) ? moved : path.join(source, 'backend', 'TemplateApp.csproj');
+}
+
 function publish(ref) {
   const sha = run('git', ['rev-parse', '--verify', `${ref}^{commit}`]).stdout.trim();
   const output = path.join(cacheDir, sha, 'bin');
@@ -144,7 +149,7 @@ function publish(ref) {
   rmSync(output, { recursive: true, force: true });
   run('git', ['worktree', 'add', '--force', '--detach', source, sha]);
   try {
-    run('dotnet', ['publish', path.join(source, 'backend', 'TemplateApp.csproj'), '-c', 'Release', '-o', output, '--nologo']);
+    run('dotnet', ['publish', monolithProject(source), '-c', 'Release', '-o', output, '--nologo']);
     writeFileSync(published, new Date().toISOString());
   } finally {
     run('git', ['worktree', 'remove', '--force', source], { allowFailure: true });

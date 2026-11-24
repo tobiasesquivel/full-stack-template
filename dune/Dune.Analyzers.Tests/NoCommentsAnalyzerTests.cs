@@ -120,7 +120,7 @@ public sealed class NoCommentsAnalyzerTests
     }
 
     [Theory]
-    [InlineData("backend/Internal/Generated/WolverineHandlers/SampleHandler123.cs")]
+    [InlineData("backend/Hosts/Monolith/Internal/Generated/WolverineHandlers/SampleHandler123.cs")]
     [InlineData("backend/Hosts/Tasks/Internal/Generated/WolverineHandlers/SampleHandler123.cs")]
     public async Task WolverineGeneratedHandlersDirectoryIsExempt(string path)
     {
@@ -141,6 +141,8 @@ public sealed class NoCommentsAnalyzerTests
 
     [Theory]
     [InlineData("backend/Internal/Generated/SampleHandler123.cs")]
+    [InlineData("backend/Internal/Generated/WolverineHandlers/SampleHandler123.cs")]
+    [InlineData("backend/Hosts/Monolith/Internal/Generated/SampleHandler123.cs")]
     [InlineData("backend/Features/Users/Internal/Generated/WolverineHandlers/SampleHandler123.cs")]
     [InlineData("backend/Hosts/Tasks/Internal/Generated/SampleHandler123.cs")]
     [InlineData("backend/Hosts/Tasks/Features/Internal/Generated/WolverineHandlers/SampleHandler123.cs")]

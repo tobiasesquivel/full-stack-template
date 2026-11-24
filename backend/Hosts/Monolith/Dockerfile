@@ -1,10 +1,10 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0.401 AS build
 WORKDIR /src
-COPY ["TemplateApp.csproj", "./"]
+COPY ["Hosts/Monolith/TemplateApp.csproj", "Hosts/Monolith/"]
 COPY ["Platform/TemplateApp.Platform.csproj", "Platform/"]
-RUN dotnet restore "TemplateApp.csproj"
+RUN dotnet restore "Hosts/Monolith/TemplateApp.csproj"
 COPY . .
-RUN dotnet publish "TemplateApp.csproj" -c Release -o /app/publish --no-restore /p:UseAppHost=false
+RUN dotnet publish "Hosts/Monolith/TemplateApp.csproj" -c Release -o /app/publish --no-restore /p:UseAppHost=false
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0.12
 WORKDIR /app

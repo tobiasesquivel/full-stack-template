@@ -15,7 +15,7 @@ public sealed partial class TimeoutCascadeTests
     private static readonly string Root = FindRoot();
 
     [Theory]
-    [InlineData("backend/appsettings.json", "Tasks")]
+    [InlineData("backend/Hosts/Monolith/appsettings.json", "Tasks")]
     [InlineData("backend/Hosts/Tasks/appsettings.json", "Monolith")]
     public void EachLevelGivesUpBeforeTheLevelThatCallsIt(string settings, string service)
     {

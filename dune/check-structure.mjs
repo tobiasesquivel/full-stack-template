@@ -48,7 +48,7 @@ function toPosix(target) {
   return path.relative(root, target).replaceAll(path.sep, '/');
 }
 
-const MONOLITH_PROJECT = 'backend/TemplateApp.csproj';
+const MONOLITH_PROJECT = 'backend/Hosts/Monolith/TemplateApp.csproj';
 const PLATFORM_PROJECT = 'backend/Platform/TemplateApp.Platform.csproj';
 const TASKS_HOST_PROJECT = 'backend/Hosts/Tasks/TemplateApp.Tasks.csproj';
 
@@ -58,10 +58,7 @@ async function productSources() {
   await collectFiles(path.join(backend, 'Shared'), all);
   await collectFiles(path.join(backend, 'Infrastructure'), all);
   await collectFiles(path.join(backend, 'Hosts'), all);
-  for (const project of [MONOLITH_PROJECT, PLATFORM_PROJECT]) {
-    if (await exists(path.join(root, project))) all.push(path.join(root, project));
-  }
-  if (await exists(path.join(backend, 'Program.cs'))) all.push(path.join(backend, 'Program.cs'));
+  if (await exists(path.join(root, PLATFORM_PROJECT))) all.push(path.join(root, PLATFORM_PROJECT));
   return all
     .filter((file) => file.endsWith('.cs') || file.endsWith('.csproj'))
     .filter((file) => !toPosix(file).includes('/Tests/') && !file.endsWith('Tests.cs'));
@@ -112,7 +109,6 @@ async function checkSlicesHaveTests() {
 }
 
 const DEPLOYMENT_RULE = 'límite de despliegue';
-const TASKS_HOST_FEATURES = new Set(['Tasks', 'Health']);
 
 function msbuildValues(text, element, attribute) {
   const pattern = new RegExp(String.raw`<${element}\b[^>]*?\b${attribute}\s*=\s*["']([^"']+)["']`, 'g');
@@ -136,60 +132,68 @@ function checkOnlyReferencesPlatform(project, text) {
   }
 }
 
-function tasksHostCompiles(include) {
+const HOSTS = [
+  {
+    project: MONOLITH_PROJECT,
+    compilesFeature: (feature) => !/^tasks$/i.test(feature),
+    forbids: /(^|\/)Features\/Tasks(\/|$)/i,
+    scope: 'el monolito compila solo sus archivos y Features salvo Features/Tasks',
+  },
+  {
+    project: TASKS_HOST_PROJECT,
+    compilesFeature: (feature) => feature === 'Tasks' || feature === 'Health',
+    scope: 'el host de Tasks compila solo sus archivos, Features/Tasks y Features/Health',
+  },
+];
+
+function plainPath(value) {
+  return !/\$\(|@\(|%|:|\.\./.test(value) && !value.startsWith('/') && !value.split('/').includes('.');
+}
+
+function removesFromBackend(value, pattern) {
+  return value === `$(BackendRoot)/${pattern}` || value === `../../${pattern}`;
+}
+
+function hostCompiles(include, host) {
+  if (/tests\.cs$/i.test(include) || host.forbids?.test(include)) return false;
+  if (plainPath(include)) return true;
   const rooted = /^(?:\$\(BackendRoot\)|\.\.\/\.\.)\/(.*)$/.exec(include);
-  if (rooted === null) return !include.includes('..') && !include.includes('$(');
+  if (rooted === null || !plainPath(rooted[1])) return false;
   const feature = /^Features\/([^/]+)\//.exec(rooted[1]);
-  return feature !== null && TASKS_HOST_FEATURES.has(feature[1]);
+  return feature !== null && host.compilesFeature(feature[1]);
 }
 
 async function checkDeploymentBoundary() {
-  const monolith = path.join(root, MONOLITH_PROJECT);
-  if (await exists(monolith)) {
-    const text = await readText(monolith);
-    checkOnlyReferencesPlatform(MONOLITH_PROJECT, text);
-    const excludes = [
-      ...[...text.matchAll(/<DefaultItemExcludes>([^<]*)<\/DefaultItemExcludes>/g)].flatMap((match) => match[1].split(';')),
-      ...msbuildValues(text, 'Compile', 'Remove'),
-    ].map(normalizeItem);
-    for (const include of msbuildValues(text, 'Compile', 'Include').map(normalizeItem)) {
-      if (/(^|\/)Features\/Tasks(\/|$)/.test(include)) {
-        fail(`${DEPLOYMENT_RULE}: ${MONOLITH_PROJECT} compila ${include}; Tasks se compila solo en ${TASKS_HOST_PROJECT}`);
+  for (const host of HOSTS) {
+    const file = path.join(root, host.project);
+    if (!(await exists(file))) {
+      fail(`${DEPLOYMENT_RULE}: falta ${host.project}`);
+      continue;
+    }
+    const text = await readText(file);
+    checkOnlyReferencesPlatform(host.project, text);
+    if (/<Import\b/.test(text)) {
+      fail(`${DEPLOYMENT_RULE}: ${host.project} importa otro archivo de MSBuild; el límite se lee en el .csproj del host`);
+    }
+    if (host.forbids && !msbuildValues(text, 'Compile', 'Remove').some((value) => removesFromBackend(value, 'Features/Tasks/**'))) {
+      fail(`${DEPLOYMENT_RULE}: ${host.project} no excluye Features/Tasks/**; Tasks se compila solo en ${TASKS_HOST_PROJECT}`);
+    }
+    for (const include of msbuildValues(text, 'Compile', 'Include')) {
+      if (!hostCompiles(include, host)) {
+        fail(`${DEPLOYMENT_RULE}: ${host.project} compila ${include}; ${host.scope}, sin tests, y el resto llega por ${PLATFORM_PROJECT}`);
       }
     }
-    if (!excludes.some((value) => value === 'Features/Tasks/**' || value.startsWith('Features/Tasks/**/'))) {
-      fail(`${DEPLOYMENT_RULE}: ${MONOLITH_PROJECT} no excluye Features/Tasks/**; Tasks se compila solo en ${TASKS_HOST_PROJECT}`);
+    if (!msbuildValues(text, 'Compile', 'Remove').some((value) => removesFromBackend(value, 'Features/**/*Tests.cs'))) {
+      fail(`${host.project} no excluye tests del producto: falta Compile Remove "$(BackendRoot)/Features/**/*Tests.cs"`);
     }
   }
-  const host = path.join(root, TASKS_HOST_PROJECT);
-  if (!(await exists(host))) {
-    fail(`${DEPLOYMENT_RULE}: falta ${TASKS_HOST_PROJECT}`);
-    return;
-  }
-  const text = await readText(host);
-  checkOnlyReferencesPlatform(TASKS_HOST_PROJECT, text);
-  for (const include of msbuildValues(text, 'Compile', 'Include')) {
-    if (!tasksHostCompiles(include)) {
-      fail(`${DEPLOYMENT_RULE}: ${TASKS_HOST_PROJECT} compila ${include}; el host de Tasks compila solo sus archivos, Features/Tasks y Features/Health, y el resto llega por ${PLATFORM_PROJECT}`);
-    }
-  }
-  if (!msbuildValues(text, 'Compile', 'Remove').some((value) => value.endsWith('Features/**/*Tests.cs'))) {
-    fail('TemplateApp.Tasks.csproj no excluye tests del producto: falta Compile Remove "Features/**/*Tests.cs"');
-  }
+  const files = [];
+  await collectFiles(path.join(backend, 'Hosts'), files);
+  const tests = files.map(toPosix).filter((file) => /tests\.cs$/i.test(file));
+  if (tests.length > 0) fail(`tests en la carpeta de un host, que compila sus *.cs: ${tests.join(', ')}`);
 }
 
-async function checkProductExcludesTests() {
-  const csproj = path.join(backend, 'TemplateApp.csproj');
-  if (!(await exists(csproj))) {
-    fail('falta backend/TemplateApp.csproj');
-    return;
-  }
-  const text = await readText(csproj);
-  for (const pattern of ['Features/**/*Tests.cs', 'Tests/**/*.cs']) {
-    if (!text.includes(pattern)) {
-      fail(`TemplateApp.csproj no excluye tests del producto: falta Compile Remove "${pattern}"`);
-    }
-  }
+async function checkTestsReferenceTheProduct() {
   const testsCsproj = path.join(backend, 'Tests', 'TemplateApp.Tests.csproj');
   if (!(await exists(testsCsproj))) {
     fail('falta backend/Tests/TemplateApp.Tests.csproj');
@@ -572,7 +576,7 @@ async function checkGatewayIsTheOnlyEntrance() {
 }
 
 await checkSlicesHaveTests();
-await checkProductExcludesTests();
+await checkTestsReferenceTheProduct();
 await checkDeploymentBoundary();
 await checkInternalsOnlyForTests();
 await checkNoBus();

@@ -139,7 +139,7 @@ public sealed class ApiRouteAnalyzerTests
     public async Task UnsafeRouteOnTheHostIsRejectedWhileGetIsAccepted()
     {
         var diagnostics = await AnalyzeAsync(
-            ("backend/Program.cs", """
+            ("backend/Hosts/Monolith/Program.cs", """
                 using Microsoft.AspNetCore.Builder;
                 using Microsoft.AspNetCore.Routing;
                 public static class Host

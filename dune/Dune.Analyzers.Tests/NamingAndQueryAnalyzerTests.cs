@@ -33,13 +33,14 @@ public sealed class NamingAndQueryAnalyzerTests
         var accepted = await AnalyzerHost.AnalyzeAsync(
             new List<(string, string)>
             {
-                ("backend/Program.cs", GlobalProgram),
+                ("backend/Hosts/Monolith/Program.cs", GlobalProgram),
                 ("backend/Hosts/Tasks/Program.cs", GlobalProgram.Replace("Startup", "TasksStartup", System.StringComparison.Ordinal)),
             },
             AnalyzerHost.Only<NamingAnalyzer>());
         var rejected = await AnalyzerHost.AnalyzeAsync(
             new List<(string, string)>
             {
+                ("backend/Program.cs", GlobalProgram.Replace("Startup", "RootStartup", System.StringComparison.Ordinal)),
                 ("backend/Hosts/Tasks/Startup.cs", GlobalProgram),
                 ("backend/Hosts/Tasks/Extra/Program.cs", GlobalProgram.Replace("Startup", "NestedStartup", System.StringComparison.Ordinal)),
                 ("backend/Features/Tasks/Program.cs", GlobalProgram.Replace("Startup", "FeatureStartup", System.StringComparison.Ordinal)),
@@ -47,7 +48,7 @@ public sealed class NamingAndQueryAnalyzerTests
             AnalyzerHost.Only<NamingAnalyzer>());
 
         Assert.DoesNotContain(accepted, diagnostic => diagnostic.Id == "DUNE0005");
-        Assert.Equal(3, rejected.Count(diagnostic => diagnostic.Id == "DUNE0005"));
+        Assert.Equal(4, rejected.Count(diagnostic => diagnostic.Id == "DUNE0005"));
     }
 
     [Fact]

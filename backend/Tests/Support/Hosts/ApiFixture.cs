@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
+using TemplateApp.Hosts.Monolith;
 using TemplateApp.Tests.Support.Faults;
 using Xunit;
 

@@ -13,7 +13,7 @@ La investigación está en [paso-23-servicio-gateway.md](../evolucion/investigac
 
 ## Decisión
 
-1. **Un proyecto .NET por proceso.** El monolito (`backend/TemplateApp.csproj`) sigue siendo un proyecto. Cada proceso nuevo tiene el suyo. Dentro de cada proyecto, Dune hace cumplir los límites, como dice ADR-0004.
+1. **Un proyecto .NET por proceso.** El monolito (`backend/Hosts/Monolith/TemplateApp.csproj`) sigue siendo un proyecto. Cada proceso nuevo tiene el suyo. Dentro de cada proyecto, Dune hace cumplir los límites, como dice ADR-0004.
 2. **El gateway es un proceso propio, sin código de features.** Vive en `gateway/`, usa YARP (`Yarp.ReverseProxy` 2.3.0, MIT) y solo reparte requests por URL. No referencia otro proyecto. Toda request a la API entra por él: ningún proceso de la API publica puertos en Compose, y nginx reenvía `/api/` solo al gateway. `check-structure.mjs` lo hace cumplir (regla "gateway como única entrada").
 3. **Cada proceso tiene su propio health.** El ready del gateway mira solo al gateway. A cada destino lo vigila el chequeo activo de YARP: con el destino caído, su ruta responde 503 y el gateway sigue listo.
 4. **Dos pasos.** El paso 23 pone el gateway delante del monolito sin cambiar el backend. El paso 23.2 extrae `Tasks` a su propio proceso detrás del gateway, con una librería compartida para `Infrastructure/` y `Shared/`.
@@ -25,3 +25,4 @@ La investigación está en [paso-23-servicio-gateway.md](../evolucion/investigac
 - El gateway tiene su propia telemetría (`templateapp-gateway`): una traza cruza los dos procesos.
 - Hasta el paso 23.2, todo el código de features sigue en un solo ensamblado y `internal` no separa una feature de otra (`conventions.md`).
 - Paso 23.2: la librería compartida es `backend/Platform/TemplateApp.Platform.csproj` y el host de Tasks es `backend/Hosts/Tasks/TemplateApp.Tasks.csproj`. Ningún `.cs` cambió de carpeta. La librería también lleva `AppDbContext` y sus migraciones viejas: los dos procesos corren el arranque de una base heredada, bajo el mismo lock ([investigación](../evolucion/investigacion/paso-23-2-extraer-tasks.md), sección 6).
+- Reorganización, parte 6: el host del monolito pasa de `backend/` a `backend/Hosts/Monolith/`, igual que el de Tasks. El ensamblado sigue llamándose `TemplateApp`.

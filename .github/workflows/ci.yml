@@ -163,6 +163,8 @@ jobs:
           ConnectionStrings__DefaultConnection: Host=localhost;Port=5432;Database=template_tests;Username=postgres;Password=template-ci;
       - name: Código generado de Wolverine al día (codegen write)
         run: node dune/check-codegen.mjs --release
+      - name: Límite de despliegue sobre los archivos que evalúa MSBuild en cada host
+        run: node dune/check-host-items.mjs
       - name: Verificador de comentarios C#
         run: dotnet run --project dune/Dune.CommentVerifier -- --root .
       - name: Analyzer tests Dune
@@ -223,6 +225,9 @@ jobs:
       - name: Tests del gate de codegen
         if: ${{ !cancelled() }}
         run: node --test dune/check-codegen.test.mjs
+      - name: Tests del gate de archivos de cada host
+        if: ${{ !cancelled() }}
+        run: node --test dune/check-host-items.test.mjs
       - name: Tests del reparto de backend en shards
         if: ${{ !cancelled() }}
         run: node --test .github/scripts/backend-test-shards.test.mjs

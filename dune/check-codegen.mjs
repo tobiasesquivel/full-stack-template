@@ -3,10 +3,10 @@ import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
-export const TARGETS = [
-  { project: 'backend/TemplateApp.csproj', generated: 'backend/Internal/Generated' },
-  { project: 'backend/Hosts/Tasks/TemplateApp.Tasks.csproj', generated: 'backend/Hosts/Tasks/Internal/Generated' },
-];
+export const TARGETS = ['backend/Hosts/Monolith/TemplateApp.csproj', 'backend/Hosts/Tasks/TemplateApp.Tasks.csproj'].map((project) => ({
+  project,
+  generated: path.posix.join(path.posix.dirname(project), 'Internal/Generated'),
+}));
 
 export function verdict(target, porcelain) {
   const stale = porcelain
@@ -21,6 +21,12 @@ export function verdict(target, porcelain) {
       };
 }
 
+export function coverage(target, tracked) {
+  return tracked.split(/\r?\n/).some((line) => line.trim().length > 0)
+    ? { ok: true, message: `${target.generated} tiene código generado versionado` }
+    : { ok: false, message: `${target.generated} no tiene código generado versionado: la ruta de ${target.project} en check-codegen.mjs no es la carpeta donde escribe codegen write` };
+}
+
 function run(root, cmd, args, env) {
   const result = spawnSync(cmd, args, { cwd: root, env: { ...process.env, ...env }, encoding: 'utf8', shell: process.platform === 'win32' });
   if (result.status !== 0) {
@@ -32,6 +38,8 @@ function run(root, cmd, args, env) {
 }
 
 function check(root, configuration, target) {
+  const tracked = coverage(target, run(root, 'git', ['ls-files', '--', target.generated]));
+  if (!tracked.ok) return tracked;
   run(root, 'dotnet', ['run', '--project', target.project, '--configuration', configuration, '--no-build', '--', 'codegen', 'write'], {
     ConnectionStrings__DefaultConnection: 'Host=localhost;Database=codegen;Username=codegen;Password=codegen',
     Messaging__RabbitMqUri: 'amqp://localhost:5672/',
