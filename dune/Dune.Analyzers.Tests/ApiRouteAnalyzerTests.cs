@@ -163,6 +163,7 @@ public sealed class ApiRouteAnalyzerTests
     [Theory]
     [InlineData("Access")]
     [InlineData("MessageNames")]
+    [InlineData("Telemetry")]
     [InlineData("Contracts")]
     public async Task ARouteOnTheFeatureGroupInATechnicalFolderIsRejected(string folder)
     {

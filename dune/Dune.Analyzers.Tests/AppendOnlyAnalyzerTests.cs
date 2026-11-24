@@ -42,15 +42,14 @@ public sealed class AppendOnlyAnalyzerTests
     public async Task AddingAndReadingAppendOnlyRows_AndRewritingOtherEntities_AreAccepted()
     {
         var diagnostics = await AnalyzeAsync(
-            ("backend/Features/Users/AccountClosureHistory.cs", """
+            ("backend/Features/Users/Persistence/AccountClosureHistory.cs", """
                 using System;
                 using System.Linq;
                 using System.Threading;
                 using System.Threading.Tasks;
                 using Microsoft.EntityFrameworkCore;
                 using TemplateApp.Features.Users.Domain;
-                using TemplateApp.Features.Users.Persistence;
-                namespace TemplateApp.Features.Users;
+                namespace TemplateApp.Features.Users.Persistence;
                 public sealed class AccountClosureHistory(UsersDbContext db)
                 {
                     public Task<int> RecordAsync(Guid closureId, CancellationToken ct)

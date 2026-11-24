@@ -51,14 +51,14 @@ public sealed class AuditBypassAnalyzerTests
     public async Task BulkWritesOnNonAuditedEntitiesAndSaveChangesOnAuditedOnesAreAccepted()
     {
         var diagnostics = await AnalyzeAsync(
-            ("backend/Features/Auth/Sessions.cs", """
+            ("backend/Features/Auth/Access/Sessions.cs", """
                 using System;
                 using System.Linq;
                 using System.Threading;
                 using System.Threading.Tasks;
                 using Microsoft.EntityFrameworkCore;
                 using TemplateApp.Infrastructure.Persistence;
-                namespace TemplateApp.Features.Auth;
+                namespace TemplateApp.Features.Auth.Access;
                 public sealed class Sessions(AppDbContext db)
                 {
                     public Task<int> CloseAsync(Guid id, CancellationToken ct) =>

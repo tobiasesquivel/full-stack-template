@@ -81,7 +81,7 @@ public static class DunePaths
     public const string MessageNamesFolder = "MessageNames";
 
     private static bool IsFeatureFolder(string folder) =>
-        folder is "Contracts" or "Domain" or "Persistence" or "Access" or MessageNamesFolder;
+        folder is "Contracts" or "Domain" or "Persistence" or "Access" or MessageNamesFolder or "Telemetry";
 
     public static bool IsMessageNamesFile(string normalizedPath, string feature)
     {

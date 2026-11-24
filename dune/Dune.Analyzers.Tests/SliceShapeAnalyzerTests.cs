@@ -96,6 +96,7 @@ public sealed class SliceShapeAnalyzerTests
 
     [Theory]
     [InlineData("MessageNames")]
+    [InlineData("Telemetry")]
     [InlineData("Access")]
     public async Task EndpointInATechnicalFolderIsRejected(string folder)
     {

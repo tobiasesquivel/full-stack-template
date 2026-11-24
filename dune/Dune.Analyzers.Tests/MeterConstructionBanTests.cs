@@ -16,10 +16,10 @@ public sealed class MeterConstructionBanTests
             RealBannedSymbols(),
             new List<(string, string)>
             {
-                ("backend/Features/Tasks/TaskMetrics.cs", """
+                ("backend/Features/Tasks/Telemetry/TaskMetrics.cs", """
                     using System.Collections.Generic;
                     using System.Diagnostics.Metrics;
-                    namespace TemplateApp.Features.Tasks;
+                    namespace TemplateApp.Features.Tasks.Telemetry;
                     public sealed class TaskMetrics
                     {
                         private readonly Meter _byName = new("TemplateApp.Tasks");
@@ -46,9 +46,9 @@ public sealed class MeterConstructionBanTests
             RealBannedSymbols(),
             new List<(string, string)>
             {
-                ("backend/Features/Tasks/TaskMetrics.cs", """
+                ("backend/Features/Tasks/Telemetry/TaskMetrics.cs", """
                     using System.Diagnostics.Metrics;
-                    namespace TemplateApp.Features.Tasks;
+                    namespace TemplateApp.Features.Tasks.Telemetry;
                     public sealed class TaskMetrics
                     {
                         private readonly Counter<long> _created;
