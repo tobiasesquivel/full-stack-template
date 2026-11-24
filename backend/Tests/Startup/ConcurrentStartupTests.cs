@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
+using TemplateApp.Hosts.Monolith;
 using TemplateApp.Infrastructure.Persistence.Initialization;
 using Testcontainers.PostgreSql;
 using TemplateApp.Features.Auth.Access;

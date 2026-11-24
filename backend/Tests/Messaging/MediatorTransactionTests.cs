@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using TemplateApp.Hosts.Monolith;
 using TemplateApp.Infrastructure.Messaging.Mediator;
 using TemplateApp.Tests.Support.Hosts;
 using Wolverine;

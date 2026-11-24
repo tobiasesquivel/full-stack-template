@@ -12,7 +12,7 @@ otel-export/
 **/.codegraph/
 **/.playwright-mcp/
 **/Generated/
-!backend/Internal/Generated/
+!backend/Hosts/Monolith/Internal/Generated/
 !backend/Hosts/Tasks/Internal/Generated/
 **/.vs/
 **/.idea/

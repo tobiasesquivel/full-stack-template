@@ -18,7 +18,7 @@ try
 
     builder.Services.AddBackendInfrastructure(migratesPlatformSchema: true);
     builder.Services.AddTemplateObservability(builder.Environment, "templateapp-api");
-    builder.Services.AddMessaging(typeof(TemplateApp.MonolithHost).Assembly, storesSagas: true);
+    builder.Services.AddMessaging(typeof(TemplateApp.Hosts.Monolith.MonolithHost).Assembly, storesSagas: true);
     builder.Services.AddAuthFeature();
     builder.Services.AddUsersFeature();
     builder.Services.AddProjectsFeature();

@@ -4,12 +4,22 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>TemplateApp</RootNamespace>
     <UserSecretsId>templateapp-backend-dev</UserSecretsId>
-    <DefaultItemExcludes>$(DefaultItemExcludes);Tests/**;Platform/**;Hosts/**;Infrastructure/**;Shared/**;Features/Tasks/**</DefaultItemExcludes>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <BackendRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../..'))</BackendRoot>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="Platform/TemplateApp.Platform.csproj" />
+    <Compile Include="*.cs" />
+    <Compile Include="Internal/Generated/**/*.cs" />
+    <Compile Include="$(BackendRoot)/Features/**/*.cs" />
+    <Compile Remove="$(BackendRoot)/Features/Tasks/**" />
+    <Compile Remove="$(BackendRoot)/Features/**/*Tests.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../Platform/TemplateApp.Platform.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -18,11 +28,6 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-  </ItemGroup>
-
-  <ItemGroup>
-    <Compile Remove="Features/**/*Tests.cs" />
-    <Compile Remove="Tests/**/*.cs" />
   </ItemGroup>
 
   <ItemGroup>

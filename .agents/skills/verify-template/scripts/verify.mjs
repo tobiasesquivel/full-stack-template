@@ -16,7 +16,7 @@ import { StringDecoder } from 'node:string_decoder';
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(SCRIPT_DIR, '..', '..', '..', '..');
 const SMOKE_SCRIPT = path.join(SCRIPT_DIR, 'smoke-api.mjs');
-const BACKEND_CSPROJ = path.join(REPO_ROOT, 'backend', 'TemplateApp.csproj');
+const BACKEND_CSPROJ = path.join(REPO_ROOT, 'backend', 'Hosts', 'Monolith', 'TemplateApp.csproj');
 const TASKS_CSPROJ = path.join(REPO_ROOT, 'backend', 'Hosts', 'Tasks', 'TemplateApp.Tasks.csproj');
 const GATEWAY_CSPROJ = path.join(REPO_ROOT, 'gateway', 'TemplateApp.Gateway.csproj');
 const SOLUTION = path.join(REPO_ROOT, 'TemplateApp.slnx');
