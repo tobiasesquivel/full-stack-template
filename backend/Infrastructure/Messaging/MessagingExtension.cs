@@ -52,9 +52,8 @@ internal sealed class MessagingExtension : IWolverineExtension
         options.ServiceLocationPolicy = ServiceLocationPolicy.AlwaysAllowed;
         options.Durability.UseSyncRetryBlock = true;
         options.UseSystemTextJsonForSerialization(json => json.PropertyNamingPolicy = JsonNamingPolicy.CamelCase);
-        options.Policies.Add(new MessagingChainPolicy(
-            _sagas.Select(saga => saga.ClrType).ToHashSet(),
-            _mediatorHandlers.Select(handler => handler.ClrType).ToHashSet()));
+        QueueFailureRules.Apply(options.Policies);
+        options.Policies.Add(new MessagingChainPolicy(_mediatorHandlers.Select(handler => handler.ClrType).ToHashSet()));
 
         RabbitMqTransportExpression rabbit = options.UseRabbitMq(_options.RabbitMqUri!)
             .AutoProvision()
@@ -70,9 +69,7 @@ internal sealed class MessagingExtension : IWolverineExtension
             IntegrationEventNaming.Register(subscription.Event);
             options.RegisterMessageType(subscription.Event.ClrType, subscription.Event.Name);
             Listen(options, rabbit, subscription.Event, subscription.Queue).ProcessInline();
-            Wolverine.Runtime.Handlers.MessageHandler handler = CreateHandler(subscription);
-            options.AddMessageHandler(subscription.Event.ClrType, handler);
-            QueueFailureRules.Apply(handler.Chain!);
+            options.AddMessageHandler(subscription.Event.ClrType, CreateHandler(subscription));
         }
 
         foreach (IntegrationEventType type in _published)
