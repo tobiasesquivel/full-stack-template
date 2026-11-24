@@ -284,6 +284,8 @@ jobs:
       ACCOUNT_CLOSURE_SECOND_REMINDER_SECONDS: 10
     steps:
       - uses: actions/checkout@v4
+      - name: Bajar en segundo plano las imágenes que compose no construye
+        run: nohup sh -c 'docker compose config --images | grep -v "^full-stack-template-" | xargs -P 4 -n 1 docker pull --quiet' > "$RUNNER_TEMP/pull.log" 2>&1 &
       - uses: actions/setup-node@v4
         with:
           node-version: 26.7.0
@@ -354,6 +356,8 @@ jobs:
       ACCOUNT_CLOSURE_SECOND_REMINDER_SECONDS: 10
     steps:
       - uses: actions/checkout@v4
+      - name: Bajar en segundo plano las imágenes que compose no construye
+        run: nohup sh -c 'docker compose config --images | grep -v "^full-stack-template-" | xargs -P 4 -n 1 docker pull --quiet' > "$RUNNER_TEMP/pull.log" 2>&1 &
       - uses: actions/setup-node@v4
         with:
           node-version: 26.7.0
