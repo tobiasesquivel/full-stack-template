@@ -8,6 +8,7 @@ using Polly.Timeout;
 using TemplateApp.Features.Tasks;
 using TemplateApp.Features.Tasks.Access;
 using TemplateApp.Infrastructure.Http;
+using TemplateApp.Tests.Support;
 using WireMock.Matchers;
 using WireMock.RequestBuilders;
 using WireMock.ResponseBuilders;
@@ -21,7 +22,7 @@ public sealed class RemoteResilienceTests : IDisposable
     private const string SessionChecks = "/internal/v1/session-checks";
     private const string Recovered = "recovered";
 
-    private readonly WireMockServer _monolith = WireMockServer.Start();
+    private readonly WireMockServer _monolith = LoopbackWireMock.Start();
 
     [Fact]
     public async Task TransientFailure_TheGetIsRetried_AndTheCallerSeesTheAnswer()
