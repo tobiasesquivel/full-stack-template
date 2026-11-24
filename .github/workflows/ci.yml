@@ -307,6 +307,9 @@ jobs:
       - uses: docker/setup-buildx-action@v3
       - name: Imágenes de compose con caché de capas en GitHub Actions
         uses: docker/bake-action@v6
+        env:
+          DOCKER_BUILD_SUMMARY: false
+          DOCKER_BUILD_RECORD_UPLOAD: false
         with:
           source: .
           files: compose.yaml
@@ -321,10 +324,10 @@ jobs:
             tasks.cache-from=type=gha,scope=compose-tasks
             gateway.cache-from=type=gha,scope=compose-gateway
             web.cache-from=type=gha,scope=compose-web
-            api.cache-to=type=gha,scope=compose-api,mode=max
-            tasks.cache-to=type=gha,scope=compose-tasks,mode=max
-            gateway.cache-to=type=gha,scope=compose-gateway,mode=max
-            web.cache-to=type=gha,scope=compose-web,mode=max
+            ${{ github.ref == 'refs/heads/main' && 'api.cache-to=type=gha,scope=compose-api,mode=max' || '' }}
+            ${{ github.ref == 'refs/heads/main' && 'tasks.cache-to=type=gha,scope=compose-tasks,mode=max' || '' }}
+            ${{ github.ref == 'refs/heads/main' && 'gateway.cache-to=type=gha,scope=compose-gateway,mode=max' || '' }}
+            ${{ github.ref == 'refs/heads/main' && 'web.cache-to=type=gha,scope=compose-web,mode=max' || '' }}
       - name: Levantar stack y esperar cada healthcheck
         run: |
           if ! docker compose up --no-build --wait --wait-timeout 300; then
@@ -373,6 +376,9 @@ jobs:
       - uses: docker/setup-buildx-action@v3
       - name: Imágenes de compose con caché de capas en GitHub Actions
         uses: docker/bake-action@v6
+        env:
+          DOCKER_BUILD_SUMMARY: false
+          DOCKER_BUILD_RECORD_UPLOAD: false
         with:
           source: .
           files: compose.yaml
