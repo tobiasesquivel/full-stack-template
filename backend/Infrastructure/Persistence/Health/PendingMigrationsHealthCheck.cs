@@ -1,7 +1,6 @@
 using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using TemplateApp.Infrastructure.Persistence;
 
 namespace TemplateApp.Infrastructure.Persistence.Health;
 

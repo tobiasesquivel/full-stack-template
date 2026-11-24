@@ -168,12 +168,22 @@ public sealed class PersistenceOwnershipAnalyzerTests
                     public static void Map(ModelBuilder modelBuilder) =>
                         modelBuilder.Entity<TemplateApp.Infrastructure.Persistence.Audit.AuditEntry>().ToTable(t => t.ExcludeFromMigrations());
                 }
+                """),
+            ("backend/Infrastructure/Persistence/Health/HealthMapping.cs", """
+                using Microsoft.EntityFrameworkCore;
+                namespace TemplateApp.Infrastructure.Persistence.Health;
+                internal static class HealthMapping
+                {
+                    public static void Map(ModelBuilder modelBuilder) =>
+                        modelBuilder.Entity<TemplateApp.Infrastructure.Persistence.Audit.AuditEntry>().ToTable(t => t.ExcludeFromMigrations());
+                }
                 """));
 
         Assert.Equal(
             new[]
             {
                 "ExcludeFromMigrations fuera de Infrastructure/Persistence AuditMapping.cs:6",
+                "ExcludeFromMigrations fuera de Infrastructure/Persistence HealthMapping.cs:6",
                 "ExcludeFromMigrations fuera de Infrastructure/Persistence TasksDbContext.cs:7",
             },
             Findings(diagnostics));

@@ -338,7 +338,7 @@ internal static class DuneDiagnostics
         category: "Dune",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
-        description: "Mapear una tabla sin migrarla es leer o escribir la tabla de otro contexto. La única tabla compartida es AuditEntries, y la mapea MapSharedAuditEntries de Infrastructure/Persistence/Audit para que la fila de auditoría viaje en el mismo SaveChanges. OutboxMessages e InboxMessages no son compartidas: MapOutbox() y MapInbox() las crean en el schema de cada contexto que las llama, y ese contexto las migra.");
+        description: "Mapear una tabla sin migrarla es leer o escribir la tabla de otro contexto. La única tabla compartida es AuditEntries, y la mapea MapSharedAuditEntries (Infrastructure/Persistence/Audit/SharedAuditEntries.cs, el único archivo fuera de la raíz de Infrastructure/Persistence que puede llamar ExcludeFromMigrations) para que la fila de auditoría viaje en el mismo SaveChanges. OutboxMessages e InboxMessages no son compartidas: MapOutbox() y MapInbox() las crean en el schema de cada contexto que las llama, y ese contexto las migra.");
 
     public static readonly DiagnosticDescriptor TransactionScopeOutsideHelper = new(
         id: "DUNE0021",

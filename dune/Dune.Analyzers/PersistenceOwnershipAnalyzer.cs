@@ -13,6 +13,7 @@ public sealed class PersistenceOwnershipAnalyzer : DiagnosticAnalyzer
 {
     private const string InfrastructurePersistence = "backend/Infrastructure/Persistence/";
     private const string TransactionHelper = InfrastructurePersistence + "Transactions/CrossContextTransaction.cs";
+    private const string SharedAuditHelper = InfrastructurePersistence + "Audit/SharedAuditEntries.cs";
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
         ImmutableArray.Create(
@@ -104,7 +105,9 @@ public sealed class PersistenceOwnershipAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        if (method.Name.Equals("ExcludeFromMigrations", StringComparison.Ordinal) && !DunePaths.ContainsOrdinal(path, InfrastructurePersistence))
+        if (method.Name.Equals("ExcludeFromMigrations", StringComparison.Ordinal)
+            && !IsInInfrastructurePersistenceRoot(path)
+            && !path.EndsWith(SharedAuditHelper, StringComparison.Ordinal))
         {
             context.ReportDiagnostic(Diagnostic.Create(
                 DuneDiagnostics.ExcludeFromMigrationsOutsideInfrastructure,
