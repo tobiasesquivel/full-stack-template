@@ -39,7 +39,7 @@ namespace Internal.Generated.WolverineHandlers
             // The actual message body
             var createProjectCommand = (TemplateApp.Features.Projects.CreateProject.CreateProjectCommand)context.Envelope.Message;
 
-            using var crossContextTransaction = global::TemplateApp.Infrastructure.Persistence.CrossContextTransaction.Begin();
+            using var crossContextTransaction = global::TemplateApp.Infrastructure.Persistence.Transactions.CrossContextTransaction.Begin();
             
             // GH-3291: enroll the DbContext & IMessagingContext in the outbox so cascaded messages buffer
             // and flush AFTER SaveChangesAsync commits. No explicit transaction is started (Lightweight mode).

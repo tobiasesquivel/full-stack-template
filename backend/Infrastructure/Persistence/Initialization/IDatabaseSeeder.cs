@@ -1,4 +1,4 @@
-namespace TemplateApp.Infrastructure.Persistence;
+namespace TemplateApp.Infrastructure.Persistence.Initialization;
 
 public interface IDatabaseSeeder
 {

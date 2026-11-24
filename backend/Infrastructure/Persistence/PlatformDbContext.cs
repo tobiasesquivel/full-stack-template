@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using TemplateApp.Infrastructure.Persistence.Audit;
+using TemplateApp.Infrastructure.Persistence.Idempotency;
 
 namespace TemplateApp.Infrastructure.Persistence;
 

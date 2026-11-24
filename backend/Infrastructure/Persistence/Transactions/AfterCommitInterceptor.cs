@@ -1,7 +1,7 @@
 using System.Data.Common;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 
-namespace TemplateApp.Infrastructure.Persistence;
+namespace TemplateApp.Infrastructure.Persistence.Transactions;
 
 internal sealed class AfterCommitInterceptor : DbTransactionInterceptor
 {

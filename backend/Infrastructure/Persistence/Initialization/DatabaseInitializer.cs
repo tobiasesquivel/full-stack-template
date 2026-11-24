@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Npgsql;
 
-namespace TemplateApp.Infrastructure.Persistence;
+namespace TemplateApp.Infrastructure.Persistence.Initialization;
 
 public static class DatabaseInitializer
 {

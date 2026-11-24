@@ -13,7 +13,7 @@ namespace Dune.Analyzers;
 public sealed class RemoteCallInTransactionAnalyzer : DiagnosticAnalyzer
 {
     private const string TransactionType = "CrossContextTransaction";
-    private const string TransactionNamespace = "TemplateApp.Infrastructure.Persistence";
+    private const string TransactionNamespace = "TemplateApp.Infrastructure.Persistence.Transactions";
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
         ImmutableArray.Create(DuneDiagnostics.RemoteCallInTransaction, DuneDiagnostics.RemoteCallInMediatorTransaction);

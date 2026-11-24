@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using TemplateApp.Infrastructure.Persistence;
+using TemplateApp.Infrastructure.Persistence.Initialization;
 using TemplateApp.Tests.Support;
 using Xunit;
 

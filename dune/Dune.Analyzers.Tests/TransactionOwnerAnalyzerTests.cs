@@ -10,7 +10,7 @@ public sealed class TransactionOwnerAnalyzerTests
 {
     private const string Platform = """
         using System.Transactions;
-        namespace TemplateApp.Infrastructure.Persistence
+        namespace TemplateApp.Infrastructure.Persistence.Transactions
         {
             public static class CrossContextTransaction
             {
@@ -119,7 +119,7 @@ public sealed class TransactionOwnerAnalyzerTests
                 using System.Transactions;
                 using Microsoft.EntityFrameworkCore;
                 using TemplateApp.Features.Projects.Persistence;
-                using TemplateApp.Infrastructure.Persistence;
+                using TemplateApp.Infrastructure.Persistence.Transactions;
                 namespace TemplateApp.Features.Projects.CreateProject;
                 public static class CreateProject
                 {

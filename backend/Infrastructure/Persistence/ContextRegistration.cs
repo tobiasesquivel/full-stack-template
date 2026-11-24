@@ -2,6 +2,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
+using TemplateApp.Infrastructure.Persistence.Audit;
+using TemplateApp.Infrastructure.Persistence.Transactions;
 
 namespace TemplateApp.Infrastructure.Persistence;
 

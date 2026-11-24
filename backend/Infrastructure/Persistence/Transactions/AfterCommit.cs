@@ -1,4 +1,4 @@
-namespace TemplateApp.Infrastructure.Persistence;
+namespace TemplateApp.Infrastructure.Persistence.Transactions;
 
 public sealed class AfterCommit
 {

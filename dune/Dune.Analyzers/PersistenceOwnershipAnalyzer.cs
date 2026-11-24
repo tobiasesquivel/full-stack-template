@@ -12,7 +12,8 @@ namespace Dune.Analyzers;
 public sealed class PersistenceOwnershipAnalyzer : DiagnosticAnalyzer
 {
     private const string InfrastructurePersistence = "backend/Infrastructure/Persistence/";
-    private const string TransactionHelper = InfrastructurePersistence + "CrossContextTransaction.cs";
+    private const string TransactionHelper = InfrastructurePersistence + "Transactions/CrossContextTransaction.cs";
+    private const string SharedAuditHelper = InfrastructurePersistence + "Audit/SharedAuditEntries.cs";
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
         ImmutableArray.Create(
@@ -75,7 +76,7 @@ public sealed class PersistenceOwnershipAnalyzer : DiagnosticAnalyzer
                 contexts.GetOrAdd(feature, _ => new ConcurrentDictionary<string, Location>(StringComparer.Ordinal))
                     .TryAdd(type.ToDisplayString(), location);
             }
-            else if (!IsInfrastructurePersistence(path))
+            else if (!IsInInfrastructurePersistenceRoot(path))
             {
                 context.ReportDiagnostic(Diagnostic.Create(DuneDiagnostics.DbContextOutsidePersistence, location, type.Name));
             }
@@ -104,7 +105,9 @@ public sealed class PersistenceOwnershipAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        if (method.Name.Equals("ExcludeFromMigrations", StringComparison.Ordinal) && !IsInfrastructurePersistence(path))
+        if (method.Name.Equals("ExcludeFromMigrations", StringComparison.Ordinal)
+            && !IsInInfrastructurePersistenceRoot(path)
+            && !path.EndsWith(SharedAuditHelper, StringComparison.Ordinal))
         {
             context.ReportDiagnostic(Diagnostic.Create(
                 DuneDiagnostics.ExcludeFromMigrationsOutsideInfrastructure,
@@ -148,7 +151,7 @@ public sealed class PersistenceOwnershipAnalyzer : DiagnosticAnalyzer
     private static bool IsChecked(string path) =>
         DunePaths.IsBackendFile(path) && !DunePaths.IsMigration(path) && !DunePaths.IsTestsFile(path);
 
-    private static bool IsInfrastructurePersistence(string path)
+    private static bool IsInInfrastructurePersistenceRoot(string path)
     {
         var marker = path.IndexOf(InfrastructurePersistence, StringComparison.Ordinal);
         return marker >= 0 && path.IndexOf('/', marker + InfrastructurePersistence.Length) < 0;

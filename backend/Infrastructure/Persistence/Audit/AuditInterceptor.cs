@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using TemplateApp.Infrastructure.Http;
 using TemplateApp.Shared.Domain;
 
-namespace TemplateApp.Infrastructure.Persistence;
+namespace TemplateApp.Infrastructure.Persistence.Audit;
 
 public sealed class AuditInterceptor : SaveChangesInterceptor
 {

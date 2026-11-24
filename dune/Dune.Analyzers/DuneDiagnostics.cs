@@ -315,11 +315,11 @@ internal static class DuneDiagnostics
     public static readonly DiagnosticDescriptor DbContextOutsidePersistence = new(
         id: "DUNE0021",
         title: "DbContext fuera de Persistence",
-        messageFormat: "'{0}' deriva de DbContext y vive fuera de Features/<Feature>/Persistence/ y de Infrastructure/Persistence/",
+        messageFormat: "'{0}' deriva de DbContext y vive fuera de Features/<Feature>/Persistence/ y de la raíz de Infrastructure/Persistence/",
         category: "Dune",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
-        description: "Propiedad de datos: cada feature mapea sus tablas en su propio DbContext, dentro de su Persistence/. Infrastructure/Persistence guarda solo PlatformDbContext y el AppDbContext viejo, dueño de las migraciones anteriores al paso 22.");
+        description: "Propiedad de datos: cada feature mapea sus tablas en su propio DbContext, dentro de su Persistence/. La raíz de Infrastructure/Persistence guarda solo PlatformDbContext y el AppDbContext viejo, dueño de las migraciones anteriores al paso 22; sus subcarpetas (Audit/, Idempotency/, Initialization/, Health/, Transactions/) no tienen contextos.");
 
     public static readonly DiagnosticDescriptor SecondDbContextInFeature = new(
         id: "DUNE0021",
@@ -338,12 +338,12 @@ internal static class DuneDiagnostics
         category: "Dune",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
-        description: "Mapear una tabla sin migrarla es leer o escribir la tabla de otro contexto. La única tabla compartida es AuditEntries, y la mapea MapSharedAuditEntries de Infrastructure/Persistence para que la fila de auditoría viaje en el mismo SaveChanges. OutboxMessages e InboxMessages no son compartidas: MapOutbox() y MapInbox() las crean en el schema de cada contexto que las llama, y ese contexto las migra.");
+        description: "Mapear una tabla sin migrarla es leer o escribir la tabla de otro contexto. La única tabla compartida es AuditEntries, y la mapea MapSharedAuditEntries (Infrastructure/Persistence/Audit/SharedAuditEntries.cs, el único archivo fuera de la raíz de Infrastructure/Persistence que puede llamar ExcludeFromMigrations) para que la fila de auditoría viaje en el mismo SaveChanges. OutboxMessages e InboxMessages no son compartidas: MapOutbox() y MapInbox() las crean en el schema de cada contexto que las llama, y ese contexto las migra.");
 
     public static readonly DiagnosticDescriptor TransactionScopeOutsideHelper = new(
         id: "DUNE0021",
         title: "TransactionScope fuera de CrossContextTransaction",
-        messageFormat: "new TransactionScope fuera de Infrastructure/Persistence/CrossContextTransaction.cs: una escritura entre contextos abre su transacción con CrossContextTransaction.Begin()",
+        messageFormat: "new TransactionScope fuera de Infrastructure/Persistence/Transactions/CrossContextTransaction.cs: una escritura entre contextos abre su transacción con CrossContextTransaction.Begin()",
         category: "Dune",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
