@@ -53,35 +53,6 @@ public sealed class AccountClosureGracePeriodTests : IDisposable
     }
 
     [Fact]
-    public async Task TheMonolithRestartsWhileAReminderIsPending_AndTheGracePeriodResumes_EachStepOnce()
-    {
-        Dictionary<string, string> settings = GracePeriod(40, 20, 30);
-        IsolatedApi before = await StartAsync(settings);
-        TestSession bob = await before.SignUpAsync("bob");
-
-        Stopwatch elapsed = Stopwatch.StartNew();
-        (_, Guid closure, _) = await DeleteUserTests.ScheduleClosureAsync(bob, "api/v1/users/me");
-        long pending = await ScheduledTimersAsync(before);
-        before.Dispose();
-        _apis.Remove(before);
-        IsolatedApi after = IsolatedApi.StartOn(before.Database, _broker, before.Prefix, FastScheduledMessages.Install, settings: settings);
-        _apis.Add(after);
-        TimeSpan restarted = elapsed.Elapsed;
-        List<(string Fact, TimeSpan At)> seen = await WatchAsync(after, closure, AccountClosureFacts.ClosureStarted, elapsed);
-        await after.DrainAsync();
-
-        Assert.Equal(3, pending);
-        Assert.True(restarted < TimeSpan.FromSeconds(20), $"The new hosts took {restarted} to start: the first reminder was already due.");
-        Assert.True(seen[0].At >= TimeSpan.FromSeconds(20), $"The first reminder came at {seen[0].At}, before its 20 s.");
-        Assert.Equal(["reminder-sent:1", "reminder-sent:2", "grace-expired", "closure-started"], seen.Select(s => s.Fact));
-        Assert.Equal(
-            ["requested", "reminder-sent:1", "reminder-sent:2", "grace-expired", "closure-started", "completed"],
-            await HistoryAsync(after, closure));
-        Assert.Equal(0, await GracePeriodsAsync(after, closure));
-        Assert.Equal("Completed", await DeleteUserBrokerTests.SagaStateAsync(after, closure));
-    }
-
-    [Fact]
     public async Task ACancellationThatQueuesBehindTheExpiry_Gets409_AndTheClosureRunsToTheEnd()
     {
         IsolatedApi api = await StartAsync(GracePeriod(3, 1, 2));
@@ -203,7 +174,7 @@ public sealed class AccountClosureGracePeriodTests : IDisposable
     internal static Task<SessionResponse> CancelAsync(TestSession session, Guid closureId) =>
         session.SendAsync(HttpMethod.Post, $"api/v1/users/closures/{closureId}/cancel");
 
-    private static async Task<List<(string Fact, TimeSpan At)>> WatchAsync(IsolatedApi api, Guid closureId, string until, Stopwatch elapsed)
+    internal static async Task<List<(string Fact, TimeSpan At)>> WatchAsync(IsolatedApi api, Guid closureId, string until, Stopwatch elapsed)
     {
         List<(string Fact, TimeSpan At)> seen = [];
         DateTime deadline = DateTime.UtcNow + Wait;
