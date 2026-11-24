@@ -1,31 +1,37 @@
-import { readFile, writeFile } from 'node:fs/promises';
+import { createReadStream } from 'node:fs';
+import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { createInterface } from 'node:readline';
 
 const SPAN_KIND_SERVER = 2;
 const METRIC_DATA = ['sum', 'gauge', 'histogram', 'exponentialHistogram', 'summary'];
 const SAMPLE_LIMIT = 5;
 const REPORT_FILE = 'otel-check.json';
 
-async function readSignal(dir, file, resourceKey, scopeKey, itemKey, brokenLines) {
-  let content;
-  try {
-    content = await readFile(path.join(dir, file), 'utf8');
-  } catch (error) {
-    if (error.code === 'ENOENT') return [];
-    throw error;
-  }
-  return content.split('\n').flatMap((line, index) => {
-    if (!line.trim()) return [];
+async function readSignal(dir, file, resourceKey, scopeKey, itemKey, brokenLines, visit) {
+  const stream = createReadStream(path.join(dir, file), { encoding: 'utf8' });
+  const opened = await new Promise((resolve, reject) => {
+    stream.once('ready', () => resolve(true));
+    stream.once('error', error => (error.code === 'ENOENT' ? resolve(false) : reject(error)));
+  });
+  if (!opened) return;
+  let index = 0;
+  for await (const line of createInterface({ input: stream, crlfDelay: Infinity })) {
+    index += 1;
+    if (!line.trim()) continue;
     let request;
     try {
       request = JSON.parse(line);
     } catch {
-      brokenLines.push({ file, line: index + 1 });
-      return [];
+      brokenLines.push({ file, line: index });
+      continue;
     }
-    return (request[resourceKey] ?? []).flatMap(resource =>
-      (resource[scopeKey] ?? []).flatMap(scope => scope[itemKey] ?? []));
-  });
+    for (const resource of request[resourceKey] ?? []) {
+      for (const scope of resource[scopeKey] ?? []) {
+        for (const item of scope[itemKey] ?? []) visit(item);
+      }
+    }
+  }
 }
 
 const validId = (value, length) => typeof value === 'string'
@@ -89,16 +95,28 @@ const RULES = [
 
 async function checkOtelExport(dir) {
   const brokenLines = [];
-  const logRecords = await readSignal(dir, 'logs.json', 'resourceLogs', 'scopeLogs', 'logRecords', brokenLines);
-  const spans = await readSignal(dir, 'traces.json', 'resourceSpans', 'scopeSpans', 'spans', brokenLines);
-  const metrics = await readSignal(dir, 'metrics.json', 'resourceMetrics', 'scopeMetrics', 'metrics', brokenLines);
-  const requestLogs = logRecords.filter(isRequestLog);
+  const requestLogs = [];
+  const serverSpans = [];
+  const traceBySpan = new Map();
+  const metrics = [];
+  let logRecords = 0;
+  let spans = 0;
+  await readSignal(dir, 'logs.json', 'resourceLogs', 'scopeLogs', 'logRecords', brokenLines, record => {
+    logRecords += 1;
+    if (isRequestLog(record)) requestLogs.push({ traceId: record.traceId, spanId: record.spanId, attributes: record.attributes });
+  });
+  await readSignal(dir, 'traces.json', 'resourceSpans', 'scopeSpans', 'spans', brokenLines, span => {
+    spans += 1;
+    traceBySpan.set(span.spanId?.toLowerCase(), span.traceId?.toLowerCase());
+    if (span.kind === SPAN_KIND_SERVER) serverSpans.push({ name: span.name, traceId: span.traceId, spanId: span.spanId });
+  });
+  await readSignal(dir, 'metrics.json', 'resourceMetrics', 'scopeMetrics', 'metrics', brokenLines, metric => metrics.push(metric));
   const signals = {
     brokenLines,
     requestLogs,
     metrics,
-    serverSpans: spans.filter(span => span.kind === SPAN_KIND_SERVER),
-    traceBySpan: new Map(spans.map(span => [span.spanId?.toLowerCase(), span.traceId?.toLowerCase()])),
+    serverSpans,
+    traceBySpan,
     loggedSpans: new Set(requestLogs.map(record => `${record.traceId}/${record.spanId}`.toLowerCase())),
   };
   const failures = RULES.flatMap(({ rule, message, violations }) => {
@@ -107,10 +125,10 @@ async function checkOtelExport(dir) {
   });
   return {
     result: failures.length ? 'FAIL' : 'PASS',
-    logRecords: logRecords.length,
+    logRecords,
     requestLogs: requestLogs.length,
-    spans: spans.length,
-    serverSpans: signals.serverSpans.length,
+    spans,
+    serverSpans: serverSpans.length,
     metrics: metrics.length,
     rules: RULES.map(({ rule }) => rule),
     failures,
