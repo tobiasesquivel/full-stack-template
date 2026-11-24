@@ -150,6 +150,10 @@ function plainPath(value) {
   return !/\$\(|@\(|%|:|\.\./.test(value) && !value.startsWith('/') && !value.split('/').includes('.');
 }
 
+function removesFromBackend(value, pattern) {
+  return value === `$(BackendRoot)/${pattern}` || value === `../../${pattern}`;
+}
+
 function hostCompiles(include, host) {
   if (/tests\.cs$/i.test(include) || host.forbids?.test(include)) return false;
   if (plainPath(include)) return true;
@@ -171,7 +175,7 @@ async function checkDeploymentBoundary() {
     if (/<Import\b/.test(text)) {
       fail(`${DEPLOYMENT_RULE}: ${host.project} importa otro archivo de MSBuild; el límite se lee en el .csproj del host`);
     }
-    if (host.forbids && !msbuildValues(text, 'Compile', 'Remove').some((value) => value.endsWith('Features/Tasks/**'))) {
+    if (host.forbids && !msbuildValues(text, 'Compile', 'Remove').some((value) => removesFromBackend(value, 'Features/Tasks/**'))) {
       fail(`${DEPLOYMENT_RULE}: ${host.project} no excluye Features/Tasks/**; Tasks se compila solo en ${TASKS_HOST_PROJECT}`);
     }
     for (const include of msbuildValues(text, 'Compile', 'Include')) {
@@ -179,7 +183,7 @@ async function checkDeploymentBoundary() {
         fail(`${DEPLOYMENT_RULE}: ${host.project} compila ${include}; ${host.scope}, sin tests, y el resto llega por ${PLATFORM_PROJECT}`);
       }
     }
-    if (!msbuildValues(text, 'Compile', 'Remove').some((value) => value.endsWith('Features/**/*Tests.cs'))) {
+    if (!msbuildValues(text, 'Compile', 'Remove').some((value) => removesFromBackend(value, 'Features/**/*Tests.cs'))) {
       fail(`${host.project} no excluye tests del producto: falta Compile Remove "$(BackendRoot)/Features/**/*Tests.cs"`);
     }
   }

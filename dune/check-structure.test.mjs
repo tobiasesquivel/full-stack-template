@@ -354,6 +354,18 @@ describe('check-structure', () => {
       /límite de despliegue: backend\/Hosts\/Tasks\/TemplateApp\.Tasks\.csproj importa otro archivo de MSBuild/,
     ],
     [
+      'el monolito que quita una Features/Tasks de otra carpeta',
+      'backend/Hosts/Monolith/TemplateApp.csproj',
+      monolithProject('', MONOLITH_COMPILE.map((item) => item.replace('$(BackendRoot)/Features/Tasks/**', '$(BackendRoot)/Unused/Features/Tasks/**'))),
+      /límite de despliegue: backend\/Hosts\/Monolith\/TemplateApp\.csproj no excluye Features\/Tasks\/\*\*/,
+    ],
+    [
+      'el host de Tasks que quita los tests de otra carpeta',
+      'backend/Hosts/Tasks/TemplateApp.Tasks.csproj',
+      tasksHostProject({ compile: [...TASKS_HOST_COMPILE.slice(0, 3), '<Compile Remove="$(BackendRoot)/Unused/Features/**/*Tests.cs" />'] }),
+      /TemplateApp\.Tasks\.csproj no excluye tests del producto/,
+    ],
+    [
       'el monolito sin quitar Features/Tasks',
       'backend/Hosts/Monolith/TemplateApp.csproj',
       monolithProject('', MONOLITH_COMPILE.filter((item) => !item.includes('Features/Tasks/**'))),
