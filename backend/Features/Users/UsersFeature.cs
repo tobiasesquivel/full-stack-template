@@ -2,6 +2,7 @@ using FluentValidation;
 using TemplateApp.Features.Auth.Contracts;
 using TemplateApp.Features.Users.Contracts;
 using TemplateApp.Features.Users.Domain.Events;
+using TemplateApp.Features.Users.MessageNames;
 using TemplateApp.Features.Users.OrchestrateAccountClosure;
 using TemplateApp.Features.Users.Persistence;
 using TemplateApp.Infrastructure.Messaging;

@@ -101,7 +101,7 @@ internal static class DuneDiagnostics
         category: "Dune",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
-        description: "La cookie de sesión viaja sola, así que toda escritura pasa por el middleware de antiforgery, que cubre solo /api. Cada grupo del host empieza con /api, las rutas de escritura se mapean solo en el grupo de su feature y cada slice recibe ese grupo. La única excepción es el grupo /internal/v1 de Infrastructure/Http/Remote/InternalApi.cs: lo llaman otros procesos sin cookie y el gateway no lo publica.");
+        description: "Desde la reorganización (parte 4), ningún Map* de ASP.NET (MapGet incluido) se escribe en una carpeta técnica de una feature (Contracts/, Domain/, Persistence/, Access/, MessageNames/), aunque el nombre del archivo parezca de una migración: las rutas viven en una slice, donde las miran DUNE0019, DUNE0024 y DUNE0028. La cookie de sesión viaja sola, así que toda escritura pasa por el middleware de antiforgery, que cubre solo /api. Cada grupo del host empieza con /api, las rutas de escritura se mapean solo en el grupo de su feature y cada slice recibe ese grupo. La única excepción es el grupo /internal/v1 de Infrastructure/Http/Remote/InternalApi.cs: lo llaman otros procesos sin cookie y el gateway no lo publica.");
 
     public static readonly DiagnosticDescriptor VersionedApi = new(
         id: "DUNE0012",
@@ -449,4 +449,14 @@ internal static class DuneDiagnostics
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
         description: "Pasos 29.1 y 29.2 (ADR-0004 punto 9): las slices HTTP de Tasks, Projects, Users y Auth son handlers de Wolverine y su endpoint les llega por el mediator. En backend/Features/<Feature>/<Slice>/*Endpoint.cs de esas features es error no llamar nunca a IMessageBus.InvokeAsync<T> (la forma genérica: sin <T> la respuesta se pierde), llamarlo más de una vez, despachar un mensaje cuyo tipo no está declarado en la carpeta de la misma slice, y recibir por parámetro o construir con new un tipo de la feature que tiene un método Handle (el handler): así el endpoint no puede saltear el middleware. La lista de features vive en el analyzer y crece cuando otra feature migra: Tasks desde el paso 29.1, y Projects, Users y Auth en el 29.2. Auth/IssueCsrfToken queda exento: no tiene caso de uso, solo escribe la cookie de antiforgery. Los tests quedan fuera. Límite: no ve un handler pedido por service location ni un mensaje que llega en una variable de tipo object.");
+
+    public static readonly DiagnosticDescriptor BusNameOutsideMessageNames = new(
+        id: "DUNE0030",
+        title: "Nombre del bus fuera de MessageNames",
+        messageFormat: "'{0}' {1}: el nombre, la versión, el exchange y la clave de ruteo de un mensaje del bus salen de una constante de Features/<Feature>/MessageNames/, que solo guarda clases estáticas con constantes",
+        category: "Dune",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "Reorganización, parte 4 (ADR-0004 punto 5): el contrato entre dos despliegues que se hablan por el bus es el nombre estable y la versión de cada mensaje, y su exchange. Cada feature guarda esos nombres en su carpeta técnica MessageNames/, una clase estática por exchange (TaskEvents, TaskCommands, AuthEvents) solo con constantes. En backend/Features/<Feature>/ es error pasarle a un método o a un constructor de TemplateApp.Infrastructure.Messaging un argumento name, version, exchange o routingKey (sin mirar mayúsculas: también los records RetiredBinding o IntegrationEventType) que no sea una constante declarada en MessageNames/ de la misma feature, tal cual o con una conversión implícita: un literal, una expresión, una conversión explícita, una constante de otra carpeta o de otra feature. También es error declarar en MessageNames/ (o en una subcarpeta) un tipo que no sea una clase estática de primer nivel solo con constantes. La cola (queue) no es un nombre de mensaje: es del consumidor y queda junto a él. Si una compilación tiene MessageNames/ y no encuentra en TemplateApp.Infrastructure.Messaging alguno de los seis registros (AddOutboxEvent, AddIntegrationEventPublication, AddIntegrationEventHandler, AddIntegrationCommand, AddSagaMessage, AddRetiredBinding) con todos sus parámetros de nombre (name y version; también exchange, salvo AddOutboxEvent; exchange y routingKey en AddRetiredBinding; sin mirar mayúsculas), avisa que quedó ciega para ese registro. Los tests y las migraciones quedan fuera.",
+        customTags: WellKnownDiagnosticTags.CompilationEnd);
 }

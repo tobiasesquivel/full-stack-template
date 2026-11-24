@@ -1,5 +1,6 @@
 using FluentValidation;
 using TemplateApp.Features.Projects.Contracts;
+using TemplateApp.Features.Projects.MessageNames;
 using TemplateApp.Features.Projects.Persistence;
 using TemplateApp.Infrastructure.Http.Remote;
 using TemplateApp.Infrastructure.Messaging;

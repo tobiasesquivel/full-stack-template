@@ -1,4 +1,5 @@
 using TemplateApp.Features.Auth.Contracts;
+using TemplateApp.Features.Users.MessageNames;
 using Wolverine;
 using Wolverine.Persistence.Sagas;
 

@@ -1,4 +1,4 @@
-namespace TemplateApp.Features.Users;
+namespace TemplateApp.Features.Tasks.MessageNames;
 
 internal static class TaskCommands
 {

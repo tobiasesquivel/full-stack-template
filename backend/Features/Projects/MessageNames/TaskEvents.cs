@@ -1,4 +1,4 @@
-namespace TemplateApp.Features.Projects;
+namespace TemplateApp.Features.Projects.MessageNames;
 
 internal static class TaskEvents
 {

@@ -1,4 +1,5 @@
 using ErrorOr;
+using TemplateApp.Features.Projects.MessageNames;
 using TemplateApp.Infrastructure.Messaging;
 using TemplateApp.Infrastructure.Messaging.Bus;
 

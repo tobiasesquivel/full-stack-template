@@ -38,12 +38,23 @@ public sealed class ApiRouteAnalyzer : DiagnosticAnalyzer
     {
         var invocation = (IInvocationOperation)context.Operation;
         var path = DunePaths.Normalize(invocation.Syntax.SyntaxTree.FilePath);
-        if (!DunePaths.IsBackendFile(path) || DunePaths.IsMigration(path) || DunePaths.IsTestsFile(path))
+        if (!DunePaths.IsBackendFile(path) || DunePaths.IsTestsFile(path))
         {
             return;
         }
 
         var method = invocation.TargetMethod;
+        if (IsAspNetMap(method) && DunePaths.TryGetTechnicalFolder(path, out var folder))
+        {
+            Report(context, invocation, $"{method.Name} va en una slice, no en la carpeta técnica {folder}/");
+            return;
+        }
+
+        if (DunePaths.IsMigration(path))
+        {
+            return;
+        }
+
         if (IsAspNetRouteMap(method))
         {
             AnalyzeRouteMap(context, invocation, method, path);
@@ -107,6 +118,11 @@ public sealed class ApiRouteAnalyzer : DiagnosticAnalyzer
 
         return operation.Type;
     }
+
+    private static bool IsAspNetMap(IMethodSymbol method) =>
+        method.IsExtensionMethod
+        && method.Name.StartsWith("Map", StringComparison.Ordinal)
+        && DuneSymbols.InNamespace(method.ContainingType, "Microsoft.AspNetCore");
 
     private static bool IsAspNetRouteMap(IMethodSymbol method) =>
         method.IsExtensionMethod
