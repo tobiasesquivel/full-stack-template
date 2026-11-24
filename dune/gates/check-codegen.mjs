@@ -52,7 +52,7 @@ function check(root, configuration, target) {
 }
 
 function main() {
-  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
   const configuration = process.argv.includes('--release') ? 'Release' : 'Debug';
   const failures = TARGETS.map((target) => check(root, configuration, target)).filter((result) => !result.ok);
   console.log(`check-codegen: ${failures.length === 0 ? 'PASS' : 'FAIL'}`);

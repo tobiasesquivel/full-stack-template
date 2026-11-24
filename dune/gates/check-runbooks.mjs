@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const require = createRequire(path.join(here, '..', 'frontend', 'package.json'));
+const require = createRequire(path.join(here, '..', '..', 'frontend', 'package.json'));
 const YAML = require('yaml');
 
 const PROMETHEUS_CONFIG = 'deploy/prometheus/prometheus.yml';

@@ -11,7 +11,7 @@ import { promisify } from 'node:util';
 const run = promisify(execFile);
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const script = path.join(scriptDir, 'check-secrets.mjs');
-const repoConfig = path.join(scriptDir, '..', '.gitleaks.toml');
+const repoConfig = path.join(scriptDir, '..', '..', '.gitleaks.toml');
 const BASE32 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
 
 function fakeAwsAccessKey() {
