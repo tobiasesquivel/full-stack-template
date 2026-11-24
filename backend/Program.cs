@@ -3,8 +3,10 @@ using TemplateApp.Features.Auth;
 using TemplateApp.Features.Health;
 using TemplateApp.Features.Projects;
 using TemplateApp.Features.Users;
-using TemplateApp.Infrastructure.DependencyInjection;
+using TemplateApp.Infrastructure;
 using TemplateApp.Infrastructure.Http;
+using TemplateApp.Infrastructure.Http.RateLimiting;
+using TemplateApp.Infrastructure.Http.Remote;
 using TemplateApp.Infrastructure.Messaging;
 using TemplateApp.Infrastructure.Observability;
 

@@ -7,7 +7,7 @@ using Polly.CircuitBreaker;
 using Polly.RateLimiting;
 using Polly.Timeout;
 
-namespace TemplateApp.Infrastructure.Http;
+namespace TemplateApp.Infrastructure.Http.Remote;
 
 public static class RemoteServices
 {

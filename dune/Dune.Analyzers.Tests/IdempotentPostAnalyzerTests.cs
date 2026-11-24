@@ -28,10 +28,10 @@ public sealed class IdempotentPostAnalyzerTests
                 public static RouteHandlerBuilder WithName(this RouteHandlerBuilder builder, string name) => builder;
             }
         }
-        namespace TemplateApp.Infrastructure.Http
+        namespace TemplateApp.Infrastructure.Http.Idempotency
         {
             using Microsoft.AspNetCore.Builder;
-            public static class Idempotency
+            public static class IdempotencyOptIn
             {
                 public static RouteHandlerBuilder WithIdempotency<TRequest>(this RouteHandlerBuilder builder) => builder;
             }
@@ -45,7 +45,7 @@ public sealed class IdempotentPostAnalyzerTests
             ("backend/Features/Tasks/CreateTask/CreateTaskEndpoint.cs", """
                 using Microsoft.AspNetCore.Builder;
                 using Microsoft.AspNetCore.Routing;
-                using TemplateApp.Infrastructure.Http;
+                using TemplateApp.Infrastructure.Http.Idempotency;
                 namespace TemplateApp.Features.Tasks.CreateTask;
                 public sealed record CreateTaskRequest(string Title);
                 public static class CreateTaskEndpoint
@@ -57,7 +57,7 @@ public sealed class IdempotentPostAnalyzerTests
             ("backend/Features/Notes/CreateNote/CreateNoteEndpoint.cs", """
                 using Microsoft.AspNetCore.Builder;
                 using Microsoft.AspNetCore.Routing;
-                using TemplateApp.Infrastructure.Http;
+                using TemplateApp.Infrastructure.Http.Idempotency;
                 namespace TemplateApp.Features.Notes.CreateNote;
                 public sealed record CreateNoteRequest(string Text);
                 public static class CreateNoteEndpoint
@@ -118,6 +118,26 @@ public sealed class IdempotentPostAnalyzerTests
                     }
                     private static string Handle() => "created";
                 }
+                """),
+            ("backend/Infrastructure/Http/LegacyIdempotency.cs", """
+                using Microsoft.AspNetCore.Builder;
+                namespace TemplateApp.Infrastructure.Http;
+                public static class LegacyIdempotency
+                {
+                    public static RouteHandlerBuilder WithIdempotency<TRequest>(this RouteHandlerBuilder builder) => builder;
+                }
+                """),
+            ("backend/Features/Projects/CreateProject/CreateProjectEndpoint.cs", """
+                using Microsoft.AspNetCore.Builder;
+                using Microsoft.AspNetCore.Routing;
+                using TemplateApp.Infrastructure.Http;
+                namespace TemplateApp.Features.Projects.CreateProject;
+                public sealed record CreateProjectRequest(string Name);
+                public static class CreateProjectEndpoint
+                {
+                    public static void Map(IEndpointRouteBuilder projects) => projects.MapPost("", Handle).WithIdempotency<CreateProjectRequest>();
+                    private static string Handle(CreateProjectRequest request) => "created";
+                }
                 """));
 
         Assert.Equal(
@@ -125,6 +145,7 @@ public sealed class IdempotentPostAnalyzerTests
             {
                 ("backend/Features/Notes/CreateNote/CreateNoteEndpoint.cs", 8),
                 ("backend/Features/Notes/CreateNote/CreateNoteEndpoint.cs", 9),
+                ("backend/Features/Projects/CreateProject/CreateProjectEndpoint.cs", 8),
                 ("backend/Features/Tasks/CreateTask/CreateTaskEndpoint.cs", 6),
             },
             Locations(diagnostics));

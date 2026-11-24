@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace TemplateApp.Infrastructure.DependencyInjection;
+namespace TemplateApp.Infrastructure;
 
 public sealed record DataProtectionKeysOptions : IValidatableObject
 {

@@ -8,6 +8,7 @@ using TemplateApp.Features.Auth.Contracts;
 using TemplateApp.Features.Auth.Domain.Events;
 using TemplateApp.Features.Auth.Persistence;
 using TemplateApp.Infrastructure.Http;
+using TemplateApp.Infrastructure.Http.RateLimiting;
 using TemplateApp.Infrastructure.Messaging;
 using TemplateApp.Infrastructure.Messaging.Mediator;
 using TemplateApp.Infrastructure.Messaging.Outbox;

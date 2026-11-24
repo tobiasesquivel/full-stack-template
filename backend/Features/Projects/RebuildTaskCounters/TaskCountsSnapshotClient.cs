@@ -1,5 +1,5 @@
 using System.Net;
-using TemplateApp.Infrastructure.Http;
+using TemplateApp.Infrastructure.Http.Remote;
 
 namespace TemplateApp.Features.Projects.RebuildTaskCounters;
 

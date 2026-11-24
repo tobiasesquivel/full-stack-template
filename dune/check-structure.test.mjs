@@ -529,11 +529,11 @@ describe('check-structure', () => {
         '[DisableRateLimiting]\npublic static class PingHealthEndpoint { }\n',
       );
       await repo.write(
-        'backend/Infrastructure/Http/ApiRateLimiting.cs',
+        'backend/Infrastructure/Http/RateLimiting/ApiRateLimiting.cs',
         'limiter.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(Partition);\n',
       );
       await repo.write(
-        'backend/Infrastructure/Http/InternalApi.cs',
+        'backend/Infrastructure/Http/Remote/InternalApi.cs',
         'app.MapGroup(Prefix).DisableRateLimiting().ExcludeFromDescription();\n',
       );
       const result = await runGate(repo.dir);
@@ -544,7 +544,8 @@ describe('check-structure', () => {
   });
 
   for (const [name, rel, content] of [
-    ['DisableRateLimiting en otro archivo de Infrastructure/Http', 'backend/Infrastructure/Http/InternalApiExtras.cs', 'app.MapGroup("/internal/v2").DisableRateLimiting();\n'],
+    ['DisableRateLimiting en otro archivo de Infrastructure/Http/Remote', 'backend/Infrastructure/Http/Remote/InternalApiExtras.cs', 'app.MapGroup("/internal/v2").DisableRateLimiting();\n'],
+    ['DisableRateLimiting en la ruta vieja de InternalApi', 'backend/Infrastructure/Http/InternalApi.cs', 'app.MapGroup(Prefix).DisableRateLimiting().ExcludeFromDescription();\n'],
     ['DisableRateLimiting en un endpoint de Tasks', 'backend/Features/Tasks/ListTasks/ListTasksEndpoint.cs', 'tasks.MapGet("/", Handle).DisableRateLimiting();\n'],
     ['el atributo [DisableRateLimiting] en Users', 'backend/Features/Users/GetUser/GetUserEndpoint.cs', '[DisableRateLimiting]\npublic static class GetUserEndpoint { }\n'],
     ['DisableRateLimitingAttribute en Infrastructure', 'backend/Infrastructure/Http/VersionedApi.cs', 'group.WithMetadata(new DisableRateLimitingAttribute());\n'],
@@ -557,7 +558,7 @@ describe('check-structure', () => {
         await repo.write(rel, content);
         const result = await runGate(repo.dir);
         assert.equal(result.code, 1);
-        assert.match(result.output, /limiter global: DisableRateLimiting solo en backend\/Features\/Health y backend\/Infrastructure\/Http\/InternalApi\.cs/);
+        assert.match(result.output, /limiter global: DisableRateLimiting solo en backend\/Features\/Health y backend\/Infrastructure\/Http\/Remote\/InternalApi\.cs/);
       } finally {
         await repo.cleanup();
       }

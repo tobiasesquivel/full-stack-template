@@ -1,7 +1,7 @@
 using FluentValidation;
 using TemplateApp.Features.Projects.Contracts;
 using TemplateApp.Features.Projects.Persistence;
-using TemplateApp.Infrastructure.Http;
+using TemplateApp.Infrastructure.Http.Remote;
 using TemplateApp.Infrastructure.Messaging;
 using TemplateApp.Infrastructure.Messaging.Mediator;
 using TemplateApp.Infrastructure.Persistence;

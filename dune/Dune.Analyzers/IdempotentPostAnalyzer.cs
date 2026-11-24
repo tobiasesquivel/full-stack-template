@@ -11,7 +11,7 @@ public sealed class IdempotentPostAnalyzer : DiagnosticAnalyzer
 {
     private const string ExcludedFeature = "Auth";
     private const string Opt = "WithIdempotency";
-    private const string OptNamespace = "TemplateApp.Infrastructure.Http";
+    private const string OptNamespace = "TemplateApp.Infrastructure.Http.Idempotency";
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
         ImmutableArray.Create(DuneDiagnostics.IdempotentPost);

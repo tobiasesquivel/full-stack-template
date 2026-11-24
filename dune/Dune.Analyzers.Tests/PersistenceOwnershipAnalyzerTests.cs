@@ -211,8 +211,8 @@ public sealed class PersistenceOwnershipAnalyzerTests
                     }
                 }
                 """),
-            ("backend/Infrastructure/Http/IdempotencyFilter.cs", """
-                namespace TemplateApp.Infrastructure.Http;
+            ("backend/Infrastructure/Http/Idempotency/IdempotencyFilter.cs", """
+                namespace TemplateApp.Infrastructure.Http.Idempotency;
                 internal static class IdempotencyFilter
                 {
                     public static System.Transactions.TransactionScope Begin() => new System.Transactions.TransactionScope();

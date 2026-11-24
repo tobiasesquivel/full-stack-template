@@ -101,7 +101,7 @@ internal static class DuneDiagnostics
         category: "Dune",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
-        description: "La cookie de sesión viaja sola, así que toda escritura pasa por el middleware de antiforgery, que cubre solo /api. Cada grupo del host empieza con /api, las rutas de escritura se mapean solo en el grupo de su feature y cada slice recibe ese grupo. La única excepción es el grupo /internal/v1 de Infrastructure/Http/InternalApi.cs: lo llaman otros procesos sin cookie y el gateway no lo publica.");
+        description: "La cookie de sesión viaja sola, así que toda escritura pasa por el middleware de antiforgery, que cubre solo /api. Cada grupo del host empieza con /api, las rutas de escritura se mapean solo en el grupo de su feature y cada slice recibe ese grupo. La única excepción es el grupo /internal/v1 de Infrastructure/Http/Remote/InternalApi.cs: lo llaman otros procesos sin cookie y el gateway no lo publica.");
 
     public static readonly DiagnosticDescriptor VersionedApi = new(
         id: "DUNE0012",
@@ -424,12 +424,12 @@ internal static class DuneDiagnostics
 
     public static readonly DiagnosticDescriptor HttpClientOutsideInfrastructure = new(
         id: "DUNE0027",
-        title: "Cliente HTTP fuera de Infrastructure/Http",
-        messageFormat: "'{0}' {1}: un cliente hacia otro proceso se registra con AddRemoteClient<TClient>(servicio, RemoteRetry), que le pone la política de resiliencia; solo backend/Infrastructure/Http arma clientes HTTP y nombra Polly",
+        title: "Cliente HTTP fuera de Infrastructure/Http/Remote",
+        messageFormat: "'{0}' {1}: un cliente hacia otro proceso se registra con AddRemoteClient<TClient>(servicio, RemoteRetry), que le pone la política de resiliencia; solo backend/Infrastructure/Http/Remote arma clientes HTTP y nombra Polly",
         category: "Dune",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
-        description: "Paso 29: todo cliente saliente pasa por la misma política (bulkhead, timeout total, reintento, circuit breaker y timeout por intento), que vive en backend/Infrastructure/Http/RemoteServices. Fuera de esa carpeta es error crear un HttpClient, un HttpMessageInvoker o un HttpMessageHandler (HttpClientHandler, SocketsHttpHandler o un DelegatingHandler propio), llamar a los registros de IHttpClientFactory (AddHttpClient, ConfigureHttpClientDefaults, ConfigurePrimaryHttpMessageHandler, AddHttpMessageHandler y los demás de HttpClientFactoryServiceCollectionExtensions y HttpClientBuilderExtensions) o a los de Microsoft.Extensions.Http.Resilience (AddResilienceHandler, AddStandardResilienceHandler), nombrar IHttpClientFactory (que da clientes sin la política) y nombrar un símbolo de los namespaces Polly o Microsoft.Extensions.Http.Resilience. Así ninguna slice arma un cliente sin resiliencia ni conoce Polly: un circuito abierto le llega como RemoteServiceUnavailableException. Los tests y las migraciones quedan fuera, y el gateway también (no está en backend/ y YARP trae su cliente). Límite: no ve un HttpClient pedido por constructor en un tipo que no se registró con AddRemoteClient (desde .NET 8, IHttpClientFactory registra un HttpClient por defecto sin la política); lo cubre la revisión.");
+        description: "Paso 29: todo cliente saliente pasa por la misma política (bulkhead, timeout total, reintento, circuit breaker y timeout por intento), que vive en backend/Infrastructure/Http/Remote/RemoteServices. Fuera de esa carpeta es error crear un HttpClient, un HttpMessageInvoker o un HttpMessageHandler (HttpClientHandler, SocketsHttpHandler o un DelegatingHandler propio), llamar a los registros de IHttpClientFactory (AddHttpClient, ConfigureHttpClientDefaults, ConfigurePrimaryHttpMessageHandler, AddHttpMessageHandler y los demás de HttpClientFactoryServiceCollectionExtensions y HttpClientBuilderExtensions) o a los de Microsoft.Extensions.Http.Resilience (AddResilienceHandler, AddStandardResilienceHandler), nombrar IHttpClientFactory (que da clientes sin la política) y nombrar un símbolo de los namespaces Polly o Microsoft.Extensions.Http.Resilience. Así ninguna slice arma un cliente sin resiliencia ni conoce Polly: un circuito abierto le llega como RemoteServiceUnavailableException. Los tests y las migraciones quedan fuera, y el gateway también (no está en backend/ y YARP trae su cliente). Límite: no ve un HttpClient pedido por constructor en un tipo que no se registró con AddRemoteClient (desde .NET 8, IHttpClientFactory registra un HttpClient por defecto sin la política); lo cubre la revisión.");
 
     public static readonly DiagnosticDescriptor TransactionOwner = new(
         id: "DUNE0029",

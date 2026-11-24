@@ -167,9 +167,9 @@ public sealed class LayerAnalyzerTests
                     namespace TemplateApp.Features.Tasks;
                     public sealed class TasksModule { }
                     """),
-                ("backend/Infrastructure/DependencyInjection/BackendInfrastructure.cs", """
+                ("backend/Infrastructure/BackendInfrastructure.cs", """
                     using TemplateApp.Features.Tasks;
-                    namespace TemplateApp.Infrastructure.DependencyInjection;
+                    namespace TemplateApp.Infrastructure;
                     public static class Composition
                     {
                         public static object AddBackendInfrastructure(TasksModule module) => module;

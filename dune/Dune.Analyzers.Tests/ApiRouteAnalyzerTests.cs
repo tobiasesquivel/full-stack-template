@@ -103,7 +103,7 @@ public sealed class ApiRouteAnalyzerTests
         const string InternalGroup = """
             using Microsoft.AspNetCore.Builder;
             using Microsoft.AspNetCore.Routing;
-            namespace TemplateApp.Infrastructure.Http;
+            namespace TemplateApp.Infrastructure.Http.Remote;
             public static class InternalApi
             {
                 public const string Prefix = "/internal/v1";
@@ -111,7 +111,7 @@ public sealed class ApiRouteAnalyzerTests
             }
             """;
 
-        var accepted = await AnalyzeAsync(("backend/Infrastructure/Http/InternalApi.cs", InternalGroup));
+        var accepted = await AnalyzeAsync(("backend/Infrastructure/Http/Remote/InternalApi.cs", InternalGroup));
         var rejected = await AnalyzeAsync(
             ("backend/Features/Tasks/TasksFeature.cs", """
                 using Microsoft.AspNetCore.Builder;
@@ -127,11 +127,12 @@ public sealed class ApiRouteAnalyzerTests
                     }
                 }
                 """),
-            ("backend/Infrastructure/Http/OtherApi.cs", InternalGroup.Replace("class InternalApi", "class OtherApi", System.StringComparison.Ordinal)),
-            ("backend/Infrastructure/Http/Sub/InternalApi.cs", InternalGroup.Replace("/internal/v1", "/internal/v2", System.StringComparison.Ordinal)));
+            ("backend/Infrastructure/Http/Remote/OtherApi.cs", InternalGroup.Replace("class InternalApi", "class OtherApi", System.StringComparison.Ordinal)),
+            ("backend/Infrastructure/Http/Remote/Sub/InternalApi.cs", InternalGroup.Replace("Http.Remote;", "Http.Remote.Sub;", System.StringComparison.Ordinal)),
+            ("backend/Infrastructure/Http/InternalApi.cs", InternalGroup.Replace("Http.Remote;", "Http;", System.StringComparison.Ordinal)));
 
         Assert.Empty(accepted);
-        Assert.Equal(new[] { 7, 7, 8, 9 }, Lines(rejected));
+        Assert.Equal(new[] { 7, 7, 7, 8, 9 }, Lines(rejected));
     }
 
     [Fact]

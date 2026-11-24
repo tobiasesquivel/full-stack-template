@@ -37,7 +37,7 @@ public sealed class HttpClientBoundaryAnalyzerTests
         {
             public sealed class BrokenCircuitException : Exception { }
         }
-        namespace TemplateApp.Infrastructure.Http
+        namespace TemplateApp.Infrastructure.Http.Remote
         {
             using Microsoft.Extensions.DependencyInjection;
             public enum RemoteRetry { Idempotent, Never }
@@ -54,11 +54,11 @@ public sealed class HttpClientBoundaryAnalyzerTests
     public async Task InfrastructureHttpBuildsTheClients_AndAFeatureRegistersThemWithAddRemoteClient()
     {
         var diagnostics = await AnalyzeAsync(
-            ("backend/Infrastructure/Http/RemoteServices.cs", """
+            ("backend/Infrastructure/Http/Remote/RemoteServices.cs", """
                 using System.Net.Http;
                 using Microsoft.Extensions.DependencyInjection;
                 using Polly.CircuitBreaker;
-                namespace TemplateApp.Infrastructure.Http;
+                namespace TemplateApp.Infrastructure.Http.Remote;
                 public static class RemoteHandlers
                 {
                     public static IHttpClientBuilder Route(IHttpClientBuilder client) =>
@@ -68,7 +68,7 @@ public sealed class HttpClientBoundaryAnalyzerTests
                 """),
             ("backend/Features/Tasks/TasksFeature.cs", """
                 using Microsoft.Extensions.DependencyInjection;
-                using TemplateApp.Infrastructure.Http;
+                using TemplateApp.Infrastructure.Http.Remote;
                 namespace TemplateApp.Features.Tasks;
                 internal sealed class ProjectsClient { public ProjectsClient(System.Net.Http.HttpClient http) { } }
                 internal static class TasksFeature
@@ -148,6 +148,37 @@ public sealed class HttpClientBoundaryAnalyzerTests
                 ("backend/Features/Tasks/TasksFeature.cs", 7),
                 ("backend/Hosts/Tasks/Program.cs", 6),
                 ("backend/Hosts/Tasks/Program.cs", 6),
+            },
+            Locations(diagnostics));
+    }
+
+    [Fact]
+    public async Task AnotherFolderOfInfrastructureHttp_IsAnError()
+    {
+        var diagnostics = await AnalyzeAsync(
+            ("backend/Infrastructure/Http/RateLimiting/ApiRateLimiting.cs", """
+                using System.Net.Http;
+                namespace TemplateApp.Infrastructure.Http.RateLimiting;
+                internal static class ApiRateLimiting
+                {
+                    public static HttpClient Client() => new HttpClient();
+                }
+                """),
+            ("backend/Infrastructure/Http/RemoteServices.cs", """
+                using Polly.CircuitBreaker;
+                namespace TemplateApp.Infrastructure.Http;
+                internal static class RemoteServices
+                {
+                    public static bool IsOpen(System.Exception ex) => ex is BrokenCircuitException;
+                }
+                """));
+
+        Assert.Equal(
+            new[]
+            {
+                ("backend/Infrastructure/Http/RateLimiting/ApiRateLimiting.cs", 5),
+                ("backend/Infrastructure/Http/RemoteServices.cs", 1),
+                ("backend/Infrastructure/Http/RemoteServices.cs", 5),
             },
             Locations(diagnostics));
     }

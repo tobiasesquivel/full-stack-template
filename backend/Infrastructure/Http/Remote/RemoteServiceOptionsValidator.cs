@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Options;
 
-namespace TemplateApp.Infrastructure.Http;
+namespace TemplateApp.Infrastructure.Http.Remote;
 
 public sealed class RemoteServiceOptionsValidator : IValidateOptions<RemoteServiceOptions>
 {

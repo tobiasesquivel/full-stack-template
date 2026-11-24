@@ -66,11 +66,11 @@ public sealed class ConfigurationAccessAnalyzerTests
     public async Task LooseConfigurationReadsAreRejected()
     {
         var diagnostics = await AnalyzeAsync(
-            ("backend/Infrastructure/DependencyInjection/BackendInfrastructure.cs", """
+            ("backend/Infrastructure/BackendInfrastructure.cs", """
                 using System;
                 using Microsoft.Extensions.Configuration;
                 using Microsoft.Extensions.DependencyInjection;
-                namespace TemplateApp.Infrastructure.DependencyInjection;
+                namespace TemplateApp.Infrastructure;
                 public static class BackendInfrastructure
                 {
                     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
