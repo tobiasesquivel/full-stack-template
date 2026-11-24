@@ -13,6 +13,9 @@ namespace TemplateApp.Infrastructure.Messaging;
 
 internal sealed class MessagingExtension : IWolverineExtension
 {
+    private static readonly TimeSpan BrokerHeartbeat = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan BrokerReplyTimeout = TimeSpan.FromSeconds(5);
+
     private readonly MessagingOptions _options;
     private readonly string _connectionName;
     private readonly IReadOnlyList<IntegrationEventType> _published;
@@ -58,7 +61,12 @@ internal sealed class MessagingExtension : IWolverineExtension
         RabbitMqTransportExpression rabbit = options.UseRabbitMq(_options.RabbitMqUri!)
             .AutoProvision()
             .DisableSystemRequestReplyQueueDeclaration()
-            .ConfigureConnection(connection => connection.ClientProvidedName = _connectionName)
+            .ConfigureConnection(connection =>
+            {
+                connection.ClientProvidedName = _connectionName;
+                connection.RequestedHeartbeat = BrokerHeartbeat;
+                connection.ContinuationTimeout = BrokerReplyTimeout;
+            })
             .ConfigureChannelCreation(channel =>
             {
                 channel.PublisherConfirmationsEnabled = true;
