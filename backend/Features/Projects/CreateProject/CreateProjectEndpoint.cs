@@ -1,6 +1,6 @@
 using System.Security.Claims;
 using ErrorOr;
-using TemplateApp.Infrastructure.Http;
+using TemplateApp.Infrastructure.Http.Idempotency;
 using TemplateApp.Shared.Http;
 using Wolverine;
 

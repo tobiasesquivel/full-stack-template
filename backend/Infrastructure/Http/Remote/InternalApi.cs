@@ -1,4 +1,4 @@
-namespace TemplateApp.Infrastructure.Http;
+namespace TemplateApp.Infrastructure.Http.Remote;
 
 public static class InternalApi
 {

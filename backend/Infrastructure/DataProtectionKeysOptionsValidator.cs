@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Options;
 
-namespace TemplateApp.Infrastructure.DependencyInjection;
+namespace TemplateApp.Infrastructure;
 
 [OptionsValidator]
 public sealed partial class DataProtectionKeysOptionsValidator : IValidateOptions<DataProtectionKeysOptions>;

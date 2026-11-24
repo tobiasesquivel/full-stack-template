@@ -20,7 +20,7 @@ public sealed class RemoteCallInTransactionAnalyzerTests
                 public static TransactionScope Begin() => new(TransactionScopeAsyncFlowOption.Enabled);
             }
         }
-        namespace TemplateApp.Infrastructure.Http
+        namespace TemplateApp.Infrastructure.Http.Remote
         {
             public static class RemoteServices
             {
@@ -138,13 +138,13 @@ public sealed class RemoteCallInTransactionAnalyzerTests
                     }
                 }
                 """),
-            ("backend/Infrastructure/Http/Forwarder.cs", """
+            ("backend/Infrastructure/Http/Remote/Forwarder.cs", """
                 using System.Net.Http;
                 using System.Threading;
                 using System.Threading.Tasks;
                 using System.Transactions;
                 using TemplateApp.Infrastructure.Persistence.Transactions;
-                namespace TemplateApp.Infrastructure.Http;
+                namespace TemplateApp.Infrastructure.Http.Remote;
                 public sealed class Forwarder(HttpClient http)
                 {
                     public async Task ForwardAsync(HttpRequestMessage request, CancellationToken ct)
@@ -161,7 +161,7 @@ public sealed class RemoteCallInTransactionAnalyzerTests
             {
                 ("backend/Features/Users/ArchiveUser/ArchiveUser.cs", 15),
                 ("backend/Features/Users/DeleteUser/DeleteUser.cs", 12),
-                ("backend/Infrastructure/Http/Forwarder.cs", 12),
+                ("backend/Infrastructure/Http/Remote/Forwarder.cs", 12),
             },
             Locations(diagnostics));
     }

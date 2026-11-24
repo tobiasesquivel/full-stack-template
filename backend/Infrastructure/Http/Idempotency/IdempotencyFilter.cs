@@ -11,7 +11,7 @@ using TemplateApp.Infrastructure.Persistence.Idempotency;
 using TemplateApp.Infrastructure.Persistence.Transactions;
 using TemplateApp.Shared.Http;
 
-namespace TemplateApp.Infrastructure.Http;
+namespace TemplateApp.Infrastructure.Http.Idempotency;
 
 public sealed class IdempotencyFilter<TRequest> : IEndpointFilter
     where TRequest : notnull

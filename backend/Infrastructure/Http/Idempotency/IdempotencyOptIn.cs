@@ -1,6 +1,6 @@
-namespace TemplateApp.Infrastructure.Http;
+namespace TemplateApp.Infrastructure.Http.Idempotency;
 
-public static class Idempotency
+public static class IdempotencyOptIn
 {
     public static RouteHandlerBuilder WithIdempotency<TRequest>(this RouteHandlerBuilder builder)
         where TRequest : notnull =>

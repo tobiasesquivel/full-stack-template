@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Diagnostics;
-using TemplateApp.Infrastructure.Http;
+using TemplateApp.Infrastructure.Http.Remote;
 using TemplateApp.Shared.Http;
 
-namespace TemplateApp.Infrastructure.Middlewares;
+namespace TemplateApp.Infrastructure.Http;
 
 public class GlobalExceptionHandler : IExceptionHandler
 {

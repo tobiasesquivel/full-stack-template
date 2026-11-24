@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace TemplateApp.Infrastructure.Http;
+namespace TemplateApp.Infrastructure.Http.RateLimiting;
 
 public sealed record ApiRateLimitOptions
 {

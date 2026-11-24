@@ -13,7 +13,7 @@ public sealed class ApiRouteAnalyzer : DiagnosticAnalyzer
 {
     private const string ApiPrefix = "/api";
     private const string InternalPrefix = "/internal/v1";
-    private const string InternalApiFile = "backend/Infrastructure/Http/InternalApi.cs";
+    private const string InternalApiFile = "backend/Infrastructure/Http/Remote/InternalApi.cs";
 
     private static readonly ImmutableHashSet<string> UnsafeMaps = ImmutableHashSet.Create(
         StringComparer.Ordinal,

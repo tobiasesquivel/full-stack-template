@@ -11,7 +11,7 @@ namespace Dune.Analyzers;
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class HttpClientBoundaryAnalyzer : DiagnosticAnalyzer
 {
-    private const string HttpHome = "backend/Infrastructure/Http/";
+    private const string HttpHome = "backend/Infrastructure/Http/Remote/";
     private static readonly string[] ResilienceNamespaces = { "Polly", "Microsoft.Extensions.Http.Resilience" };
     private static readonly string[] HttpPipelineTypes = { "System.Net.Http.HttpMessageInvoker", "System.Net.Http.HttpMessageHandler" };
     private const string ClientFactory = "System.Net.Http.IHttpClientFactory";

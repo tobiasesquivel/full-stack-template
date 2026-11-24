@@ -7,7 +7,7 @@ using Polly.RateLimiting;
 using Polly.Timeout;
 using TemplateApp.Features.Tasks;
 using TemplateApp.Features.Tasks.Access;
-using TemplateApp.Infrastructure.Http;
+using TemplateApp.Infrastructure.Http.Remote;
 using TemplateApp.Tests.Support;
 using WireMock.Matchers;
 using WireMock.RequestBuilders;

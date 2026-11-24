@@ -4,7 +4,7 @@ using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
 
-namespace TemplateApp.Infrastructure.Http;
+namespace TemplateApp.Infrastructure.Http.RateLimiting;
 
 public static class ApiRateLimiting
 {

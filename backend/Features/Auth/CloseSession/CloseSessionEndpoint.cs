@@ -1,6 +1,6 @@
 using ErrorOr;
-using TemplateApp.Infrastructure.Http;
 using Wolverine;
+using TemplateApp.Infrastructure.Http;
 
 namespace TemplateApp.Features.Auth.CloseSession;
 

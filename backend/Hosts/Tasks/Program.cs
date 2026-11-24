@@ -1,8 +1,10 @@
 using Serilog;
 using TemplateApp.Features.Health;
 using TemplateApp.Features.Tasks;
-using TemplateApp.Infrastructure.DependencyInjection;
+using TemplateApp.Infrastructure;
 using TemplateApp.Infrastructure.Http;
+using TemplateApp.Infrastructure.Http.RateLimiting;
+using TemplateApp.Infrastructure.Http.Remote;
 using TemplateApp.Infrastructure.Messaging;
 using TemplateApp.Infrastructure.Observability;
 

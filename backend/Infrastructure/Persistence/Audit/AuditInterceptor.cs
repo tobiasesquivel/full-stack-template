@@ -3,7 +3,7 @@ using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Diagnostics;
-using TemplateApp.Infrastructure.Http;
+using TemplateApp.Infrastructure.Http.Remote;
 using TemplateApp.Shared.Domain;
 
 namespace TemplateApp.Infrastructure.Persistence.Audit;

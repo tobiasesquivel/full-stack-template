@@ -1,8 +1,8 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Configuration;
-using TemplateApp.Infrastructure.Http;
 using Xunit;
+using TemplateApp.Infrastructure.Http.Remote;
 
 namespace TemplateApp.Tests.Remote;
 
