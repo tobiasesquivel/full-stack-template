@@ -67,9 +67,10 @@ public sealed class RemoteResilienceTests : IDisposable
             .RespondWith(Response.Create().WithStatusCode(HttpStatusCode.ServiceUnavailable));
         await using ServiceProvider services = Services<AuthSessionClient>(RemoteRetry.Never);
 
-        await Assert.ThrowsAsync<RemoteServiceUnavailableException>(() => services.GetRequiredService<AuthSessionClient>()
-            .CheckAsync("alice", Guid.NewGuid(), TestContext.Current.CancellationToken));
+        RemoteServiceUnavailableException unavailable = await Assert.ThrowsAsync<RemoteServiceUnavailableException>(
+            () => services.GetRequiredService<AuthSessionClient>().CheckAsync("alice", Guid.NewGuid(), TestContext.Current.CancellationToken));
 
+        Assert.Null(unavailable.InnerException);
         Assert.Single(_monolith.LogEntries);
     }
 
@@ -154,9 +155,10 @@ public sealed class RemoteResilienceTests : IDisposable
             .RespondWith(Response.Create().WithStatusCode(HttpStatusCode.TooManyRequests).WithHeader("Retry-After", "86400"));
         await using ServiceProvider services = Services<ProjectsClient>(RemoteRetry.Idempotent, ("Retries", "1"));
 
-        await Assert.ThrowsAsync<RemoteServiceUnavailableException>(() => services.GetRequiredService<ProjectsClient>()
-            .FindAssignableAsync("alice", Guid.NewGuid(), TestContext.Current.CancellationToken));
+        RemoteServiceUnavailableException unavailable = await Assert.ThrowsAsync<RemoteServiceUnavailableException>(
+            () => services.GetRequiredService<ProjectsClient>().FindAssignableAsync("alice", Guid.NewGuid(), TestContext.Current.CancellationToken));
 
+        Assert.Null(unavailable.InnerException);
         Assert.Equal(2, _monolith.LogEntries.Count());
     }
 
@@ -177,6 +179,8 @@ public sealed class RemoteResilienceTests : IDisposable
         {
             [$"{section}:BaseAddress"] = $"{_monolith.Url}/",
             [$"{section}:RetryDelay"] = "00:00:00.010",
+            [$"{section}:Timeout"] = "00:00:10",
+            [$"{section}:TotalTimeout"] = "00:00:30",
         };
         foreach ((string key, string value) in settings)
             values[$"{section}:{key}"] = value;
