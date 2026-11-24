@@ -8,6 +8,7 @@ using TemplateApp.Features.Auth.Contracts;
 using TemplateApp.Features.Auth.Domain.Events;
 using TemplateApp.Features.Auth.MessageNames;
 using TemplateApp.Features.Auth.Persistence;
+using TemplateApp.Features.Auth.Telemetry;
 using TemplateApp.Infrastructure.Http;
 using TemplateApp.Infrastructure.Http.RateLimiting;
 using TemplateApp.Infrastructure.Messaging;
@@ -78,12 +79,12 @@ internal static class AuthFeature
 
     private static IServiceCollection AddAuthSession(this IServiceCollection services)
     {
-        services.AddOptionsWithValidateOnStart<SessionOptions, SessionOptionsValidator>()
-            .BindConfiguration(SessionOptions.Section);
+        services.AddOptionsWithValidateOnStart<Access.SessionOptions, SessionOptionsValidator>()
+            .BindConfiguration(Access.SessionOptions.Section);
 
         services.AddSessionCookie();
         services.AddOptions<CookieAuthenticationOptions>(SessionCookie.Scheme)
-            .Configure<IOptions<SessionOptions>>((cookie, session) => SessionHttpPolicy.ConfigureCookie(cookie, session.Value));
+            .Configure<IOptions<Access.SessionOptions>>((cookie, session) => SessionHttpPolicy.ConfigureCookie(cookie, session.Value));
 
         return services;
     }

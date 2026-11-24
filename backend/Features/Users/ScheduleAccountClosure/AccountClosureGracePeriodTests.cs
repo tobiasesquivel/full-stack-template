@@ -5,6 +5,7 @@ using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using TemplateApp.Features.Users.DeleteUser;
+using TemplateApp.Features.Users.Domain;
 using TemplateApp.Tests.Support;
 using TemplateApp.Tests.Support.Bus;
 using TemplateApp.Tests.Support.Clients;

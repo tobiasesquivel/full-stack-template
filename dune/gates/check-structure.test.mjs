@@ -143,9 +143,10 @@ describe('check-structure', () => {
       await repo.write('backend/Features/Tasks/MessageNames/TaskEvents.cs', ' ');
       await repo.write('backend/Features/Tasks/MessageNames/MessageNamesEndpoint.cs', ' ');
       await repo.write('backend/Features/Tasks/Access/AccessEndpoint.cs', ' ');
+      await repo.write('backend/Features/Tasks/Telemetry/TelemetryEndpoint.cs', ' ');
       const result = await runGate(repo.dir);
       assert.equal(result.code, 0, result.output);
-      assert.doesNotMatch(result.output, /MessageNames|Tasks\/Access/);
+      assert.doesNotMatch(result.output, /MessageNames|Tasks\/Access|Tasks\/Telemetry/);
     } finally {
       await repo.cleanup();
     }
@@ -575,6 +576,7 @@ describe('check-structure', () => {
     ['using de Wolverine en un endpoint fuera de una slice', 'backend/Features/Tasks/TasksEndpoint.cs', 'using Wolverine;\n'],
     ['using de Wolverine en un *Endpoint.cs de la carpeta técnica MessageNames/', 'backend/Features/Tasks/MessageNames/MessageNamesEndpoint.cs', 'using Wolverine;\n'],
     ['using de Wolverine en un *Endpoint.cs de la carpeta técnica Access/', 'backend/Features/Tasks/Access/AccessEndpoint.cs', 'using Wolverine;\n'],
+    ['using de Wolverine en un *Endpoint.cs de la carpeta técnica Telemetry/', 'backend/Features/Tasks/Telemetry/TelemetryEndpoint.cs', 'using Wolverine;\n'],
     ['using de Wolverine en un *Endpoint.cs de la carpeta técnica Contracts/', 'backend/Features/Tasks/Contracts/ContractsEndpoint.cs', 'using Wolverine;\n'],
     ['using de Wolverine en un *Endpoint.cs de la carpeta técnica Domain/', 'backend/Features/Tasks/Domain/DomainEndpoint.cs', 'using Wolverine;\n'],
     ['using de Wolverine en un *Endpoint.cs de la carpeta técnica Persistence/', 'backend/Features/Tasks/Persistence/PersistenceEndpoint.cs', 'using Wolverine;\n'],

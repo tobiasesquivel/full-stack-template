@@ -1,3 +1,6 @@
+using TemplateApp.Features.Users.Domain;
+using TemplateApp.Features.Users.Persistence;
+using TemplateApp.Features.Users.Telemetry;
 using TemplateApp.Infrastructure.Persistence.Transactions;
 
 namespace TemplateApp.Features.Users.OrchestrateAccountClosure;

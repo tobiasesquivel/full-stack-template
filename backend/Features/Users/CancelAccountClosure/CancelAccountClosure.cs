@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using TemplateApp.Features.Users.Domain;
 using TemplateApp.Features.Users.Persistence;
+using TemplateApp.Features.Users.Telemetry;
 
 namespace TemplateApp.Features.Users.CancelAccountClosure;
 

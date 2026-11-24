@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using TemplateApp.Features.Tasks.Access;
 using TemplateApp.Features.Tasks.Persistence;
 using TemplateApp.Tests.Support;
 using TemplateApp.Tests.Support.Clients;

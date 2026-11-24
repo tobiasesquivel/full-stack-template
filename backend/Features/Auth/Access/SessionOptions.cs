@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace TemplateApp.Features.Auth;
+namespace TemplateApp.Features.Auth.Access;
 
 internal sealed record SessionOptions
 {

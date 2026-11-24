@@ -1,7 +1,9 @@
 using ErrorOr;
 using Microsoft.EntityFrameworkCore;
+using TemplateApp.Features.Tasks.Access;
 using TemplateApp.Features.Tasks.Domain;
 using TemplateApp.Features.Tasks.Persistence;
+using TemplateApp.Features.Tasks.Telemetry;
 
 namespace TemplateApp.Features.Tasks.UpdateTask;
 

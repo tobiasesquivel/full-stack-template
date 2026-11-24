@@ -75,7 +75,7 @@ async function listFeatures() {
   return entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort();
 }
 
-const FEATURE_FOLDERS = new Set(['Contracts', 'Domain', 'Persistence', 'Access', 'MessageNames']);
+const FEATURE_FOLDERS = new Set(['Contracts', 'Domain', 'Persistence', 'Access', 'MessageNames', 'Telemetry']);
 
 async function checkSlicesHaveTests() {
   const features = await listFeatures();

@@ -1,5 +1,6 @@
 using ErrorOr;
 using Microsoft.EntityFrameworkCore;
+using TemplateApp.Features.Tasks.Access;
 using TemplateApp.Features.Tasks.Persistence;
 
 namespace TemplateApp.Features.Tasks.DeleteTask;

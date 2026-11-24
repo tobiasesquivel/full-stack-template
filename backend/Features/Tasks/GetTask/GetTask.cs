@@ -2,6 +2,7 @@ using System.Linq.Expressions;
 using ErrorOr;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Query;
+using TemplateApp.Features.Tasks.Access;
 using TemplateApp.Features.Tasks.Domain;
 using TemplateApp.Features.Tasks.Persistence;
 using TemplateApp.Shared.Domain;

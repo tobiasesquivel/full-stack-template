@@ -173,6 +173,7 @@ public sealed class BusBoundaryAnalyzerTests
 
     [Theory]
     [InlineData("MessageNames")]
+    [InlineData("Telemetry")]
     [InlineData("Access")]
     public async Task AnEndpointInATechnicalFolder_IsNotASliceEndpoint(string folder)
     {

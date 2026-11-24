@@ -22,7 +22,7 @@ namespace Internal.Generated.WolverineHandlers
             // This service has been marked as requiring service location independent of Wolverine's ability to use constructor injection of everything else
             var accessPolicy = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService<TemplateApp.Features.Auth.Access.AccessPolicy>(serviceScope.ServiceProvider);
             // This service has been marked as requiring service location independent of Wolverine's ability to use constructor injection of everything else
-            var sessions = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService<TemplateApp.Features.Auth.Sessions>(serviceScope.ServiceProvider);
+            var sessions = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService<TemplateApp.Features.Auth.Access.Sessions>(serviceScope.ServiceProvider);
             // The actual message body
             var checkSessionCommand = (TemplateApp.Features.Auth.CheckSession.CheckSessionCommand)context.Envelope.Message;
 

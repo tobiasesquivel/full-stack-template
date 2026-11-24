@@ -1,3 +1,4 @@
+using TemplateApp.Features.Users.Telemetry;
 using Wolverine;
 using Wolverine.Persistence.Sagas;
 

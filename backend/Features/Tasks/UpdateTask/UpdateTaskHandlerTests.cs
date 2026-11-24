@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using TemplateApp.Features.Tasks.Access;
 using TemplateApp.Tests.Support;
 using TemplateApp.Tests.Support.Clients;
 using TemplateApp.Tests.Support.Hosts;

@@ -1,4 +1,4 @@
-namespace TemplateApp.Features.Auth;
+namespace TemplateApp.Features.Auth.Telemetry;
 
 internal enum LoginOutcome
 {

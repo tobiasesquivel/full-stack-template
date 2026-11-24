@@ -1,3 +1,5 @@
+using TemplateApp.Features.Auth.Access;
+
 namespace TemplateApp.Features.Auth.IssueCsrfToken;
 
 internal static class IssueCsrfTokenEndpoint

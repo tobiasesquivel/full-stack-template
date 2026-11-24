@@ -3,7 +3,7 @@ using Microsoft.Extensions.Options;
 using TemplateApp.Features.Auth.Domain;
 using TemplateApp.Features.Auth.Persistence;
 
-namespace TemplateApp.Features.Auth;
+namespace TemplateApp.Features.Auth.Access;
 
 internal sealed class Sessions
 {

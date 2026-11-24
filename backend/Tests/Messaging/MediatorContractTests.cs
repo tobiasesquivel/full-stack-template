@@ -2,6 +2,7 @@ using ErrorOr;
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 using TemplateApp.Features.Tasks;
+using TemplateApp.Features.Tasks.Access;
 using TemplateApp.Features.Tasks.CreateTask;
 using TemplateApp.Features.Tasks.DeleteTask;
 using TemplateApp.Features.Tasks.GetTask;
