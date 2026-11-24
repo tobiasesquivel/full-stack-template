@@ -25,21 +25,6 @@ public sealed class TaskEventConsumerTests : IAsyncDisposable
         _rabbit = rabbit;
     }
 
-    [Fact]
-    public async Task ATransientFailure_IsRetriedPastTheDefaultAttempts_AndCountsOnce()
-    {
-        ConsumerScript script = new() { FailuresLeft = 3 };
-        (IsolatedApi api, TaskEventsBroker broker) = await StartAsync(script);
-        string project = await ProjectAsync(api);
-
-        await broker.PublishAsync("tasks.task-created", Guid.NewGuid(), new { projectId = project });
-
-        Assert.Equal((1, 0), await CountersWhenAsync(api, project, (1, 0)));
-        Assert.Equal(4, script.Calls.Count);
-        Assert.Single(script.Calls.Select(call => call.MessageId).Distinct());
-        Assert.Equal(0u, await broker.CountAsync(TaskEventsBroker.DeadLetterQueue));
-    }
-
     [Theory]
     [InlineData("99")]
     [InlineData("2147483648")]
@@ -110,7 +95,7 @@ public sealed class TaskEventConsumerTests : IAsyncDisposable
             api.Dispose();
     }
 
-    private static void Script(IServiceCollection services, ConsumerScript script, string host) =>
+    internal static void Script(IServiceCollection services, ConsumerScript script, string host) =>
         services.AddScoped<IIntegrationEventHandler<TaskCreatedIntegrationEvent>>(provider =>
             new ScriptedTaskCreatedConsumer(script, host, new TaskEventsConsumer(provider.GetRequiredService<ApplyTaskEvent>())));
 
@@ -121,13 +106,13 @@ public sealed class TaskEventConsumerTests : IAsyncDisposable
         return Encoding.UTF8.GetString((byte[])death["reason"]);
     }
 
-    private static async Task<string> ProjectAsync(IsolatedApi api)
+    internal static async Task<string> ProjectAsync(IsolatedApi api)
     {
         TestSession alice = await api.SignUpAsync("alice");
         return await alice.CreateProjectAsync("Casa");
     }
 
-    private static async Task<(int Tasks, int Completed)?> CountersWhenAsync(IsolatedApi api, string project, (int, int) expected) =>
+    internal static async Task<(int Tasks, int Completed)?> CountersWhenAsync(IsolatedApi api, string project, (int, int) expected) =>
         await Eventually.Async(() => api.Pair.Monolith.Services.TaskCountersAsync(project), counters => counters == expected, Wait);
 
     private static Task<long> InboxRowsAsync(IsolatedApi api) =>

@@ -10,26 +10,140 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  BACKEND_SHARDS: 3
   DOTNET_NOLOGO: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
 
 jobs:
-  backend:
-    name: Backend build, analyzers y tests
+  backend-build:
+    name: Backend build de tests y reparto en shards
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:18
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      shards: ${{ steps.plan.outputs.shards }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.401
+          cache: true
+          cache-dependency-path: |
+            **/*.csproj
+            dune/Dune.props
+      - name: Build de los tests y del producto que prueban (los analyzers corren en backend-gates)
+        run: dotnet build backend/Tests/TemplateApp.Tests.csproj --configuration Release -p:RunAnalyzers=false -p:EnforceCodeStyleInBuild=false
         env:
-          POSTGRES_PASSWORD: template-ci
-          POSTGRES_DB: template_tests
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd="pg_isready -U postgres"
-          --health-interval=5s
-          --health-timeout=5s
-          --health-retries=10
+          ConnectionStrings__DefaultConnection: Host=localhost;Port=5432;Database=template_tests;Username=postgres;Password=template-ci;
+      - name: Lista de clases y de tests del ensamblado sin repartir (al listar, el código 8 es "ningún test corrió")
+        run: |
+          mkdir -p backend/Tests/bin/Release/listing
+          for kind in classes full; do
+            code=0
+            dotnet backend/Tests/bin/Release/net10.0/TemplateApp.Tests.dll --xunit-list "$kind" > "backend/Tests/bin/Release/listing/$kind.txt" || code=$?
+            if [ "$code" != 0 ] && [ "$code" != 8 ]; then
+              cat "backend/Tests/bin/Release/listing/$kind.txt"
+              echo "::error::--xunit-list $kind terminó con el código $code"
+              exit 1
+            fi
+          done
+          grep -c "Test method:" backend/Tests/bin/Release/listing/full.txt
+      - name: Tiempos por clase de la última corrida completa de main
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/timings"
+          run=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --branch main --event push --status success --limit 1 --json databaseId --jq '.[0].databaseId')
+          if [ -n "$run" ] && gh run download "$run" --repo "$GITHUB_REPOSITORY" --name backend-test-timings --dir "$RUNNER_TEMP/timings"; then
+            echo "Tiempos de la corrida de main $run"
+          else
+            echo "::notice::La última corrida de main no tiene backend-test-timings: el reparto usa .github/backend-test-timings.json"
+            cp .github/backend-test-timings.json "$RUNNER_TEMP/timings/backend-test-timings.json"
+          fi
+      - name: Reparto en shards
+        id: plan
+        run: echo "shards=$(node .github/scripts/backend-test-shards.mjs plan --classes backend/Tests/bin/Release/listing/classes.txt --timings "$RUNNER_TEMP/timings/backend-test-timings.json" --shards ${{ env.BACKEND_SHARDS }})" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: backend-tests-build
+          path: backend/Tests/bin/Release/
+          retention-days: 1
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: backend-tests-listing
+          path: backend/Tests/bin/Release/listing/
+          retention-days: 7
+          if-no-files-found: error
+
+  backend-shard:
+    name: Backend tests shard ${{ matrix.index }}
+    needs: backend-build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.backend-build.outputs.shards) }}
+    env:
+      TEST_POSTGRES_CONNECTION: Host=localhost;Port=5432;Database=template_tests;Username=postgres;Password=template-ci;
+      ConnectionStrings__DefaultConnection: Host=localhost;Port=5432;Database=template_tests;Username=postgres;Password=template-ci;
+    steps:
+      - name: PostgreSQL propio y desechable
+        run: docker run --detach --name postgres --publish 5432:5432 --env POSTGRES_PASSWORD=template-ci --env POSTGRES_DB=template_tests postgres:18
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.401
+      - uses: actions/download-artifact@v4
+        with:
+          name: backend-tests-build
+          path: backend/Tests/bin/Release
+      - name: Esperar PostgreSQL
+        run: until docker exec postgres pg_isready --username postgres --dbname template_tests; do sleep 1; done
+      - name: Backend tests del shard ${{ matrix.index }} (${{ matrix.classes }} clases, ${{ matrix.seconds }} s estimados)
+        run: dotnet backend/Tests/bin/Release/net10.0/TemplateApp.Tests.dll ${{ matrix.filter }} --report-xunit-xml --report-xunit-xml-filename shard-${{ matrix.index }}.xml --results-directory "$RUNNER_TEMP/results"
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-tests-shard-${{ matrix.index }}
+          path: ${{ runner.temp }}/results/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  backend-tests:
+    name: Backend tests con PostgreSQL real
+    needs: [backend-build, backend-shard]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Todos los shards terminaron bien
+        run: |
+          echo "build: ${{ needs.backend-build.result }}, shards: ${{ needs.backend-shard.result }}"
+          test "${{ needs.backend-build.result }}" = success
+          test "${{ needs.backend-shard.result }}" = success
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/scripts
+      - uses: actions/download-artifact@v4
+        with:
+          name: backend-tests-listing
+          path: ${{ runner.temp }}/listing
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: backend-tests-shard-*
+          path: ${{ runner.temp }}/results
+      - name: Cada test de la lista corrió una sola vez entre todos los shards
+        run: node .github/scripts/backend-test-shards.mjs verify --listing "$RUNNER_TEMP/listing/full.txt" --results "$RUNNER_TEMP/results" --timings-out "$RUNNER_TEMP/backend-test-timings.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-timings
+          path: ${{ runner.temp }}/backend-test-timings.json
+          retention-days: 90
+
+  backend-gates:
+    name: Backend build completo, codegen y analyzers Dune
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -49,17 +163,14 @@ jobs:
         run: node --test dune/check-codegen.test.mjs
       - name: Verificador de comentarios C#
         run: dotnet run --project dune/Dune.CommentVerifier -- --root .
-      - name: Backend tests con PostgreSQL real
-        run: dotnet test backend/Tests/TemplateApp.Tests.csproj --configuration Release --no-build
-        env:
-          ConnectionStrings__DefaultConnection: Host=localhost;Port=5432;Database=template_tests;Username=postgres;Password=template-ci;
-          TEST_POSTGRES_CONNECTION: Host=localhost;Port=5432;Database=template_tests;Username=postgres;Password=template-ci;
       - name: Analyzer tests Dune
-        run: dotnet test dune/Dune.Analyzers.Tests/Dune.Analyzers.Tests.csproj --configuration Release
+        run: dotnet test dune/Dune.Analyzers.Tests/Dune.Analyzers.Tests.csproj --configuration Release --no-build
       - name: Gate de estructura
         run: node dune/check-structure.mjs
       - name: Tests del gate de estructura
         run: node --test dune/check-structure.test.mjs
+      - name: Tests del reparto de backend en shards
+        run: node --test .github/scripts/backend-test-shards.test.mjs
 
   frontend:
     name: Frontend build y gates
