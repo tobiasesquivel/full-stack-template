@@ -291,6 +291,8 @@ jobs:
       ACCOUNT_CLOSURE_SECOND_REMINDER_SECONDS: 10
     steps:
       - uses: actions/checkout@v4
+      - name: Bajar en segundo plano las imágenes que compose no construye
+        run: nohup sh -c 'docker compose config --images | grep -v "^full-stack-template-" | xargs -P 4 -n 1 docker pull --quiet' > "$RUNNER_TEMP/pull.log" 2>&1 &
       - uses: actions/setup-node@v4
         with:
           node-version: 26.7.0
@@ -302,9 +304,33 @@ jobs:
         run: mkdir -p otel-export && chmod 777 otel-export
       - name: Validar compose
         run: docker compose config
+      - uses: docker/setup-buildx-action@v3
+      - name: Imágenes de compose con caché de capas en GitHub Actions
+        uses: docker/bake-action@v6
+        env:
+          DOCKER_BUILD_SUMMARY: false
+          DOCKER_BUILD_RECORD_UPLOAD: false
+        with:
+          source: .
+          files: compose.yaml
+          targets: api,tasks,gateway,web
+          load: true
+          set: |
+            api.tags=full-stack-template-api:latest
+            tasks.tags=full-stack-template-tasks:latest
+            gateway.tags=full-stack-template-gateway:latest
+            web.tags=full-stack-template-web:latest
+            api.cache-from=type=gha,scope=compose-api
+            tasks.cache-from=type=gha,scope=compose-tasks
+            gateway.cache-from=type=gha,scope=compose-gateway
+            web.cache-from=type=gha,scope=compose-web
+            ${{ github.ref == 'refs/heads/main' && 'api.cache-to=type=gha,scope=compose-api,mode=max' || '' }}
+            ${{ github.ref == 'refs/heads/main' && 'tasks.cache-to=type=gha,scope=compose-tasks,mode=max' || '' }}
+            ${{ github.ref == 'refs/heads/main' && 'gateway.cache-to=type=gha,scope=compose-gateway,mode=max' || '' }}
+            ${{ github.ref == 'refs/heads/main' && 'web.cache-to=type=gha,scope=compose-web,mode=max' || '' }}
       - name: Levantar stack y esperar cada healthcheck
         run: |
-          if ! docker compose up --build --wait --wait-timeout 300; then
+          if ! docker compose up --no-build --wait --wait-timeout 300; then
             docker compose ps
             docker compose logs gateway api tasks db rabbitmq otel prometheus
             exit 1
@@ -313,11 +339,6 @@ jobs:
         run: node .agents/skills/verify-template/scripts/smoke-api.mjs --compose
         env:
           API_BASE_URL: http://localhost:8080/api/v1/
-      - name: SLOs consultados en Prometheus y cada alerta disparada en vivo
-        run: node .agents/skills/verify-template/scripts/check-slo-alerts.mjs slo-check
-        env:
-          API_BASE_URL: http://localhost:8080/api/v1/
-          PROMETHEUS_URL: http://localhost:9090/
       - name: Logs del stack si falla
         if: failure()
         run: docker compose logs gateway api tasks db rabbitmq otel prometheus
@@ -332,6 +353,64 @@ jobs:
         with:
           name: otel-export
           path: otel-export/
+
+  compose-slos:
+    name: SLOs consultados y alertas disparadas en vivo con compose
+    runs-on: ubuntu-latest
+    env:
+      POSTGRES_PASSWORD: ci-postgres-password
+      RABBITMQ_PASSWORD: ci-rabbitmq-password
+      OTEL_EXPORT_DIR: ${{ github.workspace }}/otel-export
+      ACCOUNT_CLOSURE_GRACE_SECONDS: 20
+      ACCOUNT_CLOSURE_FIRST_REMINDER_SECONDS: 5
+      ACCOUNT_CLOSURE_SECOND_REMINDER_SECONDS: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Bajar en segundo plano las imágenes que compose no construye
+        run: nohup sh -c 'docker compose config --images | grep -v "^full-stack-template-" | xargs -P 4 -n 1 docker pull --quiet' > "$RUNNER_TEMP/pull.log" 2>&1 &
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26.7.0
+      - name: Preparar export OTEL
+        run: mkdir -p otel-export && chmod 777 otel-export
+      - uses: docker/setup-buildx-action@v3
+      - name: Imágenes de compose con caché de capas en GitHub Actions
+        uses: docker/bake-action@v6
+        env:
+          DOCKER_BUILD_SUMMARY: false
+          DOCKER_BUILD_RECORD_UPLOAD: false
+        with:
+          source: .
+          files: compose.yaml
+          targets: api,tasks,gateway
+          load: true
+          set: |
+            api.tags=full-stack-template-api:latest
+            tasks.tags=full-stack-template-tasks:latest
+            gateway.tags=full-stack-template-gateway:latest
+            api.cache-from=type=gha,scope=compose-api
+            tasks.cache-from=type=gha,scope=compose-tasks
+            gateway.cache-from=type=gha,scope=compose-gateway
+      - name: Levantar el stack sin el frontend y esperar cada healthcheck
+        run: |
+          if ! docker compose up --no-build --wait --wait-timeout 300 db rabbitmq otel prometheus api tasks gateway; then
+            docker compose ps
+            docker compose logs gateway api tasks db rabbitmq otel prometheus
+            exit 1
+          fi
+      - name: SLOs consultados en Prometheus y cada alerta disparada en vivo
+        run: node .agents/skills/verify-template/scripts/check-slo-alerts.mjs slo-check
+        env:
+          API_BASE_URL: http://localhost:8080/api/v1/
+          PROMETHEUS_URL: http://localhost:9090/
+      - name: Logs del stack si falla
+        if: failure()
+        run: docker compose logs gateway api tasks db rabbitmq otel prometheus
+      - name: Apagar stack
+        if: always()
+        run: docker compose down --timeout 30 --volumes
+      - name: Correlación log-traza y métricas no vacías en el export OTEL
+        run: node .agents/skills/verify-template/scripts/check-otel-export.mjs otel-export
       - name: Publicar evidencia de SLOs
         if: always()
         uses: actions/upload-artifact@v4
