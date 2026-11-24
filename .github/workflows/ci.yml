@@ -32,8 +32,8 @@ jobs:
           cache-dependency-path: |
             **/*.csproj
             dune/Dune.props
-      - name: Build de los tests y del producto que prueban (analyzers como errores)
-        run: dotnet build backend/Tests/TemplateApp.Tests.csproj --configuration Release
+      - name: Build de los tests y del producto que prueban (los analyzers corren en backend-gates)
+        run: dotnet build backend/Tests/TemplateApp.Tests.csproj --configuration Release -p:RunAnalyzers=false -p:EnforceCodeStyleInBuild=false
         env:
           ConnectionStrings__DefaultConnection: Host=localhost;Port=5432;Database=template_tests;Username=postgres;Password=template-ci;
       - name: Lista de clases y de tests del ensamblado sin repartir
