@@ -52,7 +52,7 @@ public sealed class BusBoundaryAnalyzerTests
     public async Task WolverineLivesInInfrastructureMessaging_AndFeaturesUseTheRepoInterfaces()
     {
         var diagnostics = await AnalyzeAsync(
-            ("backend/Infrastructure/Messaging/IntegrationEventHandler.cs", """
+            ("backend/Infrastructure/Messaging/Bus/IntegrationEventHandler.cs", """
                 using System.Threading;
                 using System.Threading.Tasks;
                 using Wolverine;
@@ -64,7 +64,7 @@ public sealed class BusBoundaryAnalyzerTests
                         Task.FromResult(context.Envelope!.Id);
                 }
                 """),
-            ("backend/Infrastructure/Messaging/IntegrationEventPublisher.cs", """
+            ("backend/Infrastructure/Messaging/Bus/IntegrationEventPublisher.cs", """
                 using System.Threading.Tasks;
                 using Wolverine;
                 namespace TemplateApp.Infrastructure.Messaging;
@@ -126,7 +126,7 @@ public sealed class BusBoundaryAnalyzerTests
                     public static object Add(object services) => services.AddWolverine();
                 }
                 """),
-            ("backend/Infrastructure/Messaging/IntegrationEventPublisher.cs", """
+            ("backend/Infrastructure/Messaging/Bus/IntegrationEventPublisher.cs", """
                 using System.Threading.Tasks;
                 using Wolverine;
                 namespace TemplateApp.Infrastructure.Messaging;
@@ -144,7 +144,7 @@ public sealed class BusBoundaryAnalyzerTests
                 ("backend/Features/Projects/ApplyTaskEvent/TaskEventsHandler.cs", 6),
                 ("backend/Features/Tasks/CreateTask/CreateTaskEndpoint.cs", 5),
                 ("backend/Features/Tasks/CreateTask/CreateTaskEndpoint.cs", 5),
-                ("backend/Infrastructure/Messaging/IntegrationEventPublisher.cs", 6),
+                ("backend/Infrastructure/Messaging/Bus/IntegrationEventPublisher.cs", 6),
                 ("backend/Infrastructure/Observability/BusRegistration.cs", 1),
                 ("backend/Infrastructure/Observability/BusRegistration.cs", 5),
             },

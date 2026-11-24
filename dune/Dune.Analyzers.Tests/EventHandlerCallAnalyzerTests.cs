@@ -57,7 +57,6 @@ public sealed class EventHandlerCallAnalyzerTests
                 using System;
                 using System.Threading;
                 using System.Threading.Tasks;
-                using TemplateApp.Infrastructure.Messaging;
                 using TemplateApp.Shared.Domain;
                 namespace TemplateApp.Infrastructure.Messaging.Outbox;
                 public sealed class OutboxRelay
@@ -138,7 +137,6 @@ public sealed class EventHandlerCallAnalyzerTests
                 using System;
                 using System.Threading;
                 using System.Threading.Tasks;
-                using TemplateApp.Infrastructure.Messaging;
                 using TemplateApp.Shared.Domain;
                 namespace TemplateApp.Infrastructure.Messaging.Outbox;
                 public sealed class OutboxInterceptor
@@ -156,7 +154,7 @@ public sealed class EventHandlerCallAnalyzerTests
                 ("backend/Features/Tasks/CreateTask/CreateTask.cs", 14),
                 ("backend/Features/Tasks/DeleteTask/DeleteTask.cs", 10),
                 ("backend/Features/Tasks/DeleteTask/DeleteTask.cs", 11),
-                ("backend/Infrastructure/Messaging/Outbox/OutboxInterceptor.cs", 12),
+                ("backend/Infrastructure/Messaging/Outbox/OutboxInterceptor.cs", 11),
             },
             Locations(diagnostics));
     }

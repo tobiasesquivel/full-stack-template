@@ -338,7 +338,7 @@ public sealed class PersistenceOwnershipAnalyzerTests
     public async Task AFeatureContextMapsItsOutboxAndInboxOnlyThroughTheInfrastructureHelpers()
     {
         var diagnostics = await AnalyzeAsync(
-            ("backend/Infrastructure/Messaging/OutboxMessageConfiguration.cs", """
+            ("backend/Infrastructure/Messaging/Outbox/OutboxMessageConfiguration.cs", """
                 using Microsoft.EntityFrameworkCore;
                 using Microsoft.EntityFrameworkCore.Metadata.Builders;
                 using TemplateApp.Infrastructure.Persistence;
@@ -348,7 +348,7 @@ public sealed class PersistenceOwnershipAnalyzerTests
                     public void Configure(EntityTypeBuilder<AuditEntry> builder) => builder.ToTable("OutboxMessages");
                 }
                 """),
-            ("backend/Infrastructure/Messaging/InboxMessageConfiguration.cs", """
+            ("backend/Infrastructure/Messaging/Inbox/InboxMessageConfiguration.cs", """
                 using Microsoft.EntityFrameworkCore;
                 using Microsoft.EntityFrameworkCore.Metadata.Builders;
                 using TemplateApp.Infrastructure.Persistence;
