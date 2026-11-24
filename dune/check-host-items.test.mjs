@@ -45,6 +45,8 @@ describe('check-host-items', () => {
     ['el test de una slice en un host', monolith, 'backend/Features/Auth/OpenSession/OpenSessionTests.cs'],
     ['un test en la carpeta del host', monolith, 'backend/Hosts/Monolith/ProbeTests.CS'],
     ['un archivo del otro host', monolith, 'backend/Hosts/Tasks/Program.cs'],
+    ['una carpeta hermana con otras mayúsculas', tasks, 'backend/Hosts/tasks/Leak.cs'],
+    ['una feature con otras mayúsculas en el host de Tasks', tasks, 'backend/Features/tasks/TasksFeature.cs'],
     ['un archivo fuera del repo', tasks, '../outside/Leak.cs'],
   ]) {
     it(`rechaza ${name}`, () => {

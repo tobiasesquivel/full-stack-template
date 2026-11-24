@@ -7,7 +7,7 @@ const RULE = 'límite de despliegue';
 
 function ownsFeature(features) {
   return (relative) => {
-    const match = /^backend\/features\/([^/]+)\//.exec(relative);
+    const match = /^backend\/Features\/([^/]+)\//.exec(relative);
     return match !== null && features(match[1]);
   };
 }
@@ -16,23 +16,22 @@ export const HOSTS = [
   {
     project: 'backend/Hosts/Monolith/TemplateApp.csproj',
     scope: 'el monolito compila sus archivos y Features salvo Features/Tasks',
-    compiles: ownsFeature((feature) => feature !== 'tasks'),
+    compiles: ownsFeature((feature) => !/^tasks$/i.test(feature)),
   },
   {
     project: 'backend/Hosts/Tasks/TemplateApp.Tasks.csproj',
     scope: 'el host de Tasks compila sus archivos, Features/Tasks y Features/Health',
-    compiles: ownsFeature((feature) => feature === 'tasks' || feature === 'health'),
+    compiles: ownsFeature((feature) => feature === 'Tasks' || feature === 'Health'),
   },
 ];
 
 export function violations(host, files) {
-  const own = `${path.posix.dirname(host.project).toLowerCase()}/`;
+  const own = `${path.posix.dirname(host.project)}/`;
   return files
     .map((file) => file.replaceAll('\\', '/'))
     .filter((file) => {
-      const relative = file.toLowerCase();
-      if (relative.endsWith('tests.cs')) return true;
-      return !relative.startsWith(own) && !host.compiles(relative);
+      if (file.toLowerCase().endsWith('tests.cs')) return true;
+      return !file.startsWith(own) && !host.compiles(file);
     })
     .map((file) => `${RULE}: ${host.project} compila ${file}; ${host.scope}, sin tests, y el resto llega por backend/Platform/TemplateApp.Platform.csproj`);
 }

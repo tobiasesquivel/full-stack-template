@@ -132,15 +132,46 @@ function checkOnlyReferencesPlatform(project, text) {
   }
 }
 
+const HOSTS = [
+  {
+    project: MONOLITH_PROJECT,
+    compilesFeature: (feature) => !/^tasks$/i.test(feature),
+    scope: 'el monolito compila solo sus archivos y Features salvo Features/Tasks',
+  },
+  {
+    project: TASKS_HOST_PROJECT,
+    compilesFeature: (feature) => feature === 'Tasks' || feature === 'Health',
+    scope: 'el host de Tasks compila solo sus archivos, Features/Tasks y Features/Health',
+  },
+];
+
+function hostCompiles(include, compilesFeature) {
+  if (!include.split('/').includes('..') && !include.includes('$(') && !/^(?:[A-Za-z]:)?\//.test(include)) return true;
+  const rooted = /^(?:\$\(BackendRoot\)|\.\.\/\.\.)\/(.*)$/.exec(include);
+  if (rooted === null || rooted[1].includes('$(') || rooted[1].split('/').includes('..')) return false;
+  const feature = /^Features\/([^/]+)\//.exec(path.posix.normalize(rooted[1]));
+  return feature !== null && compilesFeature(feature[1]);
+}
+
 async function checkDeploymentBoundary() {
-  for (const project of [MONOLITH_PROJECT, TASKS_HOST_PROJECT]) {
-    const file = path.join(root, project);
+  for (const host of HOSTS) {
+    const file = path.join(root, host.project);
     if (!(await exists(file))) {
-      fail(`${DEPLOYMENT_RULE}: falta ${project}`);
+      fail(`${DEPLOYMENT_RULE}: falta ${host.project}`);
       continue;
     }
-    checkOnlyReferencesPlatform(project, await readText(file));
+    const text = await readText(file);
+    checkOnlyReferencesPlatform(host.project, text);
+    for (const include of msbuildValues(text, 'Compile', 'Include')) {
+      if (!hostCompiles(include, host.compilesFeature)) {
+        fail(`${DEPLOYMENT_RULE}: ${host.project} compila ${include}; ${host.scope}, y el resto llega por ${PLATFORM_PROJECT}`);
+      }
+    }
   }
+  const files = [];
+  await collectFiles(path.join(backend, 'Hosts'), files);
+  const tests = files.map(toPosix).filter((file) => /tests\.cs$/i.test(file));
+  if (tests.length > 0) fail(`tests en la carpeta de un host, que compila sus *.cs: ${tests.join(', ')}`);
 }
 
 async function checkTestsReferenceTheProduct() {

@@ -177,6 +177,26 @@ describe('check-structure', () => {
     }
   });
 
+  it('acepta un monolito con barras invertidas y ./ en las rutas', async () => {
+    const repo = await makeRepo();
+    try {
+      await seedValid(repo);
+      await repo.write(
+        'backend/Hosts/Monolith/TemplateApp.csproj',
+        monolithProject('', [
+          '<Compile Include="*.cs" />',
+          String.raw`<Compile Include="..\..\.\Features\**\*.cs" />`,
+          String.raw`<Compile Remove="..\..\Features\Tasks\**" />`,
+          String.raw`<Compile Remove="..\..\Features\**\*Tests.cs" />`,
+        ]),
+      );
+      const result = await runGate(repo.dir);
+      assert.equal(result.code, 0, result.output);
+    } finally {
+      await repo.cleanup();
+    }
+  });
+
   it('acepta el monolito y el host de Tasks que solo referencian Platform', async () => {
     const repo = await makeRepo();
     try {
@@ -211,6 +231,72 @@ describe('check-structure', () => {
       'backend/Hosts/Tasks/TemplateApp.Tasks.csproj',
       tasksHostProject({ references: ['../../Platform/TemplateApp.Platform.csproj', '../Monolith/TemplateApp.csproj'] }),
       /límite de despliegue: backend\/Hosts\/Tasks\/TemplateApp\.Tasks\.csproj referencia backend\/Hosts\/Monolith\/TemplateApp\.csproj/,
+    ],
+    [
+      'el host de Tasks que compila Features/Users',
+      'backend/Hosts/Tasks/TemplateApp.Tasks.csproj',
+      tasksHostProject({ compile: [...TASKS_HOST_COMPILE, '<Compile Include="../../Features/Users/**/*.cs" />'] }),
+      /límite de despliegue: backend\/Hosts\/Tasks\/TemplateApp\.Tasks\.csproj compila \.\.\/\.\.\/Features\/Users\/\*\*\/\*\.cs/,
+    ],
+    [
+      'el host de Tasks que compila Infrastructure en vez de referenciar Platform',
+      'backend/Hosts/Tasks/TemplateApp.Tasks.csproj',
+      tasksHostProject({ compile: [...TASKS_HOST_COMPILE, '<Compile Include="$(BackendRoot)/Infrastructure/**/*.cs" />'] }),
+      /límite de despliegue: backend\/Hosts\/Tasks\/TemplateApp\.Tasks\.csproj compila \$\(BackendRoot\)\/Infrastructure/,
+    ],
+    [
+      'el host de Tasks que compila Infrastructure con una propiedad y /..',
+      'backend/Hosts/Tasks/TemplateApp.Tasks.csproj',
+      tasksHostProject({ compile: [...TASKS_HOST_COMPILE, '<Compile Include="$(ProbeInfra)/../ContextRegistration.cs" />'] }),
+      /límite de despliegue: backend\/Hosts\/Tasks\/TemplateApp\.Tasks\.csproj compila \$\(ProbeInfra\)\/\.\.\/ContextRegistration\.cs/,
+    ],
+    [
+      'el host de Tasks que compila una carpeta hermana con otras mayúsculas',
+      'backend/Hosts/Tasks/TemplateApp.Tasks.csproj',
+      tasksHostProject({ compile: [...TASKS_HOST_COMPILE, '<Compile Include="../tasks/*.cs" />'] }),
+      /límite de despliegue: backend\/Hosts\/Tasks\/TemplateApp\.Tasks\.csproj compila \.\.\/tasks\/\*\.cs/,
+    ],
+    [
+      'el host de Tasks que compila Features/Users con una condición',
+      'backend/Hosts/Tasks/TemplateApp.Tasks.csproj',
+      tasksHostProject({ compile: [...TASKS_HOST_COMPILE, `<Compile Condition="'$(SolutionName)' == 'TemplateApp'" Include="$(BackendRoot)/Features/Users/**/*.cs" />`] }),
+      /límite de despliegue: backend\/Hosts\/Tasks\/TemplateApp\.Tasks\.csproj compila \$\(BackendRoot\)\/Features\/Users/,
+    ],
+    [
+      'el monolito que agrega Features/Tasks en un target antes de compilar',
+      'backend/Hosts/Monolith/TemplateApp.csproj',
+      monolithProject().replace('</Project>', '<Target Name="Probe" BeforeTargets="CoreCompile"><ItemGroup><Compile Include="$(BackendRoot)/Features/Tasks/**/*.cs" /></ItemGroup></Target></Project>'),
+      /límite de despliegue: backend\/Hosts\/Monolith\/TemplateApp\.csproj compila \$\(BackendRoot\)\/Features\/Tasks/,
+    ],
+    [
+      'el monolito que incluye Features/./Tasks',
+      'backend/Hosts/Monolith/TemplateApp.csproj',
+      monolithProject('<Compile Include="$(BackendRoot)/Features/./Tasks/**/*.cs" />'),
+      /límite de despliegue: backend\/Hosts\/Monolith\/TemplateApp\.csproj compila \$\(BackendRoot\)\/Features\/\.\/Tasks/,
+    ],
+    [
+      'el monolito que incluye Features/tasks en minúsculas',
+      'backend/Hosts/Monolith/TemplateApp.csproj',
+      monolithProject('<Compile Include="$(BackendRoot)/Features/tasks/**/*.cs" />'),
+      /límite de despliegue: backend\/Hosts\/Monolith\/TemplateApp\.csproj compila \$\(BackendRoot\)\/Features\/tasks/,
+    ],
+    [
+      'el monolito que incluye Infrastructure con una ruta absoluta',
+      'backend/Hosts/Monolith/TemplateApp.csproj',
+      monolithProject('<Compile Include="C:/repo/backend/Infrastructure/**/*.cs" />'),
+      /límite de despliegue: backend\/Hosts\/Monolith\/TemplateApp\.csproj compila C:\/repo\/backend\/Infrastructure/,
+    ],
+    [
+      'el monolito que compila los tests del backend',
+      'backend/Hosts/Monolith/TemplateApp.csproj',
+      monolithProject('<Compile Include="../../Tests/**/*.cs" />'),
+      /límite de despliegue: backend\/Hosts\/Monolith\/TemplateApp\.csproj compila \.\.\/\.\.\/Tests/,
+    ],
+    [
+      'un test junto al Program.cs del monolito, aunque termine en .CS',
+      'backend/Hosts/Monolith/ProbeTests.CS',
+      ' ',
+      /tests en la carpeta de un host, que compila sus \*\.cs: backend\/Hosts\/Monolith\/ProbeTests\.CS/,
     ],
     [
       'un bus en el host de Tasks',
