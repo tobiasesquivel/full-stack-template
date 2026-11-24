@@ -17,6 +17,7 @@ env:
 jobs:
   backend-build:
     name: Backend build de tests y reparto en shards
+    timeout-minutes: 3
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -79,6 +80,7 @@ jobs:
 
   backend-shard:
     name: Backend tests shard ${{ matrix.index }}
+    timeout-minutes: 6
     needs: backend-build
     runs-on: ubuntu-latest
     strategy:
@@ -113,6 +115,7 @@ jobs:
 
   backend-tests:
     name: Backend tests con PostgreSQL real
+    timeout-minutes: 2
     needs: [backend-build, backend-shard]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
@@ -143,6 +146,7 @@ jobs:
 
   backend-gates:
     name: Backend build completo, codegen y analyzers Dune
+    timeout-minutes: 5
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -166,6 +170,7 @@ jobs:
 
   frontend:
     name: Frontend build y gates
+    timeout-minutes: 2
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -186,6 +191,7 @@ jobs:
 
   node-gates:
     name: Gates de Node, runbooks y reglas de Prometheus
+    timeout-minutes: 3
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -238,6 +244,7 @@ jobs:
 
   security:
     name: Escaneo de secretos y dependencias
+    timeout-minutes: 3
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -281,6 +288,7 @@ jobs:
 
   compose:
     name: Docker config y smoke runtime
+    timeout-minutes: 8
     runs-on: ubuntu-latest
     env:
       POSTGRES_PASSWORD: ci-postgres-password
@@ -356,6 +364,7 @@ jobs:
 
   compose-slos:
     name: SLOs consultados y alertas disparadas en vivo con compose
+    timeout-minutes: 7
     runs-on: ubuntu-latest
     env:
       POSTGRES_PASSWORD: ci-postgres-password
