@@ -212,6 +212,26 @@ describe('check-structure', () => {
     }
   });
 
+  it('acepta un monolito con barras invertidas y ./ en las rutas', async () => {
+    const repo = await makeRepo();
+    try {
+      await seedValid(repo);
+      await repo.write(
+        'backend/Hosts/Monolith/TemplateApp.csproj',
+        monolithProject('', [
+          '<Compile Include="*.cs" />',
+          String.raw`<Compile Include="..\..\.\Features\**\*.cs" />`,
+          String.raw`<Compile Remove="..\..\Features\Tasks\**" />`,
+          String.raw`<Compile Remove="..\.\..\Features\**\*Tests.cs" />`,
+        ]),
+      );
+      const result = await runGate(repo.dir);
+      assert.equal(result.code, 0, result.output);
+    } finally {
+      await repo.cleanup();
+    }
+  });
+
   it('acepta el monolito y el host de Tasks que solo referencian Platform', async () => {
     const repo = await makeRepo();
     try {
@@ -340,6 +360,60 @@ describe('check-structure', () => {
       'backend/Hosts/Tasks/TemplateApp.Tasks.csproj',
       tasksHostProject({ compile: [TASKS_HOST_COMPILE[3], ...TASKS_HOST_COMPILE.slice(0, 3)] }),
       /TemplateApp\.Tasks\.csproj no excluye tests del producto/,
+    ],
+    [
+      'el monolito con los Remove comentados',
+      'backend/Hosts/Monolith/TemplateApp.csproj',
+      monolithProject('', MONOLITH_COMPILE.map((item) => (item.includes('Remove') ? `<!-- ${item} -->` : item))),
+      NO_TASKS_REMOVE,
+    ],
+    [
+      'el monolito con un Remove condicional',
+      'backend/Hosts/Monolith/TemplateApp.csproj',
+      monolithProject('', MONOLITH_COMPILE.map((item) => item.replace('<Compile Remove="$(BackendRoot)/Features/Tasks/**"', '<Compile Condition="false" Remove="$(BackendRoot)/Features/Tasks/**"'))),
+      /límite de despliegue: backend\/Hosts\/Monolith\/TemplateApp\.csproj tiene un Compile con Condition/,
+    ],
+    [
+      'el monolito con un ItemGroup condicional',
+      'backend/Hosts/Monolith/TemplateApp.csproj',
+      monolithProject().replace('<ItemGroup><Compile Include="*.cs" />', '<ItemGroup Condition="false"><Compile Include="*.cs" />'),
+      /límite de despliegue: backend\/Hosts\/Monolith\/TemplateApp\.csproj tiene un Compile con Condition/,
+    ],
+    [
+      'el monolito que quita solo un archivo de Features/Tasks',
+      'backend/Hosts/Monolith/TemplateApp.csproj',
+      monolithProject('', MONOLITH_COMPILE.map((item) => item.replace('Features/Tasks/**"', 'Features/Tasks/**/TasksFeature.cs"'))),
+      NO_TASKS_REMOVE,
+    ],
+    [
+      'el monolito que incluye Features/./Tasks',
+      'backend/Hosts/Monolith/TemplateApp.csproj',
+      monolithProject('<Compile Include="$(BackendRoot)/Features/./Tasks/**/*.cs" />'),
+      /límite de despliegue: backend\/Hosts\/Monolith\/TemplateApp\.csproj compila \$\(BackendRoot\)\/Features\/\.\/Tasks/,
+    ],
+    [
+      'el monolito que incluye Features/tasks en minúsculas',
+      'backend/Hosts/Monolith/TemplateApp.csproj',
+      monolithProject('<Compile Include="$(BackendRoot)/Features/tasks/**/*.cs" />'),
+      /límite de despliegue: backend\/Hosts\/Monolith\/TemplateApp\.csproj compila \$\(BackendRoot\)\/Features\/tasks/,
+    ],
+    [
+      'el monolito que incluye Infrastructure con una ruta absoluta',
+      'backend/Hosts/Monolith/TemplateApp.csproj',
+      monolithProject('<Compile Include="C:/repo/backend/Infrastructure/**/*.cs" />'),
+      /límite de despliegue: backend\/Hosts\/Monolith\/TemplateApp\.csproj compila C:\/repo\/backend\/Infrastructure/,
+    ],
+    [
+      'el monolito que importa otro archivo de MSBuild',
+      'backend/Hosts/Monolith/TemplateApp.csproj',
+      monolithProject().replace('</Project>', '<Import Project="../../Extra.props" /></Project>'),
+      /límite de despliegue: backend\/Hosts\/Monolith\/TemplateApp\.csproj importa otro archivo de MSBuild/,
+    ],
+    [
+      'un test junto al Program.cs del monolito',
+      'backend/Hosts/Monolith/ProbeTests.cs',
+      ' ',
+      /tests en la carpeta de un host, que compila sus \*\.cs: backend\/Hosts\/Monolith\/ProbeTests\.cs/,
     ],
     [
       'un bus en el host de Tasks',
