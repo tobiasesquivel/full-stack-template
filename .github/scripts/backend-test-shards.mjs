@@ -1,3 +1,4 @@
+// comentario plantado para la prueba del PR 101
 import { readFileSync, readdirSync, writeFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
