@@ -71,7 +71,7 @@ Llevan el repo a la forma de [ADR-0004](../adr/0004-vertical-slices-deep-modules
 
 **0.3. Reparto del código.**
 **Concepto**: lo que nombra una feature vive en esa feature; cada feature es su propio composition root.
-**Cambia**: JWT, `AppIdentityUser`, `JwtOptions`, roles, `RoleSeeder` y `PermissionService` + `ResourceAuthorizer` (fusionados en `IAccessPolicy`) a `Features/Auth`; permisos al `Contracts` de cada feature; `<Feature>Feature.cs` en cada feature; DUNE0003; se borra el código muerto (`ITemplateMetrics`, `ValidationExceptionHandler`, `UserErrors.InvalidTimezone`). Ver [informe-vsa-deep-modules.md](informe-vsa-deep-modules.md) §2.
+**Cambia**: JWT, `AppIdentityUser`, `JwtOptions`, roles, `RoleSeeder` y `PermissionService` + `ResourceAuthorizer` (fusionados en `IAccessPolicy`) a `Features/Auth`; permisos al `Contracts` de cada feature; `<Feature>Feature.cs` en cada feature; DUNE0003; se borra el código muerto (`ITemplateMetrics`, `ValidationExceptionHandler`, `UserErrors.InvalidTimezone`). Ver [informe-vsa-deep-modules.md](informes/informe-vsa-deep-modules.md) §2.
 **Verifica**: build, tests y smoke HTTP sin cambios de comportamiento.
 
 **0.4. Slices.**
@@ -89,7 +89,7 @@ Llevan el repo a la forma de [ADR-0004](../adr/0004-vertical-slices-deep-modules
 **Cambia**: servicios, modelos y rutas de Auth y Users a su feature; `core/` solo transversal; `*Payload` pasa a `*Request`; `check-frontend.mjs` si hace falta.
 **Verifica**: build de Angular, `check-frontend` y navegador: registro, login, recarga, perfil, tareas y logout.
 
-Los pasos 0.7 a 0.9 llevan el frontend a la forma de Angular v22. Se agregaron el 2026-10-17, a pedido de Tobi. La investigación está en [informe-angular-moderno.md](informe-angular-moderno.md).
+Los pasos 0.7 a 0.9 llevan el frontend a la forma de Angular v22. Se agregaron el 2026-10-17, a pedido de Tobi. La investigación está en [informe-angular-moderno.md](informes/informe-angular-moderno.md).
 
 **0.7. Servicios y nombres de Angular v22.**
 **Concepto**: *Intent over Role*: el nombre dice el propósito, no el tipo técnico; `@Service()` para los servicios de una sola instancia.
@@ -132,7 +132,7 @@ El paso 0.13 se agregó el 2026-10-17, a pedido de Tobi: "hay muchos archivos su
 **Cambia**: `auth/session/` (Session, guards, interceptor y sus modelos), `tasks/api/` y `users/api/` (cliente HTTP y modelos); los imports se ajustan y las puertas `index.ts` exportan lo mismo; una regla nueva en `check-frontend.mjs` (FRONT011) con su fixture válida y su violación deliberada.
 **Verifica**: build de Angular, `check-frontend` y navegador con el recorrido del paso 0.12.
 
-Los pasos 0.14 a 0.16 se agregaron el 2026-10-17, a pedido de Tobi: "investigá la manera más profesional de manejo de sesión en Angular y aplicalo". La investigación está en [informe-sesion-angular.md](informe-sesion-angular.md). Ninguno cambia el contrato HTTP: lo que lo cambiaría (BFF, prefijo de cookie, inactividad, margen de rotación) espera la decisión de Tobi.
+Los pasos 0.14 a 0.16 se agregaron el 2026-10-17, a pedido de Tobi: "investigá la manera más profesional de manejo de sesión en Angular y aplicalo". La investigación está en [informe-sesion-angular.md](informes/informe-sesion-angular.md). Ninguno cambia el contrato HTTP: lo que lo cambiaría (BFF, prefijo de cookie, inactividad, margen de rotación) espera la decisión de Tobi.
 
 **0.14. Forma de la sesión.**
 **Concepto**: un solo estado con signals: el dato en un `signal` privado, lo público con `computed`; una unión discriminada (`restoring`, `open`, `closed`) impide combinaciones imposibles.
@@ -149,7 +149,7 @@ Los pasos 0.14 a 0.16 se agregaron el 2026-10-17, a pedido de Tobi: "investigá 
 **Cambia**: `Session.refresh()` corre dentro de `navigator.locks.request`; `Session` publica `opened` y `closed` en un `BroadcastChannel` y reacciona a los de otras pestañas.
 **Verifica**: build de Angular, `check-frontend` y navegador con dos páginas del mismo contexto: rojo en el código del 0.15 y verde después para dos recargas a la vez, el logout en otra pestaña y el login de otro usuario en otra pestaña.
 
-Los pasos 0.17 a 0.20 se agregaron el 2026-10-17, a pedido de Tobi: "aplicá lo que tengas que aplicar". Salen de [informe-componentes-angular.md](informe-componentes-angular.md) y [informe-frontend-para-agentes.md](informe-frontend-para-agentes.md). Ninguno cambia el contrato HTTP ni lo que ve el usuario. Lo que pide una herramienta o una regla nueva (suite de Vitest, e2e con Playwright, `prettier --check`, el MCP del CLI de Angular, un Stop hook) espera la decisión de Tobi.
+Los pasos 0.17 a 0.20 se agregaron el 2026-10-17, a pedido de Tobi: "aplicá lo que tengas que aplicar". Salen de [informe-componentes-angular.md](informes/informe-componentes-angular.md) y [informe-frontend-para-agentes.md](informes/informe-frontend-para-agentes.md). Ninguno cambia el contrato HTTP ni lo que ve el usuario. Lo que pide una herramienta o una regla nueva (suite de Vitest, e2e con Playwright, `prettier --check`, el MCP del CLI de Angular, un Stop hook) espera la decisión de Tobi.
 
 **0.17. El CLI genera código que pasa el gate.**
 **Concepto**: la herramienta oficial y el gate dicen lo mismo. Si el generador produce algo que el gate rechaza, cada componente nuevo cuesta una vuelta de corrección.
@@ -198,7 +198,7 @@ Los pasos 0.21 a 0.25 se agregaron el 2026-10-17, a pedido de Tobi, con sus deci
 **Cambia**: `.mcp.json` con `ng mcp --read-only`; `AGENTS.md` lo nombra.
 **Verifica**: el servidor arranca, lista sus herramientas y `list_projects` devuelve `frontend`.
 
-El paso 0.26 se agregó el 2026-10-17. Tobi eligió BFF porque es lo que usaría en un SaaS ([informe-sesion-angular.md](informe-sesion-angular.md), sección 4, y `docs/decisions.tsv`). Cambia el contrato HTTP de `/auth`: va completo, con backend, frontend y tests juntos.
+El paso 0.26 se agregó el 2026-10-17. Tobi eligió BFF porque es lo que usaría en un SaaS ([informe-sesion-angular.md](informes/informe-sesion-angular.md), sección 4, y `docs/decisions.tsv`). Cambia el contrato HTTP de `/auth`: va completo, con backend, frontend y tests juntos.
 
 **0.26. Sesión en el servidor (BFF).** (cambia el contrato HTTP)
 **Concepto**: la sesión vive en el servidor y el navegador solo guarda una cookie HttpOnly con su id; cerrar o revocar es borrar una fila; el envío automático de la cookie obliga a defenderse de CSRF; un cliente futuro sin cookies entra por otro esquema de autenticación sobre los mismos endpoints.

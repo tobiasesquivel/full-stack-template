@@ -43,7 +43,7 @@
 ### 1.1 Qué pide el concepto
 
 - **Orquestación.** Azure resume la diferencia: la orquestación "Avoids cyclic dependencies because the orchestrator manages the flow", y la coreografía tiene "a risk of cyclic dependency between saga participants" ([FUENTE: Azure, Saga](https://learn.microsoft.com/en-us/azure/architecture/patterns/saga)). El paso 26 dejó ese ciclo anotado: Users → Tasks → Auth → Users (choque 6 de su investigación).
-- **Visibilidad.** "Monitoring and tracking the workflow of a saga are essential tasks to maintain operational oversight" (misma fuente). La tabla del informe del repo lo dice igual: orquestación = "Un orquestador = un lugar donde ver el estado"; coreografía = "Estado distribuido, difícil de reconstruir" (`[CÓDIGO docs/evolucion/informe-dotnet-empresarial.md:351]`).
+- **Visibilidad.** "Monitoring and tracking the workflow of a saga are essential tasks to maintain operational oversight" (misma fuente). La tabla del informe del repo lo dice igual: orquestación = "Un orquestador = un lugar donde ver el estado"; coreografía = "Estado distribuido, difícil de reconstruir" (`[CÓDIGO docs/evolucion/informes/informe-dotnet-empresarial.md:351]`).
 - **Reanudación.** El orquestador no guarda nada en memoria: cada transición se guarda antes de mandar el comando siguiente. Así lo hace el framework de microservices.io: "Manages the execution of sagas including persisting their state in the database and communicating with saga participants" ([FUENTE: Developing sagas part 4](https://microservices.io/post/sagas/2019/12/12/developing-sagas-part-4.html)).
 
 ### 1.2 Candidatos
@@ -390,7 +390,7 @@ DELETE /users/me ─► Orquestador (Users), una transacción de UsersDbContext:
 
 ### Qué hace la industria
 
-- Los equipos .NET con bus de librería usan la saga de esa librería: NServiceBus, MassTransit y Wolverine traen la suya (`[CÓDIGO docs/evolucion/informe-dotnet-empresarial.md:359-363]`). Comparten tres piezas: estado guardado entre mensajes ("All public get/set properties are persisted by default"), correlación por un dato del mensaje y timeouts ([FUENTE: Particular, Sagas](https://docs.particular.net/nservicebus/sagas/)).
+- Los equipos .NET con bus de librería usan la saga de esa librería: NServiceBus, MassTransit y Wolverine traen la suya (`[CÓDIGO docs/evolucion/informes/informe-dotnet-empresarial.md:359-363]`). Comparten tres piezas: estado guardado entre mensajes ("All public get/set properties are persisted by default"), correlación por un dato del mensaje y timeouts ([FUENTE: Particular, Sagas](https://docs.particular.net/nservicebus/sagas/)).
 - Todas insisten en que la saga solo decide y manda mensajes: "A saga should only interact with its own internal state and send or publish messages" (misma fuente). Es lo que hace el orquestador de este diseño con Tasks y Auth.
 - Fuera de .NET, el framework de referencia de Richardson (Eventuate Tram) guarda la saga en la base y le habla a los participantes por comandos ([FUENTE: part 4](https://microservices.io/post/sagas/2019/12/12/developing-sagas-part-4.html)). Las plataformas de durable execution (Temporal) son el paso 28.
 
