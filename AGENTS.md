@@ -20,13 +20,13 @@ El dominio (tareas) es simple a propósito: importa el rigor técnico. **Todo el
 |---|---|
 | [docs/evolucion/plan.md](docs/evolucion/plan.md) | Hoja de ruta: Fase 0 (bases) y 10 fases más. Cada paso tiene Concepto, Cambia y Verifica. |
 | [docs/evolucion/progreso.md](docs/evolucion/progreso.md) | Paso actual, estado de cada paso y cierres. Leelo primero. |
-| [docs/evolucion/informe-vsa-deep-modules.md](docs/evolucion/informe-vsa-deep-modules.md) | Vertical slices + módulos profundos: dónde vive cada pieza y por qué. |
-| [docs/evolucion/informe-deep-mediators.md](docs/evolucion/informe-deep-mediators.md) | Módulos profundos (Ousterhout) vs vertical slices, y mediators/buses en .NET. |
-| [docs/evolucion/informe-dotnet-empresarial.md](docs/evolucion/informe-dotnet-empresarial.md) | Arquitectura .NET para apps grandes: paquetes, patrones, observabilidad, pagos, colas, sagas, licencias. |
-| [docs/evolucion/informe-angular-moderno.md](docs/evolucion/informe-angular-moderno.md) | Angular v20-v22: nombres sin sufijo, `@Service()`, Signal Forms y la skill oficial `angular-developer`. |
-| [docs/evolucion/informe-sesion-angular.md](docs/evolucion/informe-sesion-angular.md) | Sesión en Angular: estado con signals, guards, interceptor con renovación, varias pestañas y BFF frente a token en memoria. |
-| [docs/evolucion/informe-componentes-angular.md](docs/evolucion/informe-componentes-angular.md) | Componentes ruteados y presentacionales en Angular v22: cuándo separar, cómo fluye el estado con signals y qué conviene en `Tasks`. |
-| [docs/evolucion/informe-frontend-para-agentes.md](docs/evolucion/informe-frontend-para-agentes.md) | Qué hace que un frontend sea fácil para agentes de código, comparado con lo que ya tiene el repo, y los huecos por prioridad. |
+| [docs/evolucion/informes/informe-vsa-deep-modules.md](docs/evolucion/informes/informe-vsa-deep-modules.md) | Vertical slices + módulos profundos: dónde vive cada pieza y por qué. |
+| [docs/evolucion/informes/informe-deep-mediators.md](docs/evolucion/informes/informe-deep-mediators.md) | Módulos profundos (Ousterhout) vs vertical slices, y mediators/buses en .NET. |
+| [docs/evolucion/informes/informe-dotnet-empresarial.md](docs/evolucion/informes/informe-dotnet-empresarial.md) | Arquitectura .NET para apps grandes: paquetes, patrones, observabilidad, pagos, colas, sagas, licencias. |
+| [docs/evolucion/informes/informe-angular-moderno.md](docs/evolucion/informes/informe-angular-moderno.md) | Angular v20-v22: nombres sin sufijo, `@Service()`, Signal Forms y la skill oficial `angular-developer`. |
+| [docs/evolucion/informes/informe-sesion-angular.md](docs/evolucion/informes/informe-sesion-angular.md) | Sesión en Angular: estado con signals, guards, interceptor con renovación, varias pestañas y BFF frente a token en memoria. |
+| [docs/evolucion/informes/informe-componentes-angular.md](docs/evolucion/informes/informe-componentes-angular.md) | Componentes ruteados y presentacionales en Angular v22: cuándo separar, cómo fluye el estado con signals y qué conviene en `Tasks`. |
+| [docs/evolucion/informes/informe-frontend-para-agentes.md](docs/evolucion/informes/informe-frontend-para-agentes.md) | Qué hace que un frontend sea fácil para agentes de código, comparado con lo que ya tiene el repo, y los huecos por prioridad. |
 | [docs/evolucion/investigacion/](docs/evolucion/investigacion/) | Cómo se implementa cada paso de forma profesional, con fuentes (regla 12). |
 | [CONTEXT.md](CONTEXT.md) | Vocabulario del dominio. Usá esos términos. |
 | [docs/architecture.md](docs/architecture.md), [docs/conventions.md](docs/conventions.md) | Arquitectura vigente y reglas para escribir código. |
