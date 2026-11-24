@@ -54,6 +54,7 @@ internal sealed class MessagingExtension : IWolverineExtension
         options.UseSystemTextJsonForSerialization(json => json.PropertyNamingPolicy = JsonNamingPolicy.CamelCase);
         QueueFailureRules.Apply(options.Policies);
         options.Policies.Add(new MessagingChainPolicy(_mediatorHandlers.Select(handler => handler.ClrType).ToHashSet()));
+        options.Policies.Add(new MediatorTransactionPolicy(_mediatorHandlers));
 
         RabbitMqTransportExpression rabbit = options.UseRabbitMq(_options.RabbitMqUri!)
             .AutoProvision()

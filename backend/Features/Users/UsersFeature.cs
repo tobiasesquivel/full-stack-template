@@ -1,3 +1,4 @@
+using FluentValidation;
 using TemplateApp.Features.Auth.Contracts;
 using TemplateApp.Features.Users.Contracts;
 using TemplateApp.Features.Users.Domain.Events;
@@ -36,7 +37,8 @@ internal static class UsersFeature
         services.AddScoped<GetAccountClosure.GetAccountClosure>();
         services.AddScoped<GetAccountClosureHistory.GetAccountClosureHistory>();
         services.AddScoped<WithdrawAccountClosure.WithdrawAccountClosure>();
-        services.AddScoped<UpdateProfile.UpdateProfile>();
+        services.AddMediatorHandler<UpdateProfile.UpdateProfile.Handler>(MediatorTransaction.Atomic);
+        services.AddSingleton<IValidator<UpdateProfile.UpdateProfileCommand>, UpdateProfile.UpdateProfileCommandValidator>();
         services.AddScoped<DeleteUser.DeleteUser>();
         services.AddScoped<CompleteAccountClosure.CompleteAccountClosure>();
         services.AddScoped<CancelAccountClosure.CancelAccountClosure>();

@@ -3,9 +3,9 @@ using TemplateApp.Features.Users.Domain;
 
 namespace TemplateApp.Features.Users.UpdateProfile;
 
-internal sealed class UpdateProfileRequestValidator : AbstractValidator<UpdateProfileRequest>
+internal sealed class UpdateProfileCommandValidator : AbstractValidator<UpdateProfileCommand>
 {
-    public UpdateProfileRequestValidator()
+    public UpdateProfileCommandValidator()
     {
         RuleFor(x => x.DisplayName)
             .Cascade(CascadeMode.Stop)

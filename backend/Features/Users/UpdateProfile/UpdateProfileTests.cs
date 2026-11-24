@@ -1,4 +1,8 @@
 using System.Net;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using TemplateApp.Features.Users.Domain;
+using TemplateApp.Features.Users.Persistence;
 using TemplateApp.Tests.Support;
 using Xunit;
 
@@ -48,5 +52,24 @@ public sealed class UpdateProfileTests : IClassFixture<ApiFixture>
 
         invalid.Payload?.Dispose();
         Assert.Equal(HttpStatusCode.BadRequest, invalid.Status);
+    }
+
+    [Fact]
+    public async Task UpdateMe_WhenItFailsAfterTheProfileWasSaved_KeepsTheProfileAsItWas()
+    {
+        HttpClient client = _fixture.CreateIsolatedClient(
+            services => services.ConfigureDbContext<UsersDbContext>((_, options) => options.AddInterceptors(new FailAfterSaving<UserProfile>(EntityState.Modified))),
+            out IServiceProvider services);
+        TestSession alice = new(client);
+        await alice.RegisterAsync(TestAccounts.UniqueName("alice"));
+
+        SessionResponse failed = await alice.SendAsync(
+            HttpMethod.Put,
+            "api/v1/users/me",
+            new { displayName = "Nunca guardado", timezone = "America/Argentina/Buenos_Aires" });
+        failed.Payload?.Dispose();
+
+        Assert.Equal(HttpStatusCode.InternalServerError, failed.Status);
+        Assert.Equal(0L, await services.CountAsync($"""SELECT count(*) AS "Value" FROM "UserProfiles" WHERE "AuthId" = {alice.AuthId} AND "DisplayName" = 'Nunca guardado'"""));
     }
 }

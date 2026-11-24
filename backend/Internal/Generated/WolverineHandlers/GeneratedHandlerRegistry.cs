@@ -9,7 +9,7 @@ namespace Internal.Generated.WolverineHandlers
     {
         public override System.Type[] HandlerTypes()
         {
-            return new System.Type[] { typeof(TemplateApp.Features.Users.OrchestrateAccountClosure.AccountClosureSaga), typeof(TemplateApp.Features.Users.ScheduleAccountClosure.AccountClosureGracePeriod) };
+            return new System.Type[] { typeof(TemplateApp.Features.Users.OrchestrateAccountClosure.AccountClosureSaga), typeof(TemplateApp.Features.Users.ScheduleAccountClosure.AccountClosureGracePeriod), typeof(TemplateApp.Features.Users.UpdateProfile.UpdateProfile.Handler) };
         }
 
         public override System.Type[] MessageTypes()
@@ -35,8 +35,10 @@ namespace Internal.Generated.WolverineHandlers
         [global::System.Diagnostics.CodeAnalysis.DynamicDependency(global::System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.All, typeof(global::Internal.Generated.WolverineHandlers.AccountDeletedInfoHandler451093863))]
         [global::System.Diagnostics.CodeAnalysis.DynamicDependency(global::System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.All, typeof(global::Internal.Generated.WolverineHandlers.OwnerTasksHeldIntegrationEventHandler467166336))]
         [global::System.Diagnostics.CodeAnalysis.DynamicDependency(global::System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.All, typeof(global::Internal.Generated.WolverineHandlers.OwnerTasksReleasedIntegrationEventHandler161933960))]
+        [global::System.Diagnostics.CodeAnalysis.DynamicDependency(global::System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.All, typeof(global::Internal.Generated.WolverineHandlers.UpdateProfileCommandHandler156792017))]
         [global::System.Diagnostics.CodeAnalysis.DynamicDependency(global::System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.All, typeof(global::TemplateApp.Features.Users.OrchestrateAccountClosure.AccountClosureSaga))]
         [global::System.Diagnostics.CodeAnalysis.DynamicDependency(global::System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.All, typeof(global::TemplateApp.Features.Users.ScheduleAccountClosure.AccountClosureGracePeriod))]
+        [global::System.Diagnostics.CodeAnalysis.DynamicDependency(global::System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.All, typeof(global::TemplateApp.Features.Users.UpdateProfile.UpdateProfile.Handler))]
         [global::System.Diagnostics.CodeAnalysis.DynamicDependency(global::System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.All, typeof(global::TemplateApp.Features.Auth.Contracts.AccountClosureRejectedInfo))]
         [global::System.Diagnostics.CodeAnalysis.DynamicDependency(global::System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.All, typeof(global::TemplateApp.Features.Auth.Contracts.AccountDeletedInfo))]
         [global::System.Diagnostics.CodeAnalysis.DynamicDependency(global::System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.All, typeof(global::TemplateApp.Features.Users.OrchestrateAccountClosure.AccountClosureOverdue))]
