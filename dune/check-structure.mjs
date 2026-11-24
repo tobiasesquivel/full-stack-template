@@ -133,15 +133,26 @@ function checkOnlyReferencesPlatform(project, text) {
   }
 }
 
-function hostCompiles(include, compilesFeature) {
-  const rooted = /^(?:\$\(BackendRoot\)|\.\.\/\.\.)\/(.*)$/.exec(include);
-  if (rooted === null) return !include.includes('..') && !include.includes('$(');
-  const feature = /^Features\/([^/]+)\//.exec(rooted[1]);
-  return feature !== null && compilesFeature(feature[1]);
+function backendRelative(value) {
+  const rooted = /^(?:\$\(BackendRoot\)|\.\.\/\.\.)\/(.*)$/.exec(value);
+  return rooted === null || rooted[1].split('/').includes('..') ? null : rooted[1];
 }
 
-function removes(text, pattern) {
-  return msbuildValues(text, 'Compile', 'Remove').some((value) => value.endsWith(pattern));
+function featureOf(value) {
+  const relative = backendRelative(value);
+  const feature = relative === null ? null : /^Features\/([^/]+)\//.exec(relative);
+  return feature === null ? null : feature[1];
+}
+
+function coversSeveralFeatures(value) {
+  const feature = featureOf(value);
+  return feature !== null && /[*?[]/.test(feature);
+}
+
+function hostCompiles(include, compilesFeature) {
+  if (!include.includes('..') && !include.includes('$(')) return true;
+  const feature = featureOf(include);
+  return feature !== null && compilesFeature(feature);
 }
 
 function compileItems(text) {
@@ -151,12 +162,16 @@ function compileItems(text) {
   );
 }
 
-function removesTasksAfterEveryFeatureGlob(text) {
+function removedAfterIncluded(text, removes, includes, { onlyIfIncluded = false } = {}) {
   const items = compileItems(text);
-  const lastRemove = items.findLastIndex((item) => item.kind === 'Remove' && item.value.endsWith('Features/Tasks/**'));
-  const lastGlob = items.findLastIndex((item) => item.kind === 'Include' && /(^|\/)Features\/\*\*\//.test(item.value));
-  return lastGlob < 0 || lastRemove > lastGlob;
+  const lastRemove = items.findLastIndex((item) => item.kind === 'Remove' && removes(backendRelative(item.value)));
+  const lastInclude = items.findLastIndex((item) => item.kind === 'Include' && includes(item.value));
+  if (onlyIfIncluded && lastInclude < 0) return true;
+  return lastRemove >= 0 && lastRemove > lastInclude;
 }
+
+const removesTests = (relative) => relative === 'Features/**/*Tests.cs';
+const removesTasks = (relative) => relative !== null && /^Features\/Tasks\/\*\*(\/.*)?$/.test(relative);
 
 const HOSTS = [
   {
@@ -186,13 +201,13 @@ async function checkDeploymentBoundary() {
         fail(`${DEPLOYMENT_RULE}: ${host.project} compila ${include}; ${host.scope}, y el resto llega por ${PLATFORM_PROJECT}`);
       }
     }
-    if (!removes(text, 'Features/**/*Tests.cs')) {
-      fail(`${host.project} no excluye tests del producto: falta Compile Remove "Features/**/*Tests.cs"`);
+    if (!removedAfterIncluded(text, removesTests, (include) => featureOf(include) !== null)) {
+      fail(`${host.project} no excluye tests del producto: falta Compile Remove "$(BackendRoot)/Features/**/*Tests.cs" después de incluir Features`);
     }
   }
   const monolith = path.join(root, MONOLITH_PROJECT);
-  if ((await exists(monolith)) && !removesTasksAfterEveryFeatureGlob(await readText(monolith))) {
-    fail(`${DEPLOYMENT_RULE}: ${MONOLITH_PROJECT} no quita Features/Tasks/** después de incluir Features/**; Tasks se compila solo en ${TASKS_HOST_PROJECT}`);
+  if ((await exists(monolith)) && !removedAfterIncluded(await readText(monolith), removesTasks, coversSeveralFeatures, { onlyIfIncluded: true })) {
+    fail(`${DEPLOYMENT_RULE}: ${MONOLITH_PROJECT} no quita $(BackendRoot)/Features/Tasks/** después de incluir varias features con un comodín; Tasks se compila solo en ${TASKS_HOST_PROJECT}`);
   }
 }
 

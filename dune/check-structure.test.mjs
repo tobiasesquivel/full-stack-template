@@ -77,6 +77,8 @@ const PLATFORM_PROJECT = '<Project Sdk="Microsoft.NET.Sdk.Web"><PropertyGroup><O
   + "<BackendRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..'))</BackendRoot></PropertyGroup>"
   + '<ItemGroup><Compile Include="$(BackendRoot)/Infrastructure/**/*.cs" /><Compile Include="$(BackendRoot)/Shared/**/*.cs" /></ItemGroup></Project>';
 
+const NO_TASKS_REMOVE = /límite de despliegue: backend\/Hosts\/Monolith\/TemplateApp\.csproj no quita \$\(BackendRoot\)\/Features\/Tasks\/\*\* después de incluir varias features con un comodín/;
+
 const TASKS_HOST_COMPILE = [
   '<Compile Include="*.cs" />',
   '<Compile Include="$(BackendRoot)/Features/Tasks/**/*.cs" />',
@@ -291,25 +293,53 @@ describe('check-structure', () => {
       'el monolito sin quitar Features/Tasks',
       'backend/Hosts/Monolith/TemplateApp.csproj',
       monolithProject('', MONOLITH_COMPILE.filter((item) => !item.includes('Features/Tasks/**'))),
-      /límite de despliegue: backend\/Hosts\/Monolith\/TemplateApp\.csproj no quita Features\/Tasks\/\*\* después de incluir Features\/\*\*/,
+      NO_TASKS_REMOVE,
     ],
     [
       'el monolito que quita Features/Tasks antes de incluir Features/**',
       'backend/Hosts/Monolith/TemplateApp.csproj',
       monolithProject('', [MONOLITH_COMPILE[3], ...MONOLITH_COMPILE.filter((_, index) => index !== 3)]),
-      /límite de despliegue: backend\/Hosts\/Monolith\/TemplateApp\.csproj no quita Features\/Tasks\/\*\* después de incluir Features\/\*\*/,
+      NO_TASKS_REMOVE,
+    ],
+    [
+      'el monolito que quita Features/Tasks con la ruta de antes de la mudanza',
+      'backend/Hosts/Monolith/TemplateApp.csproj',
+      monolithProject('', MONOLITH_COMPILE.map((item) => item.replace('$(BackendRoot)/Features/Tasks/**', 'Features/Tasks/**'))),
+      NO_TASKS_REMOVE,
+    ],
+    [
+      'el monolito que incluye cada feature con Features/*/** sin quitar Features/Tasks',
+      'backend/Hosts/Monolith/TemplateApp.csproj',
+      monolithProject('', [
+        '<Compile Include="*.cs" />',
+        '<Compile Include="$(BackendRoot)/Features/*/**/*.cs" />',
+        '<Compile Remove="$(BackendRoot)/Features/**/*Tests.cs" />',
+      ]),
+      NO_TASKS_REMOVE,
     ],
     [
       'el monolito que no quita los tests',
       'backend/Hosts/Monolith/TemplateApp.csproj',
       monolithProject('', MONOLITH_COMPILE.slice(0, 4)),
-      /backend\/Hosts\/Monolith\/TemplateApp\.csproj no excluye tests del producto: falta Compile Remove "Features\/\*\*\/\*Tests\.cs"/,
+      /backend\/Hosts\/Monolith\/TemplateApp\.csproj no excluye tests del producto: falta Compile Remove "\$\(BackendRoot\)\/Features\/\*\*\/\*Tests\.cs"/,
+    ],
+    [
+      'el monolito que quita los tests antes de incluir Features/**',
+      'backend/Hosts/Monolith/TemplateApp.csproj',
+      monolithProject('', [MONOLITH_COMPILE[4], ...MONOLITH_COMPILE.slice(0, 4)]),
+      /backend\/Hosts\/Monolith\/TemplateApp\.csproj no excluye tests del producto: falta Compile Remove "\$\(BackendRoot\)\/Features\/\*\*\/\*Tests\.cs" después de incluir Features/,
     ],
     [
       'el host de Tasks que no quita los tests',
       'backend/Hosts/Tasks/TemplateApp.Tasks.csproj',
       tasksHostProject({ compile: TASKS_HOST_COMPILE.slice(0, 3) }),
-      /TemplateApp\.Tasks\.csproj no excluye tests del producto: falta Compile Remove "Features\/\*\*\/\*Tests\.cs"/,
+      /TemplateApp\.Tasks\.csproj no excluye tests del producto: falta Compile Remove "\$\(BackendRoot\)\/Features\/\*\*\/\*Tests\.cs"/,
+    ],
+    [
+      'el host de Tasks que quita los tests antes de incluir sus features',
+      'backend/Hosts/Tasks/TemplateApp.Tasks.csproj',
+      tasksHostProject({ compile: [TASKS_HOST_COMPILE[3], ...TASKS_HOST_COMPILE.slice(0, 3)] }),
+      /TemplateApp\.Tasks\.csproj no excluye tests del producto/,
     ],
     [
       'un bus en el host de Tasks',

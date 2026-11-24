@@ -12,6 +12,13 @@ describe('check-codegen', () => {
     );
   });
 
+  it('revisa la carpeta Internal/Generated del proyecto, donde escribe codegen write', () => {
+    assert.deepEqual(
+      TARGETS.map((target) => target.generated),
+      ['backend/Hosts/Monolith/Internal/Generated', 'backend/Hosts/Tasks/Internal/Generated'],
+    );
+  });
+
   it('acepta el código generado sin cambios después de codegen write', () => {
     assert.equal(verdict(monolith, '').ok, true);
     assert.equal(verdict(monolith, '\n').ok, true);

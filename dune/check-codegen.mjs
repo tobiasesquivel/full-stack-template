@@ -3,10 +3,10 @@ import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
-export const TARGETS = [
-  { project: 'backend/Hosts/Monolith/TemplateApp.csproj', generated: 'backend/Hosts/Monolith/Internal/Generated' },
-  { project: 'backend/Hosts/Tasks/TemplateApp.Tasks.csproj', generated: 'backend/Hosts/Tasks/Internal/Generated' },
-];
+export const TARGETS = ['backend/Hosts/Monolith/TemplateApp.csproj', 'backend/Hosts/Tasks/TemplateApp.Tasks.csproj'].map((project) => ({
+  project,
+  generated: path.posix.join(path.posix.dirname(project), 'Internal/Generated'),
+}));
 
 export function verdict(target, porcelain) {
   const stale = porcelain
