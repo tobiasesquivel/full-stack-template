@@ -3,7 +3,7 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging.Abstractions;
 using TemplateApp.Infrastructure.Messaging;
 using TemplateApp.Infrastructure.Messaging.Bus;
-using TemplateApp.Tests.Support;
+using TemplateApp.Tests.Support.Hosts;
 using Xunit;
 
 namespace TemplateApp.Tests.Messaging;

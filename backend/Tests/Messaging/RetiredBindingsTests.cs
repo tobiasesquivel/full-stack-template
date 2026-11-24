@@ -1,4 +1,4 @@
-using TemplateApp.Tests.Support;
+using TemplateApp.Tests.Support.Hosts;
 using Xunit;
 
 namespace TemplateApp.Tests.Messaging;

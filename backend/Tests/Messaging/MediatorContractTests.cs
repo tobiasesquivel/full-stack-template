@@ -10,6 +10,7 @@ using TemplateApp.Features.Tasks.UpdateTask;
 using TemplateApp.Hosts.Tasks;
 using TemplateApp.Infrastructure.Messaging.Mediator;
 using TemplateApp.Tests.Support;
+using TemplateApp.Tests.Support.Hosts;
 using Wolverine;
 using Wolverine.Runtime.Handlers;
 using Xunit;

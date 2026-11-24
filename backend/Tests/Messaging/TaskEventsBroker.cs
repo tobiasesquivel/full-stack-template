@@ -3,7 +3,7 @@ using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using RabbitMQ.Client;
-using TemplateApp.Tests.Support;
+using TemplateApp.Tests.Support.Hosts;
 
 namespace TemplateApp.Tests.Messaging;
 

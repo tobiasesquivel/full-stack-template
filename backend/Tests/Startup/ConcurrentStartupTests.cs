@@ -9,7 +9,7 @@ using TemplateApp.Infrastructure.Persistence.Initialization;
 using Testcontainers.PostgreSql;
 using TemplateApp.Features.Auth.Access;
 using TemplateApp.Infrastructure.Persistence;
-using TemplateApp.Tests.Support;
+using TemplateApp.Tests.Support.Hosts;
 using Xunit;
 
 namespace TemplateApp.Tests.Startup;

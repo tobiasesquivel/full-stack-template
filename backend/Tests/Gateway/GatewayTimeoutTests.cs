@@ -4,7 +4,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using TemplateApp.Gateway;
-using TemplateApp.Tests.Support;
+using TemplateApp.Tests.Support.Faults;
 using WireMock.RequestBuilders;
 using WireMock.ResponseBuilders;
 using WireMock.Server;

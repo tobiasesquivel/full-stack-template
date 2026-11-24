@@ -8,6 +8,9 @@ using TemplateApp.Features.Projects.Persistence;
 using TemplateApp.Features.Tasks.Persistence;
 using TemplateApp.Features.Users.Persistence;
 using TemplateApp.Tests.Support;
+using TemplateApp.Tests.Support.Clients;
+using TemplateApp.Tests.Support.Hosts;
+using TemplateApp.Tests.Support.Probes;
 using Xunit;
 
 namespace TemplateApp.Features.Projects.ListProjects;

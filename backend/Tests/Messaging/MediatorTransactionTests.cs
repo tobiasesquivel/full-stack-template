@@ -1,6 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using TemplateApp.Infrastructure.Messaging.Mediator;
-using TemplateApp.Tests.Support;
+using TemplateApp.Tests.Support.Hosts;
 using Wolverine;
 using Wolverine.Configuration;
 using Wolverine.Persistence;

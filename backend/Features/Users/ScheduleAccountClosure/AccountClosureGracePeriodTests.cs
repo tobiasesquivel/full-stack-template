@@ -6,6 +6,11 @@ using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using TemplateApp.Features.Users.DeleteUser;
 using TemplateApp.Tests.Support;
+using TemplateApp.Tests.Support.Bus;
+using TemplateApp.Tests.Support.Clients;
+using TemplateApp.Tests.Support.Hosts;
+using TemplateApp.Tests.Support.Probes;
+using TemplateApp.Tests.Support.Rows;
 using Wolverine;
 using Xunit;
 

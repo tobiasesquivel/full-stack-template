@@ -1,6 +1,6 @@
 using System.Net;
 using System.Text.Json;
-using TemplateApp.Tests.Support;
+using TemplateApp.Tests.Support.Hosts;
 using Xunit;
 
 namespace TemplateApp.Features.Health.GetLiveness;
