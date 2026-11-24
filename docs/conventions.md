@@ -173,8 +173,8 @@ Excepciones (la lista es cerrada):
 - El soporte compartido de pruebas vive en `backend/Tests/Support`, en una carpeta por rol; el namespace sigue a la carpeta. Los helpers no se copian entre archivos de test.
   - `Hosts/`: lo que levanta la app y su infraestructura (`ApiFixture`, `ApiPair`, `IsolatedApi`, `PostgresFixture`, `RabbitMqFixture`, `TestDatabases`).
   - `Clients/`: el cliente HTTP del test (`TestSession`, `TestAccounts`, `ProblemAssert`).
-  - `Probes/`: sondas que se instalan en el host o en la base para observar (`CapturedLogs`, `CapturedCommands`, `RecordedMeasurements`, `QueryPlan`, los `*Probe`).
-  - `Faults/`: fallas y esperas provocadas (`FailAfterSaving`, `PauseBeforeSaving`, `HeldOwnerLock`, `RemoteFault`, `SilentServer`, `LoopbackWireMock`).
+  - `Probes/`: sondas que se instalan en el host o en la base para observar (`CapturedLogs`, `CapturedCommands`, `RecordedMeasurements`, `QueryPlan`, `ClientAddressProbe`, `PermissionProbe`).
+  - `Faults/`: fallas y esperas provocadas (`ErrorProbe`, `FailAfterSaving`, `PauseBeforeSaving`, `HeldOwnerLock`, `RemoteFault`, `SilentServer`, `LoopbackWireMock`).
   - `Rows/`: lectores de filas de la base (`DatabaseRows`, `AuditLog`, `OutboxLog`, `TaskCounterRows` y sus filas).
   - `Bus/`: dobles del bus (`MonolithListener`, `TasksListener`, `FastScheduledMessages`).
   - En la raíz quedan los que combinan varios roles: `Eventually`, `HandlerCalls` y `TaskCounterScenario`.

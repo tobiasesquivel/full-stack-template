@@ -6,10 +6,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using TemplateApp.Infrastructure.Persistence.Initialization;
-using TemplateApp.Tests.Support.Hosts;
 using Testcontainers.PostgreSql;
 using TemplateApp.Features.Auth.Access;
 using TemplateApp.Infrastructure.Persistence;
+using TemplateApp.Tests.Support.Hosts;
 using Xunit;
 
 namespace TemplateApp.Tests.Startup;

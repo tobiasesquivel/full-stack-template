@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 
-namespace TemplateApp.Tests.Support.Probes;
+namespace TemplateApp.Tests.Support.Faults;
 
 internal sealed class ErrorProbe : IStartupFilter
 {
