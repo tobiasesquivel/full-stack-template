@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Request, Command y validador</title>
+<link rel="stylesheet" href="../assets/curso.css">
+</head>
+<body>
+<main data-lesson="Lección 6 (request y command)">
+
+<p class="kicker">Lección 6 de 14 · Bloque A: una slice por dentro · 10 minutos</p>
+<h1>Un command: Request, Command y validador</h1>
+<p class="win">Al terminar distinguís lo que manda el navegador (<code>*Request</code>) del mensaje que viaja por el bus (<code>*Command</code>), y sabés quién valida y qué 400 sale.</p>
+
+<h2>Repaso</h2>
+<p>Las dos que fallaste en la lección 5. La de roles va por tercera vez, así que esta vez la explicación trae la tabla.</p>
+
+<div class="quiz" data-answer="3" data-id="R-L4-P4">
+<p class="tipo">Repaso · Recordar</p>
+<p class="q">Cancelar el cierre de cuenta de Alice pide <code>Users.Manage</code>. ¿Quién puede hacerlo?</p>
+<div class="opts">
+<button>Alice, cualquier Admin o SuperAdmin</button>
+<button>Solo Alice, porque es dueña</button>
+<button>Cualquier Admin, pero no Alice</button>
+<button>Alice y también cualquier SuperAdmin</button>
+</div>
+<p class="why">Alice pasa por la primera pregunta: es la dueña. Los demás necesitan <code>Users.Manage</code>, y solo SuperAdmin lo tiene. La tabla de <code>RolePermissions.cs</code>, para Users: User = ninguno; Admin = <code>Read</code>; SuperAdmin = <code>Read</code> y <code>Manage</code>. Regla corta: <strong>Admin mira, SuperAdmin cambia.</strong></p>
+</div>
+
+<div class="quiz" data-answer="0" data-id="R-L5-P5">
+<p class="tipo">Repaso · Revisar a un agente</p>
+<p class="q">Un agente renombró el code <code>"Project.NameTaken"</code> a <code>"Project.DuplicateName"</code>. Todos los tests del backend pasan. ¿Qué se rompe?</p>
+<div class="opts">
+<button>El aviso en español del frontend</button>
+<button>El status 409 de la respuesta</button>
+<button>El índice único de la base</button>
+<button>El build por el prefijo nuevo</button>
+</div>
+<p class="why"><code>project-error.ts</code> busca el texto exacto <code>'Project.NameTaken'</code> para mostrar "Ya tienes un proyecto con ese nombre.". Con el código nuevo no lo encuentra y el aviso desaparece. El backend no se entera: por eso "un código publicado no cambia".</p>
+</div>
+
+<h2>La idea</h2>
+<div class="answer">
+<p>Una escritura tiene tres piezas. El <strong>Request</strong> = lo que manda el navegador en el cuerpo JSON. El <strong>Command</strong> = el mensaje que viaja por el bus: el Request más <code>CallerId</code> (quién pide), que el endpoint saca de la sesión. El <strong>validador</strong> = las reglas de forma del Command, y Wolverine lo corre antes del handler.</p>
+</div>
+
+<figure>
+<svg class="diagram" viewBox="0 0 720 260" role="img" aria-label="El navegador manda el JSON; ASP.NET lo convierte en UpdateProfileRequest; el endpoint arma UpdateProfileCommand con el CallerId de la sesión; Wolverine corre el validador; si falla sale un 400; si pasa llama al handler">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head" d="M0,0 L10,5 L0,10 z"/></marker>
+    <marker id="b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head back" d="M0,0 L10,5 L0,10 z"/></marker>
+  </defs>
+  <g class="node"><rect x="10" y="20" width="130" height="56" rx="6"/><text class="t" x="75" y="44">Navegador</text><text class="s" x="75" y="62">PUT /users/me</text></g>
+  <g class="node key"><rect x="190" y="20" width="150" height="56" rx="6"/><text class="t" x="265" y="44">…Request</text><text class="s" x="265" y="62">DisplayName, Timezone</text></g>
+  <g class="node key"><rect x="390" y="20" width="160" height="56" rx="6"/><text class="t" x="470" y="44">…Command</text><text class="s" x="470" y="62">+ CallerId (quién pide)</text></g>
+  <g class="node key"><rect x="390" y="130" width="160" height="56" rx="6"/><text class="t" x="470" y="154">…CommandValidator</text><text class="s" x="470" y="172">corre en el generado</text></g>
+  <g class="node"><rect x="600" y="130" width="110" height="56" rx="6"/><text class="t" x="655" y="154">Handler</text><text class="s" x="655" y="172">guarda el perfil</text></g>
+  <g class="node"><rect x="190" y="190" width="150" height="56" rx="6"/><text class="t" x="265" y="214">400</text><text class="s" x="265" y="232">errores por campo</text></g>
+  <path class="edge" d="M140,48 L188,48" marker-end="url(#a)"/><text class="lbl" x="164" y="40">manda JSON</text>
+  <path class="edge" d="M340,48 L388,48" marker-end="url(#a)"/><text class="lbl" x="364" y="40">se copia</text>
+  <path class="edge" d="M470,76 L470,128" marker-end="url(#a)"/><text class="lbl" x="510" y="106">valida</text>
+  <path class="edge" d="M550,158 L598,158" marker-end="url(#a)"/><text class="lbl" x="574" y="150">pasa</text>
+  <path class="edge back" d="M390,175 L342,210" marker-end="url(#b)"/><text class="lbl back" x="350" y="178">falla</text>
+</svg>
+<figcaption>Borde fuerte: los tres archivos de la slice que hacen la entrada. Naranja punteado: el corte por validación, que nunca llega al handler.</figcaption>
+</figure>
+
+<h2>Las tres piezas en <code>UpdateProfile/</code></h2>
+<ol class="flow">
+  <li><span class="where">UpdateProfile/UpdateProfileRequest.cs:3</span>
+    <code>record UpdateProfileRequest(string DisplayName, string Timezone)</code>. Es el cuerpo del <code>PUT /users/me</code>: ASP.NET lo arma desde el JSON (lo viste en la lección 1 como <em>parameter binding</em>).</li>
+  <li><span class="where">UpdateProfile/UpdateProfileEndpoint.cs:19</span>
+    <code>new UpdateProfileCommand(user.GetCallerId(), request.DisplayName, request.Timezone)</code>. El endpoint copia los dos campos y suma <code>CallerId</code> (quién pide) desde la cookie.</li>
+  <li><span class="where">UpdateProfile/UpdateProfileCommandValidator.cs:10-22</span>
+    Dos reglas: <code>DisplayName</code> entre 1 y el máximo de <code>UserProfile</code>, y <code>Timezone</code> una zona horaria IANA válida, como <code>America/Argentina/Buenos_Aires</code>. Usa FluentValidation (<code>AbstractValidator&lt;T&gt;</code>).</li>
+  <li><span class="where">Users/UsersFeature.cs:45</span>
+    El validador se registra a mano, al lado de su handler. El repo configura Wolverine con <code>UseFluentValidation(RegistrationBehavior.ExplicitRegistration)</code> (<code>MessagingRegistration.cs:26</code>): no busca validadores solo.</li>
+  <li><span class="where">Hosts/Monolith/Internal/Generated/WolverineHandlers/UpdateProfileCommandHandler156792017.cs:45</span>
+    El código generado llama al validador antes de crear el handler. El de <code>GetUser</code> no tiene esa línea: su query no tiene validador.</li>
+</ol>
+
+<h3>Por qué el Request no trae <code>CallerId</code></h3>
+<p>Todo lo que viene en el JSON lo escribe el cliente, y puede mentir. Si <code>CallerId</code> viniera en el cuerpo, Bob mandaría el id de Alice y editaría el perfil de ella. Por eso quién pide sale siempre de la sesión, nunca del cuerpo. Por la misma razón, <code>UpdateProfile</code> no llama a <code>CanAccessAsync</code>: el Command no tiene a quién apuntar fuera de <code>CallerId</code>, así que solo puede tocar el perfil propio.</p>
+<p class="eq"><strong>Request</strong> = el formulario que llena el cliente. <strong>Command</strong> = ese formulario con el sello de quién lo firmó, puesto por el sistema. En una lectura sin cuerpo, como <code>GetUser</code>, no hay formulario: el endpoint arma la query directo. Eso responde tu primera pregunta del curso.</p>
+
+<h3>Qué pasa cuando no valida</h3>
+<p>El validador falla, Wolverine tira una <code>ValidationException</code>, y <code>ValidationExceptionHandler</code> (<code>Infrastructure/Http/ValidationExceptionHandler.cs:10-16</code>) la convierte en errores de tipo <code>Validation</code> y se los pasa a <code>ApiResults</code>. Sale el mismo 400 de la lección 5, con un mapa de errores por campo:</p>
+<pre><code>HTTP/1.1 400 Bad Request
+{
+  "status": 400,
+  "errors": { "Timezone": ["Timezone must be a valid IANA timezone."] },
+  "code": "Validation.Failed",
+  …
+}</code></pre>
+<p class="src">Recortado. <code>ApiResults.cs:18-22</code> agrupa por el nombre del campo, que es el <code>code</code> de cada error de validación. <code>UpdateProfileTests</code> lo prueba mandando <code>timezone = "No/Existe"</code> y esperando un 400.</p>
+<p>El validador revisa la forma de la entrada. El handler revisa el estado: si el perfil existe (404) o si un cierre se puede cancelar (409). La regla del repo: "Toda validación de entrada va en <code>&lt;Mensaje&gt;Validator.cs</code>, no en el handler" (<code>docs/conventions.md:10</code>).</p>
+
+<h2>Por qué así</h2>
+<p>Separar Request y Command deja el contrato HTTP en un lugar y el mensaje interno en otro: el frontend usa <code>*Request</code> con los mismos nombres, y el Command puede sumar datos que el cliente no elige. Con el validador como paso de Wolverine, ningún handler recibe un Command con forma inválida, y todos los 400 salen con el mismo formato.</p>
+<p><strong>En la industria:</strong> FluentValidation es la librería de validación más usada en .NET. Con MediatR se corre en un <em>pipeline behavior</em>; con Wolverine, en su middleware. La idea es la misma: validar antes del handler, una vez para todos.</p>
+
+<h2>Qué mirar cuando un agente toca esto</h2>
+<ul>
+<li>Un <code>*Request</code> nunca trae <code>CallerId</code> ni nada que diga "quién soy". Si aparece en el cuerpo, cualquiera se hace pasar por otro.</li>
+<li>Un validador nuevo suma su línea <code>AddSingleton&lt;IValidator&lt;…Command&gt;, …Validator&gt;()</code> en <code>&lt;Feature&gt;Feature.cs</code>, y el código generado de su handler llama a <code>FluentValidationExecutor</code>. Si falta cualquiera de las dos, revisá que el validador realmente corra.</li>
+<li>Un <code>if</code> que revisa largo, formato o nulos dentro del handler va al validador.</li>
+</ul>
+
+<h2>Practicá: recordá sin mirar</h2>
+<p>Respondé sin volver a leer arriba. Equivocarte acá ayuda a recordar.</p>
+
+<div class="quiz" data-answer="2" data-id="P1">
+<p class="tipo">Recordar</p>
+<p class="q">1. ¿Qué campo tiene <code>UpdateProfileCommand</code> que no tiene <code>UpdateProfileRequest</code>?</p>
+<div class="opts">
+<button>Timezone</button>
+<button>DisplayName</button>
+<button>CallerId</button>
+<button>AuthId</button>
+</div>
+<p class="why">El endpoint suma <code>CallerId</code> (quién pide) desde la sesión (<code>UpdateProfileEndpoint.cs:19</code>). <code>AuthId</code> no está en ninguno: el Command solo puede tocar el perfil de quien pide.</p>
+</div>
+
+<div class="quiz" data-answer="0" data-id="P2">
+<p class="tipo">Revisar a un agente</p>
+<p class="q">2. Un agente sumó <code>string CallerId</code> a <code>UpdateProfileRequest</code>, y el endpoint ahora arma el Command con <code>request.CallerId</code>. ¿Qué está mal?</p>
+<div class="opts">
+<button>Bob puede editar perfiles ajenos</button>
+<button>El validador deja de correr</button>
+<button>El handler no compila más</button>
+<button>La ruta /me da 404</button>
+</div>
+<p class="why">El cuerpo lo escribe el cliente. Bob manda el id de Alice en <code>CallerId</code> y el handler edita el perfil de Alice, sin ningún control de permisos que lo frene. Quién pide sale de la sesión: <code>user.GetCallerId()</code>.</p>
+</div>
+
+<div class="quiz" data-answer="1" data-id="P3">
+<p class="tipo">Recordar</p>
+<p class="q">3. ¿Quién corre <code>UpdateProfileCommandValidator</code> antes del handler?</p>
+<div class="opts">
+<button>El endpoint antes del bus</button>
+<button>El código generado de Wolverine</button>
+<button>El handler en primera línea</button>
+<button>ASP.NET al leer el JSON</button>
+</div>
+<p class="why">La línea 45 del handler generado llama a <code>FluentValidationExecutor</code> antes de crear el handler. El endpoint solo arma el Command y lo entrega.</p>
+</div>
+
+<div class="quiz" data-answer="3" data-id="P4">
+<p class="tipo">Revisar a un agente</p>
+<p class="q">4. Un agente agregó esto al principio de <code>UpdateProfileCommand.Handler.Handle</code>. ¿Qué cambiarías?</p>
+<pre><code>if (command.DisplayName.Length &gt; UserProfile.DisplayNameMaxLength)
+    return UserErrors.InvalidDisplayName;</code></pre>
+<div class="opts">
+<button>Debería devolver un 409 en vez</button>
+<button>Falta registrar el error en Program</button>
+<button>El endpoint tendría que validar eso</button>
+<button>La validación va en el validador</button>
+</div>
+<p class="why">El largo es forma de la entrada: va en <code>UpdateProfileCommandValidator</code>, que ya lo revisa con <code>UserProfile.IsValidDisplayName</code> (línea 14). El handler revisa estado, no forma.</p>
+</div>
+
+<div class="quiz" data-answer="2" data-id="P5">
+<p class="tipo">Revisar a un agente</p>
+<p class="q">5. Un agente creó <code>ChangeEmailCommandValidator</code>, registró el handler y corrió <code>codegen write</code>, pero no registró el validador. En el generado de su handler no aparece <code>FluentValidationExecutor</code>. ¿Qué pasa con un email inválido?</p>
+<div class="opts">
+<button>Wolverine encuentra el validador solo</button>
+<button>El build falla en Generated</button>
+<button>Llega al handler sin validar</button>
+<button>Da 409 por el catálogo</button>
+</div>
+<p class="why">Con <code>ExplicitRegistration</code>, Wolverine usa solo los validadores registrados. El generado lo muestra: no hay ninguna línea que llame al validador, así que el Command entra al handler tal como vino. Falta <code>AddSingleton&lt;IValidator&lt;ChangeEmailCommand&gt;, ChangeEmailCommandValidator&gt;()</code>.</p>
+</div>
+
+<div class="quiz-result"></div>
+
+<div class="source"><strong>Fuente principal</strong>
+<a href="https://docs.fluentvalidation.net/en/latest/">FluentValidation: documentación oficial</a>. Leé "Creating your first validator": son 5 minutos y muestran <code>AbstractValidator</code> y <code>RuleFor</code>, lo mismo que usa <code>UpdateProfileCommandValidator</code>.</div>
+
+<div class="ask"><strong>¿Algo no cerró?</strong>
+Preguntame en el chat. Por ejemplo: "¿qué es <code>Cascade(CascadeMode.Stop)</code>?" o "¿por qué el validador es singleton?".</div>
+
+<nav class="pager">
+<a href="0005-errores-erroror-y-apiresults.html">← Lección 5</a>
+<a href="../reference/mapa.html">Mapa del curso</a>
+<span>Lección 7: transacciones del mediator</span>
+</nav>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>
