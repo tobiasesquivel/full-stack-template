@@ -117,3 +117,10 @@ pre.tree .tag { font-family: var(--c-sans); font-size: .7rem; font-weight: 600; 
 pre.tree .tag.new { background: color-mix(in srgb, var(--c-ok) 20%, transparent); color: var(--c-ok); }
 pre.tree .tag.edit { background: color-mix(in srgb, var(--c-accent) 20%, transparent); color: var(--c-accent); }
 pre.tree .tag.gen { background: var(--c-card); color: var(--c-muted); border: 1px solid var(--c-line); }
+
+/* Celdas de tabla que marcan un resultado correcto o equivocado */
+td.ok { color: var(--c-ok); font-weight: 600; }
+td.ko { color: var(--c-ko); font-weight: 600; }
+
+/* Recuadro punteado que agrupa nodos dentro de un diagrama */
+svg.diagram .group { fill: none; stroke: var(--c-line); stroke-width: 1.5; stroke-dasharray: 4 3; }

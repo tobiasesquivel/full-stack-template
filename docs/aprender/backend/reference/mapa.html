@@ -33,8 +33,8 @@
 <tr><td>1</td><td>A</td><td><a href="../lessons/0001-el-recorrido-de-un-pedido.html">El recorrido de un pedido</a></td><td>Seguir un GET desde el navegador hasta la base y de vuelta.</td></tr>
 <tr><td>2</td><td>A</td><td><a href="../lessons/0002-los-archivos-de-una-slice.html">Los archivos de una slice</a></td><td>Saber qué archivo hace qué en <code>GetUser/</code>.</td></tr>
 <tr><td>3</td><td>A</td><td><a href="../lessons/0003-registro-y-codegen.html">Registro y codegen</a></td><td>Detectar si un agente se olvidó de registrar el handler o de correr <code>codegen write</code>.</td></tr>
-<tr><td>4</td><td>A</td><td>Errores: ErrorOr y ApiResults</td><td>Saber qué status HTTP sale de cada error.</td></tr>
-<tr><td>5</td><td>A</td><td>Permisos: dueño y recurso</td><td>Explicar <code>IOwnedResource</code>, <code>CanAccessAsync</code> y <code>ClosureOwner</code>.</td></tr>
+<tr><td>4</td><td>A</td><td><a href="../lessons/0004-permisos-duenio-o-permiso.html">Permisos: dueño o permiso</a></td><td>Explicar <code>IOwnedResource</code>, <code>CanAccessAsync</code> y <code>ClosureOwner</code>.</td></tr>
+<tr><td>5</td><td>A</td><td>Errores: ErrorOr y ApiResults</td><td>Saber qué status HTTP sale de cada error.</td></tr>
 <tr><td>6</td><td>A</td><td>Un command: Request y Command</td><td>Distinguir el cuerpo HTTP (<code>*Request</code>) del mensaje (<code>*Command</code>) y su validador.</td></tr>
 <tr><td>7</td><td>A</td><td>Transacciones del mediator</td><td>Elegir entre <code>None</code>, <code>Atomic</code> y <code>Eager</code>.</td></tr>
 <tr><td>8</td><td>B</td><td>La feature por dentro</td><td>Ubicar <code>Contracts</code>, <code>Domain</code> y <code>Persistence</code> en Users.</td></tr>
@@ -57,7 +57,7 @@
 <p>Closure = cierre de cuenta. Si un usuario pide borrar su cuenta (<code>DELETE /users/{authId}</code>), el repo no la borra en el momento: programa un cierre con un período de gracia, durante el cual el usuario puede arrepentirse. Cada pedido tiene su <code>ClosureId</code>. <em>Lección 9.</em></p>
 
 <h3>¿Qué es <code>IOwnedResource</code> y por qué un closure tiene owner?</h3>
-<p><code>IOwnedResource</code> = "algo que tiene dueño": solo exige un <code>OwnerId</code> (<code>Shared/Domain/IOwnedResource.cs</code>). Auth decide permisos con <code>CanAccessAsync(quién, recurso, permiso)</code>: el dueño pasa, y otro usuario necesita el permiso (por ejemplo, un Admin). <code>UserProfile</code> ya es un recurso con dueño. <code>ClosureOwner</code> es un envoltorio mínimo para cuando el handler tiene solo el id del dueño del cierre y no el perfil (<code>GetAccountClosureQueryHandler.cs:41-42</code>). <em>Lección 5.</em></p>
+<p><code>IOwnedResource</code> = "algo que tiene dueño": solo exige un <code>OwnerId</code> (<code>Shared/Domain/IOwnedResource.cs</code>). Auth decide permisos con <code>CanAccessAsync(quién, recurso, permiso)</code>: el dueño pasa, y otro usuario necesita el permiso (por ejemplo, un Admin). <code>UserProfile</code> ya es un recurso con dueño. <code>ClosureOwner</code> es un envoltorio mínimo para cuando el handler tiene solo el id del dueño del cierre y no el perfil (<code>GetAccountClosureQueryHandler.cs:41-42</code>). <em>Lección 4.</em></p>
 
 <h3>¿Qué son los facts de <code>AccountClosureFacts</code>?</h3>
 <p>Son los hechos que ya pasaron en un cierre: <code>requested</code>, <code>reminder-sent</code>, <code>cancelled</code>, <code>grace-expired</code>, <code>closure-started</code>, <code>completed</code>, <code>rejected</code>. Cada hecho es una fila de la tabla <code>AccountClosureHistory</code>, que solo crece y nunca se edita = un libro de actas. <em>Lección 9.</em></p>

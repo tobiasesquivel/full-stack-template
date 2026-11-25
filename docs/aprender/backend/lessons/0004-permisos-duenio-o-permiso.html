@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Permisos: dueño o permiso</title>
+<link rel="stylesheet" href="../assets/curso.css">
+</head>
+<body>
+<main data-lesson="Lección 4 (permisos)">
+
+<p class="kicker">Lección 4 de 14 · Bloque A: una slice por dentro · 10 minutos</p>
+<h1>Permisos: dueño o permiso</h1>
+<p class="win">Al terminar podés predecir quién pasa y quién recibe 403 en cada slice de Users, y ver por qué un <code>if</code> que compara ids deja afuera a alguien.</p>
+
+<h2>Repaso</h2>
+<p>Dos preguntas de "Revisar a un agente" de lecciones anteriores. La de permisos que fallaste dos veces es el tema de hoy: vuelve al final, con una forma nueva.</p>
+
+<div class="quiz" data-answer="3" data-id="R-L3-P4">
+<p class="tipo">Repaso · Revisar a un agente</p>
+<p class="q">Un agente sacó del constructor de un handler un parámetro que ya no usaba, y no corrió <code>codegen write</code>. ¿Qué pasa?</p>
+<div class="opts">
+<button>Wolverine ignora el parámetro sobrante</button>
+<button>Los tests pasan sin cambios</button>
+<button>check-codegen lo corrige por vos</button>
+<button>El build falla en Generated</button>
+</div>
+<p class="why">El archivo generado sigue llamando al constructor viejo, con un argumento de más. Ese <code>new</code> ya no compila. Pasa lo mismo al sacar un parámetro que al agregarlo: cualquier cambio de constructor pide <code>codegen write</code>.</p>
+</div>
+
+<div class="quiz" data-answer="1" data-id="R-L2-P4">
+<p class="tipo">Repaso · Revisar a un agente</p>
+<p class="q">Un agente movió <code>UserResponse</code> de <code>Users/Contracts/</code> a <code>Users/GetUser/</code> "porque es la respuesta de GetUser". ¿Qué se rompe?</p>
+<div class="opts">
+<button>Wolverine no encuentra el handler</button>
+<button>Auth deja de poder usarla</button>
+<button>La ruta /me da 404</button>
+<button>El test de 401 falla</button>
+</div>
+<p class="why"><code>OpenSession</code> y <code>RegisterUser</code>, de Auth, devuelven <code>UserResponse</code>. Una feature solo puede usar el <code>Contracts/</code> de otra (DUNE0004), así que fuera de <code>Contracts/</code> Auth no compila.</p>
+</div>
+
+<h2>La idea</h2>
+<div class="answer">
+<p>Un permiso sobre un recurso se decide con dos preguntas, en este orden: <strong>¿es el dueño?</strong> Si no, <strong>¿tiene el permiso?</strong> El <code>if</code> que compara ids hace solo la primera. Y la decisión va en el handler porque recién ahí se conoce el recurso: quién es su dueño, y si existe.</p>
+</div>
+
+<p class="eq"><strong>401 ≠ 403.</strong> 401 = "no sé quién sos": no hay sesión, y lo corta el grupo <code>/users</code> con <code>RequireAuthorization()</code> antes de llegar al endpoint. 403 = "sé quién sos y no podés tocar esto": lo decide el handler, recurso por recurso.</p>
+
+<h2>Las dos preguntas, en el código</h2>
+<pre><code><span class="dim">// Features/Auth/Access/AccessPolicy.cs:37-47</span>
+public async Task&lt;bool&gt; CanAccessAsync(string callerId, IOwnedResource resource, string permission, ...)
+{
+<span class="hl">    if (string.Equals(callerId, resource.OwnerId, StringComparison.Ordinal))</span>
+<span class="hl">        return true;</span>                                          <span class="dim">// 1. ¿es el dueño?</span>
+
+<span class="hl">    return await HasPermissionAsync(callerId, permission, ct);</span>  <span class="dim">// 2. ¿tiene el permiso?</span>
+}</code></pre>
+<p class="src">Users no ve esta clase: la llama por su puerta, <code>IAuthModule.CanAccessAsync</code> (<code>Auth/Contracts/IAuthModule.cs:9</code>).</p>
+
+<figure>
+<svg class="diagram" viewBox="0 0 720 270" role="img" aria-label="El handler lee el recurso; si no existe da 404; si existe pregunta si es el dueño; si lo es pasa; si es otro pregunta si tiene el permiso; si lo tiene pasa; si le falta da 403">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head" d="M0,0 L10,5 L0,10 z"/></marker>
+    <marker id="b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head back" d="M0,0 L10,5 L0,10 z"/></marker>
+  </defs>
+  <rect class="group" x="195" y="88" width="395" height="110" rx="8"/>
+  <text class="lbl" x="392" y="190">CanAccessAsync</text>
+  <g class="node"><rect x="10" y="100" width="140" height="56" rx="6"/><text class="t" x="80" y="124">Handler lee</text><text class="s" x="80" y="142">el recurso por Id</text></g>
+  <g class="node"><rect x="10" y="210" width="140" height="44" rx="6"/><text class="t" x="80" y="237">404</text></g>
+  <g class="node key"><rect x="210" y="100" width="150" height="56" rx="6"/><text class="t" x="285" y="124">¿Es el dueño?</text><text class="s" x="285" y="142">callerId = OwnerId</text></g>
+  <g class="node key"><rect x="425" y="100" width="150" height="56" rx="6"/><text class="t" x="500" y="124">¿Tiene el permiso?</text><text class="s" x="500" y="142">sale de sus roles</text></g>
+  <g class="node"><rect x="320" y="10" width="140" height="44" rx="6"/><text class="t" x="390" y="37">Pasa</text></g>
+  <g class="node"><rect x="620" y="100" width="90" height="56" rx="6"/><text class="t" x="665" y="133">403</text></g>
+  <path class="edge" d="M150,128 L208,128" marker-end="url(#a)"/><text class="lbl" x="179" y="120">existe</text>
+  <path class="edge back" d="M80,156 L80,208" marker-end="url(#b)"/><text class="lbl back" x="118" y="186">no existe</text>
+  <path class="edge" d="M285,100 L345,56" marker-end="url(#a)"/><text class="lbl" x="285" y="72">es el dueño</text>
+  <path class="edge" d="M360,128 L423,128" marker-end="url(#a)"/><text class="lbl" x="391" y="120">es otro</text>
+  <path class="edge" d="M500,100 L437,56" marker-end="url(#a)"/><text class="lbl" x="505" y="72">lo tiene</text>
+  <path class="edge back" d="M575,128 L618,128" marker-end="url(#b)"/><text class="lbl back" x="597" y="120">falta</text>
+</svg>
+<figcaption>Gris: el camino que deja pasar. Naranja punteado: los dos cortes. El recuadro punteado es <code>CanAccessAsync</code>: el 404 va antes y lo decide el handler (<code>docs/conventions.md</code>: "Primero 404, después 403").</figcaption>
+</figure>
+
+<h3>De dónde sale "tiene el permiso"</h3>
+<p>Cada rol trae una lista fija de permisos (<code>Features/Auth/Access/RolePermissions.cs:86-113</code>). Para Users:</p>
+<div class="scroll">
+<table>
+<tr><th>Rol</th><th><code>Users.Read</code> (ver perfil o cierre ajeno)</th><th><code>Users.Manage</code> (cerrar cuenta ajena)</th></tr>
+<tr><td>User</td><td class="ko">no</td><td class="ko">no</td></tr>
+<tr><td>Admin</td><td class="ok">sí</td><td class="ko">no</td></tr>
+<tr><td>SuperAdmin</td><td class="ok">sí</td><td class="ok">sí</td></tr>
+</table>
+</div>
+<p>Cada handler elige qué permiso pide. <code>GetUser</code> pide <code>Read</code> (<code>GetUserQueryHandler.cs:31</code>); <code>DeleteUser</code> pide <code>Manage</code> (<code>DeleteUserCommandHandler.cs:55</code>). Por eso un Admin ve el perfil de Alice pero no puede cerrar su cuenta. El dueño pasa siempre, en los dos: la primera pregunta no mira roles.</p>
+
+<h2>Por qué el <code>if</code> del endpoint falla</h2>
+<p>El <code>if (user.GetCallerId() != authId) return Results.Forbid();</code> parece seguro porque cubre al dueño. Hace la primera pregunta y se saltea la segunda, y además corre antes de leer el recurso. Así responde <code>GET /api/v1/users/{id}</code> en cada caso:</p>
+<div class="scroll">
+<table>
+<tr><th>Quién pide</th><th><code>if</code> en el endpoint</th><th><code>CanAccessAsync</code> en el handler</th></tr>
+<tr><td>Alice, su propio id</td><td class="ok">200</td><td class="ok">200</td></tr>
+<tr><td>Bob con rol User, id de Alice</td><td class="ok">403</td><td class="ok">403</td></tr>
+<tr><td>Bob con rol Admin, id de Alice</td><td class="ko">403</td><td class="ok">200</td></tr>
+<tr><td>Bob, un id que no existe</td><td class="ko">403</td><td class="ok">404</td></tr>
+</table>
+</div>
+<p>Las dos filas rojas las cubre <code>GetUserTests.ForeignProfile_IsForbidden_WithoutPermission_Then_AllowedWithPermission</code>: espera 404 para el id inexistente y 200 después de darle a Bob el rol Admin.</p>
+
+<h3>A veces el endpoint ni siquiera puede comparar</h3>
+<p>La ruta de un cierre es <code>GET /users/closures/{closureId}</code> (<code>GetAccountClosureEndpoint.cs:11</code>). La URL trae el id del cierre, no el de su dueño. El dueño aparece recién cuando el handler lee la fila de la base (<code>GetAccountClosureQueryHandler.cs:41</code>). Antes de leer, no hay nada contra qué comparar.</p>
+
+<h3><code>IOwnedResource</code> y <code>ClosureOwner</code></h3>
+<p><code>CanAccessAsync</code> no pide un perfil: pide cualquier cosa con dueño. <code>IOwnedResource</code> = "algo que tiene dueño", y exige una sola propiedad, <code>OwnerId</code> (<code>Shared/Domain/IOwnedResource.cs:3-6</code>). <code>UserProfile</code> la implementa (<code>Users/Domain/UserProfile.cs:6</code>). Un cierre no es una entidad con esa interfaz: el handler tiene solo el id del dueño. Entonces lo envuelve en <code>new ClosureOwner(ownerId)</code>, un record de una línea (<code>Users/Access/ClosureOwner.cs</code>), y se lo pasa a <code>CanAccessAsync</code> (<code>GetAccountClosureQueryHandler.cs:42</code>).</p>
+
+<h2>Por qué así</h2>
+<p>Microsoft lo explica para ASP.NET Core: "Attribute evaluation occurs before data binding and before execution of any method that loads a resource. Declarative authorization with an <code>[Authorize]</code> attribute doesn't suffice for resource-based authorization." Lo que depende del recurso se decide en el código que lo cargó, y en este repo ese código es el handler.</p>
+<p><strong>En la industria:</strong> ASP.NET Core lo hace con <code>IAuthorizationService.AuthorizeAsync(user, resource, policy)</code>, llamado después de cargar el recurso. El repo usa su propia puerta, <code>IAuthModule.CanAccessAsync</code>, porque Users solo puede hablar con Auth por <code>Contracts/</code>.</p>
+
+<h2>Qué mirar cuando un agente toca esto</h2>
+<ul>
+<li>Todo handler que lee o cambia algo con dueño llama a <code>CanAccessAsync</code> después de leerlo y antes de devolverlo o cambiarlo. Si falta, cualquiera con sesión lo ve.</li>
+<li>Un <code>if</code> que compara <code>CallerId</code> con un id, en el endpoint <em>o en el handler</em>, se saltea la segunda pregunta. Pedí <code>CanAccessAsync</code>.</li>
+<li>El permiso correcto: <code>Read</code> para ver, <code>Manage</code> para cambiar o cerrar. Si el agente cambia uno por otro, mirá la tabla de roles: cambia quién pasa.</li>
+</ul>
+
+<h2>Practicá: recordá sin mirar</h2>
+<p>Respondé sin volver a leer arriba. Equivocarte acá ayuda a recordar.</p>
+
+<div class="quiz" data-answer="1" data-id="P1">
+<p class="tipo">Recordar</p>
+<p class="q">1. ¿Qué dos preguntas hace <code>CanAccessAsync</code>, en orden?</p>
+<div class="opts">
+<button>¿Tiene sesión activa? ¿Es el dueño?</button>
+<button>¿Es el dueño? ¿Tiene el permiso?</button>
+<button>¿Existe el recurso? ¿Es un Admin?</button>
+<button>¿Es un Admin? ¿Es el dueño?</button>
+</div>
+<p class="why">Primero compara <code>callerId</code> con <code>OwnerId</code>; si no coinciden, busca el permiso en los roles (<code>AccessPolicy.cs:43-46</code>). La sesión la mira antes el grupo <code>/users</code>, y si el recurso existe lo mira antes el handler.</p>
+</div>
+
+<div class="quiz" data-answer="3" data-id="P2">
+<p class="tipo">Revisar a un agente</p>
+<p class="q">2. Un agente quiere frenar en el endpoint de <code>GET /users/closures/{closureId}</code> a quien no es dueño del cierre. ¿Por qué no puede hacerlo bien ahí?</p>
+<div class="opts">
+<button>El endpoint no tiene sesión</button>
+<button>Wolverine no deja usar if</button>
+<button>ApiResults pisa el status 403</button>
+<button>La ruta no trae dueño</button>
+</div>
+<p class="why">La URL trae el id del cierre. Quién es el dueño se sabe recién al leer la base, y eso pasa en el handler. El endpoint sí tiene la sesión (<code>ClaimsPrincipal</code>), pero no tiene con qué compararla.</p>
+</div>
+
+<div class="quiz" data-answer="0" data-id="P3">
+<p class="tipo">Recordar</p>
+<p class="q">3. Bob tiene rol Admin. ¿Qué puede hacer con la cuenta de Alice?</p>
+<div class="opts">
+<button>Ver el perfil, no cerrarla</button>
+<button>Ver el perfil y cerrarla</button>
+<button>Nada, porque no es dueño</button>
+<button>Cerrarla, pero no ver perfil</button>
+</div>
+<p class="why">Admin tiene <code>Users.Read</code> pero no <code>Users.Manage</code> (<code>RolePermissions.cs</code>). <code>GetUser</code> pide <code>Read</code> y <code>DeleteUser</code> pide <code>Manage</code>. Para cerrar una cuenta ajena hace falta SuperAdmin.</p>
+</div>
+
+<div class="quiz" data-answer="2" data-id="P4">
+<p class="tipo">Revisar a un agente</p>
+<p class="q">4. En <code>DeleteUserCommandHandler</code>, un agente cambió <code>UserPermissions.Manage</code> por <code>UserPermissions.Read</code>. ¿Qué cambia?</p>
+<div class="opts">
+<button>Alice no puede cerrar su cuenta</button>
+<button>Nadie puede cerrar ninguna cuenta ya</button>
+<button>Un Admin puede cerrar cuentas ajenas</button>
+<button>El dueño necesita ser Admin ahora</button>
+</div>
+<p class="why">Admin tiene <code>Read</code>, así que ahora pasa la segunda pregunta en <code>DeleteUser</code>. Alice sigue pasando por la primera: es la dueña.</p>
+</div>
+
+<div class="quiz" data-answer="1" data-id="P5">
+<p class="tipo">Revisar a un agente</p>
+<p class="q">5. Esta vez el agente puso el control en el handler, como primera línea de <code>Handle</code>. ¿Qué sigue mal?</p>
+<pre><code>if (query.CallerId != query.AuthId)
+    return UserErrors.Forbidden;</code></pre>
+<div class="opts">
+<button>Tendría que ir al endpoint</button>
+<button>Ignora el permiso del Admin</button>
+<button>Debería devolver el status 401</button>
+<button>Le falta registrarlo en UsersFeature</button>
+</div>
+<p class="why">El lugar ya es el correcto, pero la regla sigue a medias: compara ids y se saltea "¿tiene el permiso?", así que el Admin recibe 403. Además corre antes de leer el perfil: un id que no existe da 403 en vez de 404. Lo correcto es leer, dar 404 si no está y después llamar a <code>CanAccessAsync</code>.</p>
+</div>
+
+<div class="quiz-result"></div>
+
+<div class="source"><strong>Fuente principal</strong>
+<a href="https://learn.microsoft.com/en-us/aspnet/core/security/authorization/resourcebased?view=aspnetcore-10.0">Microsoft Learn: "Resource-based authorization in ASP.NET Core"</a>. Leé la introducción y "Use imperative authorization": son 5 minutos. Los ejemplos son de Blazor, pero la idea es la misma: se autoriza después de cargar el recurso.</div>
+
+<div class="ask"><strong>¿Algo no cerró?</strong>
+Preguntame en el chat. Por ejemplo: "¿dónde se le asigna un rol a un usuario?" o "¿por qué el dueño puede cerrar su cuenta sin <code>Manage</code>?".</div>
+
+<nav class="pager">
+<a href="0003-registro-y-codegen.html">← Lección 3</a>
+<a href="../reference/mapa.html">Mapa del curso</a>
+<span>Lección 5: errores, ErrorOr y ApiResults</span>
+</nav>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

@@ -17,3 +17,4 @@
 - `~/.aprender/registro.md` es el registro de repaso espaciado de Tobi (Concepto | Estado | Último repaso | Próximo repaso | Proyecto | Fuente | Nota). Sumar una fila solo con evidencia (el resultado del quiz), no al cubrir el tema.
 - Estilo: el de `~/.claude/CLAUDE.md` (español rioplatense simple, conclusión primero, cada término definido la primera vez, "=" para equivalencias).
 - El mapa del curso (`reference/mapa.html`) da una respuesta corta a cada pregunta inicial de Tobi. Las lecciones la profundizan.
+- 2026-11-25: permisos se adelantó a la lección 4 (antes era la 5) porque Tobi falló dos veces el mismo concepto: creyó que un `if` que compara `CallerId` con el id alcanza. Cuando falla algo dos veces, conviene adelantar la lección que lo enseña en vez de solo repasarlo.
