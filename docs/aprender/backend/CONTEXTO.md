@@ -66,9 +66,10 @@ Tobi las tomó en una ronda de preguntas el 2026-11-25. Están también en `NOTE
 - Lección 7 (`lessons/0007-transacciones-del-mediator.html`): 4 de 7. Falló R-L6-P2 (permisos, otra vez), P2 (el handler no guarda) y P4 (`None` guarda aunque haya error). Le ofrecí un refuerzo corto y eligió seguir con la 8.
 - Patrón: Tobi acierta las preguntas de "Recordar" y falla las de "Revisar a un agente" cuando la consecuencia es indirecta. Las explicaciones de la lección 8 en adelante abren con una regla corta en negrita, y los repasos la repiten.
 - Lección 8 (`lessons/0008-la-feature-por-dentro.html`): 5 de 7. Acertó los dos repasos de transacciones. Falló P3 (regla compartida → `Domain/`) y P4 (permisos, por cuarta vez: una ruta con `{authId}` necesita `CanAccessAsync`). Con permisos acierta solo si la pregunta nombra el permiso; la lección 9 le da un reflejo para revisar ("si la ruta trae el id de algo con dueño…").
-- Lección 9 entregada: `lessons/0009-el-cierre-de-cuenta-y-sus-facts.html` (estados de `UserProfile`, siete hechos de `AccountClosureFacts`, quién escribe cada uno, append-only con DUNE0026, `RecordAsync` exige transacción). Repaso R-L8-P3 y R-L8-P4. En total son 7.
+- Lección 9 (`lessons/0009-el-cierre-de-cuenta-y-sus-facts.html`): Tobi dijo "todo bien" sin pegar la línea; quedó como 7 de 7.
+- Lección 10 entregada: `lessons/0010-mensajes-mediator-y-broker.html` (bloque C: mediator frente a broker, `MessageNames/`, evento frente a comando, copias de nombres entre Users y Tasks, versión). Repaso R-L8-P4 (permisos, espaciado) y R-L9-P4. En total son 7.
+- **Esperando:** el resultado de la lección 10.
 - Se corrigió una cita de la lección 4: `RolePermissions.cs:86-113` era `:10-37`. Ojo con `cat -n` de varios archivos juntos: numera seguido y da líneas falsas.
-- **Esperando:** el resultado de la lección 9. Con ella termina el bloque B.
 - No probado en ninguna máquina: qué excepción tira `InvokeAsync` si falta `AddMediatorHandler`, y en qué momento falla el modo `Static` si falta el código generado. La lección 3 no lo afirma. La notebook no puede probarlo: le falta el SDK 10.0.401 que pide `global.json` y Docker no estaba corriendo.
 - El mapa del curso ya responde corto todas las preguntas iniciales de Tobi: closure, `ClosureOwner`, `IOwnedResource`, `AccountClosureFacts`, `MessageNames`, orquestar, saga, RabbitMQ, `Hosts/` e `Infrastructure/`. Las lecciones las profundizan.
 - `Infrastructure/` queda como caja negra hasta las lecciones 10 a 13.
@@ -77,7 +78,9 @@ Tobi las tomó en una ronda de preguntas el 2026-11-25. Están también en `NOTE
 
 Estos datos ya están verificados contra el código. Volvé a confirmar cada número de línea antes de citarlo, porque el repo cambia.
 
-**Lecciones 10 a 14:** están en el mapa. Para cada una:
+**Lección 11, RabbitMQ:** exchange, cola, binding y clave de ruteo, con los nombres reales (`users.user-events`, `users.user-deleted`, cola `tasks.user-deletions` en `Tasks/OwnerTombstones.cs:13`). Fuentes: `docs/evolucion/investigacion/paso-25-broker-wolverine.md`, `docs/architecture.md` sección "Bus" y [RabbitMQ: colas](https://www.rabbitmq.com/docs/queues). El outbox (por qué el evento no se publica directo) quedó como pregunta abierta en la lección 10.
+
+**Lecciones 12 a 14:** están en el mapa. Para cada una:
 1. Leé el código.
 2. Leé la investigación del paso en `docs/evolucion/investigacion/`: 27 para la saga, 25 para el broker, 28 para el período de gracia y 23-2 para Hosts.
 3. Sumá fuentes de `RESOURCES.md`.

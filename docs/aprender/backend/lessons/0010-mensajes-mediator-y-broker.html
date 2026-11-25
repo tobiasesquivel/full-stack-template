@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mediator y broker</title>
+<link rel="stylesheet" href="../assets/curso.css">
+</head>
+<body>
+<main data-lesson="Lección 10 (mediator y broker)">
+
+<p class="kicker">Lección 10 de 14 · Bloque C: mensajes · 10 minutos</p>
+<h1>Mensajes: mediator y broker</h1>
+<p class="win">Al terminar distinguís los dos caminos de un mensaje en el repo, leés una clase de <code>MessageNames/</code> y notás cuando un agente usa el camino equivocado o rompe el texto de un mensaje.</p>
+
+<h2>Repaso</h2>
+<p>Hiciste bien la lección 9. Va una de permisos, el tema que más te cuesta, para espaciarla, y una de la lección 9. El reflejo: <strong>si la ruta trae el id de algo con dueño, el handler lee eso, averigua el dueño y llama a <code>CanAccessAsync</code>.</strong></p>
+
+<div class="quiz" data-answer="2" data-id="R-L8-P4">
+<p class="tipo">Repaso · Revisar a un agente</p>
+<p class="q">Un agente creó <code>DELETE /users/{authId}/avatar</code>. El handler busca el perfil por el <code>authId</code> de la ruta, borra el avatar y devuelve 204. ¿Qué falta?</p>
+<div class="opts">
+<button>Registrar el handler como None, mejor</button>
+<button>Pasar authId al cuerpo del pedido</button>
+<button>Leer el perfil y llamar CanAccessAsync</button>
+<button>Devolver 200 en vez de 204</button>
+</div>
+<p class="why">La ruta trae el id de algo con dueño: un perfil. Después de leerlo (404 si no existe), <code>CanAccessAsync(CallerId, perfil, UserPermissions.Manage)</code>: borrar es cambiar, así que pide <code>Manage</code>. Sin eso, cualquiera con sesión borra el avatar de cualquiera.</p>
+</div>
+
+<div class="quiz" data-answer="0" data-id="R-L9-P4">
+<p class="tipo">Repaso · Revisar a un agente</p>
+<p class="q">Un agente cambió el registro de <code>WithdrawAccountClosure</code> de <code>Atomic</code> a <code>None</code> "porque es más simple". ¿Qué pasa al cancelar un cierre?</p>
+<div class="opts">
+<button>Da 500: RecordAsync pide transacción</button>
+<button>Cancela bien, igual que antes</button>
+<button>Cancela pero sin anotar hecho</button>
+<button>El build falla por DUNE0026</button>
+</div>
+<p class="why">El handler anota el hecho <code>cancelled</code> con <code>RecordAsync</code>, que tira una excepción si no hay transacción abierta. Con <code>None</code> no la hay: el cliente recibe un 500 y no se cancela nada.</p>
+</div>
+
+<h2>La idea</h2>
+<div class="answer">
+<p>Wolverine lleva mensajes por dos caminos. <strong>Mediator</strong> = dentro del mismo programa, en el momento, y quien manda espera la respuesta (<code>InvokeAsync</code>, lecciones 1 a 7). <strong>Broker</strong> = a otro programa, por RabbitMQ, más tarde, y quien manda no espera respuesta. Lo que va por el broker necesita un nombre de texto fijo, porque el otro lado no comparte el código: esos nombres viven en <code>MessageNames/</code>.</p>
+</div>
+
+<figure>
+<svg class="diagram" viewBox="0 0 720 250" role="img" aria-label="Arriba, el endpoint entrega la query a Wolverine y el handler responde en el momento, todo dentro del monolito. Abajo, Users deja el evento en su outbox, se publica en RabbitMQ con el nombre users.user-deleted, y Tasks, otro proceso, lo recibe después">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head" d="M0,0 L10,5 L0,10 z"/></marker>
+    <marker id="b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head back" d="M0,0 L10,5 L0,10 z"/></marker>
+  </defs>
+  <text class="lbl" x="60" y="16">Mediator</text>
+  <g class="node"><rect x="10" y="24" width="150" height="56" rx="6"/><text class="t" x="85" y="48">GetUserEndpoint</text><text class="s" x="85" y="66">InvokeAsync</text></g>
+  <g class="node key"><rect x="260" y="24" width="150" height="56" rx="6"/><text class="t" x="335" y="48">GetUserQuery.Handler</text><text class="s" x="335" y="66">mismo proceso</text></g>
+  <path class="edge" d="M160,44 L258,44" marker-end="url(#a)"/><text class="lbl" x="209" y="36">entrega ya</text>
+  <path class="edge back" d="M258,64 L162,64" marker-end="url(#b)"/><text class="lbl back" x="209" y="80">responde</text>
+  <text class="lbl" x="52" y="132">Broker</text>
+  <g class="node"><rect x="10" y="140" width="150" height="56" rx="6"/><text class="t" x="85" y="164">Users</text><text class="s" x="85" y="182">outbox + publisher</text></g>
+  <g class="node key"><rect x="260" y="140" width="190" height="56" rx="6"/><text class="t" x="355" y="164">RabbitMQ</text><text class="s" x="355" y="182">users.user-deleted v1</text></g>
+  <g class="node ext"><rect x="560" y="140" width="150" height="56" rx="6"/><text class="t" x="635" y="164">Tasks</text><text class="s" x="635" y="182">otro proceso</text></g>
+  <path class="edge" d="M160,168 L258,168" marker-end="url(#a)"/><text class="lbl" x="209" y="160">publica</text>
+  <path class="edge" d="M450,168 L558,168" marker-end="url(#a)"/><text class="lbl" x="504" y="160">entrega después</text>
+  <text class="lbl" x="504" y="220">sin respuesta a Users</text>
+</svg>
+<figcaption>Arriba, el camino de todas las lecciones anteriores. Abajo, el camino nuevo: el nombre de texto es lo único que Users y Tasks comparten. Borde punteado: otro programa.</figcaption>
+</figure>
+
+<div class="scroll">
+<table>
+<tr><th></th><th>Mediator (<code>InvokeAsync</code>)</th><th>Broker (RabbitMQ)</th></tr>
+<tr><td>Dónde corre quien atiende</td><td>en el mismo proceso</td><td>en otro proceso (Tasks) o en el mismo, por cola</td></tr>
+<tr><td>Cuándo</td><td>ya, en la misma llamada</td><td>después; si Tasks está caído, el mensaje espera en la cola</td></tr>
+<tr><td>Respuesta</td><td>sí: el <code>ErrorOr</code> vuelve al endpoint</td><td>no: si hace falta, el otro lado manda otro mensaje</td></tr>
+<tr><td>Cómo se identifica</td><td>por el tipo C# (<code>GetUserQuery</code>)</td><td>por un nombre de texto y una versión</td></tr>
+<tr><td>Ejemplos</td><td><code>GetUser</code>, <code>UpdateProfile</code></td><td><code>users.user-deleted</code>, <code>tasks.hold-owner-tasks</code></td></tr>
+</table>
+</div>
+
+<h2>Cómo se lee <code>MessageNames/</code></h2>
+<pre><code><span class="dim">// Features/Users/MessageNames/UserEvents.cs:3-8</span>
+internal static class UserEvents
+{
+    public const string Exchange = "users.user-events";   <span class="dim">// el buzón de quien emite</span>
+    public const string Deleted = "users.user-deleted";   <span class="dim">// el nombre del mensaje</span>
+    public const int Version = 1;                         <span class="dim">// la forma del payload</span>
+}</code></pre>
+<ul>
+<li><strong>Una clase por exchange</strong> (exchange = el buzón de RabbitMQ donde se publica; lección 11). El nombre de la clase dice quién emite y qué lleva: <code>UserEvents</code>, <code>TaskCommands</code>, <code>AuthEvents</code>.</li>
+<li><strong>Evento frente a comando.</strong> Un evento es un hecho del pasado y lo emite su dueño, sin saber quién escucha: <code>users.user-deleted</code>. Un comando es un pedido a alguien en particular, en imperativo y en el buzón de quien lo recibe: <code>tasks.hold-owner-tasks</code> en <code>tasks.commands</code> (<code>docs/conventions.md:114</code>).</li>
+<li><strong>Se usan al registrar</strong>, nunca como texto suelto: <code>AddIntegrationEventPublication&lt;UserDeletedIntegrationEvent&gt;(UserEvents.Deleted, UserEvents.Version, UserEvents.Exchange)</code> (<code>UsersFeature.cs:27</code>). DUNE0030 rompe el build si aparece un literal en lugar de la constante.</li>
+</ul>
+
+<h3>Por qué Users tiene una copia de los nombres de Tasks</h3>
+<p><code>Features/Users/MessageNames/TaskCommands.cs</code> y <code>Features/Tasks/MessageNames/TaskCommands.cs</code> dicen lo mismo: <code>"tasks.hold-owner-tasks"</code>. No es un descuido. Tasks corre en otro programa, compilado aparte (lección 14), y Users no puede usar su código. Lo único que los une es el texto: "el contrato entre despliegues es el texto" (<code>docs/conventions.md:113</code>). Lo mismo pasa con el payload: cada lado tiene su propio record <code>UserDeletedIntegrationEvent(string UserId, DateTimeOffset DeletedAt)</code>, uno en <code>Users/PublishUserEvents/</code> y otro en <code>Tasks/DeleteOwnedTasks/</code>, con los mismos campos.</p>
+
+<h3>Versión</h3>
+<p>Un cambio compatible (un campo opcional nuevo) sigue en la misma versión. Uno incompatible (renombrar o sacar un campo) es un tipo nuevo con la versión siguiente, que se emite junto al viejo mientras alguien siga consumiendo el viejo (<code>docs/conventions.md:111</code>). Si no, el otro lado recibe un JSON que no entiende.</p>
+
+<h2>Por qué así</h2>
+<p>Dentro de un programa, esperar la respuesta es simple y barato: por eso el mediator. Entre dos programas, esperar ata a los dos: si Tasks está caído, Users no podría borrar una cuenta. Con el broker, Users anota el mensaje y sigue; RabbitMQ lo guarda hasta que Tasks lo procese.</p>
+<p><strong>En la industria:</strong> es la diferencia entre llamada sincrónica y mensajería asincrónica. MassTransit y NServiceBus hacen lo mismo que Wolverine en .NET; los nombres y la versión explícitos son la práctica habitual cuando los dos lados se despliegan por separado.</p>
+
+<h2>Qué mirar cuando un agente toca esto</h2>
+<ul>
+<li>Para hablar con Tasks, nada de <code>InvokeAsync</code>: va un comando por el broker. En este repo, además, un handler nunca invoca a otro handler (ADR-0004, punto 9).</li>
+<li>Un nombre del bus sale de una constante de <code>MessageNames/</code>. Un literal <code>"tasks.algo"</code> en un registro está fuera de la regla.</li>
+<li>Un PR que renombra o saca un campo de un <code>*IntegrationEvent</code> o <code>*IntegrationCommand</code> sin subir la versión rompe al otro lado, aunque los tests de un solo lado pasen.</li>
+</ul>
+
+<h2>Practicá: recordá sin mirar</h2>
+<p>Respondé sin volver a leer arriba. Equivocarte acá ayuda a recordar.</p>
+
+<div class="quiz" data-answer="3" data-id="P1">
+<p class="tipo">Recordar</p>
+<p class="q">1. ¿Cuál de estos mensajes viaja por RabbitMQ?</p>
+<div class="opts">
+<button>GetUserQuery</button>
+<button>UpdateProfileCommand</button>
+<button>UserResponse</button>
+<button>users.user-deleted</button>
+</div>
+<p class="why"><code>users.user-deleted</code> es un evento de integración: Users lo publica en <code>users.user-events</code> y Tasks lo consume. <code>GetUserQuery</code> y <code>UpdateProfileCommand</code> van por el mediator, y <code>UserResponse</code> es una respuesta HTTP.</p>
+</div>
+
+<div class="quiz" data-answer="0" data-id="P2">
+<p class="tipo">Recordar</p>
+<p class="q">2. ¿Por qué Users tiene su propia copia de <code>TaskCommands</code>, con el mismo texto que la de Tasks?</p>
+<div class="opts">
+<button>Tasks corre en otro proceso</button>
+<button>Dune prohíbe compartir constantes nunca</button>
+<button>Para tener otra versión distinta</button>
+<button>Porque Contracts no acepta strings</button>
+</div>
+<p class="why">Tasks se compila y se despliega aparte, así que Users no puede usar su código. Lo que comparten es el texto del nombre, y cada lado tiene su copia.</p>
+</div>
+
+<div class="quiz" data-answer="2" data-id="P3">
+<p class="tipo">Revisar a un agente</p>
+<p class="q">3. Un agente registró un comando nuevo así en <code>UsersFeature.cs</code>. ¿Qué está mal?</p>
+<pre><code>services.AddIntegrationCommand&lt;PauseOwnerTasksIntegrationCommand&gt;(
+    "tasks.pause-owner-tasks", 1, "tasks.commands");</code></pre>
+<div class="opts">
+<button>Debería ir por InvokeAsync directo</button>
+<button>Falta subir la versión ahora</button>
+<button>Los nombres salen de MessageNames</button>
+<button>El exchange debería ser users</button>
+</div>
+<p class="why">El nombre, la versión y el exchange salen de constantes de <code>Users/MessageNames/TaskCommands.cs</code>. DUNE0030 rechaza el literal. El exchange <code>tasks.commands</code> está bien: un comando va al buzón de quien lo recibe.</p>
+</div>
+
+<div class="quiz" data-answer="1" data-id="P4">
+<p class="tipo">Recordar</p>
+<p class="q">4. Un endpoint de Users llama a <code>InvokeAsync</code>. Más tarde, la saga del cierre manda <code>tasks.hold-owner-tasks</code>. ¿Cuál espera la respuesta en el momento?</p>
+<div class="opts">
+<button>Solo el comando de saga</button>
+<button>Solo el InvokeAsync del endpoint</button>
+<button>Los dos esperan la respuesta</button>
+<button>Ninguno de los dos espera</button>
+</div>
+<p class="why"><code>InvokeAsync</code> corre el handler en línea y devuelve su <code>ErrorOr</code>. El comando a Tasks se publica y la saga sigue; la respuesta llega después como otro mensaje, <code>tasks.owner-tasks-held</code> (lección 12).</p>
+</div>
+
+<div class="quiz" data-answer="3" data-id="P5">
+<p class="tipo">Revisar a un agente</p>
+<p class="q">5. Un agente renombró <code>UserId</code> a <code>OwnerId</code> en <code>Users/PublishUserEvents/UserDeletedIntegrationEvent.cs</code>, dejó la versión 1 y no tocó Tasks. Los tests de Users pasan. ¿Qué se rompe?</p>
+<div class="opts">
+<button>RabbitMQ rechaza el exchange al publicar</button>
+<button>El build falla por DUNE0030 ahí</button>
+<button>Nada, el nombre del mensaje sigue</button>
+<button>Tasks no entiende el mensaje nuevo</button>
+</div>
+<p class="why">Tasks sigue esperando <code>userId</code> en el JSON, con su propio record. Recibe <code>ownerId</code> y no sabe de quién borrar las tareas. Un cambio incompatible pide un tipo nuevo con versión 2, emitido junto al viejo.</p>
+</div>
+
+<div class="quiz-result"></div>
+
+<div class="source"><strong>Fuente principal</strong>
+<a href="https://wolverinefx.net/guide/messaging/message-bus.html">Wolverine: "Sending Messages with IMessageBus"</a>. Leé la parte que compara <code>InvokeAsync</code> con <code>SendAsync</code> y <code>PublishAsync</code>: son 5 minutos y es la misma diferencia de esta lección, contada por la librería.</div>
+
+<div class="ask"><strong>¿Algo no cerró?</strong>
+Preguntame en el chat. Por ejemplo: "¿qué es el outbox y por qué el evento no se publica directo?" o "¿quién recibe <code>users.user-deleted</code> en Tasks?".</div>
+
+<nav class="pager">
+<a href="0009-el-cierre-de-cuenta-y-sus-facts.html">← Lección 9</a>
+<a href="../reference/mapa.html">Mapa del curso</a>
+<span>Lección 11: RabbitMQ</span>
+</nav>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>
