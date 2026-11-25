@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>La saga orquestada</title>
+<link rel="stylesheet" href="../assets/curso.css">
+</head>
+<body>
+<main data-lesson="Lección 12 (saga orquestada)">
+
+<p class="kicker">Lección 12 de 14 · Bloque C: mensajes · 10 minutos</p>
+<h1>La saga orquestada</h1>
+<p class="win">Al terminar seguís un cierre de cuenta estado por estado en <code>AccountClosureSaga</code>, leés un <code>Handle</code> de la saga y notás cuando un agente le saca la guarda de estado o cambia el orden de los pasos.</p>
+
+<h2>Repaso</h2>
+<p>Hiciste bien la lección 11. Van dos de "Revisar a un agente" sobre RabbitMQ. La regla de las dos: <strong>la cola y el binding los declara quien consume, y la cola es de RabbitMQ, no del programa que escucha.</strong></p>
+
+<div class="quiz" data-answer="1" data-id="R-L11-P4b">
+<p class="tipo">Repaso · Revisar a un agente</p>
+<p class="q">Un agente sumó el evento <code>users.user-renamed</code> y su consumidor en Tasks, con la cola <code>tasks.user-renames</code>. Despliega el monolito el lunes y Tasks el viernes. ¿Qué pasa con los renombres de esa semana?</p>
+<div class="opts">
+<button>Esperan en la cola hasta el viernes</button>
+<button>Se pierden: no había cola ni binding</button>
+<button>Van a la DLQ de la cola</button>
+<button>Users los reintenta hasta que Tasks responda</button>
+</div>
+<p class="why"><strong>Sin binding, el exchange descarta.</strong> La cola y el binding los declara Tasks al arrancar: hasta el viernes no existen, así que no hay dónde esperar. Por eso el repo pide que el consumidor salga antes (<code>docs/architecture.md:174</code>).</p>
+</div>
+
+<div class="quiz" data-answer="0" data-id="R-L11-P3b">
+<p class="tipo">Repaso · Revisar a un agente</p>
+<p class="q">Un agente escribió: "Si el monolito se reinicia justo cuando Tasks responde <code>tasks.owner-tasks-held</code>, esa respuesta se pierde". ¿Tiene razón?</p>
+<div class="opts">
+<button>No: espera en la cola users.account-closures</button>
+<button>Sí: el monolito no la escuchaba</button>
+<button>Sí: Tasks no reintenta las respuestas</button>
+<button>No: Tasks la guarda en memoria</button>
+</div>
+<p class="why"><strong>La cola es de RabbitMQ, no del que escucha.</strong> Las respuestas al orquestador llegan a la cola <code>users.account-closures</code> (<code>docs/architecture.md:192</code>) y esperan ahí. Cuando el monolito vuelve, la saga sigue desde donde estaba. Esta lección muestra dónde guarda ese "donde estaba".</p>
+</div>
+
+<h2>La idea</h2>
+<div class="answer">
+<p>Cerrar una cuenta toca tres partes: Users, Tasks y Auth. Ninguna puede hacer todo en una transacción. La <strong>saga orquestada</strong> = un coordinador que guarda en qué paso va cada cierre, manda un comando a quien tiene que actuar y espera su respuesta, que llega como otro mensaje. Cada respuesta mueve el cierre un estado. En el repo, el coordinador es <code>AccountClosureSaga</code> y su estado es una fila de <code>users."AccountClosureSagas"</code> por cierre (<code>docs/architecture.md:181</code>).</p>
+</div>
+<p class="eq"><strong>Saga</strong> = un proceso largo hecho de pasos, cada uno en su propia transacción. <strong>Orquestador</strong> = el que dice a cada participante qué hacer y anota en qué paso va. <strong>Compensar</strong> = deshacer un paso ya hecho con otro paso.</p>
+
+<figure>
+<svg class="diagram" viewBox="0 0 760 270" role="img" aria-label="El cierre arranca en HoldingTasks y pide a Tasks retener. Con tasks.owner-tasks-held pasa a Deciding y pide a Auth decidir. Con auth.account-deleted pasa a Completed y purga. Con auth.account-closure-rejected pasa a ReleasingTasks y pide a Tasks soltar; con tasks.owner-tasks-released pasa a Rejected y el perfil vuelve a activo">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head" d="M0,0 L10,5 L0,10 z"/></marker>
+    <marker id="b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head back" d="M0,0 L10,5 L0,10 z"/></marker>
+  </defs>
+  <text class="lbl" x="100" y="26">vence la gracia (lección 13)</text>
+  <g class="node"><rect x="10" y="40" width="140" height="56" rx="6"/><text class="t" x="80" y="64">HoldingTasks</text><text class="s" x="80" y="82">pide retener a Tasks</text></g>
+  <g class="node key"><rect x="290" y="40" width="140" height="56" rx="6"/><text class="t" x="360" y="64">Deciding</text><text class="s" x="360" y="82">pide decidir a Auth</text></g>
+  <g class="node"><rect x="600" y="40" width="150" height="56" rx="6"/><text class="t" x="675" y="64">Completed</text><text class="s" x="675" y="82">purga y user-deleted</text></g>
+  <g class="node"><rect x="290" y="190" width="140" height="56" rx="6"/><text class="t" x="360" y="214">ReleasingTasks</text><text class="s" x="360" y="232">pide soltar a Tasks</text></g>
+  <g class="node"><rect x="600" y="190" width="150" height="56" rx="6"/><text class="t" x="675" y="214">Rejected</text><text class="s" x="675" y="232">perfil vuelve a activo</text></g>
+  <path class="edge" d="M150,68 L288,68" marker-end="url(#a)"/><text class="lbl" x="219" y="60">tasks.owner-tasks-held</text>
+  <path class="edge" d="M430,68 L598,68" marker-end="url(#a)"/><text class="lbl" x="514" y="60">auth.account-deleted</text><text class="lbl" x="514" y="88">pivote: Auth borró</text>
+  <path class="edge back" d="M360,96 L360,188" marker-end="url(#b)"/><text class="lbl back" x="470" y="146">auth.account-closure-rejected</text>
+  <path class="edge back" d="M430,218 L598,218" marker-end="url(#b)"/><text class="lbl back" x="514" y="210">tasks.owner-tasks-released</text>
+</svg>
+<figcaption>Los cinco estados de <code>AccountClosureState</code>. Cada flecha es una respuesta que llega por RabbitMQ; cada caja dice qué pide la saga al entrar. Abajo, el camino de compensación.</figcaption>
+</figure>
+
+<div class="scroll">
+<table>
+<tr><th>Estado</th><th>Qué pide al entrar</th><th>Sale con</th></tr>
+<tr><td><code>HoldingTasks</code></td><td><code>tasks.hold-owner-tasks</code>: Tasks retiene las tareas</td><td><code>tasks.owner-tasks-held</code> → <code>Deciding</code></td></tr>
+<tr><td><code>Deciding</code></td><td><code>auth.decide-account-closure</code>: Auth decide</td><td><code>auth.account-deleted</code> → <code>Completed</code>; <code>auth.account-closure-rejected</code> → <code>ReleasingTasks</code></td></tr>
+<tr><td><code>ReleasingTasks</code></td><td><code>tasks.release-owner-tasks</code>: Tasks suelta</td><td><code>tasks.owner-tasks-released</code> → <code>Rejected</code></td></tr>
+<tr><td><code>Completed</code></td><td>purga proyectos, claves y perfil; publica <code>users.user-deleted</code></td><td>final</td></tr>
+<tr><td><code>Rejected</code></td><td>vuelve el perfil a activo, con el motivo</td><td>final</td></tr>
+</table>
+</div>
+<p>Fuente: la tabla de <code>docs/architecture.md:183-189</code> y los <code>Handle</code> de <code>AccountClosureSaga.cs:32-78</code>.</p>
+
+<h2>Cómo se lee un <code>Handle</code> de la saga</h2>
+<pre><code><span class="dim">// Users/OrchestrateAccountClosure/AccountClosureSaga.cs:32-38</span>
+public DecideAccountClosureInfo? Handle(
+    [SagaIdentityFrom(nameof(OwnerTasksHeldIntegrationEvent.ClosureId))]   <span class="dim">// ① qué cierre</span>
+    OwnerTasksHeldIntegrationEvent held, ...) =&gt;                         <span class="dim">// ① qué respuesta</span>
+    TryMove(AccountClosureState.Deciding, ..., AccountClosureState.HoldingTasks)  <span class="dim">// ② solo desde HoldingTasks</span>
+        ? new DecideAccountClosureInfo(Id, UserId)                       <span class="dim">// ③ el comando siguiente</span>
+        : null;                                                          <span class="dim">// ② si no corresponde, nada</span></code></pre>
+<ol>
+<li><strong>Qué respuesta y de qué cierre.</strong> El tipo del parámetro dice qué respuesta atiende. <code>[SagaIdentityFrom]</code> le dice a Wolverine qué campo trae el id del cierre, para cargar la fila correcta (<a href="https://wolverinefx.net/guide/durability/sagas.html">Wolverine: Sagas</a>).</li>
+<li><strong>La guarda de estado.</strong> <code>TryMove</code> (<code>:109-123</code>) mueve solo si el estado actual está en la lista permitida. Si no, anota un log y no hace nada. Así, una respuesta repetida, vieja o de un cierre terminado no manda un segundo comando (<code>docs/architecture.md:195</code>).</li>
+<li><strong>Lo que devuelve es el comando siguiente.</strong> La saga no llama a Auth: devuelve el mensaje, y Wolverine lo manda. Si devuelve <code>null</code>, no manda nada.</li>
+</ol>
+
+<h3>Lo que hace el código generado alrededor</h3>
+<p>Igual que en la lección 7, la saga no guarda. Lo hace el código generado de este <code>Handle</code> (<code>Hosts/Monolith/Internal/Generated/WolverineHandlers/OwnerTasksHeldIntegrationEventHandler467166336.cs</code>):</p>
+<ul>
+<li><code>:43</code> abre la transacción. <code>:58</code> carga la fila con <code>FindAsync</code>; si no existe, <code>:63</code> llama a <code>NotFound</code>, que solo anota un log.</li>
+<li><code>:72</code> llama a <code>Handle</code> y <code>:76</code> encola lo que devolvió (<code>EnqueueCascadingAsync</code>) en el outbox de Wolverine.</li>
+<li><code>:89</code> suma <code>Version</code> si la fila cambió, <code>:96</code> guarda y <code>:116</code> confirma. La fila nueva y el comando siguiente quedan en la misma transacción: o están los dos, o ninguno.</li>
+</ul>
+<p>Por eso nada vive en memoria. Si el monolito se cae a mitad de un cierre, la respuesta espera en la cola, el comando sin mandar en el outbox, y el monolito nuevo sigue desde la fila. Hay un test que lo mide: <code>AccountClosureSagaTests.TheMonolithRestartsMidClosure_AndTheClosureResumesFromItsSavedState</code>.</p>
+
+<h2>Por qué así</h2>
+<p>Hasta el paso 26, los tres participantes se pasaban eventos sin coordinador (coreografía) y el estado quedaba repartido en tres tablas. Con un orquestador, un solo lugar dice en qué va cada cierre. Dos reglas de diseño: <strong>lo irreversible va último</strong> (borrar la identidad en Auth es el pivote; antes solo hay retenciones que se deshacen sin pérdida) y <strong>se compensa en orden inverso</strong>: si Auth rechaza, primero suelta Tasks y recién con su respuesta vuelve el perfil a activo (<code>docs/architecture.md:179</code> y <code>:193</code>).</p>
+<p><strong>En la industria:</strong> es el patrón Saga. Azure lo describe así: "a centralized controller, or <em>orchestrator</em>, handles all the transactions and tells the participants which operation to perform" (<a href="https://learn.microsoft.com/en-us/azure/architecture/patterns/saga">Azure: Saga</a>). MassTransit y NServiceBus tienen sagas con la misma idea: estado guardado y una transición por mensaje.</p>
+
+<h2>Qué mirar cuando un agente toca esto</h2>
+<ul>
+<li>Cada <code>Handle</code> nuevo arranca con <code>TryMove</code> y su lista de estados permitidos. Sin la guarda, una respuesta tardía repite comandos.</li>
+<li>La saga no llama a otro participante: devuelve el comando. Nada de <code>InvokeAsync</code> ni de HTTP desde un <code>Handle</code>.</li>
+<li>Un paso nuevo que no se puede deshacer va después del pivote, nunca antes. Y las compensaciones van en orden inverso, una por respuesta.</li>
+</ul>
+
+<h2>Practicá: recordá sin mirar</h2>
+<p>Respondé sin volver a leer arriba. Equivocarte acá ayuda a recordar.</p>
+
+<div class="quiz" data-answer="2" data-id="P1">
+<p class="tipo">Recordar</p>
+<p class="q">1. Un cierre está en <code>Deciding</code> y el monolito se reinicia. ¿De dónde saca la saga su estado al volver?</p>
+<div class="opts">
+<button>De la memoria del proceso</button>
+<button>De los mensajes en RabbitMQ</button>
+<button>De su fila en AccountClosureSagas</button>
+<button>Del perfil del usuario, UserProfile</button>
+</div>
+<p class="why"><strong>El estado de la saga es una fila, no memoria.</strong> Una fila de <code>users."AccountClosureSagas"</code> por cierre. El código generado la carga con <code>FindAsync</code> antes de cada <code>Handle</code> y la guarda después, en la misma transacción que el comando siguiente.</p>
+</div>
+
+<div class="quiz" data-answer="0" data-id="P2">
+<p class="tipo">Recordar</p>
+<p class="q">2. La saga está en <code>Deciding</code> y llega <code>auth.account-closure-rejected</code>. ¿Qué hace?</p>
+<div class="opts">
+<button>Pasa a ReleasingTasks y pide soltar a Tasks</button>
+<button>Pasa a Rejected y vuelve el perfil activo</button>
+<button>Pasa a Completed y purga los datos igual</button>
+<button>Lo ignora: solo espera respuestas de Tasks ahora</button>
+</div>
+<p class="why"><strong>Se compensa en orden inverso: primero suelta Tasks, después el perfil.</strong> El <code>Handle</code> del rechazo (<code>AccountClosureSaga.cs:54-64</code>) pasa a <code>ReleasingTasks</code>, guarda el motivo y devuelve <code>ReleaseOwnerTasksIntegrationCommand</code>. <code>Rejected</code> llega recién con <code>tasks.owner-tasks-released</code> (<code>:66-78</code>).</p>
+</div>
+
+<div class="quiz" data-answer="3" data-id="P3">
+<p class="tipo">Revisar a un agente</p>
+<p class="q">3. Un agente "simplificó" este <code>Handle</code>. Un cierre ya está en <code>Completed</code> y llega tarde otro <code>tasks.owner-tasks-held</code>, con otro id de mensaje. ¿Qué pasa?</p>
+<pre><code>public DecideAccountClosureInfo? Handle(... OwnerTasksHeldIntegrationEvent held, ...)
+{
+    State = AccountClosureState.Deciding;
+    return new DecideAccountClosureInfo(Id, UserId);
+}</code></pre>
+<div class="opts">
+<button>Nada: Wolverine descarta respuestas de cierres terminados</button>
+<button>El build falla porque falta el TryMove</button>
+<button>La saga se borra y responde NotFound</button>
+<button>Vuelve a Deciding y repite el comando</button>
+</div>
+<p class="why"><strong>Cada <code>Handle</code> mira primero en qué estado está.</strong> Sin <code>TryMove</code>, la respuesta vieja saca al cierre de <code>Completed</code> y manda otra vez <code>auth.decide-account-closure</code>. El inbox no lo frena: solo descarta la misma entrega dos veces, y esta tiene otro id. El test <code>AReplyForAFinishedClosure_IsIgnored_AndSendsNoSecondCommand</code> fija que no pase.</p>
+</div>
+
+<div class="quiz" data-answer="1" data-id="P4">
+<p class="tipo">Revisar a un agente</p>
+<p class="q">4. Un agente propone, "para que el cierre sea más rápido", que Auth borre la identidad primero y que Tasks retenga las tareas después. ¿Qué problema trae?</p>
+<div class="opts">
+<button>Ninguno: al final el resultado es igual</button>
+<button>Después ya no se puede volver atrás</button>
+<button>Auth no puede borrar sin perfil activo</button>
+<button>RabbitMQ no permite mandar dos comandos juntos</button>
+</div>
+<p class="why"><strong>Lo irreversible va último: es el pivote.</strong> Antes del pivote solo hay retenciones, que se deshacen sin pérdida. Un borrado no se compensa (<code>docs/architecture.md:179</code>). Con el borrado primero, si después algo obliga a echarse atrás, la identidad ya no existe.</p>
+</div>
+
+<div class="quiz" data-answer="2" data-id="P5">
+<p class="tipo">Revisar a un agente</p>
+<p class="q">5. Un agente cambió el <code>Handle</code> del rechazo: vuelve el perfil a activo enseguida y manda <code>tasks.release-owner-tasks</code> al mismo tiempo. Mientras Tasks todavía no soltó, ¿qué ve el usuario?</p>
+<div class="opts">
+<button>Nada raro: todo vuelve a la normalidad</button>
+<button>Cuenta cerrada y no puede iniciar sesión</button>
+<button>Cuenta activa, pero crear tareas da 409</button>
+<button>Un error 500 al abrir su perfil</button>
+</div>
+<p class="why"><strong>Se compensa en orden inverso: lo último que se hizo, primero.</strong> Mientras exista la retención, crear una tarea responde <code>Task.OwnerClosing</code>, un 409 (<code>Tasks/OwnerTombstones.cs:42-43</code>). Por eso la saga espera <code>tasks.owner-tasks-released</code> antes de volver el perfil a activo: nunca hay un perfil activo con la retención puesta.</p>
+</div>
+
+<div class="quiz-result"></div>
+
+<div class="source"><strong>Fuente principal</strong>
+<a href="https://learn.microsoft.com/en-us/azure/architecture/patterns/saga">Azure Architecture Center: "Saga design pattern"</a>. Leé las partes de orquestación y de transacciones compensatorias: son 10 minutos y es el mismo modelo del cierre de cuenta. Para el detalle de Wolverine, <a href="https://wolverinefx.net/guide/durability/sagas.html">Wolverine: Sagas</a>.</div>
+
+<div class="ask"><strong>¿Algo no cerró?</strong>
+Preguntame en el chat. Por ejemplo: "¿qué hace el plazo <code>AccountClosureOverdue</code>?" o "¿en qué se diferencia de la coreografía del paso 26?".</div>
+
+<nav class="pager">
+<a href="0011-rabbitmq-exchange-cola-binding.html">← Lección 11</a>
+<a href="../reference/mapa.html">Mapa del curso</a>
+<span>Lección 13: el período de gracia</span>
+</nav>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

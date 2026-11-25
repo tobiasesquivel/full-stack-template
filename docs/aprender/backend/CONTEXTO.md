@@ -69,7 +69,9 @@ Tobi las tomó en una ronda de preguntas el 2026-11-25. Están también en `NOTE
 - Lección 9 (`lessons/0009-el-cierre-de-cuenta-y-sus-facts.html`): Tobi dijo "todo bien" sin pegar la línea; quedó como 7 de 7.
 - Lección 10 (`lessons/0010-mensajes-mediator-y-broker.html`): 6 de 7. Acertó los dos repasos: permisos (segunda vez seguida con el reflejo, pasó a "sabido") y transacciones con historial. Falló P4, de "Recordar": quién espera la respuesta (`InvokeAsync` sí; un comando por el broker no).
 - Lección 11 entregada: `lessons/0011-rabbitmq-exchange-cola-binding.html` (exchange, clave de ruteo, cola, binding y DLQ con los nombres reales; por qué el mensaje sobrevive en tres tramos: outbox, cola quorum, ack al terminar; cuándo se pierde: sin binding). Repaso R-L10-P4 y R-L10-P4b, los dos sobre quién espera. En total son 7.
-- **Esperando:** el resultado de la lección 11.
+- Lección 11: Tobi dijo "todo bien sigamos" sin pegar la línea; quedó como 7 de 7. Quién espera la respuesta pasó a "sabido".
+- Lección 12 entregada: `lessons/0012-la-saga-orquestada.html` (los cinco estados de `AccountClosureSaga`, cómo se lee un `Handle`: identidad, guarda `TryMove` y comando devuelto; el código generado de la saga; pivote al final y compensación en orden inverso). Repaso R-L11-P4b (orden de despliegue) y R-L11-P3b (la respuesta espera en `users.account-closures`). En total son 7.
+- **Esperando:** el resultado de la lección 12.
 - Permisos: dejá una pregunta espaciada en la lección 13 o 14.
 - Se corrigió una cita de la lección 4: `RolePermissions.cs:86-113` era `:10-37`. Ojo con `cat -n` de varios archivos juntos: numera seguido y da líneas falsas.
 - No probado en ninguna máquina: qué excepción tira `InvokeAsync` si falta `AddMediatorHandler`, y en qué momento falla el modo `Static` si falta el código generado. La lección 3 no lo afirma. La notebook no puede probarlo: le falta el SDK 10.0.401 que pide `global.json` y Docker no estaba corriendo.
@@ -80,7 +82,7 @@ Tobi las tomó en una ronda de preguntas el 2026-11-25. Están también en `NOTE
 
 Estos datos ya están verificados contra el código. Volvé a confirmar cada número de línea antes de citarlo, porque el repo cambia.
 
-**Lección 12, la saga orquestada:** seguir `AccountClosureSaga` estado por estado. Los comandos y respuestas por el broker (`tasks.hold-owner-tasks` → `tasks.owner-tasks-held`) sirven para repasar quién espera (lecciones 10 y 11). Topología del bus ya verificada: `Infrastructure/Messaging/MessagingExtension.cs:89-90` (exchange direct y clave = nombre), `:145-152` (cola quorum, single active consumer, binding y DLQ), `:82` (`ProcessInline`, ack al terminar), `:110` y `:115-124` (las sagas usan el inbox y el outbox durables de Wolverine).
+**Lección 13, el período de gracia:** `StartAccountClosure` abre la saga (`Users/StartAccountClosure/StartAccountClosure.cs:48` llama a `AccountClosureSaga.Open`). Fuentes: `docs/architecture.md`, subsección "Período de gracia e historial", y `docs/evolucion/investigacion/paso-28-*`. El plazo `AccountClosureOverdue` (`AccountClosureSaga.cs:80-91`) y los mensajes programados de Wolverine sirven para explicar cómo se espera días sin memoria. Código generado de la saga ya verificado: `OwnerTasksHeldIntegrationEventHandler467166336.cs` líneas 43 (transacción), 58 (`FindAsync`), 63 (`NotFound`), 72 (`Handle`), 76 (`EnqueueCascadingAsync`), 89 (`Version`), 96 (guarda) y 116 (confirma).
 
 **Lecciones 12 a 14:** están en el mapa. Para cada una:
 1. Leé el código.
