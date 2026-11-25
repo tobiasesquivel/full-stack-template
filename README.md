@@ -8,7 +8,7 @@
 Template full-stack con ASP.NET Core 10, Angular 22 y PostgreSQL. Trae registro, sesión con cookie, perfil y tareas personales, organizados como vertical slices dentro de features que funcionan como módulos profundos.
 
 > [!NOTE]
-> Es un laboratorio de aprendizaje. El dominio es simple a propósito: el foco es llevar el backend, paso a paso, hasta una arquitectura .NET empresarial completa. La hoja de ruta está en [plan.md](docs/evolucion/plan.md) y el estado de cada paso en [progreso.md](docs/evolucion/progreso.md).
+> Es un laboratorio de aprendizaje. El dominio es simple a propósito: el foco es llevar el backend, paso a paso, hasta una arquitectura .NET empresarial completa. La hoja de ruta está en [plan.md](docs/evolucion/plan.md), el estado de cada paso en [progreso.md](docs/evolucion/progreso.md) y la última línea base verificada en [linea-base.md](docs/evolucion/linea-base.md).
 
 ## Qué trae
 
