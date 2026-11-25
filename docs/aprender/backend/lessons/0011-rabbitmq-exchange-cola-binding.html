@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RabbitMQ por dentro</title>
+<link rel="stylesheet" href="../assets/curso.css">
+</head>
+<body>
+<main data-lesson="Lección 11 (RabbitMQ)">
+
+<p class="kicker">Lección 11 de 14 · Bloque C: mensajes · 10 minutos</p>
+<h1>RabbitMQ: exchange, cola y binding</h1>
+<p class="win">Al terminar seguís <code>users.user-deleted</code> desde Users hasta Tasks por las cuatro piezas de RabbitMQ, explicás por qué el mensaje sobrevive si Tasks está caído y notás cuando un agente hace que un mensaje se pierda.</p>
+
+<h2>Repaso</h2>
+<p>En la lección 10 fallaste P4: quién espera la respuesta. Va dos veces, de dos lados. La regla: <strong>por el broker nadie espera. Si hay respuesta, llega después, como otro mensaje.</strong></p>
+
+<div class="quiz" data-answer="2" data-id="R-L10-P4">
+<p class="tipo">Repaso · Recordar</p>
+<p class="q">En el cierre de cuenta, la saga manda el comando <code>tasks.hold-owner-tasks</code> a Tasks. ¿Cuándo le llega la respuesta a la saga?</p>
+<div class="opts">
+<button>En la misma llamada, como InvokeAsync</button>
+<button>Nunca: los comandos no tienen respuesta</button>
+<button>Más tarde, como otro mensaje: tasks.owner-tasks-held</button>
+<button>Cuando el endpoint ya devolvió 202</button>
+</div>
+<p class="why"><strong>Por el broker nadie espera.</strong> La saga publica el comando y sigue. Tasks lo procesa cuando puede y publica su propio mensaje, <code>tasks.owner-tasks-held</code>, que la saga recibe más tarde (lección 12). <code>InvokeAsync</code> es el único camino que espera: el del mediator.</p>
+</div>
+
+<div class="quiz" data-answer="0" data-id="R-L10-P4b">
+<p class="tipo">Repaso · Revisar a un agente</p>
+<p class="q">Un agente escribió en su PR: "Con Tasks caído, borrar la cuenta da error, porque Users espera que Tasks retenga las tareas". ¿Tiene razón?</p>
+<div class="opts">
+<button>No: responde 202 y el cierre espera</button>
+<button>Sí: responde 503 hasta que Tasks vuelva</button>
+<button>Sí: responde 500 porque InvokeAsync falla ahí</button>
+<button>No: borra la cuenta y deja tareas</button>
+</div>
+<p class="why"><strong>Users no espera a Tasks: le deja un mensaje.</strong> Con Tasks caído, "borrar la cuenta responde 202: el cierre espera en <code>closing</code> hasta que Tasks vuelve, retiene las tareas y Auth decide" (<code>docs/architecture.md:90</code>). El comando espera en la cola de Tasks. Esta lección muestra esa cola.</p>
+</div>
+
+<h2>La idea</h2>
+<div class="answer">
+<p>RabbitMQ tiene cuatro piezas. <strong>Quien publica</strong> deja el mensaje en un <strong>exchange</strong> con una <strong>clave de ruteo</strong>. <strong>Quien consume</strong> tiene una <strong>cola</strong> y un <strong>binding</strong> que dice "lo que llegue a ese exchange con esa clave, ponelo en mi cola". Si ningún binding coincide, el mensaje se pierde. Si coincide, espera en la cola hasta que el consumidor confirma que terminó.</p>
+</div>
+<p class="eq"><strong>Exchange</strong> = el buzón donde se publica; reparte, no guarda. <strong>Clave de ruteo</strong> = la etiqueta de texto que viaja con cada mensaje. <strong>Cola</strong> = la fila donde los mensajes esperan a su consumidor. <strong>Binding</strong> = la regla que une un exchange con una cola por una clave.</p>
+
+<figure>
+<svg class="diagram" viewBox="0 0 760 260" role="img" aria-label="Users publica en el exchange users.user-events con la clave users.user-deleted. Un binding con esa clave lo lleva a la cola tasks.user-deletions. La cola lo entrega a Tasks, que confirma con un ack al terminar. Un mensaje que falla siempre va a la cola tasks.user-deletions.dlq">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head" d="M0,0 L10,5 L0,10 z"/></marker>
+    <marker id="b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head back" d="M0,0 L10,5 L0,10 z"/></marker>
+  </defs>
+  <rect class="group" x="175" y="30" width="385" height="220" rx="8"/>
+  <text class="lbl" x="367" y="50">RabbitMQ (otro programa)</text>
+  <g class="node"><rect x="10" y="95" width="120" height="60" rx="6"/><text class="t" x="70" y="120">Users</text><text class="s" x="70" y="138">outbox + relay</text></g>
+  <g class="node"><rect x="200" y="95" width="140" height="60" rx="6"/><text class="t" x="270" y="120">users.user-events</text><text class="s" x="270" y="138">exchange direct</text></g>
+  <g class="node key"><rect x="400" y="95" width="145" height="60" rx="6"/><text class="t" x="472" y="120">tasks.user-deletions</text><text class="s" x="472" y="138">cola quorum</text></g>
+  <g class="node"><rect x="400" y="195" width="145" height="45" rx="6"/><text class="t" x="472" y="214">DLQ</text><text class="s" x="472" y="230">tasks.user-deletions.dlq</text></g>
+  <g class="node ext"><rect x="600" y="95" width="150" height="60" rx="6"/><text class="t" x="675" y="120">Tasks</text><text class="s" x="675" y="138">UserDeletionsConsumer</text></g>
+  <path class="edge" d="M130,115 L198,115" marker-end="url(#a)"/><text class="lbl" x="164" y="107">publica</text>
+  <path class="edge" d="M340,125 L398,125" marker-end="url(#a)"/><text class="lbl" x="369" y="117">binding</text>
+  <text class="lbl" x="369" y="176">clave: users.user-deleted</text>
+  <path class="edge" d="M545,112 L598,112" marker-end="url(#a)"/><text class="lbl" x="571" y="87">entrega</text>
+  <path class="edge back" d="M598,140 L547,140" marker-end="url(#b)"/><text class="lbl back" x="605" y="172">ack al terminar</text>
+  <path class="edge" d="M472,155 L472,193" marker-end="url(#a)"/><text class="lbl" x="520" y="185">falla siempre</text>
+</svg>
+<figcaption>El viaje de <code>users.user-deleted</code>. Users solo conoce el exchange; la cola, el binding y la DLQ los declara Tasks. Borde punteado: otro programa.</figcaption>
+</figure>
+
+<h2>Cada pieza, en el código</h2>
+<div class="scroll">
+<table>
+<tr><th>Pieza</th><th>En el repo</th><th>Quién la declara</th><th>Dónde</th></tr>
+<tr><td>Exchange</td><td><code>users.user-events</code>, tipo <code>direct</code></td><td>quien publica (Users)</td><td><code>MessagingExtension.cs:89</code></td></tr>
+<tr><td>Clave de ruteo</td><td><code>users.user-deleted</code> = el nombre del mensaje</td><td>quien publica</td><td><code>MessagingExtension.cs:90</code></td></tr>
+<tr><td>Cola</td><td><code>tasks.user-deletions</code>, quorum, un consumidor activo</td><td>quien consume (Tasks)</td><td><code>MessagingExtension.cs:145-149</code></td></tr>
+<tr><td>Binding</td><td><code>users.user-events</code> + <code>users.user-deleted</code> → <code>tasks.user-deletions</code></td><td>quien consume</td><td><code>MessagingExtension.cs:150</code></td></tr>
+<tr><td>DLQ</td><td><code>tasks.user-deletions.dlq</code></td><td>quien consume</td><td><code>MessagingExtension.cs:152</code></td></tr>
+</table>
+</div>
+<p>Las features no escriben nada de esto a mano. Users registra que publica (<code>UsersFeature.cs:27</code>) y Tasks registra que consume, con el nombre de su cola (<code>TasksFeature.cs:48</code>, que usa <code>OwnerTombstones.Consumer</code> = <code>"tasks.user-deletions"</code>, <code>OwnerTombstones.cs:13</code>). <code>Infrastructure/Messaging/MessagingExtension.cs</code> traduce esos registros a exchange, cola y binding al arrancar.</p>
+<p><strong>Direct</strong> = el exchange compara la clave del mensaje con la del binding, exacta: "abc" solo coincide con "abc" (<a href="https://www.rabbitmq.com/docs/exchanges">RabbitMQ: exchanges</a>). Por eso un evento nuevo de Users no llega a una cola que no lo pidió.</p>
+
+<h2>Por qué el mensaje sobrevive</h2>
+<p>Tres tramos, y en cada uno alguien guarda el mensaje hasta que el siguiente confirma:</p>
+<ol>
+<li><strong>Users → RabbitMQ.</strong> Users no publica directo: guarda el evento en su outbox (= una tabla de mensajes pendientes) en la misma transacción que el borrado. Un relay lo publica y marca la fila como hecha solo cuando RabbitMQ confirmó que lo guardó (publisher confirms, <code>MessagingExtension.cs:75-76</code>). Con RabbitMQ caído, la fila queda pendiente (<code>docs/architecture.md:116</code>).</li>
+<li><strong>Dentro de RabbitMQ.</strong> La cola es quorum: "Quorum queues must be durable" y se replican; una cola durable "will survive a broker restart" (<a href="https://www.rabbitmq.com/docs/queues">RabbitMQ: colas</a>). Tasks puede estar caído horas: la cola existe igual, porque es de RabbitMQ, no de Tasks.</li>
+<li><strong>RabbitMQ → Tasks.</strong> Tasks confirma (ack = "ya terminé") recién cuando el handler terminó (<code>ProcessInline</code>, <code>MessagingExtension.cs:82</code>). Si se cae antes, RabbitMQ lo reentrega: "any delivery (message) that was not acked is automatically requeued" (<a href="https://www.rabbitmq.com/docs/confirms">RabbitMQ: confirms</a>). Si llega dos veces, el inbox de Tasks descarta la copia (<code>docs/architecture.md:171</code>).</li>
+</ol>
+
+<h3>Cuándo se pierde</h3>
+<p>Cuando no hay binding. Un mensaje que ningún binding espera "is discarded" (<a href="https://www.rabbitmq.com/docs/publishers">RabbitMQ: publishers</a>). Pasa en dos casos: el nombre cambió de un solo lado, o el que publica sale antes de que exista la cola. Por eso el repo pide que Tasks salga antes que el monolito: "Un <code>users.user-deleted</code> publicado antes de que exista la cola se pierde y deja tareas huérfanas" (<code>docs/architecture.md:174</code>).</p>
+
+<h2>Por qué así</h2>
+<p>El que publica no conoce a nadie: deja el mensaje en su buzón y sigue. Cada consumidor elige qué escuchar con su binding y tiene su propia cola, así un consumidor lento o caído no frena a los demás. El costo: el contrato es un texto, y si no coincide, RabbitMQ no avisa.</p>
+<p><strong>En la industria:</strong> exchange, cola y binding son el modelo de AMQP 0-9-1, el protocolo de RabbitMQ. Azure Service Bus lo llama topic y subscription; Kafka usa otro modelo, con topics y particiones.</p>
+
+<h2>Qué mirar cuando un agente toca esto</h2>
+<ul>
+<li>Un consumidor nuevo registra su propia cola, con un nombre de su feature (<code>tasks.…</code>). Nunca reusa la cola de otro.</li>
+<li>Cambiar un nombre o una clave de <code>MessageNames/</code> de un solo lado compila y pasa los tests de ese lado, pero los mensajes se pierden. Pedí ver los dos lados en el mismo PR.</li>
+<li>El ack va después del trabajo. Si un agente propone confirmar al recibir "para ir más rápido", un corte a mitad pierde el mensaje.</li>
+</ul>
+
+<h2>Practicá: recordá sin mirar</h2>
+<p>Respondé sin volver a leer arriba. Equivocarte acá ayuda a recordar.</p>
+
+<div class="quiz" data-answer="1" data-id="P1">
+<p class="tipo">Recordar</p>
+<p class="q">1. ¿Dónde deja Users el evento <code>users.user-deleted</code> cuando lo publica?</p>
+<div class="opts">
+<button>La cola tasks.user-deletions</button>
+<button>El exchange users.user-events</button>
+<button>El proceso Tasks</button>
+<button>La DLQ tasks.user-deletions.dlq</button>
+</div>
+<p class="why"><strong>Quien publica conoce el exchange, no las colas.</strong> Users publica en <code>users.user-events</code> con la clave <code>users.user-deleted</code> (<code>MessagingExtension.cs:89-90</code>). El binding de Tasks lo lleva a su cola.</p>
+</div>
+
+<div class="quiz" data-answer="3" data-id="P2">
+<p class="tipo">Recordar</p>
+<p class="q">2. ¿Qué hace que un mensaje de <code>users.user-events</code> termine en la cola <code>tasks.user-deletions</code>?</p>
+<div class="opts">
+<button>Que Users conozca la cola de Tasks</button>
+<button>Que el mensaje tenga versión 1 siempre</button>
+<button>Que Tasks lea todo el exchange entero</button>
+<button>Un binding de Tasks con esa clave</button>
+</div>
+<p class="why"><strong>Lo que une exchange y cola es el binding, y lo declara quien consume.</strong> Tasks ata su cola a <code>users.user-events</code> con la clave <code>users.user-deleted</code> (<code>MessagingExtension.cs:150</code>). El exchange direct compara las dos claves, exactas.</p>
+</div>
+
+<div class="quiz" data-answer="0" data-id="P3">
+<p class="tipo">Recordar</p>
+<p class="q">3. Tasks está caído una hora. En ese rato termina el cierre de una cuenta y Users publica <code>users.user-deleted</code>. ¿Qué pasa con el mensaje?</p>
+<div class="opts">
+<button>Espera en la cola hasta que Tasks vuelve</button>
+<button>Se pierde porque nadie lo está escuchando ahora</button>
+<button>Va a la DLQ después de tres intentos</button>
+<button>Queda en el outbox de Users hasta mañana</button>
+</div>
+<p class="why"><strong>La cola es de RabbitMQ, no de Tasks: existe aunque Tasks esté caído.</strong> RabbitMQ confirmó, así que el relay de Users ya marcó la fila. El mensaje espera en <code>tasks.user-deletions</code>, una cola durable, y Tasks lo recibe cuando vuelve.</p>
+</div>
+
+<div class="quiz" data-answer="2" data-id="P4">
+<p class="tipo">Revisar a un agente</p>
+<p class="q">4. Un agente cambió en <code>Users/MessageNames/UserEvents.cs</code> el texto de <code>Deleted</code> a <code>"users.user-removed"</code>, "para que se lea mejor". No tocó Tasks. Compila y los tests de Users pasan. ¿Qué pasa en producción?</p>
+<div class="opts">
+<button>RabbitMQ rechaza la publicación y Users reintenta</button>
+<button>Tasks recibe el mensaje y lo ignora</button>
+<button>Se descarta: ningún binding tiene esa clave</button>
+<button>Tasks lo recibe igual por el exchange</button>
+</div>
+<p class="why"><strong>Una clave que ningún binding espera = mensaje perdido.</strong> El binding de Tasks sigue esperando <code>users.user-deleted</code>. El exchange direct no encuentra a quién dárselo y lo descarta: la cuenta se borra y sus tareas quedan huérfanas. Ni los tests de Users ni RabbitMQ lo frenan.</p>
+</div>
+
+<div class="quiz" data-answer="1" data-id="P5">
+<p class="tipo">Revisar a un agente</p>
+<p class="q">5. Un agente propone que Tasks confirme (ack) cada mensaje apenas lo recibe, antes de borrar las tareas, "para vaciar la cola más rápido". Tasks se cae a mitad de un borrado. ¿Qué pasa?</p>
+<div class="opts">
+<button>RabbitMQ lo reentrega y el inbox frena</button>
+<button>El mensaje se pierde y quedan tareas</button>
+<button>El mensaje termina en la DLQ igual</button>
+<button>Users publica otra vez el mismo evento</button>
+</div>
+<p class="why"><strong>El ack dice "ya terminé": va después del trabajo, nunca antes.</strong> Con el ack adelantado, RabbitMQ ya dio el mensaje por entregado y no lo reentrega. La transacción de Tasks no se confirmó, así que las tareas siguen ahí. Hoy Tasks confirma al terminar el handler (<code>MessagingExtension.cs:82</code>).</p>
+</div>
+
+<div class="quiz-result"></div>
+
+<div class="source"><strong>Fuente principal</strong>
+<a href="https://www.rabbitmq.com/docs/exchanges">RabbitMQ: "Exchanges"</a>. Leé el principio y la parte del tipo direct: son 5 minutos y es el mismo modelo de esta lección, contado por RabbitMQ.</div>
+
+<div class="ask"><strong>¿Algo no cerró?</strong>
+Preguntame en el chat. Por ejemplo: "¿qué hace el inbox cuando el mismo mensaje llega dos veces?" o "¿por qué la cola tiene un solo consumidor activo?".</div>
+
+<nav class="pager">
+<a href="0010-mensajes-mediator-y-broker.html">← Lección 10</a>
+<a href="../reference/mapa.html">Mapa del curso</a>
+<span>Lección 12: la saga orquestada</span>
+</nav>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

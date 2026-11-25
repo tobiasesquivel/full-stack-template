@@ -67,8 +67,10 @@ Tobi las tomó en una ronda de preguntas el 2026-11-25. Están también en `NOTE
 - Patrón: Tobi acierta las preguntas de "Recordar" y falla las de "Revisar a un agente" cuando la consecuencia es indirecta. Las explicaciones de la lección 8 en adelante abren con una regla corta en negrita, y los repasos la repiten.
 - Lección 8 (`lessons/0008-la-feature-por-dentro.html`): 5 de 7. Acertó los dos repasos de transacciones. Falló P3 (regla compartida → `Domain/`) y P4 (permisos, por cuarta vez: una ruta con `{authId}` necesita `CanAccessAsync`). Con permisos acierta solo si la pregunta nombra el permiso; la lección 9 le da un reflejo para revisar ("si la ruta trae el id de algo con dueño…").
 - Lección 9 (`lessons/0009-el-cierre-de-cuenta-y-sus-facts.html`): Tobi dijo "todo bien" sin pegar la línea; quedó como 7 de 7.
-- Lección 10 entregada: `lessons/0010-mensajes-mediator-y-broker.html` (bloque C: mediator frente a broker, `MessageNames/`, evento frente a comando, copias de nombres entre Users y Tasks, versión). Repaso R-L8-P4 (permisos, espaciado) y R-L9-P4. En total son 7.
-- **Esperando:** el resultado de la lección 10.
+- Lección 10 (`lessons/0010-mensajes-mediator-y-broker.html`): 6 de 7. Acertó los dos repasos: permisos (segunda vez seguida con el reflejo, pasó a "sabido") y transacciones con historial. Falló P4, de "Recordar": quién espera la respuesta (`InvokeAsync` sí; un comando por el broker no).
+- Lección 11 entregada: `lessons/0011-rabbitmq-exchange-cola-binding.html` (exchange, clave de ruteo, cola, binding y DLQ con los nombres reales; por qué el mensaje sobrevive en tres tramos: outbox, cola quorum, ack al terminar; cuándo se pierde: sin binding). Repaso R-L10-P4 y R-L10-P4b, los dos sobre quién espera. En total son 7.
+- **Esperando:** el resultado de la lección 11.
+- Permisos: dejá una pregunta espaciada en la lección 13 o 14.
 - Se corrigió una cita de la lección 4: `RolePermissions.cs:86-113` era `:10-37`. Ojo con `cat -n` de varios archivos juntos: numera seguido y da líneas falsas.
 - No probado en ninguna máquina: qué excepción tira `InvokeAsync` si falta `AddMediatorHandler`, y en qué momento falla el modo `Static` si falta el código generado. La lección 3 no lo afirma. La notebook no puede probarlo: le falta el SDK 10.0.401 que pide `global.json` y Docker no estaba corriendo.
 - El mapa del curso ya responde corto todas las preguntas iniciales de Tobi: closure, `ClosureOwner`, `IOwnedResource`, `AccountClosureFacts`, `MessageNames`, orquestar, saga, RabbitMQ, `Hosts/` e `Infrastructure/`. Las lecciones las profundizan.
@@ -78,7 +80,7 @@ Tobi las tomó en una ronda de preguntas el 2026-11-25. Están también en `NOTE
 
 Estos datos ya están verificados contra el código. Volvé a confirmar cada número de línea antes de citarlo, porque el repo cambia.
 
-**Lección 11, RabbitMQ:** exchange, cola, binding y clave de ruteo, con los nombres reales (`users.user-events`, `users.user-deleted`, cola `tasks.user-deletions` en `Tasks/OwnerTombstones.cs:13`). Fuentes: `docs/evolucion/investigacion/paso-25-broker-wolverine.md`, `docs/architecture.md` sección "Bus" y [RabbitMQ: colas](https://www.rabbitmq.com/docs/queues). El outbox (por qué el evento no se publica directo) quedó como pregunta abierta en la lección 10.
+**Lección 12, la saga orquestada:** seguir `AccountClosureSaga` estado por estado. Los comandos y respuestas por el broker (`tasks.hold-owner-tasks` → `tasks.owner-tasks-held`) sirven para repasar quién espera (lecciones 10 y 11). Topología del bus ya verificada: `Infrastructure/Messaging/MessagingExtension.cs:89-90` (exchange direct y clave = nombre), `:145-152` (cola quorum, single active consumer, binding y DLQ), `:82` (`ProcessInline`, ack al terminar), `:110` y `:115-124` (las sagas usan el inbox y el outbox durables de Wolverine).
 
 **Lecciones 12 a 14:** están en el mapa. Para cada una:
 1. Leé el código.
