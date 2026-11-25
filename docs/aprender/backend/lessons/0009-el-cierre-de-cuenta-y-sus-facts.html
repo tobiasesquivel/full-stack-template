@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>El cierre de cuenta</title>
+<link rel="stylesheet" href="../assets/curso.css">
+</head>
+<body>
+<main data-lesson="Lección 9 (cierre de cuenta)">
+
+<p class="kicker">Lección 9 de 14 · Bloque B: la feature · 10 minutos</p>
+<h1>El cierre de cuenta y sus facts</h1>
+<p class="win">Al terminar podés contar el cierre de cuenta estado por estado, decir quién escribe cada hecho del historial y notar cuando un agente intenta cambiar el historial o saltear un estado.</p>
+
+<h2>Repaso</h2>
+<p>Las dos que fallaste en la lección 8. Para permisos, esta es la regla que conviene usar como reflejo al revisar: <strong>si la ruta trae el id de algo con dueño, el handler lee eso, averigua el dueño y llama a <code>CanAccessAsync</code>.</strong></p>
+
+<div class="quiz" data-answer="1" data-id="R-L8-P3">
+<p class="tipo">Repaso · Revisar a un agente</p>
+<p class="q">Dos slices de Users necesitan la misma regla nueva: "un perfil con un cierre en curso no puede cambiar su nombre". Un agente copió el mismo <code>if</code> en los dos handlers. ¿Qué le pedís?</p>
+<div class="opts">
+<button>Que la ponga en Contracts</button>
+<button>Que la mueva a Domain</button>
+<button>Que la deje copiada así</button>
+<button>Que la pase al endpoint</button>
+</div>
+<p class="why">Una regla que comparten varias slices no se copia: baja al dominio, por ejemplo como un método de <code>UserProfile</code> (<code>docs/conventions.md:20</code>). <code>Contracts/</code> es para lo que usa otra feature, no varias slices de la misma.</p>
+</div>
+
+<div class="quiz" data-answer="3" data-id="R-L8-P4">
+<p class="tipo">Repaso · Revisar a un agente</p>
+<p class="q">Un agente creó <code>GET /users/closures/{closureId}/reminders</code>. El handler lee los recordatorios de ese cierre y los devuelve. ¿Qué falta?</p>
+<div class="opts">
+<button>Registrar el handler como Atomic ahora</button>
+<button>Mover closureId al cuerpo del pedido</button>
+<button>Agregar un validador del closureId nuevo</button>
+<button>Leer el dueño y llamar CanAccessAsync</button>
+</div>
+<p class="why">La ruta trae el id de algo con dueño: un cierre. Entonces el handler busca de quién es el cierre (404 si no existe), lo envuelve en <code>ClosureOwner</code> y llama a <code>CanAccessAsync(CallerId, owner, UserPermissions.Read)</code>, igual que <code>GetAccountClosure</code>.</p>
+</div>
+
+<h2>La idea</h2>
+<div class="answer">
+<p>El cierre de cuenta se guarda de dos formas a la vez. El <strong>estado</strong> = cómo está ahora, una columna de <code>UserProfile</code> que cambia. El <strong>historial</strong> = todo lo que pasó, filas que solo se agregan y nunca se tocan. El estado responde "¿se puede cancelar?"; el historial responde "¿quién pidió esto y cuándo?".</p>
+</div>
+
+<p class="eq"><strong>Estado</strong> = la foto de hoy. <strong>Historial</strong> = el libro de actas: cada hecho se anota con fecha y firma, y no se borra ni se corrige.</p>
+
+<h2>Los estados</h2>
+<figure>
+<svg class="diagram" viewBox="0 0 720 270" role="img" aria-label="Una cuenta activa programa un cierre y pasa a Scheduled; desde Scheduled puede cancelarse y volver a activa, o vencer la gracia y pasar a Closing; desde Closing Auth puede rechazar y vuelve a activa, o se completa y el perfil se borra">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head" d="M0,0 L10,5 L0,10 z"/></marker>
+    <marker id="b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head back" d="M0,0 L10,5 L0,10 z"/></marker>
+  </defs>
+  <g class="node"><rect x="10" y="100" width="150" height="56" rx="6"/><text class="t" x="85" y="124">Activa</text><text class="s" x="85" y="142">None, Cancelled, Rejected</text></g>
+  <g class="node key"><rect x="220" y="100" width="130" height="56" rx="6"/><text class="t" x="285" y="124">Scheduled</text><text class="s" x="285" y="142">período de gracia</text></g>
+  <g class="node key"><rect x="420" y="100" width="130" height="56" rx="6"/><text class="t" x="485" y="124">Closing</text><text class="s" x="485" y="142">Tasks y Auth deciden</text></g>
+  <g class="node ext"><rect x="600" y="100" width="110" height="56" rx="6"/><text class="t" x="655" y="124">Borrada</text><text class="s" x="655" y="142">perfil purgado</text></g>
+  <path class="edge" d="M160,118 L218,118" marker-end="url(#a)"/><text class="lbl" x="189" y="92">pide cierre</text>
+  <path class="edge" d="M350,118 L418,118" marker-end="url(#a)"/><text class="lbl" x="384" y="92">vence la gracia</text>
+  <path class="edge" d="M550,118 L598,118" marker-end="url(#a)"/><text class="lbl" x="574" y="92">se completa</text>
+  <path class="edge back" d="M285,156 Q185,215 90,158" marker-end="url(#b)"/><text class="lbl back" x="185" y="205">cancela</text>
+  <path class="edge back" d="M485,156 Q285,280 80,158" marker-end="url(#b)"/><text class="lbl back" x="285" y="245">Auth rechaza</text>
+</svg>
+<figcaption>Gris: el camino hacia el borrado. Naranja punteado: las dos vueltas a "activa". Borde fuerte: los dos estados de un cierre en curso, los únicos que la respuesta muestra como <code>scheduled</code> y <code>closing</code> (<code>UsersModule.cs:60-65</code>).</figcaption>
+</figure>
+
+<p>Cada flecha es un método de <code>UserProfile</code> (<code>Domain/UserProfile.cs:25-67</code>): <code>ScheduleClosure</code>, <code>WithdrawClosure</code>, <code>RequestClosure</code> y <code>RejectClosure</code>. Cada uno revisa el estado actual y devuelve <code>false</code> si la flecha no sale de ahí. Por ejemplo, <code>WithdrawClosure</code> solo cancela desde <code>Scheduled</code> (línea 40). Ese <code>false</code> es el 409 <code>User.ClosureNotCancellable</code> que viste en la lección 5.</p>
+<p>Así la entidad protege sus reglas: el estado tiene <code>private set</code>, y nadie lo cambia sin pasar por un método que conoce las flechas permitidas (<code>docs/conventions.md:21</code>).</p>
+
+<h2>El historial: siete hechos</h2>
+<p>Los hechos (<em>facts</em>) son constantes de <code>Domain/AccountClosureFacts.cs</code>. Cada uno lo escribe una slice distinta, con quién lo hizo en <code>Actor</code>:</p>
+<div class="scroll">
+<table>
+<tr><th>Hecho</th><th>Cuándo</th><th>Lo escribe</th><th><code>Actor</code></th></tr>
+<tr><td><code>requested</code></td><td>alguien pide el cierre</td><td><code>DeleteUserCommandHandler.cs:69</code></td><td><code>CallerId</code> (quién pide)</td></tr>
+<tr><td><code>reminder-sent</code></td><td>recordatorio durante la gracia</td><td><code>RemindAccountClosure.cs:34</code></td><td><code>system</code></td></tr>
+<tr><td><code>cancelled</code></td><td>alguien cancela</td><td><code>WithdrawAccountClosureCommandHandler.cs:62</code></td><td><code>CallerId</code> (quién pide)</td></tr>
+<tr><td><code>grace-expired</code> y <code>closure-started</code></td><td>vence la gracia</td><td><code>StartAccountClosure.cs:46-47</code></td><td><code>system</code></td></tr>
+<tr><td><code>completed</code> o <code>rejected</code></td><td>termina el cierre</td><td><code>AccountClosureSteps.cs:35</code> y <code>:44</code></td><td><code>system</code></td></tr>
+</table>
+</div>
+<p>Si un SuperAdmin cierra la cuenta de Alice, el hecho <code>requested</code> queda firmado con el id del SuperAdmin, no con el de Alice. Lo prueba <code>DeleteUserTests.ASuperAdminClosingAnotherAccount_GetsTheLocationOfThatUser_AndIsRecordedAsWhoAsked</code>.</p>
+
+<h3>Tres reglas que hacen que solo crezca</h3>
+<ol class="flow">
+  <li><span class="where">Domain/AccountClosureHistoryEntry.cs:5-17</span>
+    La entidad implementa <code>IAppendOnly</code> y sus propiedades son <code>init</code>: no se pueden cambiar después de crear la fila. DUNE0026 ("Cambio o borrado de una fila append-only") rompe el build ante un <code>Update</code> o un <code>Remove</code>.</li>
+  <li><span class="where">Persistence/AccountClosureHistory.cs:20-26</span>
+    Escribe con <code>INSERT … ON CONFLICT … DO NOTHING</code>. Si el mismo hecho llega dos veces (un mensaje repetido), la segunda no agrega nada.</li>
+  <li><span class="where">Persistence/AccountClosureHistory.cs:17-18</span>
+    Si no hay una transacción abierta, tira una excepción: el hecho se guarda en la misma transacción que el cambio de estado que registra. O quedan los dos, o ninguno. Es la lección 7 aplicada.</li>
+</ol>
+
+<h2>Por qué así</h2>
+<p>El estado solo no alcanza para auditar: después de un "cancelado" no sabés quién pidió el cierre ni cuándo llegaron los recordatorios. El historial solo tampoco alcanza para decidir rápido: para saber si se puede cancelar tendrías que recorrer todos los hechos. Por eso están los dos, y se escriben juntos. Según <code>CONTEXT.md</code>, el historial "sobrevive al borrado de la cuenta".</p>
+<p><strong>En la industria:</strong> un log que solo crece es la base del <em>audit log</em> y, llevado al extremo, de <em>event sourcing</em> (el estado se calcula desde los hechos). Este repo hace lo intermedio: estado guardado más un historial de auditoría.</p>
+
+<h2>Qué mirar cuando un agente toca esto</h2>
+<ul>
+<li>Un cambio de estado del cierre pasa por un método de <code>UserProfile</code>. Un <code>profile.ClosureStatus = …</code> desde una slice no compila (<code>private set</code>), y un agente que lo "arregla" haciendo público el setter rompe la protección.</li>
+<li>Un hecho nuevo del historial se agrega con <code>AccountClosureHistory.RecordAsync</code>, dentro de la transacción del cambio. Un <code>Update</code> o <code>Remove</code> sobre el historial está prohibido.</li>
+<li>El <code>Actor</code> de un hecho que pidió una persona es <code>CallerId</code> (quién pide), no el dueño de la cuenta.</li>
+</ul>
+
+<h2>Practicá: recordá sin mirar</h2>
+<p>Respondé sin volver a leer arriba. Equivocarte acá ayuda a recordar.</p>
+
+<div class="quiz" data-answer="2" data-id="P1">
+<p class="tipo">Recordar</p>
+<p class="q">1. ¿Desde qué estado se puede cancelar un cierre de cuenta?</p>
+<div class="opts">
+<button>Closing</button>
+<button>Rejected</button>
+<button>Scheduled</button>
+<button>Cancelled</button>
+</div>
+<p class="why">Solo durante el período de gracia: <code>WithdrawClosure</code> devuelve <code>false</code> si el estado no es <code>Scheduled</code>. Desde <code>Closing</code> ya decide Auth.</p>
+</div>
+
+<div class="quiz" data-answer="3" data-id="P2">
+<p class="tipo">Revisar a un agente</p>
+<p class="q">2. Un hecho <code>rejected</code> quedó con un <code>Detail</code> mal escrito. Un agente lo corrige así. ¿Qué está mal?</p>
+<pre><code><span class="dim">// corrected = una copia de la fila, con el Detail arreglado</span>
+_db.AccountClosureHistory.Update(corrected);</code></pre>
+<div class="opts">
+<button>Le falta llamar a SaveChangesAsync</button>
+<button>Debería usar Remove y Add</button>
+<button>Debería hacerlo en el endpoint</button>
+<button>El historial solo suma filas</button>
+</div>
+<p class="why">El historial nunca se cambia ni se borra: DUNE0026 rompe el build ante <code>Update</code>, y también ante <code>Remove</code>. Si hace falta dejar constancia de algo nuevo, se agrega otro hecho.</p>
+</div>
+
+<div class="quiz" data-answer="0" data-id="P3">
+<p class="tipo">Recordar</p>
+<p class="q">3. Bob, SuperAdmin, pide cerrar la cuenta de Alice. ¿Qué queda en <code>Actor</code> del hecho <code>requested</code>?</p>
+<div class="opts">
+<button>El id de Bob</button>
+<button>El id de Alice</button>
+<button>El texto system fijo</button>
+<button>El rol SuperAdmin entero</button>
+</div>
+<p class="why"><code>DeleteUserCommandHandler.cs:69</code> pasa <code>command.CallerId</code> (quién pide) como actor. El dueño de la cuenta queda en la columna <code>UserId</code>.</p>
+</div>
+
+<div class="quiz" data-answer="1" data-id="P4">
+<p class="tipo">Revisar a un agente</p>
+<p class="q">4. Un agente creó una slice que anota un hecho con <code>RecordAsync</code> y registró su handler con <code>MediatorTransaction.None</code>. ¿Qué pasa cuando corre?</p>
+<div class="opts">
+<button>Guarda el hecho dos veces</button>
+<button>Falla: no hay transacción abierta</button>
+<button>Guarda el hecho sin problema</button>
+<button>El build falla por DUNE0029</button>
+</div>
+<p class="why"><code>None</code> no abre transacción, y <code>RecordAsync</code> tira una excepción si no hay una (<code>AccountClosureHistory.cs:17-18</code>): el cliente recibe un 500. Un handler que cambia el estado y anota el hecho va <code>Atomic</code>, como <code>WithdrawAccountClosure</code>.</p>
+</div>
+
+<div class="quiz" data-answer="2" data-id="P5">
+<p class="tipo">Recordar</p>
+<p class="q">5. Alice intenta cancelar un cierre que ya está en <code>Closing</code>. ¿Qué devuelve <code>WithdrawClosure</code> y qué responde la API?</p>
+<div class="opts">
+<button>true, y lo cancela igual siempre</button>
+<button>Tira una excepción y da 500</button>
+<button>false, y la slice da 409</button>
+<button>false, y la slice da 404</button>
+</div>
+<p class="why">El método devuelve <code>false</code> porque la flecha "cancela" solo sale de <code>Scheduled</code>. La slice lo traduce a <code>UserErrors.ClosureNotCancellable</code>, un <code>Conflict</code>: 409.</p>
+</div>
+
+<div class="quiz-result"></div>
+
+<div class="source"><strong>Fuente principal</strong>
+<code>CONTEXT.md</code>, entradas "Cierre de cuenta", "Período de gracia" e "Historial del cierre" (líneas 27-37). Son 3 minutos y son el vocabulario que usan el código y los tests.</div>
+
+<div class="ask"><strong>¿Algo no cerró?</strong>
+Preguntame en el chat. Por ejemplo: "¿quién llama a <code>RequestClosure</code> cuando vence la gracia?" o "¿por qué <code>Cancelled</code> y <code>Rejected</code> cuentan como activa?".</div>
+
+<nav class="pager">
+<a href="0008-la-feature-por-dentro.html">← Lección 8</a>
+<a href="../reference/mapa.html">Mapa del curso</a>
+<span>Lección 10: mensajes, mediator y broker</span>
+</nav>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

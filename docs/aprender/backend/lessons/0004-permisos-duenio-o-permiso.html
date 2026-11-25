@@ -83,7 +83,7 @@ public async Task&lt;bool&gt; CanAccessAsync(string callerId, IOwnedResource res
 </figure>
 
 <h3>De dónde sale "tiene el permiso"</h3>
-<p>Cada rol trae una lista fija de permisos (<code>Features/Auth/Access/RolePermissions.cs:86-113</code>). Para Users:</p>
+<p>Cada rol trae una lista fija de permisos (<code>Features/Auth/Access/RolePermissions.cs:10-37</code>). Para Users:</p>
 <div class="scroll">
 <table>
 <tr><th>Rol</th><th><code>Users.Read</code> (ver perfil o cierre ajeno)</th><th><code>Users.Manage</code> (cerrar cuenta ajena)</th></tr>
