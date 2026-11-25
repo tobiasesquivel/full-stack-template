@@ -34,7 +34,7 @@
 <div class="opts">
 <button>Un test unitario del validador solo</button>
 <button>El validador público y en Contracts</button>
-<button>Su AddSingleton y FluentValidationExecutor generado</button>
+<button>Su AddSingleton y el FluentValidationExecutor generado</button>
 <button>Un if en el endpoint, antes</button>
 </div>
 <p class="why">El repo registra validadores a mano (<code>ExplicitRegistration</code>): hace falta la línea <code>AddSingleton&lt;IValidator&lt;…&gt;, …&gt;()</code> en <code>&lt;Feature&gt;Feature.cs</code>. Y en <code>Internal/Generated/</code>, el handler del Command tiene que llamar a <code>FluentValidationExecutor</code>.</p>
