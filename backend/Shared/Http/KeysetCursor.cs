@@ -21,6 +21,9 @@ public sealed record KeysetCursor(DateTimeOffset CreatedAt, Guid Id)
         return Base64Url.EncodeToString(bytes);
     }
 
+    public static KeysetCursor Parse(string text) =>
+        TryDecode(text, out KeysetCursor cursor) ? cursor : throw new FormatException("Cursor is invalid.");
+
     public static bool TryDecode(string text, out KeysetCursor cursor)
     {
         cursor = new KeysetCursor(default, Guid.Empty);

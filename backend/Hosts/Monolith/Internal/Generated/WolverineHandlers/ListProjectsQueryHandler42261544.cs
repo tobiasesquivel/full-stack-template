@@ -25,6 +25,10 @@ namespace Internal.Generated.WolverineHandlers
             // This service has been marked as requiring service location independent of Wolverine's ability to use constructor injection of everything else
             var projectResponses = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService<TemplateApp.Features.Projects.ProjectResponses>(serviceScope.ServiceProvider);
             // This service has been marked as requiring service location independent of Wolverine's ability to use constructor injection of everything else
+            var failureActionOfListProjectsQuery = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService<Wolverine.FluentValidation.IFailureAction<TemplateApp.Features.Projects.ListProjects.ListProjectsQuery>>(serviceScope.ServiceProvider);
+            // This service has been marked as requiring service location independent of Wolverine's ability to use constructor injection of everything else
+            var validatorOfListProjectsQuery = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService<FluentValidation.IValidator<TemplateApp.Features.Projects.ListProjects.ListProjectsQuery>>(serviceScope.ServiceProvider);
+            // This service has been marked as requiring service location independent of Wolverine's ability to use constructor injection of everything else
             var projectsDbContext = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService<TemplateApp.Features.Projects.Persistence.ProjectsDbContext>(serviceScope.ServiceProvider);
             // The actual message body
             var listProjectsQuery = (TemplateApp.Features.Projects.ListProjects.ListProjectsQuery)context.Envelope.Message;
@@ -36,6 +40,7 @@ namespace Internal.Generated.WolverineHandlers
             await context.EnlistInOutboxAsync(efCoreEnvelopeTransaction).ConfigureAwait(false);
             Wolverine.Runtime.WolverineTracing.MessageActivity(context.Envelope)?.SetTag("message.handler", "TemplateApp.Features.Projects.ListProjects.ListProjectsQuery.Handler");
             Wolverine.Runtime.WolverineTracing.MessageActivity(context.Envelope)?.SetTag("handler.type", "TemplateApp.Features.Projects.ListProjects.ListProjectsQuery.Handler");
+            await Wolverine.FluentValidation.Internals.FluentValidationExecutor.ExecuteOne<TemplateApp.Features.Projects.ListProjects.ListProjectsQuery>(validatorOfListProjectsQuery, failureActionOfListProjectsQuery, listProjectsQuery).ConfigureAwait(false);
             var handler = new TemplateApp.Features.Projects.ListProjects.ListProjectsQuery.Handler(projectsDbContext, projectResponses);
             
             // The actual message execution

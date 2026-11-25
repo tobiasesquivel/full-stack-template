@@ -32,15 +32,4 @@ public sealed class ListTasksQueryHandlerTests : IClassFixture<ApiFixture>
         Assert.Equal(["Segunda", "Primera"], listed.Value.Items.Select(item => item.Title));
         Assert.Null(listed.Value.NextCursor);
     }
-
-    [Fact]
-    public async Task Handle_AnInvalidPageSize_IsRejected()
-    {
-        using IServiceScope scope = _fixture.TasksServices.CreateScope();
-
-        var listed = await scope.Handler<ListTasksQuery.Handler>()
-            .Handle(new ListTasksQuery(HandlerCalls.Caller(), null, 0), TestContext.Current.CancellationToken);
-
-        Assert.True(listed.IsError);
-    }
 }

@@ -21,11 +21,16 @@ namespace Internal.Generated.WolverineHandlers
             Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService<Wolverine.Runtime.ScopedMessageContextHolder>(serviceScope.ServiceProvider).Context = context;
             // This service has been marked as requiring service location independent of Wolverine's ability to use constructor injection of everything else
             var tasksDbContext = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService<TemplateApp.Features.Tasks.Persistence.TasksDbContext>(serviceScope.ServiceProvider);
+            // This service has been marked as requiring service location independent of Wolverine's ability to use constructor injection of everything else
+            var failureActionOfListTasksQuery = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService<Wolverine.FluentValidation.IFailureAction<TemplateApp.Features.Tasks.ListTasks.ListTasksQuery>>(serviceScope.ServiceProvider);
+            // This service has been marked as requiring service location independent of Wolverine's ability to use constructor injection of everything else
+            var validatorOfListTasksQuery = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService<FluentValidation.IValidator<TemplateApp.Features.Tasks.ListTasks.ListTasksQuery>>(serviceScope.ServiceProvider);
             // The actual message body
             var listTasksQuery = (TemplateApp.Features.Tasks.ListTasks.ListTasksQuery)context.Envelope.Message;
 
             Wolverine.Runtime.WolverineTracing.MessageActivity(context.Envelope)?.SetTag("message.handler", "TemplateApp.Features.Tasks.ListTasks.ListTasksQuery.Handler");
             Wolverine.Runtime.WolverineTracing.MessageActivity(context.Envelope)?.SetTag("handler.type", "TemplateApp.Features.Tasks.ListTasks.ListTasksQuery.Handler");
+            await Wolverine.FluentValidation.Internals.FluentValidationExecutor.ExecuteOne<TemplateApp.Features.Tasks.ListTasks.ListTasksQuery>(validatorOfListTasksQuery, failureActionOfListTasksQuery, listTasksQuery).ConfigureAwait(false);
             var handler = new TemplateApp.Features.Tasks.ListTasks.ListTasksQuery.Handler(tasksDbContext);
             
             // The actual message execution

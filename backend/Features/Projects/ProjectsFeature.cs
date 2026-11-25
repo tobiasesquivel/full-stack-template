@@ -22,6 +22,7 @@ internal static class ProjectsFeature
         services.AddMediatorHandler<CreateProject.CreateProjectCommand.Handler>(MediatorTransaction.Atomic);
         services.AddSingleton<IValidator<CreateProject.CreateProjectCommand>, CreateProject.CreateProjectCommandValidator>();
         services.AddMediatorHandler<ListProjects.ListProjectsQuery.Handler>(MediatorTransaction.None);
+        services.AddSingleton<IValidator<ListProjects.ListProjectsQuery>, ListProjects.ListProjectsQueryValidator>();
         services.AddMediatorHandler<GetProject.GetProjectQuery.Handler>(MediatorTransaction.None);
         services.AddMediatorHandler<UpdateProject.UpdateProjectCommand.Handler>(MediatorTransaction.Atomic);
         services.AddSingleton<IValidator<UpdateProject.UpdateProjectCommand>, UpdateProject.UpdateProjectCommandValidator>();

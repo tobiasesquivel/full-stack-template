@@ -18,16 +18,11 @@ internal sealed partial record ListTasksQuery
 
         public async Task<ErrorOr<TaskListResponse>> Handle(ListTasksQuery query, CancellationToken ct)
         {
-            if (!KeysetCursor.IsValidPageSize(query.PageSize))
-                return HttpErrors.InvalidPageSize;
-
             string ownerId = query.Caller.Id;
             var owned = _db.TaskItems.Where(t => t.OwnerId == ownerId);
             if (query.Cursor is not null)
             {
-                if (!KeysetCursor.TryDecode(query.Cursor, out KeysetCursor after))
-                    return HttpErrors.InvalidCursor;
-
+                KeysetCursor after = KeysetCursor.Parse(query.Cursor);
                 owned = owned.Where(t => EF.Functions.LessThan(
                     ValueTuple.Create(t.CreatedAt, t.Id),
                     ValueTuple.Create(after.CreatedAt, after.Id)));

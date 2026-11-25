@@ -20,15 +20,10 @@ internal sealed partial record ListProjectsQuery
 
         public async Task<ErrorOr<ProjectListResponse>> Handle(ListProjectsQuery query, CancellationToken ct)
         {
-            if (!KeysetCursor.IsValidPageSize(query.PageSize))
-                return HttpErrors.InvalidPageSize;
-
             var owned = _db.Projects.Where(p => p.OwnerId == query.CallerId);
             if (query.Cursor is not null)
             {
-                if (!KeysetCursor.TryDecode(query.Cursor, out KeysetCursor after))
-                    return HttpErrors.InvalidCursor;
-
+                KeysetCursor after = KeysetCursor.Parse(query.Cursor);
                 owned = owned.Where(p => EF.Functions.LessThan(
                     ValueTuple.Create(p.CreatedAt, p.Id),
                     ValueTuple.Create(after.CreatedAt, after.Id)));

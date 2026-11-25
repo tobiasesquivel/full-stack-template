@@ -59,6 +59,12 @@ public sealed class MediatorHandlerShapeAnalyzer : DiagnosticAnalyzer
             {
                 Report(context, location, type.Name, $"vive en '{fileName}.cs' y no en '{message}Handler.cs'");
             }
+
+            var messageFile = path.Substring(0, path.LastIndexOf('/') + 1) + message + ".cs";
+            if (!container.DeclaringSyntaxReferences.Any(reference => DunePaths.Normalize(reference.SyntaxTree.FilePath).Equals(messageFile, StringComparison.Ordinal)))
+            {
+                Report(context, location, type.Name, $"está en un mensaje que no se declara en '{message}.cs', separado del handler");
+            }
         }
     }
 

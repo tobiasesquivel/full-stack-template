@@ -56,6 +56,7 @@ internal static class TasksFeature
         services.AddMediatorHandler<CreateTask.CreateTaskCommand.Handler>(MediatorTransaction.None);
         services.AddSingleton<IValidator<CreateTask.CreateTaskCommand>, CreateTask.CreateTaskCommandValidator>();
         services.AddMediatorHandler<ListTasks.ListTasksQuery.Handler>(MediatorTransaction.None);
+        services.AddSingleton<IValidator<ListTasks.ListTasksQuery>, ListTasks.ListTasksQueryValidator>();
         services.AddMediatorHandler<GetTask.GetTaskQuery.Handler>(MediatorTransaction.None);
         services.AddMediatorHandler<UpdateTask.UpdateTaskCommand.Handler>(MediatorTransaction.None);
         services.AddSingleton<IValidator<UpdateTask.UpdateTaskCommand>, UpdateTask.UpdateTaskCommandValidator>();

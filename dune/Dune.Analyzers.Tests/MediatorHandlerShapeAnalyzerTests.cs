@@ -130,6 +130,24 @@ public sealed class MediatorHandlerShapeAnalyzerTests
     }
 
     [Fact]
+    public async Task MessageDeclaredOnlyInTheHandlerFile_IsReported()
+    {
+        var diagnostics = await AnalyzeAsync(
+            ("backend/Features/Tasks/CreateTask/CreateTaskCommandHandler.cs", """
+                namespace TemplateApp.Features.Tasks.CreateTask;
+                internal sealed record CreateTaskCommand(string Title)
+                {
+                    public sealed class Handler
+                    {
+                        public int Handle(CreateTaskCommand command) => command.Title.Length;
+                    }
+                }
+                """));
+
+        Assert.Contains("no se declara en 'CreateTaskCommand.cs'", Assert.Single(diagnostics).GetMessage());
+    }
+
+    [Fact]
     public async Task TestsAndFeaturesWithoutTheMediator_AreLeftOut()
     {
         var diagnostics = await AnalyzeAsync(
