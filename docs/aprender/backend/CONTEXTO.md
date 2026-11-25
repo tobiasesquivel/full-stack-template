@@ -63,8 +63,10 @@ Tobi las tomó en una ronda de preguntas el 2026-11-25. Están también en `NOTE
 - Entre las lecciones 4 y 5 Tobi preguntó qué es el "caller" y qué es "closure". No sabía qué era `CallerId`: desde la lección 5, escribilo siempre "`CallerId` (quién pide)". Closure = cierre de cuenta (`CONTEXT.md:27`), no el closure de C#.
 - Lección 5 (`lessons/0005-errores-erroror-y-apiresults.html`): 5 de 7. Falló R-L4-P4 (roles: Admin no tiene `Manage`), que es la segunda vez, y P5 (un `code` publicado no cambia). Le pregunté qué opción eligió en las dos: no se acuerda.
 - Lección 6 (`lessons/0006-request-command-y-validador.html`): Tobi dijo "hice bien la lección" sin pegar la línea; quedó anotada como 7 de 7. Acertó los repasos de roles y del `code`, así que los dos volvieron a "sabido".
-- Lección 7 entregada: `lessons/0007-transacciones-del-mediator.html` (Atomic, Eager y None; el generado de `UpdateProfile` en las líneas 37, 45, 49, 55, 64 y 72; DUNE0029). Repaso R-L6-P2 y R-L6-P5. En total son 7.
-- **Esperando:** el resultado de la lección 7. Con ella termina el bloque A (una slice por dentro).
+- Lección 7 (`lessons/0007-transacciones-del-mediator.html`): 4 de 7. Falló R-L6-P2 (permisos, otra vez), P2 (el handler no guarda) y P4 (`None` guarda aunque haya error). Le ofrecí un refuerzo corto y eligió seguir con la 8.
+- Patrón: Tobi acierta las preguntas de "Recordar" y falla las de "Revisar a un agente" cuando la consecuencia es indirecta. Las explicaciones de la lección 8 en adelante abren con una regla corta en negrita, y los repasos la repiten.
+- Lección 8 entregada: `lessons/0008-la-feature-por-dentro.html` (bloque B: carpetas de Users, la puerta `IUsersModule`, DUNE0004, DUNE0015 y DUNE0020). Repaso R-L7-P4 y R-L7-P2; P4 intercala permisos. En total son 7.
+- **Esperando:** el resultado de la lección 8.
 - No probado en ninguna máquina: qué excepción tira `InvokeAsync` si falta `AddMediatorHandler`, y en qué momento falla el modo `Static` si falta el código generado. La lección 3 no lo afirma. La notebook no puede probarlo: le falta el SDK 10.0.401 que pide `global.json` y Docker no estaba corriendo.
 - El mapa del curso ya responde corto todas las preguntas iniciales de Tobi: closure, `ClosureOwner`, `IOwnedResource`, `AccountClosureFacts`, `MessageNames`, orquestar, saga, RabbitMQ, `Hosts/` e `Infrastructure/`. Las lecciones las profundizan.
 - `Infrastructure/` queda como caja negra hasta las lecciones 10 a 13.
@@ -73,9 +75,9 @@ Tobi las tomó en una ronda de preguntas el 2026-11-25. Están también en `NOTE
 
 Estos datos ya están verificados contra el código. Volvé a confirmar cada número de línea antes de citarlo, porque el repo cambia.
 
-**Lección 8, la feature por dentro (bloque B):** ubicar `Contracts/`, `Domain/`, `Persistence/`, `Access/`, `MessageNames/` y `Telemetry/` de Users. Fuente: `docs/conventions.md:14-22` (qué va en cada carpeta técnica), ADR-0004 y `IUsersModule`/`UsersModule` como la puerta de la feature.
+**Lección 9, el cierre de cuenta y sus facts:** el caso de negocio (`CONTEXT.md:27-48`), los estados (`Domain/AccountClosureStatus.cs`), los hechos (`Domain/AccountClosureFacts.cs`) y el historial que solo crece (`Persistence/AccountClosureHistory.cs`). Tobi ya preguntó qué es "closure": le contesté en el chat con el período de gracia y los tres pasos.
 
-**Lecciones 9 a 14:** están en el mapa. Para cada una:
+**Lecciones 10 a 14:** están en el mapa. Para cada una:
 1. Leé el código.
 2. Leé la investigación del paso en `docs/evolucion/investigacion/`: 27 para la saga, 25 para el broker, 28 para el período de gracia y 23-2 para Hosts.
 3. Sumá fuentes de `RESOURCES.md`.

@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>La feature por dentro</title>
+<link rel="stylesheet" href="../assets/curso.css">
+</head>
+<body>
+<main data-lesson="Lección 8 (la feature por dentro)">
+
+<p class="kicker">Lección 8 de 14 · Bloque B: la feature · 10 minutos</p>
+<h1>La feature por dentro</h1>
+<p class="win">Al terminar podés ubicar cada carpeta de <code>Features/Users/</code>, decir cuál puede ver otra feature y notar cuando un agente se mete en el interior de otra.</p>
+
+<h2>Repaso</h2>
+<p>Las dos de transacciones que fallaste en la lección 7, con otra forma. La regla corta: <strong>el handler cambia, el generado guarda; <code>Atomic</code> no guarda si hay error, <code>None</code> sí.</strong></p>
+
+<div class="quiz" data-answer="2" data-id="R-L7-P4">
+<p class="tipo">Repaso · Revisar a un agente</p>
+<p class="q">Un agente registró <code>ChangeTimezoneCommand</code> con <code>MediatorTransaction.None</code>. Su handler cambia <code>profile.Timezone</code> y, en un caso, después devuelve <code>UserErrors.Forbidden</code>. En ese caso, ¿qué pasa?</p>
+<div class="opts">
+<button>403, y la base no cambia</button>
+<button>200, con la zona ya cambiada</button>
+<button>403, pero la zona quedó cambiada</button>
+<button>500, porque el guardado se rompe</button>
+</div>
+<p class="why"><code>None</code> no corta por error: Wolverine guarda lo pendiente al final igual. El cliente ve 403 y la zona ya cambió. Dos arreglos: registrarlo <code>Atomic</code>, y decidir el permiso <em>antes</em> de cambiar nada.</p>
+</div>
+
+<div class="quiz" data-answer="1" data-id="R-L7-P2">
+<p class="tipo">Repaso · Revisar a un agente</p>
+<p class="q">En un PR, un handler registrado <code>Atomic</code> termina con <code>await _db.SaveChangesAsync(ct);</code>. ¿Qué le pedís al agente?</p>
+<div class="opts">
+<button>Que agregue también el Complete() después</button>
+<button>Que lo saque, guarda el generado</button>
+<button>Que lo mueva al endpoint, después</button>
+<button>Que cambie la clase a None</button>
+</div>
+<p class="why">El código generado ya llama a <code>SaveChangesAsync</code> y a <code>Complete()</code> alrededor del handler. DUNE0029 rompe el build si el handler guarda. Sacar la línea no pierde nada.</p>
+</div>
+
+<h2>La idea</h2>
+<div class="answer">
+<p>Una feature es una caja con una sola puerta. Adentro hay muchas cosas: las slices, el dominio, la base, la saga. Afuera se ve solo <code>Contracts/</code>, y de eso, lo que otra feature necesita. Las demás carpetas tienen un nombre fijo según lo que guardan, y nadie de afuera las toca.</p>
+</div>
+
+<p class="eq"><strong>Módulo profundo</strong> = mucha funcionalidad detrás de una interfaz chica (la idea es de John Ousterhout). Users tiene 13 slices, una saga y su propia base. Otra feature ve <code>IUsersModule</code>: 3 métodos.</p>
+
+<figure>
+<svg class="diagram" viewBox="0 0 720 270" role="img" aria-label="Auth y Projects usan solo Contracts de Users; dentro de Users, Contracts y las slices usan Domain y Persistence; Access, MessageNames y Telemetry son carpetas técnicas internas">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head" d="M0,0 L10,5 L0,10 z"/></marker>
+  </defs>
+  <rect class="group" x="200" y="10" width="510" height="250" rx="10"/>
+  <text class="lbl" x="660" y="250">Features/Users</text>
+  <g class="node ext"><rect x="10" y="30" width="130" height="56" rx="6"/><text class="t" x="75" y="54">Auth</text><text class="s" x="75" y="72">OpenSession, RegisterUser</text></g>
+  <g class="node ext"><rect x="10" y="150" width="130" height="56" rx="6"/><text class="t" x="75" y="174">Projects</text><text class="s" x="75" y="192">ProjectResponses</text></g>
+  <g class="node key"><rect x="220" y="85" width="150" height="66" rx="6"/><text class="t" x="295" y="110">Contracts/</text><text class="s" x="295" y="128">IUsersModule y datos</text></g>
+  <g class="node"><rect x="420" y="25" width="140" height="56" rx="6"/><text class="t" x="490" y="49">Slices</text><text class="s" x="490" y="67">GetUser/, DeleteUser/…</text></g>
+  <g class="node"><rect x="420" y="105" width="140" height="56" rx="6"/><text class="t" x="490" y="129">Domain/</text><text class="s" x="490" y="147">UserProfile, reglas</text></g>
+  <g class="node"><rect x="420" y="185" width="140" height="56" rx="6"/><text class="t" x="490" y="209">Persistence/</text><text class="s" x="490" y="227">UsersDbContext</text></g>
+  <g class="node"><rect x="585" y="25" width="115" height="56" rx="6"/><text class="t" x="642" y="49">Access/ …</text><text class="s" x="642" y="67">+ MessageNames, Telemetry</text></g>
+  <path class="edge" d="M140,58 L218,108" marker-end="url(#a)"/><text class="lbl" x="170" y="72">usa</text>
+  <path class="edge" d="M140,178 L218,130" marker-end="url(#a)"/><text class="lbl" x="170" y="168">usa</text>
+  <path class="edge" d="M370,118 L418,133" marker-end="url(#a)"/><text class="lbl" x="392" y="112">esconde</text>
+  <path class="edge" d="M490,81 L490,103" marker-end="url(#a)"/>
+  <path class="edge" d="M490,161 L490,183" marker-end="url(#a)"/><text class="lbl" x="520" y="176">guarda</text>
+</svg>
+<figcaption>El recuadro punteado es la feature. Las flechas de afuera entran solo a <code>Contracts/</code>. Adentro, las slices usan el dominio, y el dominio se guarda en <code>Persistence/</code>.</figcaption>
+</figure>
+
+<h2>Qué va en cada carpeta</h2>
+<div class="scroll">
+<table>
+<tr><th>Carpeta</th><th>Qué guarda</th><th>En Users</th><th>¿La ve otra feature?</th></tr>
+<tr><td><code>Contracts/</code></td><td>la puerta y los datos que cruzan</td><td><code>IUsersModule</code>, <code>UserProfileDetails</code>, <code>UserResponse</code>, <code>UserPermissions</code></td><td class="ok">sí</td></tr>
+<tr><td>una carpeta por slice</td><td>un caso de uso</td><td><code>GetUser/</code>, <code>UpdateProfile/</code>, <code>DeleteUser/</code>…</td><td class="ko">no</td></tr>
+<tr><td><code>Domain/</code></td><td>modelos y reglas que comparten las slices</td><td><code>UserProfile</code>, <code>AccountClosureFacts</code></td><td class="ko">no</td></tr>
+<tr><td><code>Persistence/</code></td><td>el <code>DbContext</code>, sus mapeos y migraciones</td><td><code>UsersDbContext</code>, <code>Migrations/</code></td><td class="ko">no</td></tr>
+<tr><td><code>Access/</code></td><td>sesión, permisos y roles</td><td><code>ClosureOwner</code> (lección 4)</td><td class="ko">no</td></tr>
+<tr><td><code>MessageNames/</code></td><td>los nombres de los mensajes del bus</td><td><code>UserEvents</code>, <code>TaskCommands</code> (lecciones 10 y 11)</td><td class="ko">no</td></tr>
+<tr><td><code>Telemetry/</code></td><td>métricas y trazas</td><td><code>UserMetrics</code></td><td class="ko">no</td></tr>
+<tr><td>la raíz</td><td>registro, puerta y catálogo de errores</td><td><code>UsersFeature.cs</code>, <code>UsersModule.cs</code>, <code>UserErrors.cs</code></td><td class="ko">no</td></tr>
+</table>
+</div>
+<p class="src">Fuente: ADR-0004, puntos 1, 3 y 5 (<code>docs/adr/0004-vertical-slices-deep-modules.md</code>), y <code>docs/conventions.md:13-22</code>. Las carpetas técnicas son una lista cerrada: sumar una pide cambiar el ADR.</p>
+
+<h2>La puerta: <code>IUsersModule</code></h2>
+<pre><code><span class="dim">// Features/Users/Contracts/IUsersModule.cs:5-12</span>
+public interface IUsersModule
+{
+    Task&lt;ErrorOr&lt;UserProfileDetails&gt;&gt; CreateProfileAsync(string authId, string displayName, ...);  <span class="dim">// Auth, al registrar</span>
+    Task&lt;UserProfileDetails?&gt; FindProfileAsync(string authId, ...);                              <span class="dim">// Auth, al iniciar sesión</span>
+    Task&lt;IReadOnlyDictionary&lt;string, string&gt;&gt; FindDisplayNamesAsync(...);                      <span class="dim">// Projects, nombre del dueño</span>
+}</code></pre>
+<ul>
+<li><strong>Un método por caso que otra feature necesita.</strong> No hay un "dame el <code>DbContext</code>": quien llama pide un resultado, no un acceso.</li>
+<li><strong>Nunca devuelve una entidad.</strong> Devuelve <code>UserProfileDetails</code> (<code>Details</code> = todo lo público del perfil), no <code>UserProfile</code>, que vive en <code>Domain/</code> y puede cambiar sin avisar (<code>conventions.md:15-16</code>).</li>
+<li><strong>La implementa <code>UsersModule.cs</code></strong>, en la raíz, <code>internal</code>. <code>UsersFeature.cs:39</code> la registra: <code>AddScoped&lt;IUsersModule, UsersModule&gt;()</code>.</li>
+</ul>
+
+<h3>Quién vigila la puerta</h3>
+<p>Dos reglas lo hacen ejecutable. DUNE0020: dentro de <code>Features/</code>, un tipo es <code>public</code> solo si vive en <code>Contracts/</code>; todo lo demás es <code>internal</code>. DUNE0004 ("Una feature usa el interior de otra"): rompe el build si Projects nombra algo de <code>Users.Domain</code>, <code>Users.Persistence</code> o una slice de Users, aunque sea por un <code>var</code>. Y al revés: DUNE0015 rompe el build si algo en <code>Contracts/</code> no lo usa ninguna otra feature.</p>
+
+<h2>Por qué así</h2>
+<p>Si Projects leyera <code>UsersDbContext</code> directo, un cambio en la tabla de perfiles rompería Projects. Con la puerta, Users puede cambiar todo su interior mientras <code>FindDisplayNamesAsync</code> siga devolviendo lo mismo. Y un agente que lee <code>Contracts/</code> sabe en un minuto qué ofrece la feature.</p>
+<p><strong>En la industria:</strong> es la idea del <em>modular monolith</em>: un solo programa partido en módulos que solo se hablan por su API pública. Muchos equipos lo hacen con un proyecto .NET por módulo; este repo usa carpetas y Dune.</p>
+
+<h2>Qué mirar cuando un agente toca esto</h2>
+<ul>
+<li>Un <code>using TemplateApp.Features.&lt;Otra&gt;.Domain</code>, <code>.Persistence</code> o de una slice ajena es entrar por la ventana. Lo que necesita, lo pide a <code>I&lt;Otra&gt;Module</code>.</li>
+<li>Algo nuevo en <code>Contracts/</code> tiene que tener un usuario en otra feature. Si solo lo usa su feature, va en la slice o en la raíz.</li>
+<li>Un método nuevo en la puerta devuelve un <code>*Details</code>, <code>*Summary</code> o <code>*Info</code>, nunca una entidad ni un <code>*Response</code>.</li>
+</ul>
+
+<h2>Practicá: recordá sin mirar</h2>
+<p>Respondé sin volver a leer arriba. Equivocarte acá ayuda a recordar.</p>
+
+<div class="quiz" data-answer="3" data-id="P1">
+<p class="tipo">Recordar</p>
+<p class="q">1. ¿Qué carpeta de Users puede usar el código de Projects?</p>
+<div class="opts">
+<button>Domain/</button>
+<button>Persistence/</button>
+<button>Access/</button>
+<button>Contracts/</button>
+</div>
+<p class="why">Solo <code>Contracts/</code>. Projects pide los nombres de los dueños con <code>IUsersModule.FindDisplayNamesAsync</code> (<code>Projects/ProjectResponses.cs:33</code>).</p>
+</div>
+
+<div class="quiz" data-answer="0" data-id="P2">
+<p class="tipo">Revisar a un agente</p>
+<p class="q">2. Para mostrar el nombre del dueño de un proyecto, un agente escribió en Projects <code>using TemplateApp.Features.Users.Persistence;</code> y consulta <code>UsersDbContext.UserProfiles</code>. ¿Qué está mal?</p>
+<div class="opts">
+<button>Tiene que pedirlo a IUsersModule</button>
+<button>Le falta AsNoTracking en consulta</button>
+<button>Debería leerlo desde el frontend</button>
+<button>Tiene que copiar la tabla</button>
+</div>
+<p class="why">Entra por la ventana: <code>Persistence/</code> es interior de Users. DUNE0004 rompe el build. Ya existe la puerta para eso: <code>FindDisplayNamesAsync</code>.</p>
+</div>
+
+<div class="quiz" data-answer="1" data-id="P3">
+<p class="tipo">Recordar</p>
+<p class="q">3. La regla "el nombre visible mide entre 1 y N caracteres" la usan el validador de <code>UpdateProfile</code> y <code>UsersModule.CreateProfileAsync</code>. ¿Dónde vive?</p>
+<div class="opts">
+<button>Contracts/</button>
+<button>Domain/</button>
+<button>Persistence/</button>
+<button>MessageNames/</button>
+</div>
+<p class="why">En <code>Domain/UserProfile.cs</code>, como <code>UserProfile.IsValidDisplayName</code>. Una regla que comparten varias slices no se copia: baja al dominio.</p>
+</div>
+
+<div class="quiz" data-answer="2" data-id="P4">
+<p class="tipo">Revisar a un agente</p>
+<p class="q">4. Un agente creó la slice <code>GetUserPreferences</code> con la ruta <code>/users/{authId}/preferences</code>. El handler lee las preferencias por el <code>authId</code> de la ruta y las devuelve. ¿Qué le falta?</p>
+<div class="opts">
+<button>Registrarse con la clase Atomic</button>
+<button>Mover el handler a Contracts</button>
+<button>Llamar a CanAccessAsync tras leer</button>
+<button>Agregar CallerId al cuerpo JSON</button>
+</div>
+<p class="why">La ruta apunta a un usuario que puede ser otro. Es la regla de la lección 4: leer (404 si no existe) y después <code>CanAccessAsync(CallerId, recurso, UserPermissions.Read)</code>. Sin eso, cualquiera con sesión ve las preferencias de cualquiera.</p>
+</div>
+
+<div class="quiz" data-answer="1" data-id="P5">
+<p class="tipo">Recordar</p>
+<p class="q">5. ¿Qué decide si un tipo va a <code>Contracts/</code>?</p>
+<div class="opts">
+<button>Que sea un record público</button>
+<button>Que otra feature lo use</button>
+<button>Que lo use el frontend</button>
+<button>Que lo usen varias slices</button>
+</div>
+<p class="why"><code>Contracts/</code> es solo para lo que usa otra feature. Lo que comparten varias slices de la misma feature va a la raíz o a una carpeta técnica. Ser público es la consecuencia, no la causa.</p>
+</div>
+
+<div class="quiz-result"></div>
+
+<div class="source"><strong>Fuente principal</strong>
+<code>docs/adr/0004-vertical-slices-deep-modules.md</code>, puntos 1 a 6 de "Decisión". Son 5 minutos y son la regla de este repo. Para la idea de fondo: <a href="https://web.stanford.edu/~ouster/cgi-bin/aposd2ndEdExtract.pdf">extracto de "A Philosophy of Software Design"</a>, de John Ousterhout.</div>
+
+<div class="ask"><strong>¿Algo no cerró?</strong>
+Preguntame en el chat. Por ejemplo: "¿por qué <code>UsersModule.CreateProfileAsync</code> sí llama a <code>SaveChangesAsync</code>?" o "¿qué diferencia hay entre <code>Details</code>, <code>Summary</code> e <code>Info</code>?".</div>
+
+<nav class="pager">
+<a href="0007-transacciones-del-mediator.html">← Lección 7</a>
+<a href="../reference/mapa.html">Mapa del curso</a>
+<span>Lección 9: el cierre de cuenta y sus facts</span>
+</nav>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>
