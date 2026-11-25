@@ -17,12 +17,12 @@ const STEP_TIMEOUT_MS = 20 * 60_000;
 
 function usage() {
   return [
-    'check-all.mjs — runs the README gates and the verify-template runtime in order, with one summary.',
+    'check-all.mjs — runs the gates in docs/verificacion.md and the verify-template runtime in order, with one summary.',
     '',
     'Usage (cwd = repo root):',
     '  node .agents/skills/verify-template/scripts/check-all.mjs --run-id <id> [--gates-only] [--no-e2e]',
     '',
-    '  --gates-only   README gates only; launch, doctor, api, e2e and cleanup stay NOT_RUN',
+    '  --gates-only   gates from docs/verificacion.md only; launch, doctor, api, e2e and cleanup stay NOT_RUN',
     '  --no-e2e       skip the Playwright specs (E2E_CHANNEL is forwarded when set)',
     '',
     'Evidence: artifacts/verify-template/<id>/summary.json, one stdout/stderr log per stage,',

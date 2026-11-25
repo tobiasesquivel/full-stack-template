@@ -79,7 +79,7 @@ Si Tobi dice "enseñame", "quiero entender" o "explicámelo", seguí este métod
 
 ## Verificación
 
-La lista única de comandos está en [README.md](README.md#ejecutar-gates). Las pruebas backend necesitan Docker (PostgreSQL real). El frontend tiene una suite de Vitest con jsdom (`npm test -- --watch=false` en `frontend/`) para funciones puras y componentes de presentación. El recorrido completo se prueba en el navegador con la skill `verify-template`.
+La lista única de comandos está en [docs/verificacion.md](docs/verificacion.md#ejecutar-gates). Las pruebas backend necesitan Docker (PostgreSQL real). El frontend tiene una suite de Vitest con jsdom (`npm test -- --watch=false` en `frontend/`) para funciones puras y componentes de presentación. El recorrido completo se prueba en el navegador con la skill `verify-template`.
 
 Mientras desarrollás un paso, corré `node .agents/skills/verify-template/scripts/check-all.mjs --run-id <id> --no-e2e`. Las e2e de Playwright tardan unos 7 minutos: corren una sola vez, al cerrar un paso que cambia el frontend o un contrato HTTP. En los demás pasos quedan `NOT_RUN`, y el cierre lo dice.
 
