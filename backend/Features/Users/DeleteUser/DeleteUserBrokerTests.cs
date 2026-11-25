@@ -61,7 +61,7 @@ public sealed class DeleteUserBrokerTests : IDisposable
             .Select(entry => entry.Category[(entry.Category.LastIndexOf('.') + 1)..])
             .Distinct(StringComparer.Ordinal)
             .ToArray();
-        Assert.Equal(["AccountClosureGracePeriod", "AccountClosureSaga", "CancelAccountClosure", "DecideAccountClosure", "DeleteUser", "HoldOwnerTasks", "ReleaseOwnerTasks", "StartAccountClosure"], steps.Order(StringComparer.Ordinal));
+        Assert.Equal(["AccountClosureGracePeriod", "AccountClosureSaga", "CancelAccountClosure", "DecideAccountClosure", "DeleteUserCommand", "HoldOwnerTasks", "ReleaseOwnerTasks", "StartAccountClosure"], steps.Order(StringComparer.Ordinal));
         Assert.Equal("Rejected", await SagaStateAsync(api, closure));
     }
 

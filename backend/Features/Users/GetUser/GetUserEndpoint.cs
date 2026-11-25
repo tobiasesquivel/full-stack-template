@@ -22,7 +22,7 @@ internal static class GetUserEndpoint
 
     private static async Task<IResult> HandleAsync(string authId, ClaimsPrincipal user, IMessageBus bus, CancellationToken ct)
     {
-        var command = new GetUserCommand(user.GetCallerId(), authId);
+        var command = new GetUserQuery(user.GetCallerId(), authId);
         var result = await bus.InvokeAsync<ErrorOr<UserResponse>>(command, ct);
         return ApiResults.ToResult(result, value => Results.Ok(value));
     }

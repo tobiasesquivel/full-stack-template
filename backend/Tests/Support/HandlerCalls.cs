@@ -17,7 +17,7 @@ internal static class HandlerCalls
 
     public static async Task<TaskResponse> CreateTaskAsync(this IServiceScope scope, Caller owner, string title)
     {
-        var created = await scope.Handler<CreateTask.Handler>()
+        var created = await scope.Handler<CreateTaskCommand.Handler>()
             .Handle(new CreateTaskCommand(owner, title, null), TestContext.Current.CancellationToken);
         Assert.False(created.IsError, string.Join(", ", created.ErrorsOrEmptyList.Select(error => error.Code)));
         return created.Value;

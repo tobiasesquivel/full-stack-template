@@ -54,9 +54,9 @@ namespace Internal.Generated.WolverineHandlers
 
             try
             {
-                Wolverine.Runtime.WolverineTracing.MessageActivity(context.Envelope)?.SetTag("message.handler", "TemplateApp.Features.Users.DeleteUser.DeleteUser.Handler");
-                Wolverine.Runtime.WolverineTracing.MessageActivity(context.Envelope)?.SetTag("handler.type", "TemplateApp.Features.Users.DeleteUser.DeleteUser.Handler");
-                var handler = new TemplateApp.Features.Users.DeleteUser.DeleteUser.Handler(usersDbContext, sagaOutboxOfUsersDbContext, accountClosureHistory, authModule, optionsOfAccountClosureOptions, _timeProvider, _loggerFactory);
+                Wolverine.Runtime.WolverineTracing.MessageActivity(context.Envelope)?.SetTag("message.handler", "TemplateApp.Features.Users.DeleteUser.DeleteUserCommand.Handler");
+                Wolverine.Runtime.WolverineTracing.MessageActivity(context.Envelope)?.SetTag("handler.type", "TemplateApp.Features.Users.DeleteUser.DeleteUserCommand.Handler");
+                var handler = new TemplateApp.Features.Users.DeleteUser.DeleteUserCommand.Handler(usersDbContext, sagaOutboxOfUsersDbContext, accountClosureHistory, authModule, optionsOfAccountClosureOptions, _timeProvider, _loggerFactory);
                 
                 // The actual message execution
                 var outgoing1 = await handler.Handle(deleteUserCommand, cancellation).ConfigureAwait(false);

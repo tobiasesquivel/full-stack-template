@@ -11,7 +11,7 @@ internal static class FindAssignableProjectEndpoint
 
     private static async Task<IResult> HandleAsync(string ownerId, Guid projectId, IMessageBus bus, CancellationToken ct)
     {
-        var command = new FindAssignableProjectCommand(ownerId, projectId);
+        var command = new FindAssignableProjectQuery(ownerId, projectId);
         var result = await bus.InvokeAsync<ErrorOr<ProjectAssignmentResponse>>(command, ct);
         return ApiResults.ToResult(result, Results.Ok);
     }

@@ -15,7 +15,7 @@ internal static class GetProjectEndpoint
         ClaimsPrincipal user,
         CancellationToken ct)
     {
-        var command = new GetProjectCommand(user.GetCallerId(), id);
+        var command = new GetProjectQuery(user.GetCallerId(), id);
         var result = await bus.InvokeAsync<ErrorOr<ProjectResponse>>(command, ct);
         return ApiResults.ToResult(result, value => Results.Ok(value));
     }

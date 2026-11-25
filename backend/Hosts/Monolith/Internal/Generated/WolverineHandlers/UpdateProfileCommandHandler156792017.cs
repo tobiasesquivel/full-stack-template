@@ -40,10 +40,10 @@ namespace Internal.Generated.WolverineHandlers
             // and flush AFTER SaveChangesAsync commits. No explicit transaction is started (Lightweight mode).
             var efCoreEnvelopeTransaction = new Wolverine.EntityFrameworkCore.Internals.EfCoreEnvelopeTransaction(usersDbContext, context, domainEventScraperIEnumerable);
             await context.EnlistInOutboxAsync(efCoreEnvelopeTransaction).ConfigureAwait(false);
-            Wolverine.Runtime.WolverineTracing.MessageActivity(context.Envelope)?.SetTag("message.handler", "TemplateApp.Features.Users.UpdateProfile.UpdateProfile.Handler");
-            Wolverine.Runtime.WolverineTracing.MessageActivity(context.Envelope)?.SetTag("handler.type", "TemplateApp.Features.Users.UpdateProfile.UpdateProfile.Handler");
+            Wolverine.Runtime.WolverineTracing.MessageActivity(context.Envelope)?.SetTag("message.handler", "TemplateApp.Features.Users.UpdateProfile.UpdateProfileCommand.Handler");
+            Wolverine.Runtime.WolverineTracing.MessageActivity(context.Envelope)?.SetTag("handler.type", "TemplateApp.Features.Users.UpdateProfile.UpdateProfileCommand.Handler");
             await Wolverine.FluentValidation.Internals.FluentValidationExecutor.ExecuteOne<TemplateApp.Features.Users.UpdateProfile.UpdateProfileCommand>(validatorOfUpdateProfileCommand, failureActionOfUpdateProfileCommand, updateProfileCommand).ConfigureAwait(false);
-            var handler = new TemplateApp.Features.Users.UpdateProfile.UpdateProfile.Handler(usersDbContext, authModule);
+            var handler = new TemplateApp.Features.Users.UpdateProfile.UpdateProfileCommand.Handler(usersDbContext, authModule);
             
             // The actual message execution
             var outgoing1 = await handler.Handle(updateProfileCommand, cancellation).ConfigureAwait(false);

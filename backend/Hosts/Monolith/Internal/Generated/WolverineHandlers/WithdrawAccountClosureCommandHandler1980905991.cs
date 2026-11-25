@@ -44,9 +44,9 @@ namespace Internal.Generated.WolverineHandlers
             // and flush AFTER SaveChangesAsync commits. No explicit transaction is started (Lightweight mode).
             var efCoreEnvelopeTransaction = new Wolverine.EntityFrameworkCore.Internals.EfCoreEnvelopeTransaction(usersDbContext, context, domainEventScraperIEnumerable);
             await context.EnlistInOutboxAsync(efCoreEnvelopeTransaction).ConfigureAwait(false);
-            Wolverine.Runtime.WolverineTracing.MessageActivity(context.Envelope)?.SetTag("message.handler", "TemplateApp.Features.Users.WithdrawAccountClosure.WithdrawAccountClosure.Handler");
-            Wolverine.Runtime.WolverineTracing.MessageActivity(context.Envelope)?.SetTag("handler.type", "TemplateApp.Features.Users.WithdrawAccountClosure.WithdrawAccountClosure.Handler");
-            var handler = new TemplateApp.Features.Users.WithdrawAccountClosure.WithdrawAccountClosure.Handler(usersDbContext, accountClosureHistory, authModule, _timeProvider, _loggerFactory);
+            Wolverine.Runtime.WolverineTracing.MessageActivity(context.Envelope)?.SetTag("message.handler", "TemplateApp.Features.Users.WithdrawAccountClosure.WithdrawAccountClosureCommand.Handler");
+            Wolverine.Runtime.WolverineTracing.MessageActivity(context.Envelope)?.SetTag("handler.type", "TemplateApp.Features.Users.WithdrawAccountClosure.WithdrawAccountClosureCommand.Handler");
+            var handler = new TemplateApp.Features.Users.WithdrawAccountClosure.WithdrawAccountClosureCommand.Handler(usersDbContext, accountClosureHistory, authModule, _timeProvider, _loggerFactory);
             
             // The actual message execution
             var outgoing1 = await handler.Handle(withdrawAccountClosureCommand, cancellation).ConfigureAwait(false);

@@ -35,10 +35,10 @@ namespace Internal.Generated.WolverineHandlers
             // The actual message body
             var createTaskCommand = (TemplateApp.Features.Tasks.CreateTask.CreateTaskCommand)context.Envelope.Message;
 
-            Wolverine.Runtime.WolverineTracing.MessageActivity(context.Envelope)?.SetTag("message.handler", "TemplateApp.Features.Tasks.CreateTask.CreateTask.Handler");
-            Wolverine.Runtime.WolverineTracing.MessageActivity(context.Envelope)?.SetTag("handler.type", "TemplateApp.Features.Tasks.CreateTask.CreateTask.Handler");
+            Wolverine.Runtime.WolverineTracing.MessageActivity(context.Envelope)?.SetTag("message.handler", "TemplateApp.Features.Tasks.CreateTask.CreateTaskCommand.Handler");
+            Wolverine.Runtime.WolverineTracing.MessageActivity(context.Envelope)?.SetTag("handler.type", "TemplateApp.Features.Tasks.CreateTask.CreateTaskCommand.Handler");
             await Wolverine.FluentValidation.Internals.FluentValidationExecutor.ExecuteOne<TemplateApp.Features.Tasks.CreateTask.CreateTaskCommand>(validatorOfCreateTaskCommand, failureActionOfCreateTaskCommand, createTaskCommand).ConfigureAwait(false);
-            var handler = new TemplateApp.Features.Tasks.CreateTask.CreateTask.Handler(tasksDbContext, _timeProvider, taskMetrics, projectsClient);
+            var handler = new TemplateApp.Features.Tasks.CreateTask.CreateTaskCommand.Handler(tasksDbContext, _timeProvider, taskMetrics, projectsClient);
             
             // The actual message execution
             var outgoing1 = await handler.Handle(createTaskCommand, cancellation).ConfigureAwait(false);

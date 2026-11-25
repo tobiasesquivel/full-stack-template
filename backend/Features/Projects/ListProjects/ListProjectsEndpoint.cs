@@ -16,7 +16,7 @@ internal static class ListProjectsEndpoint
         int pageSize = 20,
         CancellationToken ct = default)
     {
-        var command = new ListProjectsCommand(user.GetCallerId(), cursor, pageSize);
+        var command = new ListProjectsQuery(user.GetCallerId(), cursor, pageSize);
         var result = await bus.InvokeAsync<ErrorOr<ProjectListResponse>>(command, ct);
         return ApiResults.ToResult(result, value => Results.Ok(value));
     }

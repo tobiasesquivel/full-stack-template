@@ -33,10 +33,10 @@ namespace Internal.Generated.WolverineHandlers
             // The actual message body
             var updateTaskCommand = (TemplateApp.Features.Tasks.UpdateTask.UpdateTaskCommand)context.Envelope.Message;
 
-            Wolverine.Runtime.WolverineTracing.MessageActivity(context.Envelope)?.SetTag("message.handler", "TemplateApp.Features.Tasks.UpdateTask.UpdateTask.Handler");
-            Wolverine.Runtime.WolverineTracing.MessageActivity(context.Envelope)?.SetTag("handler.type", "TemplateApp.Features.Tasks.UpdateTask.UpdateTask.Handler");
+            Wolverine.Runtime.WolverineTracing.MessageActivity(context.Envelope)?.SetTag("message.handler", "TemplateApp.Features.Tasks.UpdateTask.UpdateTaskCommand.Handler");
+            Wolverine.Runtime.WolverineTracing.MessageActivity(context.Envelope)?.SetTag("handler.type", "TemplateApp.Features.Tasks.UpdateTask.UpdateTaskCommand.Handler");
             await Wolverine.FluentValidation.Internals.FluentValidationExecutor.ExecuteOne<TemplateApp.Features.Tasks.UpdateTask.UpdateTaskCommand>(validatorOfUpdateTaskCommand, failureActionOfUpdateTaskCommand, updateTaskCommand).ConfigureAwait(false);
-            var handler = new TemplateApp.Features.Tasks.UpdateTask.UpdateTask.Handler(tasksDbContext, _timeProvider, taskMetrics);
+            var handler = new TemplateApp.Features.Tasks.UpdateTask.UpdateTaskCommand.Handler(tasksDbContext, _timeProvider, taskMetrics);
             
             // The actual message execution
             var outgoing1 = await handler.Handle(updateTaskCommand, cancellation).ConfigureAwait(false);

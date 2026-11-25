@@ -24,9 +24,9 @@ namespace Internal.Generated.WolverineHandlers
             // The actual message body
             var closeSessionCommand = (TemplateApp.Features.Auth.CloseSession.CloseSessionCommand)context.Envelope.Message;
 
-            Wolverine.Runtime.WolverineTracing.MessageActivity(context.Envelope)?.SetTag("message.handler", "TemplateApp.Features.Auth.CloseSession.CloseSession.Handler");
-            Wolverine.Runtime.WolverineTracing.MessageActivity(context.Envelope)?.SetTag("handler.type", "TemplateApp.Features.Auth.CloseSession.CloseSession.Handler");
-            var handler = new TemplateApp.Features.Auth.CloseSession.CloseSession.Handler(sessions);
+            Wolverine.Runtime.WolverineTracing.MessageActivity(context.Envelope)?.SetTag("message.handler", "TemplateApp.Features.Auth.CloseSession.CloseSessionCommand.Handler");
+            Wolverine.Runtime.WolverineTracing.MessageActivity(context.Envelope)?.SetTag("handler.type", "TemplateApp.Features.Auth.CloseSession.CloseSessionCommand.Handler");
+            var handler = new TemplateApp.Features.Auth.CloseSession.CloseSessionCommand.Handler(sessions);
             
             // The actual message execution
             var outgoing1 = await handler.Handle(closeSessionCommand, cancellation).ConfigureAwait(false);

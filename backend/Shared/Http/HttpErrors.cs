@@ -28,14 +28,6 @@ public static class HttpErrors
         code: "Idempotency.KeyReused",
         description: "The Idempotency-Key was already used with a different request.");
 
-    public static readonly Error InvalidCursor = Error.Validation(
-        code: "Cursor",
-        description: "Cursor is invalid.");
-
-    public static readonly Error InvalidPageSize = Error.Validation(
-        code: "PageSize",
-        description: $"PageSize must be between 1 and {KeysetCursor.MaxPageSize}.");
-
     private static readonly Dictionary<int, string> StatusCodes = new()
     {
         [400] = "Http.BadRequest",

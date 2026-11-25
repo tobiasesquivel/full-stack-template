@@ -85,8 +85,8 @@ public sealed class GetTaskTests : IClassFixture<ApiFixture>
 
         using IServiceScope scope = services.CreateScope();
         commands.Reset();
-        ErrorOr<TaskResponse> read = await ActivatorUtilities.CreateInstance<GetTask.Handler>(scope.ServiceProvider)
-            .Handle(new GetTaskCommand(new Caller(alice.AuthId, new HashSet<string>()), Guid.Parse(id)), TestContext.Current.CancellationToken);
+        ErrorOr<TaskResponse> read = await ActivatorUtilities.CreateInstance<GetTaskQuery.Handler>(scope.ServiceProvider)
+            .Handle(new GetTaskQuery(new Caller(alice.AuthId, new HashSet<string>()), Guid.Parse(id)), TestContext.Current.CancellationToken);
 
         Assert.False(read.IsError);
         Assert.Equal("Sin rastreo", read.Value.Title);

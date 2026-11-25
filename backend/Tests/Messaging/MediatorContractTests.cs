@@ -28,20 +28,20 @@ public sealed class MediatorContractTests : IClassFixture<ApiFixture>
     }
 
     [Fact]
-    public void EveryTasksCommand_HasALocalHandler_AndEveryHandlerIsRegistered()
+    public void EveryTasksCommandAndQuery_HasALocalHandler_AndEveryHandlerIsRegistered()
     {
-        Type[] commands = typeof(TasksHost).Assembly.GetTypes()
+        Type[] messages = typeof(TasksHost).Assembly.GetTypes()
             .Where(type => type.Namespace?.StartsWith("TemplateApp.Features.Tasks.", StringComparison.Ordinal) == true)
-            .Where(type => type.Name.EndsWith("Command", StringComparison.Ordinal) && !type.Name.EndsWith("IntegrationCommand", StringComparison.Ordinal))
+            .Where(type => type.Name.EndsWith("Query", StringComparison.Ordinal) || (type.Name.EndsWith("Command", StringComparison.Ordinal) && !type.Name.EndsWith("IntegrationCommand", StringComparison.Ordinal)))
             .ToArray();
         Type[] handled = _fixture.TasksServices.GetServices<MediatorHandlerType>()
             .Select(handler => MessageOf(handler.ClrType))
             .ToArray();
         HandlerGraph graph = _fixture.TasksServices.GetRequiredService<HandlerGraph>();
 
-        Assert.Equal(6, commands.Length);
-        Assert.Equal(commands.OrderBy(type => type.FullName), handled.OrderBy(type => type.FullName));
-        Assert.All(commands, command => Assert.NotNull(graph.HandlerFor(command)));
+        Assert.Equal(6, messages.Length);
+        Assert.Equal(messages.OrderBy(type => type.FullName), handled.OrderBy(type => type.FullName));
+        Assert.All(messages, message => Assert.NotNull(graph.HandlerFor(message)));
     }
 
     [Fact]
@@ -69,9 +69,12 @@ public sealed class MediatorContractTests : IClassFixture<ApiFixture>
             bus.InvokeAsync<ErrorOr<TaskResponse>>(new CreateTaskCommand(owner, "   ", null), ct));
         var unversioned = await Assert.ThrowsAsync<ValidationException>(() =>
             bus.InvokeAsync<ErrorOr<TaskResponse>>(new UpdateTaskCommand(owner, Guid.NewGuid(), "Título", false, null), ct));
+        var badPage = await Assert.ThrowsAsync<ValidationException>(() =>
+            bus.InvokeAsync<ErrorOr<TaskListResponse>>(new ListTasksQuery(owner, "not-a-cursor", 0), ct));
 
         Assert.Equal(["Title"], blank.Errors.Select(error => error.PropertyName).Distinct());
         Assert.Equal(["Version"], unversioned.Errors.Select(error => error.PropertyName));
+        Assert.Equal(["PageSize", "Cursor"], badPage.Errors.Select(error => error.PropertyName));
     }
 
     [Fact]
@@ -82,13 +85,11 @@ public sealed class MediatorContractTests : IClassFixture<ApiFixture>
         var admin = HandlerCalls.Caller(TaskPermissions.Read, TaskPermissions.Delete);
         CancellationToken ct = TestContext.Current.CancellationToken;
 
-        ErrorOr<TaskResponse> read = await bus.InvokeAsync<ErrorOr<TaskResponse>>(new GetTaskCommand(admin, Guid.NewGuid()), ct);
+        ErrorOr<TaskResponse> read = await bus.InvokeAsync<ErrorOr<TaskResponse>>(new GetTaskQuery(admin, Guid.NewGuid()), ct);
         ErrorOr<Success> deleted = await bus.InvokeAsync<ErrorOr<Success>>(new DeleteTaskCommand(admin, Guid.NewGuid()), ct);
-        ErrorOr<TaskListResponse> listed = await bus.InvokeAsync<ErrorOr<TaskListResponse>>(new ListTasksCommand(admin, "not-a-cursor", 20), ct);
 
         Assert.Equal("Task.NotFound", Assert.Single(read.Errors).Code);
         Assert.Equal("Task.NotFound", Assert.Single(deleted.Errors).Code);
-        Assert.True(listed.IsError);
     }
 
     private static Type MessageOf(Type handler) => handler.GetMethod("Handle")!.GetParameters()[0].ParameterType;

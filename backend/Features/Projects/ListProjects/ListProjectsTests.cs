@@ -95,8 +95,8 @@ public sealed class ListProjectsTests : IClassFixture<ApiFixture>, IDisposable
 
         using IServiceScope scope = services.CreateScope();
         commands.Reset();
-        ErrorOr<ProjectListResponse> page = await scope.Handler<ListProjects.Handler>()
-            .Handle(new ListProjectsCommand(alice.AuthId, Cursor: null, PageSize: 5), TestContext.Current.CancellationToken);
+        ErrorOr<ProjectListResponse> page = await scope.Handler<ListProjectsQuery.Handler>()
+            .Handle(new ListProjectsQuery(alice.AuthId, Cursor: null, PageSize: 5), TestContext.Current.CancellationToken);
 
         Assert.False(page.IsError);
         Assert.Equal(5, page.Value.Items.Count);

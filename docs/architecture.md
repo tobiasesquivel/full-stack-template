@@ -24,12 +24,20 @@ backend/
         ├── Access/          carpeta técnica: sesión, permisos y roles que usan varias slices
         ├── MessageNames/    carpeta técnica: nombre, versión y exchange de cada mensaje del bus
         ├── Telemetry/       carpeta técnica: métricas, sus enums de etiqueta y tags de traza
-        └── CreateTask/
-            ├── CreateTaskRequest.cs
-            ├── CreateTaskRequestValidator.cs
-            ├── CreateTask.cs            operación: clase con sus dependencias
-            ├── CreateTaskEndpoint.cs    adapter HTTP: Map y handler
-            └── CreateTaskTests.cs
+        ├── CreateTask/
+        │   ├── CreateTaskRequest.cs              cuerpo HTTP
+        │   ├── CreateTaskCommand.cs              mensaje que cambia estado
+        │   ├── CreateTaskCommandValidator.cs     valida el comando
+        │   ├── CreateTaskCommandHandler.cs       operación: CreateTaskCommand.Handler
+        │   ├── CreateTaskEndpoint.cs             adapter HTTP: Map y despacho
+        │   ├── CreateTaskTests.cs
+        │   └── CreateTaskCommandHandlerTests.cs
+        └── GetTask/
+            ├── GetTaskQuery.cs                   mensaje de lectura
+            ├── GetTaskQueryHandler.cs            operación: GetTaskQuery.Handler
+            ├── GetTaskEndpoint.cs
+            ├── GetTaskTests.cs
+            └── GetTaskQueryHandlerTests.cs
 ```
 
 - **Feature:** un módulo profundo. Su interfaz pública es `Contracts/` más sus rutas HTTP. En C#, `public` marca exactamente `Contracts/` y el resto es `internal` (DUNE0020). Auth, Users, Projects y Health viven en `TemplateApp.dll`, así que `internal` no las separa entre sí: lo hace DUNE0004. Tasks vive en `TemplateApp.Tasks.dll`: el compilador ya no deja que el monolito use su interior, y el monolito no la referencia (regla "límite de despliegue": `check-structure.mjs` mira que cada host referencie solo Platform y que cada `Compile Include` escrito en su `.csproj` quede dentro del límite, y `check-host-items.mjs` mira la lista de `Compile` que evalúa MSBuild para cada host).
@@ -134,11 +142,11 @@ Wolverine sobre RabbitMQ lleva los eventos de tarea de Tasks al monolito ([inves
 
 Las seis slices HTTP de Tasks (`CreateTask`, `UpdateTask`, `DeleteTask`, `ListTasks`, `GetTask` y el interno `SnapshotTaskCounts`) son handlers de Wolverine ([investigación](evolucion/investigacion/paso-29-1-wolverine-mediator.md)). El contrato HTTP no cambió.
 
-- **Forma.** `<Slice>Command` es un record `internal` con el `Caller` y los campos del request con los mismos nombres (el código de un error de validación es el nombre del campo). `<Slice>.cs` es una clase estática con un único `Handler` público anidado: constructor con dependencias y `Handle(<Slice>Command, CancellationToken)`, que devuelve `ErrorOr<T>`. Wolverine rechaza un handler `internal` de primer nivel; anidado en una clase `internal`, para el compilador sigue siendo interno. `SnapshotTaskCountsCommand` no tiene campos.
+- **Forma.** El mensaje de la slice es `<Slice>Command` si cambia estado y `<Slice>Query` si solo lee (CQRS por nombre: las dos van por el mismo `IMessageBus`). Es un record `internal sealed partial` con el `Caller` y los campos del request con los mismos nombres (el código de un error de validación es el nombre del campo). Su handler vive en su propio archivo, `<Mensaje>Handler.cs`, y es `<Mensaje>.Handler`: un tipo público anidado en la otra mitad `partial` del record, con constructor con dependencias y `Handle(<Mensaje>, CancellationToken)`, que devuelve `ErrorOr<T>`. Los helpers privados del handler van dentro del handler, no en el record. Si el mensaje se valida, el validador es `<Mensaje>Validator.cs`; el handler no valida la entrada. Wolverine rechaza un handler `internal` de primer nivel, y un handler público de primer nivel no compila con dependencias `internal` (CS0051); anidado en un tipo `internal`, para el compilador sigue siendo interno. DUNE0031 rechaza un handler fuera de esa forma. `SnapshotTaskCountsQuery` no tiene campos.
 - **Registro.** `TasksFeature` llama a `AddMediatorHandler<THandler>(MediatorTransaction.None)` (`Infrastructure/Messaging`; la clase de transacción la explica la sección siguiente), y `MessagingExtension` hace `Discovery.IncludeType` por cada uno, como con las sagas: el descubrimiento por convención sigue apagado. Una dependencia `internal` del constructor, el `IValidator<T>` y el `IFailureAction<T>` del comando van por service location (`AlwaysUseServiceLocationFor`), porque el código generado es una clase pública y no puede recibirlos en su constructor (CS0051).
 - **Código generado.** El host de Tasks pasa `typeof(TasksHost).Assembly` a `AddMessaging`, suma el comando `codegen` (`RunWithMessagingCommandsAsync`) y compila `backend/Hosts/Tasks/Internal/Generated/`, que se versiona como el del monolito. `check-codegen.mjs` revisa los dos proyectos. `ServiceLocationPolicy.AlwaysAllowed` vale para los dos procesos (`MessagingExtension`).
 - **Quién llama.** `TaskAccess` sigue guardando los permisos de la sesión en el scope del request, pero el handler corre en un scope propio. Por eso el endpoint arma `Caller(Id, Permissions)` con `TaskAccess.CallerOf(user)` y lo pone en el comando; `Caller` decide `HasPermission` y `CanAccess`. El handler no depende de HTTP: los tests lo llaman directo con un `Caller` armado a mano.
-- **Validación.** `UseFluentValidation(RegistrationBehavior.ExplicitRegistration)`: sin escaneo, cada validador se registra en `TasksFeature` como `IValidator<<Slice>Command>`. El middleware tira `ValidationException` antes del handler, y `ValidationExceptionHandler` (`Infrastructure/Http`) la traduce con `ApiResults.Problem` al mismo 400 que daba `Error.Validation`; ASP.NET no la registra como error. Con `WithIdempotency`, la excepción deshace la transacción del filtro y la clave queda libre, como antes con el 400.
+- **Validación.** `UseFluentValidation(RegistrationBehavior.ExplicitRegistration)`: sin escaneo, cada validador se registra en el `<Feature>Feature` de su slice como `IValidator<<Mensaje>>`. El middleware tira `ValidationException` antes del handler, y `ValidationExceptionHandler` (`Infrastructure/Http`) la traduce con `ApiResults.Problem` al mismo 400 que daba `Error.Validation`; ASP.NET no la registra como error. Con `WithIdempotency`, la excepción deshace la transacción del filtro y la clave queda libre, como antes con el 400.
 - **Errores.** Una excepción del handler llega al endpoint sin reintentos (las reglas del bus son de las colas) y el manejador global responde 500. La cadena del mediator registra su falla en `Debug`, porque el manejador de excepciones de ASP.NET ya la registra. `ErrorOr` no se registra con `UseResultType`: viaja entero como respuesta.
 - **Éxito vacío.** `InvokeAsync<T>` devuelve `default` si el handler no produjo un `T`, y `default(ErrorOr<T>)` es un éxito. Ningún camino llega ahí: la validación corta con una excepción, todo handler devuelve `ErrorOr<T>` y DUNE0028 exige la forma genérica. `MediatorContractTests` lo fija.
 

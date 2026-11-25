@@ -46,9 +46,9 @@ namespace Internal.Generated.WolverineHandlers
             // and flush AFTER SaveChangesAsync commits. No explicit transaction is started (Lightweight mode).
             var efCoreEnvelopeTransaction = new Wolverine.EntityFrameworkCore.Internals.EfCoreEnvelopeTransaction(authDbContext, context, domainEventScraperIEnumerable);
             await context.EnlistInOutboxAsync(efCoreEnvelopeTransaction).ConfigureAwait(false);
-            Wolverine.Runtime.WolverineTracing.MessageActivity(context.Envelope)?.SetTag("message.handler", "TemplateApp.Features.Auth.OpenSession.OpenSession.Handler");
-            Wolverine.Runtime.WolverineTracing.MessageActivity(context.Envelope)?.SetTag("handler.type", "TemplateApp.Features.Auth.OpenSession.OpenSession.Handler");
-            var handler = new TemplateApp.Features.Auth.OpenSession.OpenSession.Handler(userManagerOfAppIdentityUser, sessions, authModule, usersModule, authMetrics);
+            Wolverine.Runtime.WolverineTracing.MessageActivity(context.Envelope)?.SetTag("message.handler", "TemplateApp.Features.Auth.OpenSession.OpenSessionCommand.Handler");
+            Wolverine.Runtime.WolverineTracing.MessageActivity(context.Envelope)?.SetTag("handler.type", "TemplateApp.Features.Auth.OpenSession.OpenSessionCommand.Handler");
+            var handler = new TemplateApp.Features.Auth.OpenSession.OpenSessionCommand.Handler(userManagerOfAppIdentityUser, sessions, authModule, usersModule, authMetrics);
             
             // The actual message execution
             var outgoing1 = await handler.Handle(openSessionCommand, cancellation).ConfigureAwait(false);

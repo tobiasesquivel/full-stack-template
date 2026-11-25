@@ -1,4 +1,5 @@
 using System.Threading.RateLimiting;
+using FluentValidation;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
@@ -46,10 +47,11 @@ internal static class AuthFeature
         services.AddScoped<IDatabaseSeeder, RoleSeeder>();
         services.AddScoped<Sessions>();
         services.AddScoped<SessionHttpPolicy>();
-        services.AddMediatorHandler<RegisterUser.RegisterUser.Handler>(MediatorTransaction.Atomic);
-        services.AddMediatorHandler<OpenSession.OpenSession.Handler>(MediatorTransaction.None);
-        services.AddMediatorHandler<CloseSession.CloseSession.Handler>(MediatorTransaction.None);
-        services.AddMediatorHandler<CheckSession.CheckSession.Handler>(MediatorTransaction.None);
+        services.AddMediatorHandler<RegisterUser.RegisterUserCommand.Handler>(MediatorTransaction.Atomic);
+        services.AddSingleton<IValidator<RegisterUser.RegisterUserCommand>, RegisterUser.RegisterUserCommandValidator>();
+        services.AddMediatorHandler<OpenSession.OpenSessionCommand.Handler>(MediatorTransaction.None);
+        services.AddMediatorHandler<CloseSession.CloseSessionCommand.Handler>(MediatorTransaction.None);
+        services.AddMediatorHandler<CheckSession.CheckSessionCommand.Handler>(MediatorTransaction.None);
         services.AddScoped<DecideAccountClosure.DecideAccountClosure>();
 
         return services;
