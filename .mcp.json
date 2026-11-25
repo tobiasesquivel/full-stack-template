@@ -9,6 +9,10 @@
         "--root",
         "frontend"
       ]
+    },
+    "excalidraw": {
+      "type": "http",
+      "url": "https://api.excalidraw.com/api/v1/mcp?toolsets=drawing"
     }
   }
 }

@@ -2,6 +2,8 @@
 
 La decisión vigente es [ADR-0004](adr/0004-vertical-slices-deep-modules.md): vertical slices dentro de features que funcionan como módulos profundos. Las reglas para escribir código están en [conventions.md](conventions.md).
 
+El mapa visual del sistema, de lo macro a lo micro (contexto, contenedores, mensajería, componentes, código, datos y calidad), está en [diagramas/arquitectura.excalidraw](diagramas/arquitectura.excalidraw), con una vista previa en [diagramas/arquitectura.png](diagramas/arquitectura.png). Se abre en excalidraw.com o, con el MCP `excalidraw` de `.mcp.json`, en Excalidraw+. Muestra solo lo implementado al 2026-11-25.
+
 ## Forma del backend
 
 El backend son dos procesos ASP.NET Core 10, con namespace raíz `TemplateApp` ([ADR-0005](adr/0005-gateway-y-procesos-propios.md)). El monolito (`backend/Hosts/Monolith/TemplateApp.csproj`, que compila `Features/` menos `Features/Tasks/`) tiene Auth, Users, Projects y Health. Desde el paso 23.2, Tasks corre en su propio proceso (`backend/Hosts/Tasks/TemplateApp.Tasks.csproj`, que compila `Features/Tasks/` y `Features/Health/`). Los dos usan la librería `backend/Platform/TemplateApp.Platform.csproj`, que compila `Infrastructure/` y `Shared/`. Cada host vive en `backend/Hosts/<Host>/` con su `Program.cs`, su `.csproj`, sus `appsettings`, su Dockerfile y su código generado de Wolverine; las features no cambian de carpeta, porque cada `.csproj` las incluye donde están. El monolito conserva el nombre de ensamblado `TemplateApp` (reorganización, parte 6). Un gateway YARP (`gateway/`, otro proyecto y otro proceso) los tiene adelante: toda request a la API entra por él.
