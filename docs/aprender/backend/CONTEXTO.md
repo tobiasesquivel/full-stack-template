@@ -56,8 +56,10 @@ Tobi las tomó en una ronda de preguntas el 2026-11-25. Están también en `NOTE
 ## Estado al 2026-11-25
 
 - Lección 1 (`lessons/0001-el-recorrido-de-un-pedido.html`): resultado 5 de 5, sin fallas. Filas en `registro.md` de esta carpeta (en la notebook no existe `~/.aprender/registro.md`) y registro `learning-records/0003`.
-- Lección 2 entregada: `lessons/0002-los-archivos-de-una-slice.html`. Repaso R-L1-P2 y R-L1-P4 (variantes de "Revisar a un agente") y 5 preguntas: P2, P4 y P5 son "Revisar a un agente". El quiz tiene 7 preguntas en total.
-- **Esperando:** que Tobi pegue el resultado de la lección 2.
+- Lección 2 (`lessons/0002-los-archivos-de-una-slice.html`): resultado 6 de 7. Falló P5: un `if` en el endpoint que compara `CallerId` con `authId` deja afuera al Admin. El permiso lo decide el handler con `CanAccessAsync`. Lo repasa R-L2-P5 en la lección 3; volvé a preguntarlo en la lección 5 (permisos).
+- Lección 3 entregada: `lessons/0003-registro-y-codegen.html`. Repaso R-L2-P5 y R-L2-P2, y 5 preguntas (P2, P4 y P5 son "Revisar a un agente"). En total son 7.
+- **Esperando:** que Tobi pegue el resultado de la lección 3.
+- No probado en ninguna máquina: qué excepción tira `InvokeAsync` si falta `AddMediatorHandler`, y en qué momento falla el modo `Static` si falta el código generado. La lección 3 no lo afirma. La notebook no puede probarlo: le falta el SDK 10.0.401 que pide `global.json` y Docker no estaba corriendo.
 - El mapa del curso ya responde corto todas las preguntas iniciales de Tobi: closure, `ClosureOwner`, `IOwnedResource`, `AccountClosureFacts`, `MessageNames`, orquestar, saga, RabbitMQ, `Hosts/` e `Infrastructure/`. Las lecciones las profundizan.
 - `Infrastructure/` queda como caja negra hasta las lecciones 10 a 13.
 
@@ -65,13 +67,9 @@ Tobi las tomó en una ronda de preguntas el 2026-11-25. Están también en `NOTE
 
 Estos datos ya están verificados contra el código. Volvé a confirmar cada número de línea antes de citarlo, porque el repo cambia.
 
-**Lección 3, registro y codegen:**
-- `UsersFeature.cs:40` contiene `AddMediatorHandler<GetUser.GetUserQuery.Handler>(MediatorTransaction.None)`, y `UsersFeature.cs:62` contiene `GetUser.GetUserEndpoint.Map(users)`.
-- El comando de codegen es `dotnet run --project backend/Hosts/Monolith/TemplateApp.csproj -- codegen write`. Escribe `backend/Hosts/Monolith/Internal/Generated/WolverineHandlers/`, que se versiona.
-- `Infrastructure/Messaging/MessagingExtension.cs:56` configura `TypeLoadMode.Static`, y el gate `dune/gates/check-codegen.mjs` falla si el código generado no coincide.
-- No se probó qué pasa al arrancar la app si falta el código generado. No lo afirmes sin probarlo.
+**Lección 4, errores (`ErrorOr` y `ApiResults`):** leé `Shared/Http/ApiResults.cs` y `Features/Users/UserErrors.cs` antes de armarla. La lección 1 ya mostró la traducción básica (valor 200, `Forbidden` 403, `NotFound` 404).
 
-**Lecciones 4 a 14:** están en el mapa. Para cada una:
+**Lecciones 5 a 14:** están en el mapa. Para cada una:
 1. Leé el código.
 2. Leé la investigación del paso en `docs/evolucion/investigacion/`: 27 para la saga, 25 para el broker, 28 para el período de gracia y 23-2 para Hosts.
 3. Sumá fuentes de `RESOURCES.md`.

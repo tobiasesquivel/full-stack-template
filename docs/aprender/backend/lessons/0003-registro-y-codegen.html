@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Registro y codegen</title>
+<link rel="stylesheet" href="../assets/curso.css">
+</head>
+<body>
+<main data-lesson="Lección 3 (registro y codegen)">
+
+<p class="kicker">Lección 3 de 14 · Bloque A: una slice por dentro · 10 minutos</p>
+<h1>Registro y codegen</h1>
+<p class="win">Al terminar podés mirar la lista de archivos de un PR y saber si al agente le faltó registrar el handler, mapear la ruta o correr <code>codegen write</code>.</p>
+
+<h2>Repaso</h2>
+<p>La primera vuelve sobre la P5 de la lección 2, la que fallaste. La segunda es de "Revisar a un agente".</p>
+
+<div class="quiz" data-answer="0" data-id="R-L2-P5">
+<p class="tipo">Repaso · Revisar a un agente</p>
+<p class="q">En <code>GetUserTimezoneEndpoint</code>, un agente escribió este control y en el handler no llamó a <code>CanAccessAsync</code>. ¿Qué recibe un Admin que pide la zona horaria de Alice?</p>
+<pre><code>if (user.GetCallerId() != authId)
+    return Results.Forbid();</code></pre>
+<div class="opts">
+<button>Recibe 403 aunque tenga permiso</button>
+<button>Recibe la zona de Alice</button>
+<button>Recibe 404 porque falta ruta</button>
+<button>Recibe 401 porque falta sesión</button>
+</div>
+<p class="why">El <code>if</code> solo deja pasar al dueño. <code>CanAccessAsync(quién, recurso, permiso)</code> deja pasar al dueño <em>y</em> a quien tiene el permiso, como un Admin. Por eso el permiso se decide en el handler y no en el endpoint. Además, el handler lee primero el recurso: si no existe da 404, y recién después decide el 403.</p>
+</div>
+
+<div class="quiz" data-answer="2" data-id="R-L2-P2">
+<p class="tipo">Repaso · Revisar a un agente</p>
+<p class="q">Esta vez el agente sí anidó <code>Handler</code> dentro del record <code>partial</code>, pero puso las dos mitades en <code>GetUserTimezoneQuery.cs</code>. ¿Qué está mal?</p>
+<div class="opts">
+<button>El handler tendría que ser privado</button>
+<button>El record no debería ser partial</button>
+<button>El handler va en otro archivo</button>
+<button>Falta registrar la ruta HTTP nueva</button>
+</div>
+<p class="why">La forma pide dos archivos: los campos en <code>GetUserTimezoneQuery.cs</code> y el handler en <code>GetUserTimezoneQueryHandler.cs</code>. DUNE0031 rompe el build si el handler no vive en <code>&lt;Mensaje&gt;Handler.cs</code>.</p>
+</div>
+
+<h2>La idea</h2>
+<div class="answer">
+<p>Una slice no se conecta sola. Su feature la anota en dos lugares: el handler para Wolverine y la ruta para ASP.NET. Además, Wolverine no arma el código que llama al handler mientras la app corre: lo genera un comando antes (<code>codegen write</code>) y ese código se versiona como cualquier archivo.</p>
+</div>
+
+<h2>Dónde se enchufa <code>GetUser</code></h2>
+<figure>
+<svg class="diagram" viewBox="0 0 720 270" role="img" aria-label="Program.cs llama a UsersFeature; UsersFeature mapea la ruta de GetUserEndpoint y anota el handler; MessagingExtension incluye el handler en Wolverine; Wolverine carga el código generado">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head" d="M0,0 L10,5 L0,10 z"/></marker>
+  </defs>
+  <g class="node"><rect x="10" y="100" width="130" height="56" rx="6"/><text class="t" x="75" y="124">Program.cs</text><text class="s" x="75" y="142">lista las features</text></g>
+  <g class="node key"><rect x="190" y="100" width="150" height="56" rx="6"/><text class="t" x="265" y="124">UsersFeature.cs</text><text class="s" x="265" y="142">líneas 40 y 62</text></g>
+  <g class="node"><rect x="400" y="10" width="170" height="56" rx="6"/><text class="t" x="485" y="34">GetUserEndpoint</text><text class="s" x="485" y="52">Map: /me y /{authId}</text></g>
+  <g class="node ext"><rect x="380" y="200" width="160" height="56" rx="6"/><text class="t" x="460" y="224">MessagingExtension</text><text class="s" x="460" y="242">IncludeType</text></g>
+  <g class="node ext"><rect x="590" y="200" width="120" height="56" rx="6"/><text class="t" x="650" y="224">Wolverine</text><text class="s" x="650" y="242">modo Static</text></g>
+  <g class="node key"><rect x="560" y="95" width="150" height="56" rx="6"/><text class="t" x="635" y="119">Código generado</text><text class="s" x="635" y="137">GetUserQueryHandler899…</text></g>
+  <path class="edge" d="M140,128 L188,128" marker-end="url(#a)"/><text class="lbl" x="164" y="120">llama</text>
+  <path class="edge" d="M340,100 L398,46" marker-end="url(#a)"/><text class="lbl" x="335" y="66">mapea la ruta</text>
+  <path class="edge" d="M340,156 L378,214" marker-end="url(#a)"/><text class="lbl" x="318" y="200">anota el handler</text>
+  <path class="edge" d="M540,228 L588,228" marker-end="url(#a)"/><text class="lbl" x="564" y="220">incluye</text>
+  <path class="edge" d="M650,200 L650,153" marker-end="url(#a)"/><text class="lbl" x="682" y="182">carga</text>
+</svg>
+<figcaption>Borde fuerte: lo que tiene que existir por cada slice. Borde punteado: infraestructura que ya existe y no se toca.</figcaption>
+</figure>
+
+<ol class="flow">
+  <li><span class="where">Hosts/Monolith/Program.cs:23 y :48</span>
+    El programa llama a <code>AddUsersFeature()</code> y a <code>MapUsersEndpoints()</code>. Esto ya existe: una slice nueva de Users no toca <code>Program.cs</code>.</li>
+  <li><span class="where">Features/Users/UsersFeature.cs:40</span>
+    <code>services.AddMediatorHandler&lt;GetUser.GetUserQuery.Handler&gt;(MediatorTransaction.None);</code> anota el handler y su clase de transacción. La transacción la ves en la lección 7.</li>
+  <li><span class="where">Infrastructure/Messaging/MessagingExtension.cs:57 y :129</span>
+    Wolverine tiene apagada la búsqueda automática de handlers (<code>DisableConventionalDiscovery</code>). Solo conoce los que la feature anotó, y los suma uno por uno con <code>IncludeType</code>. Sin la línea 40, Wolverine no sabe quién atiende <code>GetUserQuery</code>.</li>
+  <li><span class="where">Features/Users/UsersFeature.cs:62</span>
+    <code>GetUser.GetUserEndpoint.Map(users);</code> registra las rutas dentro del grupo <code>/users</code>, el que exige sesión. Sin esta línea la ruta no existe, y el pedido da 404.</li>
+</ol>
+
+<h2>El código generado</h2>
+<p>Wolverine no tiene un código fijo que sirva para cualquier handler. Escribe una clase C# por handler que hace todo el trabajo: pide las dependencias, crea el handler y llama a <code>Handle</code>. Su documentación da la razón: "we needed to reduce object allocations, layering, runaway <code>Exception</code> stack traces" (<a href="https://wolverinefx.net/guide/codegen.html#wolverine-code-generation-and-ioc">Wolverine, Code Generation</a>).</p>
+
+<pre><code><span class="dim">// Hosts/Monolith/Internal/Generated/WolverineHandlers/GetUserQueryHandler899234218.cs</span>
+var usersDbContext = GetRequiredService&lt;UsersDbContext&gt;(...);       <span class="dim">// línea 29</span>
+var getUserQuery = (GetUserQuery)context.Envelope.Message;          <span class="dim">// línea 31</span>
+<span class="hl">var handler = new GetUserQuery.Handler(usersDbContext, authModule);   // línea 40</span>
+var outgoing1 = await handler.Handle(getUserQuery, cancellation);   <span class="dim">// línea 43</span></code></pre>
+<p class="src">Recortado. El <code>new</code> del handler está escrito en un archivo del repo: si cambia el constructor del handler, este archivo queda viejo.</p>
+
+<p>Ese código existe porque el repo usa <code>TypeLoadMode.Static</code> (<code>MessagingExtension.cs:56</code>). Static = "Never generate types at runtime, but instead try to locate the generated types from the main application assembly": nunca generar mientras corre, solo buscar lo ya generado (<a href="https://wolverinefx.net/guide/codegen.html">misma fuente</a>). Por eso alguien tiene que generarlo antes, con este comando:</p>
+<pre><code>dotnet run --project backend/Hosts/Monolith/TemplateApp.csproj -- codegen write</code></pre>
+<p>El comando escribe <code>backend/Hosts/Monolith/Internal/Generated/WolverineHandlers/</code>: una clase por handler y <code>GeneratedHandlerRegistry.cs</code>, la lista de handlers que Wolverine conoce. El <code>.csproj</code> compila esa carpeta (<code>TemplateApp.csproj:15</code>).</p>
+
+<p class="eq"><strong>Codegen</strong> (generación de código) = una plantilla que se completa una vez, antes de usarla. Wolverine arma la clase que llama a cada handler; vos la guardás en git y la revisás como cualquier archivo.</p>
+
+<h3>Quién avisa si quedó viejo</h3>
+<p>Wolverine no se da cuenta solo: "Nothing in Wolverine is able to detect that the generated source code needs to be rewritten" (<a href="https://wolverinefx.net/guide/codegen.html">Wolverine, Code Generation</a>). Lo detecta el gate <code>dune/gates/check-codegen.mjs</code>: corre <code>codegen write</code>, mira con git si algo cambió y, si cambió, falla con el mensaje "corré <code>dotnet run ... codegen write</code> y versioná el resultado". Corre en CI y en <code>check-all</code>.</p>
+
+<h2>Cómo se ve en un PR correcto</h2>
+<p>Así queda la lista de archivos si un agente suma <code>GetUserTimezone</code> bien:</p>
+<figure>
+<pre class="tree"><code>backend/
+├── Features/Users/
+│   ├── GetUserTimezone/
+│   │   ├── GetUserTimezoneQuery.cs<span class="tag new">nuevo</span>
+│   │   ├── GetUserTimezoneQueryHandler.cs<span class="tag new">nuevo</span>
+│   │   ├── GetUserTimezoneEndpoint.cs<span class="tag new">nuevo</span>
+│   │   └── GetUserTimezoneTests.cs<span class="tag new">nuevo</span>
+│   └── UsersFeature.cs<span class="tag edit">2 líneas</span>      <span class="dim">handler y ruta</span>
+└── Hosts/Monolith/Internal/Generated/WolverineHandlers/
+    ├── GetUserTimezoneQueryHandler…cs<span class="tag gen">generado</span>
+    └── GeneratedHandlerRegistry.cs<span class="tag gen">generado</span>   <span class="dim">suma el handler</span></code></pre>
+<figcaption>Verde: archivos nuevos de la slice. Naranja: la feature, que anota la slice. Gris: lo que escribe <code>codegen write</code>, que nadie edita a mano. El número del nombre generado lo pone Wolverine.</figcaption>
+</figure>
+
+<h2>Por qué así</h2>
+<p>Con el modo Static, la app no compila código mientras corre: no necesita el compilador de C# en producción (<code>docs/decisions.tsv</code>, fila del 2026-11-19). Y como el código generado está en git, lo que Wolverine hace alrededor de cada handler se lee y se revisa en el PR. Apagar la búsqueda automática hace que cada handler declare su clase de transacción en una línea visible.</p>
+<p><strong>En la industria:</strong> Wolverine trae por defecto la búsqueda automática y el modo <code>Dynamic</code>, que genera el código la primera vez que se usa cada handler. Fijar <code>Static</code> y versionar lo generado es la opción para no compilar en producción.</p>
+
+<h2>Qué mirar cuando un agente toca esto</h2>
+<ul>
+<li>Un handler nuevo suma su línea <code>AddMediatorHandler</code> en <code>&lt;Feature&gt;Feature.cs</code>, y su endpoint, su línea <code>Map</code>. Si el PR no toca <code>&lt;Feature&gt;Feature.cs</code>, falta el enchufe.</li>
+<li>Un handler nuevo, o un cambio en el constructor de uno, trae cambios en <code>Internal/Generated/</code>. Si no hay, el agente no corrió <code>codegen write</code>.</li>
+<li>Nadie edita <code>Internal/Generated/</code> a mano. Si el diff muestra un cambio ahí sin un cambio en un handler, preguntá de dónde salió.</li>
+</ul>
+
+<h2>Practicá: recordá sin mirar</h2>
+<p>Respondé sin volver a leer arriba. Equivocarte acá ayuda a recordar.</p>
+
+<div class="quiz" data-answer="3" data-id="P1">
+<p class="tipo">Recordar</p>
+<p class="q">1. ¿En qué archivo se anota que <code>GetUserQuery.Handler</code> existe?</p>
+<div class="opts">
+<button>Program.cs</button>
+<button>GetUserEndpoint.cs</button>
+<button>MessagingExtension.cs</button>
+<button>UsersFeature.cs</button>
+</div>
+<p class="why"><code>UsersFeature.cs:40</code> llama a <code>AddMediatorHandler</code>. <code>Program.cs</code> solo llama a <code>AddUsersFeature()</code>, y <code>MessagingExtension</code> recorre lo que las features anotaron.</p>
+</div>
+
+<div class="quiz" data-answer="1" data-id="P2">
+<p class="tipo">Revisar a un agente</p>
+<p class="q">2. Un agente sumó <code>GetUserTimezone</code>. Su PR toca solo estos archivos. ¿Qué falta?</p>
+<pre><code>Features/Users/GetUserTimezone/GetUserTimezoneQuery.cs
+Features/Users/GetUserTimezone/GetUserTimezoneQueryHandler.cs
+Features/Users/GetUserTimezone/GetUserTimezoneEndpoint.cs
+Features/Users/GetUserTimezone/GetUserTimezoneTests.cs
+Features/Users/UsersFeature.cs</code></pre>
+<div class="opts">
+<button>Una línea nueva en Program.cs</button>
+<button>El código generado de Wolverine</button>
+<button>Un contrato nuevo en Contracts</button>
+<button>Una migración nueva de base</button>
+</div>
+<p class="why">Un handler nuevo necesita su clase en <code>Internal/Generated/</code> y su entrada en <code>GeneratedHandlerRegistry.cs</code>. Sin eso, <code>check-codegen</code> falla en CI. <code>Program.cs</code> ya llama a <code>AddUsersFeature()</code>, y una lectura no cambia la base.</p>
+</div>
+
+<div class="quiz" data-answer="0" data-id="P3">
+<p class="tipo">Recordar</p>
+<p class="q">3. ¿Por qué hace falta la línea <code>AddMediatorHandler</code>?</p>
+<div class="opts">
+<button>Wolverine no busca handlers solo</button>
+<button>ASP.NET la usa para rutas</button>
+<button>La base crea así tablas</button>
+<button>Dune cuenta así los handlers</button>
+</div>
+<p class="why">La búsqueda automática está apagada (<code>DisableConventionalDiscovery</code>, <code>MessagingExtension.cs:57</code>). Wolverine conoce solo los handlers que cada feature anota.</p>
+</div>
+
+<div class="quiz" data-answer="2" data-id="P4">
+<p class="tipo">Revisar a un agente</p>
+<p class="q">4. Un agente le sumó al constructor de <code>GetUserQuery.Handler</code> un parámetro <code>TimeProvider clock</code> y no corrió <code>codegen write</code>. ¿Qué pasa?</p>
+<div class="opts">
+<button>Wolverine lo inyecta igual solo</button>
+<button>Los tests pasan sin cambios</button>
+<button>El build falla en Generated</button>
+<button>La ruta devuelve un 404</button>
+</div>
+<p class="why">El archivo generado tiene escrito <code>new GetUserQuery.Handler(usersDbContext, authModule)</code> con dos argumentos, y se compila con el resto del host. Con un constructor de tres parámetros, ese <code>new</code> ya no compila. Lo arregla correr <code>codegen write</code>.</p>
+</div>
+
+<div class="quiz" data-answer="1" data-id="P5">
+<p class="tipo">Revisar a un agente</p>
+<p class="q">5. Para no correr el comando, un agente editó a mano <code>GetUserQueryHandler899234218.cs</code> y agregó el argumento que faltaba. Compila. ¿Qué pasa en el PR?</p>
+<div class="opts">
+<button>Queda bien porque ya compila</button>
+<button>check-codegen falla en el CI</button>
+<button>Hay que borrarlo del repo</button>
+<button>Hay que moverlo a Features</button>
+</div>
+<p class="why"><code>check-codegen</code> corre <code>codegen write</code>, que pisa el archivo con lo que genera Wolverine, y falla si git ve una diferencia con lo commiteado. Una edición a mano casi nunca coincide con eso. Además, la convención es que nadie lo edita a mano.</p>
+</div>
+
+<div class="quiz-result"></div>
+
+<div class="source"><strong>Fuente principal</strong>
+<a href="https://wolverinefx.net/guide/codegen.html">Wolverine: "Working with Code Generation"</a>. Leé el principio y la parte de <code>TypeLoadMode</code>: son 5 minutos y explican los modos <code>Dynamic</code>, <code>Static</code> y <code>Auto</code>.</div>
+
+<div class="ask"><strong>¿Algo no cerró?</strong>
+Preguntame en el chat. Por ejemplo: "¿qué hace el resto del código generado, como <code>SaveChangesAsync</code>?" o "¿por qué el nombre generado tiene un número?".</div>
+
+<nav class="pager">
+<a href="0002-los-archivos-de-una-slice.html">← Lección 2</a>
+<a href="../reference/mapa.html">Mapa del curso</a>
+<span>Lección 4: errores, ErrorOr y ApiResults</span>
+</nav>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>
