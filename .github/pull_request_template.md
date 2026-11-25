@@ -6,7 +6,7 @@
 
 ## Evidencia
 
-Comandos de [README.md](../README.md#ejecutar-gates) con su resultado por etapa: `PASS`, `FAIL` o `NOT_RUN`.
+Comandos de [docs/verificacion.md](../docs/verificacion.md#ejecutar-gates) con su resultado por etapa: `PASS`, `FAIL` o `NOT_RUN`.
 
 - [ ] Build y tests de `TemplateApp.slnx`
 - [ ] Gates de Dune (`CommentVerifier`, `check-structure`, `check-comments`, `check-frontend`)

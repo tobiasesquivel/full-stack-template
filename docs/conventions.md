@@ -190,4 +190,4 @@ Excepciones (la lista es cerrada):
 - Si cambia un contrato HTTP, el PR incluye backend, frontend y tests.
 - No se desactivan analyzers, no se omiten tests y CI no usa `continue-on-error`.
 - Una regla de Dune no se cambia para tapar una falla. Sí se cambia si ese cambio es el objetivo del paso: con un ADR o una línea en `decisions.tsv`, y con su fixture válida y su violación deliberada.
-- Los comandos de verificación están en [README.md](../README.md#ejecutar-gates).
+- Los comandos de verificación están en [verificación](verificacion.md#ejecutar-gates).

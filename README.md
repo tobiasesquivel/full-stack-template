@@ -1,155 +1,105 @@
-# TemplateApp full-stack
+# TemplateApp
 
-Usa este monorepo como Git template para una aplicación con registro, sesión, perfil y tareas personales. Combina backend ASP.NET Core 10, frontend Angular 22 y PostgreSQL.
+[![Template CI](https://github.com/tobiasesquivel/full-stack-template/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/tobiasesquivel/full-stack-template/actions/workflows/ci.yml)
+[![.NET 10](https://img.shields.io/badge/.NET-10-512BD4)](https://dotnet.microsoft.com/)
+[![Angular 22](https://img.shields.io/badge/Angular-22-DD0031)](https://angular.dev/)
+[![PostgreSQL 18](https://img.shields.io/badge/PostgreSQL-18-4169E1)](https://www.postgresql.org/)
 
-## Estado
+Template full-stack con ASP.NET Core 10, Angular 22 y PostgreSQL. Trae registro, sesión con cookie, perfil y tareas personales, organizados como vertical slices dentro de features que funcionan como módulos profundos.
 
-Es un laboratorio de aprendizaje: el dominio es simple a propósito y el foco es el rigor técnico. La hoja de ruta está en [docs/evolucion/plan.md](docs/evolucion/plan.md) y el estado de cada paso en [docs/evolucion/progreso.md](docs/evolucion/progreso.md). La última línea base verificada está en [docs/evolucion/linea-base.md](docs/evolucion/linea-base.md).
+> [!NOTE]
+> Es un laboratorio de aprendizaje. El dominio es simple a propósito: el foco es llevar el backend, paso a paso, hasta una arquitectura .NET empresarial completa. La hoja de ruta está en [plan.md](docs/evolucion/plan.md), el estado de cada paso en [progreso.md](docs/evolucion/progreso.md) y la última línea base verificada en [linea-base.md](docs/evolucion/linea-base.md).
 
-## Crear tu repositorio
+## Qué trae
 
-Crea un repositorio desde la copia completa mediante la opción GitHub **Use this template**, si el repositorio remoto tiene activada esa opción. Si trabajas con una copia local, copia el monorepo sin `.git`, `node_modules`, `bin`, `obj`, `dist`, `.angular`, `.env` ni resultados de pruebas e inicializa un repositorio nuevo. No copies solo `backend`.
+- **Vertical slices + módulos profundos**: cada feature (`Auth`, `Users`, `Tasks`, `Projects`, `Health`) agrupa sus slices y expone una interfaz chica ([ADR-0004](docs/adr/0004-vertical-slices-deep-modules.md)).
+- **Dos procesos detrás de un gateway**: el monolito y el servicio de Tasks, con YARP adelante ([ADR-0005](docs/adr/0005-gateway-y-procesos-propios.md)).
+- **Mediator y mensajería**: Wolverine como mediator y como bus sobre RabbitMQ entre procesos, con outbox e inbox transaccionales.
+- **Sesión segura**: cookie `__Host-session` cifrada con Data Protection, antiforgery en toda escritura y rate limiting por usuario e IP.
+- **Observabilidad**: logs, métricas y trazas con OpenTelemetry, Prometheus con SLOs, alertas y runbooks.
+- **Frontend moderno**: Angular 22 con signals, Signal Forms y Tailwind.
+- **Arquitectura ejecutable**: Dune controla las reglas con analyzers Roslyn y gates Node.
+- **Pruebas reales**: integración contra PostgreSQL y RabbitMQ con Testcontainers, Vitest y Playwright.
 
-`TemplateApp` es el nombre y namespace de partida. Si lo cambias, actualiza proyectos, solución, namespaces, configuración, tests y referencias del monorepo en el mismo cambio. `dune/Dune.props` y las reglas de Dune usan ese nombre: si no los actualizás, Dune deja de aplicarse sin avisar. Ejecuta los gates después. No hay distribución `dotnet new cleanapi`, feature flags ni opción includeSample. Tasks es una capacidad real del template, no un stub.
+## Empezar
 
-## Preparar herramientas y secrets
+### Requisitos
 
-Instala SDK .NET 10.0.401, Node 26.7 y Docker con Compose v2 y soporte de contenedores Linux. Las versiones Microsoft runtime y paquetes son 10.0.12. Angular está fijado en 22.2.1. Respeta `global.json` y `frontend/package-lock.json`.
+- [.NET SDK 10.0.401](https://dotnet.microsoft.com/download/dotnet/10.0) (fijado en `global.json`)
+- [Node.js 26.7](https://nodejs.org/)
+- [Docker](https://www.docker.com/) con Compose v2 y contenedores Linux
 
-Para ejecutar el backend fuera de Compose, configura `ConnectionStrings__DefaultConnection` en el entorno del proceso. La conexión debe apuntar a PostgreSQL con una base y credenciales reales. Los dos guiones bajos representan la jerarquía de configuración ASP.NET. No hay secrets de respaldo en appsettings. La sesión no necesita una clave propia: la cookie la cifra Data Protection de ASP.NET Core con sus claves. `DataProtection:KeysDirectory` elige la carpeta de esas claves. Sin ese valor, ASP.NET Core usa la carpeta del perfil del usuario, que sobrevive entre corridas locales. `Session:AbsoluteExpirationDays` y `Session:IdleTimeoutMinutes` fijan el vencimiento absoluto y la inactividad. `Otel:Endpoint` (o `OTEL_EXPORTER_OTLP_ENDPOINT`, que tiene prioridad) es la URL del collector OTLP; sin valor, usa `http://localhost:4318`.
+### Crear tu repositorio
 
-La API valida su configuración al arrancar, antes de tocar la base. Si un valor no cumple su regla, no levanta: sale con código 1 y el log dice qué clave falló. Las reglas son: `ConnectionStrings:DefaultConnection` obligatoria, con formato de PostgreSQL y con `Host`; `Session:AbsoluteExpirationDays` entre 1 y 365; `Session:IdleTimeoutMinutes` entre 1 y 1440; `Otel:Endpoint` (u `OTEL_EXPORTER_OTLP_ENDPOINT`) como URL absoluta `http` o `https`; `DataProtection:KeysDirectory` vacía o como ruta absoluta. `backend/Hosts/Monolith/appsettings.example.json` muestra cada clave.
+Usá **Use this template** en GitHub, o copiá el monorepo completo sin `.git`, `node_modules`, `bin`, `obj`, `dist`, `.angular` ni `.env`. Los detalles, incluido cómo cambiar el nombre `TemplateApp`, están en [desarrollo](docs/desarrollo.md#crear-tu-repositorio).
 
-Para Compose, copia `.env.example` a `.env`. Sustituye el valor inválido de `POSTGRES_PASSWORD` por un secret propio antes de iniciar. `.env` no debe versionarse. Los demás nombres de configuración son `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PORT`, `API_PORT`, `WEB_PORT`, `PROMETHEUS_PORT`, `OTEL_EXPORT_DIR` y los plazos del cierre de cuenta: `ACCOUNT_CLOSURE_GRACE_SECONDS` (período de gracia, 14 días por defecto), `ACCOUNT_CLOSURE_FIRST_REMINDER_SECONDS` y `ACCOUNT_CLOSURE_SECOND_REMINDER_SECONDS` (recordatorios, días 7 y 13). `docker compose config` puede imprimir secrets interpolados. No adjuntes su salida completa como evidencia pública.
-
-## Ejecutar con Docker
-
-Desde la raíz, después de configurar `.env`, ejecuta los comandos siguientes.
+### Levantar la aplicación
 
 ```sh
-docker compose config
+cp .env.example .env   # reemplazá POSTGRES_PASSWORD y RABBITMQ_PASSWORD
 docker compose up --build --wait
 ```
 
-El conjunto incluye PostgreSQL persistente, collector OpenTelemetry, Prometheus, API y frontend. El arranque aplica migraciones y seed idempotente. Un error de migración o configuración no es un arranque saludable. No borres el volumen para ocultar errores ni uses EnsureCreated.
+| Servicio | URL |
+|---|---|
+| Frontend | http://localhost:8081 |
+| API (gateway) | http://localhost:8080/api/v1 |
+| Prometheus | http://localhost:9090 |
 
-Con los puertos de partida, abre `http://localhost:8081` para el frontend. La API está en `http://localhost:8080/api/v1`, detrás del gateway. `web` hace proxy al servicio `gateway` (YARP, `gateway/`), que reenvía `/api/v1/tasks` al servicio `tasks` y el resto de `/api/` al servicio `api`; ninguno de los dos publica puertos. `docker compose up --wait` espera los healthchecks de `api`, `tasks`, `gateway`, `db` y `prometheus`. `db` usa PostgreSQL 18 con volumen `pgdata` montado en `/var/lib/postgresql`. `api` y `tasks` comparten las claves de Data Protection en el volumen `dataprotection`, montado en `/var/lib/templateapp/data-protection-keys`: recrear el contenedor no cierra las sesiones. `otel` recibe OTLP en 4317 y 4318 y manda las métricas a `prometheus`, que las guarda 35 días y evalúa las alertas de SLO; su interfaz está en `http://localhost:9090`. Los SLOs, las alertas y sus runbooks están en [docs/operacion/slos.md](docs/operacion/slos.md). Si cambias puertos en `.env`, usa los valores configurados.
+Para correr con procesos locales, configurar secrets o hablar con la API por HTTP, mirá [desarrollo](docs/desarrollo.md).
 
-Para detener contenedores conservando los datos, ejecuta el comando siguiente.
+### Verificar
 
-```sh
-docker compose down
-```
-
-## Ejecutar con procesos locales
-
-Mantén PostgreSQL accesible y configura las variables de entorno anteriores. La API son dos procesos detrás del gateway: el monolito, el proceso de Tasks y el gateway, cada uno en su terminal desde la raíz. El monolito arranca primero, porque migra las tablas de `platform`. `Services__Tasks__BaseAddress` y `Services__Monolith__BaseAddress` dicen dónde está el otro proceso; `appsettings.json` ya trae `http://localhost:5111/` y `http://localhost:5110/`.
-
-```sh
-dotnet run --project backend/Hosts/Monolith/TemplateApp.csproj --no-launch-profile --urls http://localhost:5110
-dotnet run --project backend/Hosts/Tasks/TemplateApp.Tasks.csproj --no-launch-profile --urls http://localhost:5111
-ReverseProxy__Clusters__monolith__Destinations__api__Address=http://localhost:5110/ ReverseProxy__Clusters__tasks__Destinations__tasks__Address=http://localhost:5111/ dotnet run --project gateway/TemplateApp.Gateway.csproj --no-launch-profile --urls http://localhost:8080
-```
-
-`verify-template` levanta los tres de la misma forma, con puertos libres.
-
-En otro terminal, desde `frontend`, instala las dependencias fijadas y sirve Angular con el proxy.
-
-```sh
-npm ci
-npm start -- --proxy-config proxy.conf.json
-```
-
-Abre `http://localhost:4200`. Las peticiones `/api/v1` usan el proxy al gateway local, que reparte entre los dos procesos. No configures orígenes CORS abiertos para sustituir este diseño. Las cookies de sesión y de antiforgery son `Secure` siempre: piden HTTPS, salvo en `localhost` y `127.0.0.1`, que los navegadores tratan como origen seguro.
-
-## Usar la aplicación
-
-Regístrate con nombre de login, email, contraseña y nombre visible. Inicia sesión por nombre de login. Edita el nombre visible y una zona horaria IANA del perfil. Crea tareas, cambia título y estado final, recorre páginas y elimina tareas. Recarga para comprobar restauración de sesión y cierra sesión para borrarla en el servidor.
-
-Si consumes HTTP directamente, primero pide `GET /api/v1/auth/csrf` y conserva cookies. Register y login abren la sesión: devuelven el usuario y la cookie `__Host-session`. Esa cookie autentica Users y Tasks; no hay Bearer. `GET /api/v1/users/me` dice quién es el dueño de la sesión. Envía el valor de `XSRF-TOKEN` como `X-XSRF-TOKEN` en toda escritura (`POST`, `PUT`, `PATCH`, `DELETE`); sin él la API responde 400 con `Auth.AntiforgeryFailed`. Abrir o cerrar sesión renueva `XSRF-TOKEN`: usa el valor nuevo. Logout tiene body vacío y borra la sesión en el servidor.
-
-Los errores usan ProblemDetails. Un recurso inexistente devuelve 404 y un recurso ajeno sin permiso devuelve 403. La lista Tasks siempre es personal, incluso para un administrador. Los tests de integración, uno por slice (`backend/Features/<Feature>/<Slice>/<Slice>Tests.cs`), fijan payloads y estados exactos.
-
-La API limita la cantidad de requests por minuto. Con sesión, cada usuario tiene un balde para lecturas (300) y otro para escrituras (60); sin sesión, el balde es por IP (120). Login, registro y logout tienen además un límite de 20 por minuto por IP. Health no tiene límite. Al pasarse, la API responde 429 con `Http.TooManyRequests` y el header `Retry-After` en segundos. Los límites se cambian en las secciones `RateLimiting` y `AuthRateLimiting` de la configuración.
-
-## Ejecutar gates
-
-Esta es la lista única de comandos de verificación. Ejecutalos sin desactivar analyzers ni omitir tests.
-
-Un solo comando los corre todos en este orden, y después el runtime de la skill `verify-template`: `launch`, `doctor`, `api`, las e2e y `cleanup`. Desde la raíz:
+Un solo comando corre todos los gates, levanta una instancia aislada y prueba la API y el navegador:
 
 ```sh
 E2E_CHANNEL=msedge node .agents/skills/verify-template/scripts/check-all.mjs --run-id <id>
 ```
 
-Deja `summary.json` en `artifacts/verify-template/<id>/`, con `PASS`, `FAIL` o `NOT_RUN` por etapa y un log por comando. El primer `FAIL` corta la corrida: las etapas siguientes quedan `NOT_RUN`. `cleanup` corre siempre después de `launch`. `check-host-items` le pide a MSBuild la lista de `Compile` que evalúa cada host en Release y en Debug (`dotnet msbuild -getItem:Compile`, sin correr targets), con la ruta física de cada archivo, y falla si el monolito tiene algo de `Features/Tasks`, si el host de Tasks tiene otra feature que no sea Tasks o Health, o si alguno tiene `Infrastructure/`, `Shared/`, tests o un archivo de otra carpeta: así ve lo que llega por propiedades, `Import` y `Directory.Build.*`. `check-structure` revisa además cada `Compile Include` escrito en el `.csproj` de un host, aunque esté en un target o tenga una condición que esa evaluación no cumple (sin `.` ni `..`, `%`, `:`, `@(`, propiedades salvo `$(BackendRoot)` ni `*Tests.cs`), rechaza un `<Import>` en el `.csproj` de un host y pide el `Compile Remove` de `$(BackendRoot)/Features/**/*Tests.cs` (y en el monolito el de `$(BackendRoot)/Features/Tasks/**`), con esa ruta exacta. Lo que agrega un target, o una `ProjectReference` que llega por `Directory.Build.*`, no lo ve ninguno de los dos: está en el pendiente "El límite de despliegue de los hosts" de `progreso.md`. `check-codegen` corre `codegen write` de Wolverine sobre el build Release y falla si el código de `backend/Hosts/Monolith/Internal/Generated/` o de `backend/Hosts/Tasks/Internal/Generated/` cambia: ese código se versiona (paso 27) y nadie lo edita a mano. `--gates-only` corre solo los comandos de esta sección; `--no-e2e` omite las e2e. Los comandos sueltos siguen valiendo para repetir una etapa. Las pruebas de integración necesitan Docker para PostgreSQL real. `check-comments` necesita las dependencias de `frontend/node_modules`, por eso va después de `npm ci`. `check-secrets` necesita gitleaks 8.30.1 en el `PATH` (en Windows: `winget install --id Gitleaks.Gitleaks --version 8.30.1 --exact`; o la ruta del ejecutable en `GITLEAKS_BIN`). Revisa el historial alcanzable desde `HEAD` y los cambios sin commitear; la auditoría NuGet y `npm audit` fallan ante un aviso alto o crítico en una dependencia de producción. CI corre lo mismo en el job `security`. `check-runbooks` también necesita `frontend/node_modules` (lee el YAML de las reglas) y falla si una alerta no enlaza su runbook, si el runbook no existe o le falta una sección, o si un runbook no tiene alerta. Los dos `promtool` usan la imagen de Prometheus de `compose.yaml` (`check-all` y CI la leen de ahí): validan la configuración y las reglas con lint fatal y corren las pruebas unitarias de las alertas. CI los corre en el job `slos`.
+La lista completa de comandos, qué revisa cada gate y cómo probar observabilidad y SLOs está en [verificación](docs/verificacion.md).
 
-Desde la raíz:
+## Stack
 
-```sh
-dotnet build TemplateApp.slnx --configuration Release
-node dune/gates/check-codegen.mjs --release
-node --test dune/gates/check-codegen.test.mjs
-node dune/gates/check-host-items.mjs
-node --test dune/gates/check-host-items.test.mjs
-dotnet test TemplateApp.slnx --configuration Release
-dotnet run --project dune/Dune.CommentVerifier -- --root .
-node dune/gates/check-structure.mjs
-node --test dune/gates/check-structure.test.mjs
-node dune/gates/check-secrets.mjs
-node --test dune/gates/check-secrets.test.mjs
-node --test .agents/skills/verify-template/scripts/check-otel-export.test.mjs
-dotnet restore TemplateApp.slnx --force "-warnaserror:NU1903;NU1904"
-npm ci --prefix frontend
-npm audit --prefix frontend --omit=dev --audit-level=high
-node dune/gates/check-comments.mjs --root .
-node --test dune/gates/check-comments.test.mjs
-node dune/gates/check-runbooks.mjs
-node --test dune/gates/check-runbooks.test.mjs
-docker run --rm --entrypoint promtool --volume "$PWD/deploy/prometheus:/etc/prometheus:ro" prom/prometheus:v3.13.5 check config --lint-fatal /etc/prometheus/prometheus.yml
-docker run --rm --entrypoint promtool --volume "$PWD/deploy/prometheus:/etc/prometheus:ro" prom/prometheus:v3.13.5 test rules /etc/prometheus/rules/slo-api.test.yml
+| Capa | Tecnologías |
+|---|---|
+| Backend | ASP.NET Core 10, EF Core + Npgsql, Wolverine, FluentValidation, ErrorOr, Asp.Versioning, Serilog |
+| Frontend | Angular 22 (signals, Signal Forms), Tailwind CSS 4, Vitest, Playwright |
+| Datos y mensajes | PostgreSQL 18, RabbitMQ 4 |
+| Gateway | YARP |
+| Observabilidad | OpenTelemetry Collector, Prometheus |
+| Pruebas backend | xUnit v3 sobre Microsoft Testing Platform, Testcontainers, WireMock.Net |
+| Arquitectura | Dune: analyzers Roslyn, BannedApiAnalyzers y gates Node |
+
+## Estructura
+
+```text
+backend/
+  Features/        Auth, Users, Tasks, Projects, Health: un slice por caso de uso
+  Hosts/           Monolith y Tasks: un proceso desplegable cada uno
+  Infrastructure/  Persistencia, mensajería, HTTP y observabilidad compartidos
+  Shared/          Tipos comunes a todas las features
+  Platform/        Librería que compila Infrastructure/ y Shared/ para los dos hosts
+  Tests/           Integración contra PostgreSQL real
+frontend/          Angular, una carpeta por feature
+gateway/           YARP delante de los dos procesos
+deploy/            Collector OTLP y Prometheus con reglas de SLO
+dune/              Analyzers, verificador de comentarios y gates de arquitectura
+docs/              Arquitectura, convenciones, ADRs, plan y operación
 ```
 
-Backend usa Microsoft Testing Platform (MTP): `dotnet test` ejecuta el runner MTP de `backend/Tests/TemplateApp.Tests.csproj` y de `dune/Dune.Analyzers.Tests/Dune.Analyzers.Tests.csproj` (xunit.v3). No hay `vstest` ni adaptador clásico; los proyectos Dune viven bajo `dune/`, no bajo `backend/`, y los gates de Node con sus tests, en `dune/gates/`. La política MSBuild central vive en `dune/Dune.props`; `Directory.Build.props` solo la importa. Los símbolos prohibidos viven en `dune/BannedSymbols.txt`.
+## Documentación
 
-`npm run format:check` corre `prettier --check .` con `frontend/.prettierrc`: falla si un archivo del frontend no tiene el formato de Prettier. `npm run format` lo arregla. El frontend tiene una suite de Vitest con jsdom: funciones puras y componentes de presentación, cada spec junto a su archivo (`*.spec.ts`). No reemplaza la prueba en el navegador contra la API: registro, login, restauración tras recargar, perfil, tareas y logout. Desde `frontend`, compilá, corré la suite y el gate:
+| Documento | Para qué |
+|---|---|
+| [Arquitectura](docs/architecture.md) | Cómo está armado el sistema hoy |
+| [Convenciones](docs/conventions.md) | Reglas para escribir código |
+| [ADRs](docs/adr/) y [decisiones](docs/decisions.tsv) | Decisiones tomadas y su porqué |
+| [Glosario](CONTEXT.md) | Vocabulario del dominio |
+| [Desarrollo](docs/desarrollo.md) | Configuración, ejecución y API HTTP |
+| [Verificación](docs/verificacion.md) | Gates, pruebas y evidencia |
+| [SLOs y runbooks](docs/operacion/slos.md) | Objetivos de servicio y qué hacer ante cada alerta |
+| [Plan de evolución](docs/evolucion/plan.md) | Hoja de ruta por fases |
 
-```sh
-npm run build
-npm run format:check
-npm test -- --watch=false
-node --test ../dune/gates/check-frontend.test.mjs
-node ../dune/gates/check-frontend.mjs --root ..
-```
+## Contribuir
 
-Para levantar una instancia aislada y probar la API real, usá la skill `verify-template` ([SKILL.md](.agents/skills/verify-template/SKILL.md)): `launch`, `doctor`, `api` y `cleanup`. `launch` arranca la API con un período de gracia de 20 segundos y recordatorios a los 5 y 10, para que el smoke y las e2e vean el cierre completo. Con el conjunto Docker iniciado, el escenario HTTP también corre directo desde la raíz; el smoke cierra cuentas de punta a punta y falla si el período de gracia pasa de 2 minutos, así que levantá Compose con `ACCOUNT_CLOSURE_GRACE_SECONDS=20`, `ACCOUNT_CLOSURE_FIRST_REMINDER_SECONDS=5` y `ACCOUNT_CLOSURE_SECOND_REMINDER_SECONDS=10`, como hace el job `compose` de CI:
-
-```sh
-node .agents/skills/verify-template/scripts/smoke-api.mjs
-node .agents/skills/verify-template/scripts/smoke-api.mjs --compose
-node .agents/skills/verify-template/scripts/check-slo-alerts.mjs slo-check
-docker compose down --timeout 30 --volumes
-node .agents/skills/verify-template/scripts/check-otel-export.mjs otel-export
-```
-
-El recorrido del navegador vive como specs de Playwright Test en `frontend/e2e/`, por feature: `auth`, `session`, `tasks`, `profile` y `tabs`. Corre contra una instancia de `verify-template`: tomá `frontUrl` de `run.json` y esperá 65 segundos después del smoke HTTP, porque el limiter de `/auth` admite 20 requests por minuto por IP y el smoke y el navegador llegan a la API desde la misma IP (`127.0.0.1`). Desde `frontend`:
-
-```sh
-E2E_BASE_URL=<frontUrl> E2E_CHANNEL=msedge npm run e2e
-```
-
-`E2E_CHANNEL=msedge` usa el Edge instalado; sin la variable, Playwright usa su Chromium (`npx playwright install chromium`). Las pruebas corren en serie, con un solo worker, y antes de cada una esperan hasta tener lugar en la ventana del limiter. `E2E_OUTPUT_DIR` elige dónde quedan el reporte JSON, las capturas y los traces de las fallas. Una ruta relativa se resuelve desde la carpeta donde corrés el comando: desde `frontend`, `../artifacts/...` queda en `artifacts/` de la raíz. CI todavía no corre e2e.
-
-El escenario HTTP no reemplaza la prueba Angular contra la API real. Comprueba registro, login, restauración, perfil, tareas y logout en el navegador. Las pruebas backend deben observar aislamiento 403, ausencia 404, permisos vigentes en el siguiente request, sesión cerrada o borrada que da 401, antiforgery en toda escritura, registro duplicado sin filas parciales y cascadas. No sustituyas esos checks por búsquedas de texto del source.
-
-Comprueba `GET /api/v1/health/live` y `/ready` antes y después de interrumpir PostgreSQL en un conjunto de prueba. Captura logs, métricas y spans recibidos por el collector y su correlación. Registrar exporters en DI no prueba exportación. No publiques secrets en la evidencia.
-
-`deploy/otel-collector-config.yaml` configura el collector. Con `OTEL_EXPORT_DIR` sin cambio, busca `otel-export/logs.json`, `metrics.json` y `traces.json`, archivos JSONL escritos por el collector. El smoke de Compose espera hasta 30 segundos el flush de batch y comprueba las métricas HTTP y de negocio. La correlación se comprueba después de `docker compose down`, porque al apagarse la API y el collector vacían sus buffers y el export queda completo: `check-otel-export.mjs` falla si no hay logs de request (los que llevan `RequestId`), si uno no trae `traceId` y `spanId` válidos, si apunta a un span que el collector no recibió, si no hay spans SERVER, si un span SERVER no tiene su log de request, si no llegan métricas o una llega sin puntos, o si una línea del export quedó cortada. Deja `otel-check.json` en la carpeta del export. El collector agrega al final de cada archivo: usá una carpeta vacía por corrida, porque los datos de una corrida vieja tapan o ensucian el resultado. El job `compose` de CI lo corre igual y publica esa carpeta. Revisa también la consola de `docker compose logs otel`. No confundas archivos creados pero vacíos con señales observadas.
-
-`check-slo-alerts.mjs` es la prueba en vivo de los SLOs, con el stack recién levantado y después del smoke (`PROMETHEUS_URL`, por defecto `http://localhost:9090/`). Comprueba que Prometheus cargó las reglas sin error, consulta cada SLI y la métrica cruda, y pide que no haya alertas con tráfico sano. Después congela `db` 3 s por vuelta (requests 200 lentos) hasta ver `ApiLatencyBudgetBurn` en `firing`, sin `ApiAvailabilityBudgetBurn`; y para `db` (5xx) hasta ver `ApiAvailabilityBudgetBurn`. Cada alerta tiene que llegar con `page`, `ticket` y su `runbook_url`. Tarda unos 3 minutos (manda 200 requests sanos antes de las fallas, para que un request lento del arranque no dispare el ticket) y deja `slo-check.json` en la carpeta que recibe. Necesita un stack sin alertas previas: con un stack viejo, bajalo con `--volumes`. CI la corre en el job `compose` y publica `slo-check/`.
-
-## Cambiar el código
-
-Cada paso del plan va en su rama y su PR, con un solo cambio observable. Si cambia HTTP, el PR incluye backend, frontend y tests. Adjuntá los comandos ejecutados y su resultado, también los fallos. Un PR sin runtime observado no puede afirmar runtime verificado.
-
-Leé [arquitectura](docs/architecture.md), [convenciones](docs/conventions.md) y [ADR-0004](docs/adr/0004-vertical-slices-deep-modules.md). [CONTEXT](CONTEXT.md) es el glosario del dominio.
+Cada paso del plan va en su rama y su PR, con un solo cambio observable. Si cambia un contrato HTTP, el PR incluye backend, frontend y tests. Adjuntá los comandos de [verificación](docs/verificacion.md) con su resultado por etapa (`PASS`, `FAIL` o `NOT_RUN`), también los fallos. Las reglas completas para agentes están en [AGENTS.md](AGENTS.md).
