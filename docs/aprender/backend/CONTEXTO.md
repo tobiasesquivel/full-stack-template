@@ -71,8 +71,9 @@ Tobi las tomó en una ronda de preguntas el 2026-11-25. Están también en `NOTE
 - Lección 11 entregada: `lessons/0011-rabbitmq-exchange-cola-binding.html` (exchange, clave de ruteo, cola, binding y DLQ con los nombres reales; por qué el mensaje sobrevive en tres tramos: outbox, cola quorum, ack al terminar; cuándo se pierde: sin binding). Repaso R-L10-P4 y R-L10-P4b, los dos sobre quién espera. En total son 7.
 - Lección 11: Tobi dijo "todo bien sigamos" sin pegar la línea; quedó como 7 de 7. Quién espera la respuesta pasó a "sabido".
 - Lección 12 entregada: `lessons/0012-la-saga-orquestada.html` (los cinco estados de `AccountClosureSaga`, cómo se lee un `Handle`: identidad, guarda `TryMove` y comando devuelto; el código generado de la saga; pivote al final y compensación en orden inverso). Repaso R-L11-P4b (orden de despliegue) y R-L11-P3b (la respuesta espera en `users.account-closures`). En total son 7.
-- **Esperando:** el resultado de la lección 12.
-- Permisos: dejá una pregunta espaciada en la lección 13 o 14.
+- Lección 12: Tobi dijo "entendí todo" sin pegar la línea; quedó como 7 de 7.
+- Lección 13 entregada: `lessons/0013-el-periodo-de-gracia.html` (la saga `AccountClosureGracePeriod`, los tres `TimeoutMessage`, todo en la transacción de `DeleteUser` y por eso `Eager`, cancelar borra la fila y los plazos caen en `NotFound`, la carrera con `FOR UPDATE`). Repaso R-L4-P2b (permisos espaciado: cancelar un cierre necesita `CanAccessAsync`) y R-L12-P3b (la saga no llama por HTTP). En total son 7.
+- **Esperando:** el resultado de la lección 13. Si falla R-L4-P2b, permisos vuelve a "en repaso".
 - Se corrigió una cita de la lección 4: `RolePermissions.cs:86-113` era `:10-37`. Ojo con `cat -n` de varios archivos juntos: numera seguido y da líneas falsas.
 - No probado en ninguna máquina: qué excepción tira `InvokeAsync` si falta `AddMediatorHandler`, y en qué momento falla el modo `Static` si falta el código generado. La lección 3 no lo afirma. La notebook no puede probarlo: le falta el SDK 10.0.401 que pide `global.json` y Docker no estaba corriendo.
 - El mapa del curso ya responde corto todas las preguntas iniciales de Tobi: closure, `ClosureOwner`, `IOwnedResource`, `AccountClosureFacts`, `MessageNames`, orquestar, saga, RabbitMQ, `Hosts/` e `Infrastructure/`. Las lecciones las profundizan.
@@ -82,7 +83,9 @@ Tobi las tomó en una ronda de preguntas el 2026-11-25. Están también en `NOTE
 
 Estos datos ya están verificados contra el código. Volvé a confirmar cada número de línea antes de citarlo, porque el repo cambia.
 
-**Lección 13, el período de gracia:** `StartAccountClosure` abre la saga (`Users/StartAccountClosure/StartAccountClosure.cs:48` llama a `AccountClosureSaga.Open`). Fuentes: `docs/architecture.md`, subsección "Período de gracia e historial", y `docs/evolucion/investigacion/paso-28-*`. El plazo `AccountClosureOverdue` (`AccountClosureSaga.cs:80-91`) y los mensajes programados de Wolverine sirven para explicar cómo se espera días sin memoria. Código generado de la saga ya verificado: `OwnerTasksHeldIntegrationEventHandler467166336.cs` líneas 43 (transacción), 58 (`FindAsync`), 63 (`NotFound`), 72 (`Handle`), 76 (`EnqueueCascadingAsync`), 89 (`Version`), 96 (guarda) y 116 (confirma).
+**Lección 14, Hosts (dos programas):** por qué hay `Hosts/Monolith` y `Hosts/Tasks`. Leé `docs/evolucion/investigacion/paso-23-2-extraer-tasks.md`, `docs/architecture.md` y los `Program.cs` de cada host. Es la última del mapa: cerrá con un repaso de lo que más le costó (permisos y transacciones) y preguntale a Tobi cómo sigue.
+
+**Lección 13 (ya entregada), el período de gracia:** `StartAccountClosure` abre la saga (`Users/StartAccountClosure/StartAccountClosure.cs:48` llama a `AccountClosureSaga.Open`). Fuentes: `docs/architecture.md`, subsección "Período de gracia e historial", y `docs/evolucion/investigacion/paso-28-*`. El plazo `AccountClosureOverdue` (`AccountClosureSaga.cs:80-91`) y los mensajes programados de Wolverine sirven para explicar cómo se espera días sin memoria. Código generado de la saga ya verificado: `OwnerTasksHeldIntegrationEventHandler467166336.cs` líneas 43 (transacción), 58 (`FindAsync`), 63 (`NotFound`), 72 (`Handle`), 76 (`EnqueueCascadingAsync`), 89 (`Version`), 96 (guarda) y 116 (confirma).
 
 **Lecciones 12 a 14:** están en el mapa. Para cada una:
 1. Leé el código.

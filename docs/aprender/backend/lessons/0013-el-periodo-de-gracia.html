@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>El período de gracia</title>
+<link rel="stylesheet" href="../assets/curso.css">
+</head>
+<body>
+<main data-lesson="Lección 13 (período de gracia)">
+
+<p class="kicker">Lección 13 de 14 · Bloque C: mensajes · 10 minutos</p>
+<h1>El período de gracia: esperar 14 días sin memoria</h1>
+<p class="win">Al terminar explicás cómo el repo espera días sin que nada viva en memoria, qué pasa cuando el usuario cancela a mitad de camino y notás cuando un agente cambia un plazo guardado por una espera en memoria.</p>
+
+<h2>Repaso</h2>
+<p>Hiciste bien la lección 12. Va una de permisos, espaciada como quedamos, y una de la saga. El reflejo de permisos: <strong>si la ruta trae el id de algo con dueño, el handler busca el dueño y llama a <code>CanAccessAsync</code>.</strong></p>
+
+<div class="quiz" data-answer="3" data-id="R-L4-P2b">
+<p class="tipo">Repaso · Revisar a un agente</p>
+<p class="q">Un agente escribió el handler de <code>POST /users/closures/{closureId}/cancel</code>: busca el cierre, lo cancela y devuelve 204. Lo probó con su propia cuenta y anda. ¿Qué falta?</p>
+<div class="opts">
+<button>Pasar el closureId en el cuerpo</button>
+<button>Registrar el handler como None, mejor</button>
+<button>Devolver 200 con el cierre cancelado</button>
+<button>Buscar el dueño y llamar CanAccessAsync</button>
+</div>
+<p class="why"><strong>La ruta trae el id de algo con dueño: un cierre.</strong> El handler real busca al dueño en el historial (404 si no hay), y después llama a <code>CanAccessAsync(CallerId, new ClosureOwner(ownerId), UserPermissions.Manage)</code> (403 si no puede), en <code>WithdrawAccountClosureCommandHandler.cs:48-52</code>. Sin eso, cualquiera con sesión cancela el cierre de otro, si sabe su id. Probar con la propia cuenta no lo muestra.</p>
+</div>
+
+<div class="quiz" data-answer="1" data-id="R-L12-P3b">
+<p class="tipo">Repaso · Revisar a un agente</p>
+<p class="q">En un <code>Handle</code> de <code>AccountClosureSaga</code>, un agente llama a Tasks por HTTP para retener las tareas, "para no esperar el mensaje". ¿Qué se pierde?</p>
+<div class="opts">
+<button>Nada: HTTP es igual de seguro que RabbitMQ</button>
+<button>Con Tasks caído, falla en vez de esperar</button>
+<button>El build falla porque la saga no compila</button>
+<button>Auth decide antes de que Tasks retenga nada</button>
+</div>
+<p class="why"><strong>La saga no llama: devuelve el comando y la respuesta llega por la cola.</strong> Con el comando por RabbitMQ, si Tasks está caído el pedido espera en su cola. Con HTTP, el <code>Handle</code> tira una excepción, el bus reintenta y, si no se arregla, el mensaje va a la DLQ (<code>docs/architecture.md:199</code>).</p>
+</div>
+
+<h2>La idea</h2>
+<div class="answer">
+<p>Borrar la cuenta no la cierra: la agenda para dentro de 14 días. Para esperar días sin dejar nada en memoria, una segunda saga, <code>AccountClosureGracePeriod</code>, programa tres mensajes con fecha de entrega. Wolverine los guarda en su tabla, en la misma transacción del pedido, y los entrega cuando llega la fecha. El último abre el cierre de la lección 12. Cancelar borra la fila de la saga: los mensajes que faltan llegan, no encuentran a nadie y se descartan.</p>
+</div>
+<p class="eq"><strong>Período de gracia</strong> = los días en que el usuario puede arrepentirse. <strong>Mensaje programado</strong> (<code>TimeoutMessage</code>) = un mensaje con fecha de entrega, guardado en la base hasta esa fecha.</p>
+
+<figure>
+<svg class="diagram" viewBox="0 0 760 270" role="img" aria-label="El día 0 DELETE programa tres mensajes que Wolverine guarda en su tabla: recordatorio 1 el día 7, recordatorio 2 el día 13 y el vencimiento el día 14. Al vencer, StartAccountClosure abre AccountClosureSaga en HoldingTasks. Cancelar antes del día 14 borra la fila de la saga y los plazos que faltan se descartan">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head" d="M0,0 L10,5 L0,10 z"/></marker>
+    <marker id="b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head back" d="M0,0 L10,5 L0,10 z"/></marker>
+  </defs>
+  <rect class="group" x="195" y="14" width="525" height="100" rx="8"/>
+  <text class="lbl" x="457" y="30">programados el día 0, guardados en la tabla de Wolverine</text>
+  <g class="node"><rect x="10" y="44" width="150" height="56" rx="6"/><text class="t" x="85" y="68">Día 0: DELETE</text><text class="s" x="85" y="86">202 scheduled</text></g>
+  <g class="node"><rect x="210" y="44" width="140" height="56" rx="6"/><text class="t" x="280" y="68">Día 7</text><text class="s" x="280" y="86">recordatorio 1</text></g>
+  <g class="node"><rect x="390" y="44" width="140" height="56" rx="6"/><text class="t" x="460" y="68">Día 13</text><text class="s" x="460" y="86">recordatorio 2</text></g>
+  <g class="node key"><rect x="570" y="44" width="140" height="56" rx="6"/><text class="t" x="640" y="68">Día 14</text><text class="s" x="640" y="86">vence la gracia</text></g>
+  <path class="edge" d="M160,72 L208,72" marker-end="url(#a)"/>
+  <path class="edge" d="M350,72 L388,72" marker-end="url(#a)"/>
+  <path class="edge" d="M530,72 L568,72" marker-end="url(#a)"/>
+  <g class="node"><rect x="570" y="190" width="170" height="56" rx="6"/><text class="t" x="655" y="214">AccountClosureSaga</text><text class="s" x="655" y="232">HoldingTasks (lección 12)</text></g>
+  <path class="edge" d="M640,100 L640,188" marker-end="url(#a)"/><text class="lbl" x="580" y="150">abre el cierre</text>
+  <g class="node"><rect x="210" y="190" width="290" height="56" rx="6"/><text class="t" x="355" y="214">Cancelar antes del día 14</text><text class="s" x="355" y="232">borra la fila; los plazos se descartan</text></g>
+  <path class="edge back" d="M370,188 L370,116" marker-end="url(#b)"/><text class="lbl back" x="410" y="156">cancela</text>
+</svg>
+<figcaption>Los tres plazos se programan juntos el día 0. Nadie espera en memoria: el día 7, Wolverine encuentra en su tabla un mensaje con fecha vencida y lo entrega.</figcaption>
+</figure>
+
+<h2>Los tres mensajes</h2>
+<div class="scroll">
+<table>
+<tr><th>Mensaje</th><th>Llega</th><th>Qué hace</th></tr>
+<tr><td><code>AccountClosureReminderDue</code> 1</td><td>a los 7 días</td><td>anota el hecho <code>reminder-sent</code> (todavía no manda correo)</td></tr>
+<tr><td><code>AccountClosureReminderDue</code> 2</td><td>a los 13 días</td><td>lo mismo, con el número 2</td></tr>
+<tr><td><code>AccountClosureGraceExpired</code></td><td>a los 14 días</td><td>completa la saga de gracia y llama a <code>StartAccountClosure</code>: perfil <code>Closing</code> y fila de <code>AccountClosureSaga</code></td></tr>
+</table>
+</div>
+<p>Fuente: <code>docs/architecture.md:208</code> y <code>:215-216</code>. Los plazos salen de la configuración (<code>AccountClosure:GracePeriodSeconds</code> = 1 209 600 s = 14 días, <code>:220</code>).</p>
+
+<h2>Cómo se programa, en el código</h2>
+<pre><code><span class="dim">// ScheduleAccountClosure/AccountClosureReminderDue.cs:5</span>
+public sealed record AccountClosureReminderDue(Guid ClosureId, int Number, TimeSpan After)
+    : TimeoutMessage(After);          <span class="dim">// "entregame dentro de After"</span>
+
+<span class="dim">// DeleteUser/DeleteUserCommandHandler.cs:68-71</span>
+profile.ScheduleClosure(closureId, now, closesAt);                     <span class="dim">// perfil Scheduled</span>
+await _history.RecordAsync(..., AccountClosureFacts.Requested, ...);   <span class="dim">// hecho requested</span>
+(AccountClosureGracePeriod saga, object[] messages) = AccountClosureGracePeriod.Open(...);
+await _sagas.StartAsync(saga, messages);                               <span class="dim">// fila + 3 plazos</span></code></pre>
+<ul>
+<li><strong>Todo en una transacción.</strong> Perfil, hecho del historial, fila de la saga y los tres plazos se guardan juntos (<code>docs/architecture.md:208</code>). Por eso <code>DeleteUser</code> se registra <code>Eager</code> (<code>UsersFeature.cs:46</code>): es el caso que viste en la lección 7.</li>
+<li><strong>Quién los entrega.</strong> Wolverine revisa su tabla de mensajes programados cada 5 segundos; un plazo vence con hasta 5 s de atraso (<code>:220</code>). Si el monolito estuvo caído, al volver encuentra los vencidos y los entrega.</li>
+<li><strong>Un reinicio no pierde nada.</strong> Hay un test que reinicia el monolito con un recordatorio pendiente: <code>TheMonolithRestartsWhileAReminderIsPending_AndTheGracePeriodResumes_EachStepOnce</code>.</li>
+</ul>
+
+<h3>Cancelar y la carrera con el vencimiento</h3>
+<p>Cancelar pasa el perfil a <code>Cancelled</code> y borra la fila de la saga de gracia con <code>ExecuteDelete</code> (<code>WithdrawAccountClosureCommandHandler.cs:61</code>). No toca los plazos: cuando llegan, Wolverine busca la saga, no la encuentra y llama a <code>NotFound</code>, que está vacío (<code>AccountClosureGracePeriod.cs:54-60</code>). Wolverine lo pide así: un plazo de una saga que ya no existe necesita su <code>NotFound</code>, "even if it is an empty, do nothing method" (<a href="https://wolverinefx.net/guide/durability/sagas.html">Wolverine: Sagas</a>).</p>
+<p>¿Y si cancelar y vencer pasan en el mismo segundo? Los dos toman la fila del perfil con <code>FOR UPDATE</code> (= bloquean esa fila hasta terminar su transacción), así que el segundo ve lo que dejó el primero. El vencimiento arranca el cierre solo si el perfil sigue <code>Scheduled</code> con ese id (<code>StartAccountClosure.cs:36-44</code>). Si ganó el vencimiento, cancelar responde 409 (<code>docs/architecture.md:218</code>).</p>
+
+<h2>Por qué así</h2>
+<p>Un proceso de días no puede depender de que el programa siga prendido: hay deploys y reinicios. Guardar el plazo como mensaje en la base hace que sobreviva a cualquiera de los dos. Tobi eligió hacerlo con una saga de Wolverine, sin una plataforma de workflows ni un proceso nuevo (<code>docs/architecture.md:206</code>).</p>
+<p><strong>En la industria:</strong> se llama ejecución durable, "a fault-tolerant approach to running code that handles failures and interruptions through automatic retries and state persistence" (<a href="https://learn.microsoft.com/en-us/azure/durable-task/scheduler/durable-task-scheduler">Microsoft: Durable Task Scheduler</a>). Temporal y Azure Durable Functions la ofrecen como plataforma, con timers que viven en el servidor y no en tu proceso.</p>
+
+<h2>Qué mirar cuando un agente toca esto</h2>
+<ul>
+<li>Un plazo largo nunca es <code>Task.Delay</code>, un <code>Timer</code> ni un <code>BackgroundService</code> que espera: es un <code>TimeoutMessage</code> guardado.</li>
+<li>Cada mensaje programado de una saga tiene su <code>NotFound</code>, aunque esté vacío: cuando llegue, la saga puede ya no existir.</li>
+<li>Lo que hace un plazo al vencer vuelve a mirar el estado, con <code>FOR UPDATE</code>: en 14 días todo pudo cambiar.</li>
+</ul>
+
+<h2>Practicá: recordá sin mirar</h2>
+<p>Respondé sin volver a leer arriba. Equivocarte acá ayuda a recordar.</p>
+
+<div class="quiz" data-answer="1" data-id="P1">
+<p class="tipo">Recordar</p>
+<p class="q">1. Es el día 5 de un cierre agendado. ¿Dónde está guardado el aviso de que el día 14 vence la gracia?</p>
+<div class="opts">
+<button>En un temporizador en memoria del monolito</button>
+<button>En una tabla de Wolverine, con fecha</button>
+<button>En una cola de RabbitMQ esperando días</button>
+<button>En un cron del servidor cada noche</button>
+</div>
+<p class="why"><strong>Esperar días = un mensaje guardado con fecha.</strong> <code>AccountClosureGraceExpired</code> es un <code>TimeoutMessage</code>. Wolverine lo guardó el día 0 en su tabla (schema <code>wolverine</code>) y lo entrega cuando llega la fecha.</p>
+</div>
+
+<div class="quiz" data-answer="3" data-id="P2">
+<p class="tipo">Recordar</p>
+<p class="q">2. Llega <code>AccountClosureGraceExpired</code> y el perfil sigue <code>Scheduled</code> con ese cierre. ¿Qué pasa?</p>
+<div class="opts">
+<button>Borra la cuenta y todas sus tareas</button>
+<button>Manda un correo con el último aviso</button>
+<button>Cancela el cierre si nadie lo confirmó</button>
+<button>Pasa a Closing y abre la saga</button>
+</div>
+<p class="why"><strong>La gracia termina donde empieza la lección 12.</strong> <code>StartAccountClosure</code> pasa el perfil a <code>Closing</code>, anota <code>grace-expired</code> y <code>closure-started</code> y agrega la fila de <code>AccountClosureSaga</code>, que pide a Tasks retener. Nada se borra todavía.</p>
+</div>
+
+<div class="quiz" data-answer="0" data-id="P3">
+<p class="tipo">Recordar</p>
+<p class="q">3. El usuario cancela el día 10. ¿Qué pasa con el recordatorio 2 y el vencimiento que ya estaban programados?</p>
+<div class="opts">
+<button>Llegan, no encuentran la saga y se descartan</button>
+<button>Llegan y arrancan el cierre de todos modos</button>
+<button>Wolverine los borra de su tabla al cancelar</button>
+<button>Quedan pendientes para siempre en la tabla vieja</button>
+</div>
+<p class="why"><strong>Cancelar borra la fila de la saga; los plazos siguen y no encuentran a nadie.</strong> Cuando llegan, Wolverine no encuentra la saga y llama a su <code>NotFound</code>, que no hace nada (<code>AccountClosureGracePeriod.cs:54-60</code>).</p>
+</div>
+
+<div class="quiz" data-answer="2" data-id="P4">
+<p class="tipo">Revisar a un agente</p>
+<p class="q">4. Un agente cambió los recordatorios por un servicio del monolito que hace esto. El viernes hay un deploy. ¿Qué pasa con los cierres agendados?</p>
+<pre><code>await Task.Delay(TimeSpan.FromDays(7), ct);
+await RemindAsync(closureId, 1, ct);</code></pre>
+<div class="opts">
+<button>Nada: el deploy espera a que terminen</button>
+<button>Task.Delay se guarda en la base solo</button>
+<button>Se pierden los recordatorios que estaban esperando</button>
+<button>Se mandan todos los recordatorios de golpe</button>
+</div>
+<p class="why"><strong>Esperar días = un mensaje guardado, nunca una espera en memoria.</strong> <code>Task.Delay</code> vive en el proceso: el deploy lo reinicia y la espera desaparece. Con <code>TimeoutMessage</code>, el plazo está en la base y el monolito nuevo lo entrega.</p>
+</div>
+
+<div class="quiz" data-answer="1" data-id="P5">
+<p class="tipo">Revisar a un agente</p>
+<p class="q">5. Un agente sumó a la saga de gracia un plazo nuevo, <code>AccountClosureLastWarning</code>, con su <code>Handle</code> pero sin <code>NotFound</code>. El usuario canceló antes de que llegue. ¿Qué pasa cuando llega?</p>
+<div class="opts">
+<button>Nada: Wolverine lo descarta solo, sin avisar</button>
+<button>Wolverine tira una excepción con ese mensaje</button>
+<button>Arranca el cierre aunque se haya cancelado</button>
+<button>El build falla por falta de NotFound</button>
+</div>
+<p class="why"><strong>Cada plazo de una saga necesita su <code>NotFound</code>, aunque esté vacío.</strong> Wolverine: "If you receive a command message against a <code>Saga</code> that no longer exists, Wolverine will throw an <code>Exception</code> unless you explicitly handle the "not found" case" (<a href="https://wolverinefx.net/guide/durability/sagas.html">Wolverine: Sagas</a>). Cancelar borró la fila, así que el plazo llega a una saga que no existe.</p>
+</div>
+
+<div class="quiz-result"></div>
+
+<div class="source"><strong>Fuente principal</strong>
+<a href="https://wolverinefx.net/guide/durability/sagas.html">Wolverine: Sagas</a>. Leé las partes de "timeout messages" y de "not found": son 5 minutos y son las dos piezas de esta lección. La investigación del repo compara esto con Temporal: <code>docs/evolucion/investigacion/paso-28-durable-execution.md</code>.</div>
+
+<div class="ask"><strong>¿Algo no cerró?</strong>
+Preguntame en el chat. Por ejemplo: "¿por qué hay dos sagas y no una sola?" o "¿qué pasa si el usuario pide borrar la cuenta dos veces?".</div>
+
+<nav class="pager">
+<a href="0012-la-saga-orquestada.html">← Lección 12</a>
+<a href="../reference/mapa.html">Mapa del curso</a>
+<span>Lección 14: Hosts, dos programas</span>
+</nav>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>
