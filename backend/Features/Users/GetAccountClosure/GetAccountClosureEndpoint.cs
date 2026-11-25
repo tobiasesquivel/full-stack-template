@@ -12,7 +12,7 @@ internal static class GetAccountClosureEndpoint
 
     private static async Task<IResult> HandleAsync(Guid closureId, ClaimsPrincipal user, IMessageBus bus, CancellationToken ct)
     {
-        var command = new GetAccountClosureCommand(user.GetCallerId(), closureId);
+        var command = new GetAccountClosureQuery(user.GetCallerId(), closureId);
         var result = await bus.InvokeAsync<ErrorOr<AccountClosureStatusResponse>>(command, ct);
         return ApiResults.ToResult(result, value => Results.Ok(value));
     }

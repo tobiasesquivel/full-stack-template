@@ -10,7 +10,7 @@ internal static class SnapshotTaskCountsEndpoint
 
     private static async Task<IResult> HandleAsync(IMessageBus bus, CancellationToken ct)
     {
-        var result = await bus.InvokeAsync<ErrorOr<TaskCountsSnapshotResponse>>(new SnapshotTaskCountsCommand(), ct);
+        var result = await bus.InvokeAsync<ErrorOr<TaskCountsSnapshotResponse>>(new SnapshotTaskCountsQuery(), ct);
         return ApiResults.ToResult(result, value => Results.Ok(value));
     }
 }

@@ -29,18 +29,6 @@ internal static class AuthErrors
         code: "Auth.SessionInactive",
         description: "The session does not exist, expired or belongs to another user.");
 
-    public static readonly Error InvalidUserName = Error.Validation(
-        code: "UserName",
-        description: "UserName must be between 1 and 100 characters.");
-
-    public static readonly Error InvalidEmail = Error.Validation(
-        code: "Email",
-        description: "Email must be a valid email address.");
-
-    public static readonly Error InvalidPassword = Error.Validation(
-        code: "Password",
-        description: "Password must be between 6 and 128 characters.");
-
     public static Error IdentityRejected(IdentityError error) => Error.Validation(
         code: error.Code,
         description: error.Description);

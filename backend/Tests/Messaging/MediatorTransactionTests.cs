@@ -25,20 +25,20 @@ public sealed class MediatorTransactionTests : IClassFixture<ApiFixture>
     }
 
     [Fact]
-    public void EveryMonolithCommand_HasARegisteredHandler()
+    public void EveryMonolithCommandAndQuery_HasARegisteredHandler()
     {
-        Type[] commands = typeof(MonolithHost).Assembly.GetTypes()
+        Type[] messages = typeof(MonolithHost).Assembly.GetTypes()
             .Where(type => MonolithFeatures.Any(feature => type.Namespace?.StartsWith($"TemplateApp.Features.{feature}.", StringComparison.Ordinal) == true))
-            .Where(type => type.Name.EndsWith("Command", StringComparison.Ordinal) && !type.Name.EndsWith("IntegrationCommand", StringComparison.Ordinal))
+            .Where(type => type.Name.EndsWith("Query", StringComparison.Ordinal) || (type.Name.EndsWith("Command", StringComparison.Ordinal) && !type.Name.EndsWith("IntegrationCommand", StringComparison.Ordinal)))
             .ToArray();
         Type[] handled = _fixture.Services.GetServices<MediatorHandlerType>()
             .Select(handler => MessageOf(handler.ClrType))
             .ToArray();
         HandlerGraph graph = _fixture.Services.GetRequiredService<HandlerGraph>();
 
-        Assert.NotEmpty(commands);
-        Assert.Equal(commands.OrderBy(type => type.FullName), handled.OrderBy(type => type.FullName));
-        Assert.All(commands, command => Assert.NotNull(graph.HandlerFor(command)));
+        Assert.NotEmpty(messages);
+        Assert.Equal(messages.OrderBy(type => type.FullName), handled.OrderBy(type => type.FullName));
+        Assert.All(messages, message => Assert.NotNull(graph.HandlerFor(message)));
     }
 
     [Fact]

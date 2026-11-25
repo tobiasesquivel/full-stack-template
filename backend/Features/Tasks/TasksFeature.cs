@@ -53,14 +53,14 @@ internal static class TasksFeature
 
         services.AddSingleton<TaskMetrics>();
         services.AddScoped<TaskAccess>();
-        services.AddMediatorHandler<CreateTask.CreateTask.Handler>(MediatorTransaction.None);
+        services.AddMediatorHandler<CreateTask.CreateTaskCommand.Handler>(MediatorTransaction.None);
         services.AddSingleton<IValidator<CreateTask.CreateTaskCommand>, CreateTask.CreateTaskCommandValidator>();
-        services.AddMediatorHandler<ListTasks.ListTasks.Handler>(MediatorTransaction.None);
-        services.AddMediatorHandler<GetTask.GetTask.Handler>(MediatorTransaction.None);
-        services.AddMediatorHandler<UpdateTask.UpdateTask.Handler>(MediatorTransaction.None);
+        services.AddMediatorHandler<ListTasks.ListTasksQuery.Handler>(MediatorTransaction.None);
+        services.AddMediatorHandler<GetTask.GetTaskQuery.Handler>(MediatorTransaction.None);
+        services.AddMediatorHandler<UpdateTask.UpdateTaskCommand.Handler>(MediatorTransaction.None);
         services.AddSingleton<IValidator<UpdateTask.UpdateTaskCommand>, UpdateTask.UpdateTaskCommandValidator>();
-        services.AddMediatorHandler<DeleteTask.DeleteTask.Handler>(MediatorTransaction.None);
-        services.AddMediatorHandler<SnapshotTaskCounts.SnapshotTaskCounts.Handler>(MediatorTransaction.None);
+        services.AddMediatorHandler<DeleteTask.DeleteTaskCommand.Handler>(MediatorTransaction.None);
+        services.AddMediatorHandler<SnapshotTaskCounts.SnapshotTaskCountsQuery.Handler>(MediatorTransaction.None);
         services.AddScoped<DeleteOwnedTasks.DeleteOwnedTasks>();
         services.AddScoped<HoldOwnerTasks.HoldOwnerTasks>();
         services.AddScoped<ReleaseOwnerTasks.ReleaseOwnerTasks>();

@@ -30,6 +30,10 @@ namespace Internal.Generated.WolverineHandlers
             var sessions = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService<TemplateApp.Features.Auth.Access.Sessions>(serviceScope.ServiceProvider);
             // This service has been marked as requiring service location independent of Wolverine's ability to use constructor injection of everything else
             var userManagerOfAppIdentityUser = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService<Microsoft.AspNetCore.Identity.UserManager<TemplateApp.Features.Auth.Persistence.AppIdentityUser>>(serviceScope.ServiceProvider);
+            // This service has been marked as requiring service location independent of Wolverine's ability to use constructor injection of everything else
+            var failureActionOfRegisterUserCommand = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService<Wolverine.FluentValidation.IFailureAction<TemplateApp.Features.Auth.RegisterUser.RegisterUserCommand>>(serviceScope.ServiceProvider);
+            // This service has been marked as requiring service location independent of Wolverine's ability to use constructor injection of everything else
+            var validatorOfRegisterUserCommand = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService<FluentValidation.IValidator<TemplateApp.Features.Auth.RegisterUser.RegisterUserCommand>>(serviceScope.ServiceProvider);
             
             /*
             * Concrete type TemplateApp.Features.Auth.Persistence.AuthDbContext is not public, so requires service location
@@ -45,9 +49,10 @@ namespace Internal.Generated.WolverineHandlers
             // and flush AFTER SaveChangesAsync commits. No explicit transaction is started (Lightweight mode).
             var efCoreEnvelopeTransaction = new Wolverine.EntityFrameworkCore.Internals.EfCoreEnvelopeTransaction(authDbContext, context, domainEventScraperIEnumerable);
             await context.EnlistInOutboxAsync(efCoreEnvelopeTransaction).ConfigureAwait(false);
-            Wolverine.Runtime.WolverineTracing.MessageActivity(context.Envelope)?.SetTag("message.handler", "TemplateApp.Features.Auth.RegisterUser.RegisterUser.Handler");
-            Wolverine.Runtime.WolverineTracing.MessageActivity(context.Envelope)?.SetTag("handler.type", "TemplateApp.Features.Auth.RegisterUser.RegisterUser.Handler");
-            var handler = new TemplateApp.Features.Auth.RegisterUser.RegisterUser.Handler(userManagerOfAppIdentityUser, sessions, authModule, usersModule);
+            Wolverine.Runtime.WolverineTracing.MessageActivity(context.Envelope)?.SetTag("message.handler", "TemplateApp.Features.Auth.RegisterUser.RegisterUserCommand.Handler");
+            Wolverine.Runtime.WolverineTracing.MessageActivity(context.Envelope)?.SetTag("handler.type", "TemplateApp.Features.Auth.RegisterUser.RegisterUserCommand.Handler");
+            await Wolverine.FluentValidation.Internals.FluentValidationExecutor.ExecuteOne<TemplateApp.Features.Auth.RegisterUser.RegisterUserCommand>(validatorOfRegisterUserCommand, failureActionOfRegisterUserCommand, registerUserCommand).ConfigureAwait(false);
+            var handler = new TemplateApp.Features.Auth.RegisterUser.RegisterUserCommand.Handler(userManagerOfAppIdentityUser, sessions, authModule, usersModule);
             
             // The actual message execution
             var outgoing1 = await handler.Handle(registerUserCommand, cancellation).ConfigureAwait(false);

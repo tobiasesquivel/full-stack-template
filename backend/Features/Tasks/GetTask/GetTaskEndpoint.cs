@@ -17,7 +17,7 @@ internal static class GetTaskEndpoint
         ClaimsPrincipal user,
         CancellationToken ct)
     {
-        var command = new GetTaskCommand(access.CallerOf(user), id);
+        var command = new GetTaskQuery(access.CallerOf(user), id);
         var result = await bus.InvokeAsync<ErrorOr<TaskResponse>>(command, ct);
         return ApiResults.ToResult(result, value => Results.Ok(value));
     }

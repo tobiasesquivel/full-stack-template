@@ -1,3 +1,3 @@
 namespace TemplateApp.Features.Auth.CheckSession;
 
-internal sealed record CheckSessionCommand(string UserId, Guid SessionId);
+internal sealed partial record CheckSessionCommand(string UserId, Guid SessionId);

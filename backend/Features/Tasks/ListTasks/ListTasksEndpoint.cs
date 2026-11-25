@@ -18,7 +18,7 @@ internal static class ListTasksEndpoint
         int pageSize = 20,
         CancellationToken ct = default)
     {
-        var command = new ListTasksCommand(access.CallerOf(user), cursor, pageSize);
+        var command = new ListTasksQuery(access.CallerOf(user), cursor, pageSize);
         var result = await bus.InvokeAsync<ErrorOr<TaskListResponse>>(command, ct);
         return ApiResults.ToResult(result, value => Results.Ok(value));
     }

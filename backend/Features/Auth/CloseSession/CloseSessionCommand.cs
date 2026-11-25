@@ -1,3 +1,3 @@
 namespace TemplateApp.Features.Auth.CloseSession;
 
-internal sealed record CloseSessionCommand(Guid? SessionId);
+internal sealed partial record CloseSessionCommand(Guid? SessionId);

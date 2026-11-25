@@ -1,3 +1,3 @@
 namespace TemplateApp.Features.Users.DeleteUser;
 
-internal sealed record DeleteUserCommand(string CallerId, string AuthId);
+internal sealed partial record DeleteUserCommand(string CallerId, string AuthId);

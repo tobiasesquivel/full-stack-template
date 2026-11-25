@@ -26,9 +26,9 @@ namespace Internal.Generated.WolverineHandlers
             // The actual message body
             var checkSessionCommand = (TemplateApp.Features.Auth.CheckSession.CheckSessionCommand)context.Envelope.Message;
 
-            Wolverine.Runtime.WolverineTracing.MessageActivity(context.Envelope)?.SetTag("message.handler", "TemplateApp.Features.Auth.CheckSession.CheckSession.Handler");
-            Wolverine.Runtime.WolverineTracing.MessageActivity(context.Envelope)?.SetTag("handler.type", "TemplateApp.Features.Auth.CheckSession.CheckSession.Handler");
-            var handler = new TemplateApp.Features.Auth.CheckSession.CheckSession.Handler(sessions, accessPolicy);
+            Wolverine.Runtime.WolverineTracing.MessageActivity(context.Envelope)?.SetTag("message.handler", "TemplateApp.Features.Auth.CheckSession.CheckSessionCommand.Handler");
+            Wolverine.Runtime.WolverineTracing.MessageActivity(context.Envelope)?.SetTag("handler.type", "TemplateApp.Features.Auth.CheckSession.CheckSessionCommand.Handler");
+            var handler = new TemplateApp.Features.Auth.CheckSession.CheckSessionCommand.Handler(sessions, accessPolicy);
             
             // The actual message execution
             var outgoing1 = await handler.Handle(checkSessionCommand, cancellation).ConfigureAwait(false);

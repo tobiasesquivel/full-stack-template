@@ -45,10 +45,10 @@ namespace Internal.Generated.WolverineHandlers
             // and flush AFTER SaveChangesAsync commits. No explicit transaction is started (Lightweight mode).
             var efCoreEnvelopeTransaction = new Wolverine.EntityFrameworkCore.Internals.EfCoreEnvelopeTransaction(projectsDbContext, context, domainEventScraperIEnumerable);
             await context.EnlistInOutboxAsync(efCoreEnvelopeTransaction).ConfigureAwait(false);
-            Wolverine.Runtime.WolverineTracing.MessageActivity(context.Envelope)?.SetTag("message.handler", "TemplateApp.Features.Projects.UpdateProject.UpdateProject.Handler");
-            Wolverine.Runtime.WolverineTracing.MessageActivity(context.Envelope)?.SetTag("handler.type", "TemplateApp.Features.Projects.UpdateProject.UpdateProject.Handler");
+            Wolverine.Runtime.WolverineTracing.MessageActivity(context.Envelope)?.SetTag("message.handler", "TemplateApp.Features.Projects.UpdateProject.UpdateProjectCommand.Handler");
+            Wolverine.Runtime.WolverineTracing.MessageActivity(context.Envelope)?.SetTag("handler.type", "TemplateApp.Features.Projects.UpdateProject.UpdateProjectCommand.Handler");
             await Wolverine.FluentValidation.Internals.FluentValidationExecutor.ExecuteOne<TemplateApp.Features.Projects.UpdateProject.UpdateProjectCommand>(validatorOfUpdateProjectCommand, failureActionOfUpdateProjectCommand, updateProjectCommand).ConfigureAwait(false);
-            var handler = new TemplateApp.Features.Projects.UpdateProject.UpdateProject.Handler(projectsDbContext, authModule, _timeProvider, projectResponses);
+            var handler = new TemplateApp.Features.Projects.UpdateProject.UpdateProjectCommand.Handler(projectsDbContext, authModule, _timeProvider, projectResponses);
             
             // The actual message execution
             var outgoing1 = await handler.Handle(updateProjectCommand, cancellation).ConfigureAwait(false);

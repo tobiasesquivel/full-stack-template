@@ -24,9 +24,9 @@ namespace Internal.Generated.WolverineHandlers
             // The actual message body
             var deleteTaskCommand = (TemplateApp.Features.Tasks.DeleteTask.DeleteTaskCommand)context.Envelope.Message;
 
-            Wolverine.Runtime.WolverineTracing.MessageActivity(context.Envelope)?.SetTag("message.handler", "TemplateApp.Features.Tasks.DeleteTask.DeleteTask.Handler");
-            Wolverine.Runtime.WolverineTracing.MessageActivity(context.Envelope)?.SetTag("handler.type", "TemplateApp.Features.Tasks.DeleteTask.DeleteTask.Handler");
-            var handler = new TemplateApp.Features.Tasks.DeleteTask.DeleteTask.Handler(tasksDbContext);
+            Wolverine.Runtime.WolverineTracing.MessageActivity(context.Envelope)?.SetTag("message.handler", "TemplateApp.Features.Tasks.DeleteTask.DeleteTaskCommand.Handler");
+            Wolverine.Runtime.WolverineTracing.MessageActivity(context.Envelope)?.SetTag("handler.type", "TemplateApp.Features.Tasks.DeleteTask.DeleteTaskCommand.Handler");
+            var handler = new TemplateApp.Features.Tasks.DeleteTask.DeleteTaskCommand.Handler(tasksDbContext);
             
             // The actual message execution
             var outgoing1 = await handler.Handle(deleteTaskCommand, cancellation).ConfigureAwait(false);
