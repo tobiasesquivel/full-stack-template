@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Errores con ErrorOr</title>
+<link rel="stylesheet" href="../assets/curso.css">
+</head>
+<body>
+<main data-lesson="Lección 5 (errores)">
+
+<p class="kicker">Lección 5 de 14 · Bloque A: una slice por dentro · 10 minutos</p>
+<h1>Errores: ErrorOr y ApiResults</h1>
+<p class="win">Al terminar podés predecir el status y el <code>code</code> de cada error de una slice, y notar cuando un agente inventa un error fuera del catálogo o cambia un código que ya usa el frontend.</p>
+
+<h2>Repaso</h2>
+<p>Las dos preguntas que fallaste en la lección 4, con otra forma.</p>
+
+<div class="quiz" data-answer="0" data-id="R-L3-P4">
+<p class="tipo">Repaso · Recordar</p>
+<p class="q">¿Por qué falla el build si cambiás el constructor de un handler (agregás <em>o sacás</em> un parámetro) y no corrés <code>codegen write</code>?</p>
+<div class="opts">
+<button>El generado llama al constructor viejo</button>
+<button>Dune prohíbe cambiar constructores de handlers</button>
+<button>Wolverine valida los handlers al compilar</button>
+<button>Los tests fallan antes que compile</button>
+</div>
+<p class="why">El archivo de <code>Internal/Generated/</code> tiene escrito <code>new Handler(a, b)</code> con los argumentos del constructor viejo. Si ahora el constructor pide uno, o tres, ese <code>new</code> no coincide y C# no lo compila. Sacar un parámetro rompe igual que agregarlo.</p>
+</div>
+
+<div class="quiz" data-answer="2" data-id="R-L4-P4">
+<p class="tipo">Repaso · Recordar</p>
+<p class="q"><code>WithdrawAccountClosureCommandHandler.cs:51</code> llama a <code>CanAccessAsync(command.CallerId, new ClosureOwner(ownerId), UserPermissions.Manage, ct)</code>. Bob tiene rol Admin. ¿Puede cancelar el cierre de cuenta de Alice?</p>
+<div class="opts">
+<button>Sí, Admin puede hacer todo</button>
+<button>No, solo puede el dueño</button>
+<button>No, Admin no tiene Manage</button>
+<button>Sí, cancelar solo pide Read</button>
+</div>
+<p class="why">Bob no es el dueño, así que cuenta la segunda pregunta: ¿tiene <code>Users.Manage</code>? Admin tiene solo <code>Users.Read</code> (<code>RolePermissions.cs</code>). Pasan Alice, por dueña, y un SuperAdmin, por permiso. "Solo el dueño" es falso: el SuperAdmin también pasa.</p>
+</div>
+
+<h2>La idea</h2>
+<div class="answer">
+<p>El handler no tira excepciones ni elige status HTTP: devuelve un error de su catálogo (<code>UserErrors.cs</code>) dentro de un <code>ErrorOr</code>. <code>ApiResults</code> mira el <strong>tipo</strong> del error para elegir el status, y copia su <strong>código</strong> en la respuesta. El frontend decide qué mostrar por ese código.</p>
+</div>
+
+<figure>
+<svg class="diagram" viewBox="0 0 720 200" role="img" aria-label="El catálogo UserErrors da el error; el handler lo devuelve en un ErrorOr; ApiResults lo traduce a ProblemDetails con status y code; el frontend lee el code">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head" d="M0,0 L10,5 L0,10 z"/></marker>
+  </defs>
+  <g class="node ext"><rect x="10" y="20" width="140" height="56" rx="6"/><text class="t" x="80" y="44">UserErrors.cs</text><text class="s" x="80" y="62">el catálogo</text></g>
+  <g class="node key"><rect x="190" y="20" width="150" height="56" rx="6"/><text class="t" x="265" y="44">Handler</text><text class="s" x="265" y="62">return UserErrors.X</text></g>
+  <g class="node key"><rect x="380" y="20" width="150" height="56" rx="6"/><text class="t" x="455" y="44">ApiResults</text><text class="s" x="455" y="62">tipo → status</text></g>
+  <g class="node"><rect x="380" y="124" width="150" height="62" rx="6"/><text class="t" x="455" y="148">ProblemDetails</text><text class="s" x="455" y="166">status, title, code</text></g>
+  <g class="node ext"><rect x="570" y="124" width="140" height="62" rx="6"/><text class="t" x="640" y="148">Frontend</text><text class="s" x="640" y="166">project-error.ts</text></g>
+  <path class="edge" d="M150,48 L188,48" marker-end="url(#a)"/><text class="lbl" x="169" y="40">da</text>
+  <path class="edge" d="M340,48 L378,48" marker-end="url(#a)"/><text class="lbl" x="359" y="40">devuelve</text>
+  <path class="edge" d="M455,76 L455,122" marker-end="url(#a)"/><text class="lbl" x="488" y="104">arma</text>
+  <path class="edge" d="M530,155 L568,155" marker-end="url(#a)"/><text class="lbl" x="549" y="147">lee code</text>
+</svg>
+<figcaption>Borde fuerte: las dos piezas que conviene mirar en un PR. Borde punteado: el catálogo y el cliente, que dependen del <code>code</code>.</figcaption>
+</figure>
+
+<h2>Un error tiene dos partes que importan</h2>
+<pre><code><span class="dim">// Features/Users/UserErrors.cs:16-18</span>
+public static Error ClosureNotCancellable(Guid closureId) => <span class="hl">Error.Conflict(</span>
+    <span class="hl">code: "User.ClosureNotCancellable",</span>
+    description: $"Account closure '{closureId}' already started or ended: ...");</code></pre>
+<ul>
+<li><strong>El tipo</strong> (<code>Error.Conflict</code>) decide el status. Lo traduce <code>ApiResults.StatusFor</code> (<code>Shared/Http/ApiResults.cs:25-34</code>).</li>
+<li><strong>El código</strong> (<code>"User.ClosureNotCancellable"</code>) viaja en el cuerpo como <code>code</code> (<code>ApiResults.cs:36</code>). El texto de <code>description</code> sale como <code>title</code>, pero es para personas: puede cambiar.</li>
+</ul>
+
+<div class="scroll">
+<table>
+<tr><th>Tipo de <code>Error</code></th><th>Status</th><th>Ejemplo del repo</th></tr>
+<tr><td><code>Validation</code></td><td>400</td><td><code>UserErrors.InvalidDisplayName</code></td></tr>
+<tr><td><code>Unauthorized</code></td><td>401</td><td><code>AuthErrors.InvalidCredentials</code> (login fallido)</td></tr>
+<tr><td><code>Forbidden</code></td><td>403</td><td><code>UserErrors.Forbidden</code></td></tr>
+<tr><td><code>NotFound</code></td><td>404</td><td><code>UserErrors.NotFound</code>, <code>ClosureNotFound</code></td></tr>
+<tr><td><code>Conflict</code></td><td>409</td><td><code>UserErrors.ClosureNotCancellable</code></td></tr>
+<tr><td><code>Custom</code> con un número de 400 a 599</td><td>ese número</td><td><code>HttpErrors.IdempotencyKeyReused</code> (422)</td></tr>
+<tr><td>cualquier otro</td><td>500</td><td><code>HttpErrors.Unexpected</code></td></tr>
+</table>
+</div>
+
+<p class="eq"><strong>ErrorOr</strong> = una caja que trae el valor <em>o</em> uno o más errores, nunca los dos. El handler devuelve la caja; quien la recibe pregunta <code>IsError</code> y no necesita un <code>try/catch</code> (<a href="https://github.com/amantinband/error-or">ErrorOr en GitHub</a>).</p>
+
+<h2>Un handler, tres errores en orden</h2>
+<p><code>WithdrawAccountClosure</code> (cancelar un cierre de cuenta durante el período de gracia) muestra el orden completo, el mismo de la lección 4 más un paso:</p>
+<ol class="flow">
+  <li><span class="where">WithdrawAccountClosureCommandHandler.cs:48-49</span>
+    Busca de quién es el cierre. Si no lo encuentra: <code>ClosureNotFound</code> → <strong>404</strong>.</li>
+  <li><span class="where">WithdrawAccountClosureCommandHandler.cs:51-52</span>
+    <code>CanAccessAsync</code> con <code>CallerId</code> (quién pide) y el permiso <code>Manage</code>. Si no pasa: <code>Forbidden</code> → <strong>403</strong>.</li>
+  <li><span class="where">WithdrawAccountClosureCommandHandler.cs:58-59</span>
+    Le pide al perfil que retire el cierre. Si ya arrancó o terminó: <code>ClosureNotCancellable</code> → <strong>409</strong>.</li>
+</ol>
+
+<p>Si Alice cancela un cierre que ya arrancó, recibe:</p>
+<pre><code>HTTP/1.1 409 Conflict
+{
+  "title": "Account closure '…' already started or ended: only a scheduled closure can be cancelled.",
+  "status": 409,
+  "code": "User.ClosureNotCancellable",
+  …
+}</code></pre>
+<p class="src">Recortado: <code>Results.Problem</code> arma el cuerpo con <code>statusCode</code>, <code>title</code> y la extensión <code>code</code> (<code>ApiResults.cs:11</code>).</p>
+
+<h3>Por qué el <code>code</code> y no el <code>title</code></h3>
+<p>El frontend elige el mensaje por <code>code</code>: <code>frontend/src/app/features/projects/projects/project-error.ts:4-18</code> tiene un mapa de <code>'Project.NameTaken'</code> a "Ya tienes un proyecto con ese nombre.". Por eso la regla es "Un código publicado no cambia" (<code>docs/conventions.md:81</code>). El <code>title</code> se puede reescribir sin romper a nadie.</p>
+
+<h3>Dónde nace un error</h3>
+<p>Solo en un catálogo: <code>&lt;Feature&gt;Errors.cs</code> en la raíz de la feature, o <code>Shared/Http/HttpErrors.cs</code> para lo que no es de ninguna feature. El código empieza con el nombre de la feature: <code>UserErrors</code> → <code>User.</code>. DUNE0014 rompe el build si un <code>Error.Conflict(...)</code> aparece en otro archivo, o si el prefijo no coincide. Los errores de validación son la excepción al prefijo: usan el nombre del campo. Los ves en la lección 6.</p>
+
+<h2>Por qué así</h2>
+<p>Un error esperado ("ese cierre ya arrancó") no es una excepción: es una respuesta posible del caso de uso. Con <code>ErrorOr</code>, la firma del handler lo dice (<code>Task&lt;ErrorOr&lt;T&gt;&gt;</code>) y el compilador obliga a mirar los dos caminos. Con un solo traductor, cada <code>Conflict</code> del repo da 409 con el mismo formato (<code>conventions.md:80</code>: "<code>ApiResults</code> es el único mapeo de <code>Error</code> a HTTP").</p>
+<p><strong>En la industria:</strong> el cuerpo con <code>type</code>, <code>title</code>, <code>status</code> y extensiones como <code>code</code> es el estándar Problem Details (<a href="https://www.rfc-editor.org/rfc/rfc9457">RFC 9457</a>), y <code>Results.Problem</code> de ASP.NET Core lo arma. Muchos proyectos .NET usan excepciones y un middleware que las traduce; <code>ErrorOr</code> es la variante "resultado" de esa idea.</p>
+
+<h2>Qué mirar cuando un agente toca esto</h2>
+<ul>
+<li>Un error nuevo nace en <code>&lt;Feature&gt;Errors.cs</code> con su prefijo. Un <code>Error.X(...)</code> en un handler o un <code>throw</code> para un caso esperado está fuera de la regla.</li>
+<li>El tipo elige el status: un "ya existe" o "estado no permite" es <code>Conflict</code> (409), un "no está" es <code>NotFound</code> (404). Si el tipo está mal, el status sale mal aunque el código sea correcto.</li>
+<li>Un PR que cambia el texto de un <code>code</code> existente rompe al frontend. Si hace falta otro motivo, va un código nuevo.</li>
+</ul>
+
+<h2>Practicá: recordá sin mirar</h2>
+<p>Respondé sin volver a leer arriba. Equivocarte acá ayuda a recordar.</p>
+
+<div class="quiz" data-answer="3" data-id="P1">
+<p class="tipo">Recordar</p>
+<p class="q">1. ¿Qué status sale de un error creado con <code>Error.Conflict</code>?</p>
+<div class="opts">
+<button>400</button>
+<button>422</button>
+<button>500</button>
+<button>409</button>
+</div>
+<p class="why"><code>ApiResults.StatusFor</code> traduce <code>Conflict</code> a 409. El 422 existe en el repo, pero sale de un <code>Error.Custom</code> con ese número (<code>IdempotencyKeyReused</code>).</p>
+</div>
+
+<div class="quiz" data-answer="1" data-id="P2">
+<p class="tipo">Revisar a un agente</p>
+<p class="q">2. En un handler de Users, un agente escribió esta línea. ¿Qué está mal?</p>
+<pre><code>return Error.Conflict("Closure.AlreadyStarted", "The closure already started.");</code></pre>
+<div class="opts">
+<button>Tendría que tirar una excepción ahí</button>
+<button>Crea el error fuera del catálogo</button>
+<button>Le falta el status 409 escrito</button>
+<button>El tipo Conflict no existe ahí</button>
+</div>
+<p class="why">Un error nace solo en <code>UserErrors.cs</code>, y su código empieza con <code>User.</code>. DUNE0014 rompe el build por las dos cosas. Además ya existe <code>UserErrors.ClosureNotCancellable</code> para ese caso.</p>
+</div>
+
+<div class="quiz" data-answer="2" data-id="P3">
+<p class="tipo">Revisar a un agente</p>
+<p class="q">3. Un agente del frontend muestra un aviso así cuando falla cancelar un cierre. ¿Qué cambiarías?</p>
+<pre><code>if (problem.title.includes('already started')) {
+  this.notice.set('El cierre ya arrancó.');
+}</code></pre>
+<div class="opts">
+<button>Debería mirar el status 500</button>
+<button>Debería reintentar el pedido HTTP</button>
+<button>Debería decidir por el code</button>
+<button>Debería leer el detail mejor</button>
+</div>
+<p class="why">El <code>title</code> es texto para personas y puede cambiar. El contrato es <code>code</code>: <code>problem.code === 'User.ClosureNotCancellable'</code>, como hace <code>project-error.ts</code>.</p>
+</div>
+
+<div class="quiz" data-answer="0" data-id="P4">
+<p class="tipo">Recordar</p>
+<p class="q">4. Bob, con rol User, intenta cancelar un cierre con un <code>closureId</code> que no existe. ¿Qué recibe?</p>
+<div class="opts">
+<button>404 User.ClosureNotFound</button>
+<button>403 User.Forbidden</button>
+<button>409 User.ClosureNotCancellable</button>
+<button>400 Validation.Failed</button>
+</div>
+<p class="why">El handler busca el cierre primero (línea 48). Si no existe, corta con 404 antes de mirar permisos: sin cierre no hay dueño contra quién comparar. Primero 404, después 403.</p>
+</div>
+
+<div class="quiz" data-answer="1" data-id="P5">
+<p class="tipo">Revisar a un agente</p>
+<p class="q">5. Un agente cambió <code>"User.ClosureNotCancellable"</code> por <code>"User.ClosureAlreadyStarted"</code> "para que sea más claro". ¿Qué está mal?</p>
+<div class="opts">
+<button>El status pasa a ser 400</button>
+<button>Un código publicado no cambia nunca</button>
+<button>Debería empezar con Closure, no User</button>
+<button>Dune exige códigos más cortos siempre</button>
+</div>
+<p class="why">El frontend y cualquier otro cliente deciden por ese texto exacto. Cambiarlo rompe a quien ya lo usa, aunque el status siga siendo 409. Si hace falta un motivo distinto, va un código nuevo.</p>
+</div>
+
+<div class="quiz-result"></div>
+
+<div class="source"><strong>Fuente principal</strong>
+<a href="https://github.com/amantinband/error-or">ErrorOr en GitHub</a>. Leé el README hasta la lista de tipos de error: son 5 minutos y muestran cómo un método devuelve un valor o errores sin excepciones.</div>
+
+<div class="ask"><strong>¿Algo no cerró?</strong>
+Preguntame en el chat. Por ejemplo: "¿qué pasa si un handler devuelve dos errores?" o "¿quién arma el 401 si no pasa por un handler?".</div>
+
+<nav class="pager">
+<a href="0004-permisos-duenio-o-permiso.html">← Lección 4</a>
+<a href="../reference/mapa.html">Mapa del curso</a>
+<span>Lección 6: un command, Request y Command</span>
+</nav>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

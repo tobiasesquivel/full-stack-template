@@ -59,8 +59,10 @@ Tobi las tomó en una ronda de preguntas el 2026-11-25. Están también en `NOTE
 - Lección 2 (`lessons/0002-los-archivos-de-una-slice.html`): resultado 6 de 7. Falló P5: un `if` en el endpoint que compara `CallerId` con `authId` deja afuera al Admin.
 - Lección 3 (`lessons/0003-registro-y-codegen.html`): resultado 6 de 7. Falló R-L2-P5, el mismo concepto de permisos, por segunda vez.
 - Por eso se adelantó permisos: ahora es la lección 4 y errores pasó a la 5 (el mapa ya está cambiado).
-- Lección 4 entregada: `lessons/0004-permisos-duenio-o-permiso.html`. Enseña las dos preguntas de `CanAccessAsync` (`AccessPolicy.cs:37-47`), la tabla de roles y permisos (`RolePermissions.cs:86-113`), y una tabla que compara el `if` del endpoint con `CanAccessAsync`. Repaso R-L3-P4 y R-L2-P4, y 5 preguntas. P2 y P5 atacan el error de Tobi con formas nuevas. En total son 7.
-- **Esperando:** que Tobi pegue el resultado de la lección 4. Si vuelve a fallar P2 o P5, preguntale qué opción eligió y por qué, antes de seguir.
+- Lección 4 (`lessons/0004-permisos-duenio-o-permiso.html`): 5 de 7. Acertó P2 y P5, así que el error de permisos quedó corregido (`learning-records/0004`). Falló R-L3-P4 (sacar un parámetro del constructor sin `codegen write` también rompe el build) y P4 (`Read` frente a `Manage`).
+- Entre las lecciones 4 y 5 Tobi preguntó qué es el "caller" y qué es "closure". No sabía qué era `CallerId`: desde la lección 5, escribilo siempre "`CallerId` (quién pide)". Closure = cierre de cuenta (`CONTEXT.md:27`), no el closure de C#.
+- Lección 5 entregada: `lessons/0005-errores-erroror-y-apiresults.html`. Repaso R-L3-P4 (en forma de "por qué") y R-L4-P4 (Admin y `Manage` en `WithdrawAccountClosure`), y 5 preguntas. En total son 7.
+- **Esperando:** que Tobi pegue el resultado de la lección 5.
 - No probado en ninguna máquina: qué excepción tira `InvokeAsync` si falta `AddMediatorHandler`, y en qué momento falla el modo `Static` si falta el código generado. La lección 3 no lo afirma. La notebook no puede probarlo: le falta el SDK 10.0.401 que pide `global.json` y Docker no estaba corriendo.
 - El mapa del curso ya responde corto todas las preguntas iniciales de Tobi: closure, `ClosureOwner`, `IOwnedResource`, `AccountClosureFacts`, `MessageNames`, orquestar, saga, RabbitMQ, `Hosts/` e `Infrastructure/`. Las lecciones las profundizan.
 - `Infrastructure/` queda como caja negra hasta las lecciones 10 a 13.
@@ -69,9 +71,9 @@ Tobi las tomó en una ronda de preguntas el 2026-11-25. Están también en `NOTE
 
 Estos datos ya están verificados contra el código. Volvé a confirmar cada número de línea antes de citarlo, porque el repo cambia.
 
-**Lección 5, errores (`ErrorOr` y `ApiResults`):** empezá el repaso con una pregunta de permisos (R-L4-…). Leé `Shared/Http/ApiResults.cs` y `Features/Users/UserErrors.cs` antes de armarla. La lección 1 ya mostró la traducción básica (valor 200, `Forbidden` 403, `NotFound` 404).
+**Lección 6, un command (Request, Command y validador):** el ejemplo es `Features/Users/UpdateProfile/` (`UpdateProfileRequest`, `UpdateProfileCommand`, `UpdateProfileCommandValidator`, registrado en `UsersFeature.cs:45`). Explicá ahí los errores de validación (400 con `errors` por campo y `code: "Validation.Failed"`, `ApiResults.cs:13-23`), que la lección 5 dejó para después.
 
-**Lecciones 6 a 14:** están en el mapa. Para cada una:
+**Lecciones 7 a 14:** están en el mapa. Para cada una:
 1. Leé el código.
 2. Leé la investigación del paso en `docs/evolucion/investigacion/`: 27 para la saga, 25 para el broker, 28 para el período de gracia y 23-2 para Hosts.
 3. Sumá fuentes de `RESOURCES.md`.
@@ -92,7 +94,7 @@ Si la skill no está instalada en tu máquina, seguí estas reglas:
 | `MISSION.md` | Objetivo del curso. |
 | `NOTES.md` | Decisiones de formato y notas del docente. |
 | `RESOURCES.md` | Fuentes del repo y externas, con para qué sirve cada una. |
-| `learning-records/` | Lo que Tobi ya sabe o cambió (0001: punto de partida; 0002: dirigir y revisar agentes; 0003: sigue el recorrido de un pedido). |
+| `learning-records/` | Lo que Tobi ya sabe o cambió (0001: punto de partida; 0002: dirigir y revisar agentes; 0003: sigue el recorrido de un pedido; 0004: permiso = dueño o permiso). |
 | `registro.md` | Registro de repaso con evidencia del quiz, cuando la máquina no tiene `~/.aprender/registro.md`. |
 | `reference/mapa.html` | Plan de 14 lecciones y respuestas cortas a las preguntas iniciales. |
 | `lessons/` | Las lecciones. |
