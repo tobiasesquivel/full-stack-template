@@ -55,23 +55,15 @@ Tobi las tomó en una ronda de preguntas el 2026-11-25. Están también en `NOTE
 
 ## Estado al 2026-11-25
 
-- Lección 1 entregada: `lessons/0001-el-recorrido-de-un-pedido.html`. Sigue un `GET /api/v1/users/me` desde el navegador hasta la base y de vuelta, en 6 tramos con su archivo. Tiene 5 preguntas: P2 y P4 son "Revisar a un agente".
-- **Esperando:** que Tobi pegue el resultado de la lección 1. Todavía no hay filas del curso en el registro.
+- Lección 1 (`lessons/0001-el-recorrido-de-un-pedido.html`): resultado 5 de 5, sin fallas. Filas en `registro.md` de esta carpeta (en la notebook no existe `~/.aprender/registro.md`) y registro `learning-records/0003`.
+- Lección 2 entregada: `lessons/0002-los-archivos-de-una-slice.html`. Repaso R-L1-P2 y R-L1-P4 (variantes de "Revisar a un agente") y 5 preguntas: P2, P4 y P5 son "Revisar a un agente". El quiz tiene 7 preguntas en total.
+- **Esperando:** que Tobi pegue el resultado de la lección 2.
 - El mapa del curso ya responde corto todas las preguntas iniciales de Tobi: closure, `ClosureOwner`, `IOwnedResource`, `AccountClosureFacts`, `MessageNames`, orquestar, saga, RabbitMQ, `Hosts/` e `Infrastructure/`. Las lecciones las profundizan.
 - `Infrastructure/` queda como caja negra hasta las lecciones 10 a 13.
 
 ## Próximas lecciones
 
 Estos datos ya están verificados contra el código. Volvé a confirmar cada número de línea antes de citarlo, porque el repo cambia.
-
-**Lección 2, los archivos de una slice** (`backend/Features/Users/GetUser/`):
-- `GetUserQuery.cs:3` contiene `internal sealed partial record GetUserQuery(string CallerId, string AuthId);`.
-- `GetUserQueryHandler.cs:10-40` contiene la clase `Handler` anidada y pública dentro del mismo record `partial`. La razón: Wolverine solo acepta handlers públicos, y la regla "un archivo, un tipo" parte el record en dos archivos. Lo exige DUNE0031 (`docs/conventions.md`, sección "Dónde va cada cosa").
-- `CallerId` viaja dentro de la query porque el handler no ve HTTP. Con él, el handler decide el permiso con `CanAccessAsync`.
-- `GetUserEndpoint.cs` es estático, sin lógica: tiene `Map` y métodos privados.
-- `GetUserTests.cs` prueba contra la API real con PostgreSQL en Docker, y cubre 200, 401, 403 y 404.
-- La respuesta `UserResponse` vive en `Contracts/` porque otra feature la usa.
-- Diagrama sugerido: un `pre.tree` de la carpeta.
 
 **Lección 3, registro y codegen:**
 - `UsersFeature.cs:40` contiene `AddMediatorHandler<GetUser.GetUserQuery.Handler>(MediatorTransaction.None)`, y `UsersFeature.cs:62` contiene `GetUser.GetUserEndpoint.Map(users)`.
@@ -100,7 +92,8 @@ Si la skill no está instalada en tu máquina, seguí estas reglas:
 | `MISSION.md` | Objetivo del curso. |
 | `NOTES.md` | Decisiones de formato y notas del docente. |
 | `RESOURCES.md` | Fuentes del repo y externas, con para qué sirve cada una. |
-| `learning-records/` | Lo que Tobi ya sabe o cambió (0001: punto de partida; 0002: dirigir y revisar agentes). |
+| `learning-records/` | Lo que Tobi ya sabe o cambió (0001: punto de partida; 0002: dirigir y revisar agentes; 0003: sigue el recorrido de un pedido). |
+| `registro.md` | Registro de repaso con evidencia del quiz, cuando la máquina no tiene `~/.aprender/registro.md`. |
 | `reference/mapa.html` | Plan de 14 lecciones y respuestas cortas a las preguntas iniciales. |
 | `lessons/` | Las lecciones. |
 | `assets/curso.css`, `assets/quiz.js` | Componentes compartidos. Reusalos y no copies código entre lecciones. |
