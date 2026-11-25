@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Transacciones del mediator</title>
+<link rel="stylesheet" href="../assets/curso.css">
+</head>
+<body>
+<main data-lesson="Lección 7 (transacciones)">
+
+<p class="kicker">Lección 7 de 14 · Bloque A: una slice por dentro · 10 minutos</p>
+<h1>Transacciones del mediator</h1>
+<p class="win">Al terminar podés elegir entre <code>Atomic</code>, <code>Eager</code> y <code>None</code> al registrar un handler, y notar cuando un agente guarda a mano o elige una clase que guarda de más.</p>
+
+<h2>Repaso</h2>
+<p>Hiciste bien toda la lección 6, así que van dos de "Revisar a un agente" con una vuelta nueva.</p>
+
+<div class="quiz" data-answer="1" data-id="R-L6-P2">
+<p class="tipo">Repaso · Revisar a un agente</p>
+<p class="q">Para <code>PUT /users/{authId}/timezone</code>, un agente armó el Command con el <code>authId</code> de la ruta como perfil a editar y <code>CallerId</code> (quién pide) de la sesión. El handler busca el perfil por <code>AuthId</code> y lo guarda. ¿Qué falta?</p>
+<div class="opts">
+<button>Sacar CallerId del Command nuevo</button>
+<button>Llamar CanAccessAsync con permiso Manage</button>
+<button>Mover authId al cuerpo JSON</button>
+<button>Validar authId en el endpoint</button>
+</div>
+<p class="why">Ahora el Command sí apunta a un perfil que puede ser ajeno, así que vuelve la regla de la lección 4: leer el perfil (404 si no existe) y llamar a <code>CanAccessAsync(CallerId, perfil, UserPermissions.Manage)</code>. Sin eso, Bob cambia la zona horaria de Alice. <code>UpdateProfile</code> no lo necesita porque solo usa <code>/me</code>.</p>
+</div>
+
+<div class="quiz" data-answer="2" data-id="R-L6-P5">
+<p class="tipo">Repaso · Revisar a un agente</p>
+<p class="q">En un PR con un validador nuevo, ¿qué dos cosas confirman que va a correr?</p>
+<div class="opts">
+<button>Un test unitario del validador solo</button>
+<button>El validador público y en Contracts</button>
+<button>Su AddSingleton y FluentValidationExecutor generado</button>
+<button>Un if en el endpoint, antes</button>
+</div>
+<p class="why">El repo registra validadores a mano (<code>ExplicitRegistration</code>): hace falta la línea <code>AddSingleton&lt;IValidator&lt;…&gt;, …&gt;()</code> en <code>&lt;Feature&gt;Feature.cs</code>. Y en <code>Internal/Generated/</code>, el handler del Command tiene que llamar a <code>FluentValidationExecutor</code>.</p>
+</div>
+
+<h2>La idea</h2>
+<div class="answer">
+<p>El handler cambia objetos, pero no guarda. Guarda el código generado de Wolverine, alrededor del handler. La clase con que registrás el handler (<code>AddMediatorHandler&lt;T&gt;(MediatorTransaction.X)</code>) decide cómo: si todo va en una transacción, y si un error del handler deshace lo que cambió.</p>
+</div>
+
+<p class="eq"><strong>Transacción</strong> = todo o nada. Varios cambios en la base se confirman juntos (<em>commit</em>) o se descartan juntos (<em>rollback</em>). Nunca queda la mitad.</p>
+
+<h2>Las tres clases</h2>
+<div class="scroll">
+<table>
+<tr><th>Clase</th><th>Si el handler devuelve un error</th><th>Para qué</th><th>Ejemplos</th></tr>
+<tr><td><code>Atomic</code></td><td class="ok">no guarda nada</td><td>un comando todo o nada, aunque toque dos contextos</td><td><code>UpdateProfile</code>, <code>WithdrawAccountClosure</code>, <code>RegisterUser</code></td></tr>
+<tr><td><code>Eager</code></td><td>la configuración estándar de Wolverine</td><td>cuando el handler necesita la transacción de EF que usa el outbox de Wolverine</td><td><code>DeleteUser</code>, que arranca una saga</td></tr>
+<tr><td><code>None</code></td><td class="ko">guarda igual</td><td>lecturas, y escrituras que tienen que quedar aunque la respuesta sea un error</td><td><code>GetUser</code>, <code>OpenSession</code></td></tr>
+</table>
+</div>
+<p class="src">Fuente: <code>docs/conventions.md:97</code> y <code>docs/architecture.md</code>, sección "Transacción del monolito". Registros en <code>UsersFeature.cs:40-46</code> y <code>AuthFeature.cs:50-52</code>.</p>
+
+<h2><code>Atomic</code>, paso a paso en el código generado</h2>
+<figure>
+<svg class="diagram" viewBox="0 0 720 250" role="img" aria-label="El generado abre la transacción, valida, llama a Handle; si hay error sale sin guardar y el Dispose revierte; si no, guarda con SaveChangesAsync y confirma con Complete">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head" d="M0,0 L10,5 L0,10 z"/></marker>
+    <marker id="b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head back" d="M0,0 L10,5 L0,10 z"/></marker>
+  </defs>
+  <g class="node"><rect x="10" y="20" width="130" height="56" rx="6"/><text class="t" x="75" y="44">Begin()</text><text class="s" x="75" y="62">línea 37</text></g>
+  <g class="node"><rect x="185" y="20" width="130" height="56" rx="6"/><text class="t" x="250" y="44">Validador</text><text class="s" x="250" y="62">línea 45</text></g>
+  <g class="node key"><rect x="360" y="20" width="130" height="56" rx="6"/><text class="t" x="425" y="44">Handle</text><text class="s" x="425" y="62">línea 49</text></g>
+  <g class="node key"><rect x="535" y="20" width="175" height="56" rx="6"/><text class="t" x="622" y="44">¿IsError?</text><text class="s" x="622" y="62">línea 55</text></g>
+  <g class="node"><rect x="535" y="150" width="175" height="56" rx="6"/><text class="t" x="622" y="174">SaveChanges + Complete</text><text class="s" x="622" y="192">líneas 64 y 72</text></g>
+  <g class="node"><rect x="300" y="150" width="190" height="56" rx="6"/><text class="t" x="395" y="174">return sin guardar</text><text class="s" x="395" y="192">el Dispose revierte</text></g>
+  <path class="edge" d="M140,48 L183,48" marker-end="url(#a)"/><text class="lbl" x="162" y="40">abre</text>
+  <path class="edge" d="M315,48 L358,48" marker-end="url(#a)"/><text class="lbl" x="337" y="40">pasa</text>
+  <path class="edge" d="M490,48 L533,48" marker-end="url(#a)"/><text class="lbl" x="512" y="40">devuelve</text>
+  <path class="edge" d="M622,76 L622,148" marker-end="url(#a)"/><text class="lbl" x="660" y="116">no: guarda</text>
+  <path class="edge back" d="M570,76 L470,148" marker-end="url(#b)"/><text class="lbl back" x="500" y="104">sí: corta</text>
+</svg>
+<figcaption>Líneas de <code>Internal/Generated/WolverineHandlers/UpdateProfileCommandHandler156792017.cs</code>. Borde fuerte: el handler de la slice y el corte que agrega <code>Atomic</code>. Naranja punteado: el camino del error.</figcaption>
+</figure>
+
+<ol class="flow">
+  <li><span class="where">Generated/…UpdateProfileCommandHandler156792017.cs:37</span>
+    <code>using var crossContextTransaction = CrossContextTransaction.Begin();</code> abre un <code>TransactionScope</code> = una transacción "ambiente" que abarca todo lo que pase adentro, aunque sean dos <code>DbContext</code>.</li>
+  <li><span class="where">…:55</span>
+    <code>if (outgoing1.IsError) return;</code> Si el handler devolvió un error (<code>NotFound</code>, <code>Conflict</code>…), sale sin guardar. Como nunca llegó a <code>Complete()</code>, al salir del <code>using</code> se revierte todo.</li>
+  <li><span class="where">…:64 y :72</span>
+    Si no hubo error: <code>SaveChangesAsync</code> escribe lo que el handler cambió y <code>Complete()</code> confirma.</li>
+</ol>
+<p>El test <code>UpdateProfileTests.UpdateMe_WhenItFailsAfterTheProfileWasSaved_KeepsTheProfileAsItWas</code> lo prueba: hace fallar la base justo después de guardar, y comprueba que el nombre nuevo no quedó.</p>
+
+<h3>Por qué <code>None</code> también guarda</h3>
+<p>En la lección 3 viste que el generado de <code>GetUser</code> llama a <code>SaveChangesAsync</code>. Con <code>None</code>, Wolverine guarda lo pendiente al final, sin transacción y sin el corte por error. En una lectura no hay nada pendiente, así que no escribe nada. En <code>OpenSession</code> sí: guarda el intento fallido de login aunque responda 401. Con <code>Atomic</code>, ese intento se perdería.</p>
+
+<h3>La slice no toca la transacción</h3>
+<p>Un handler registrado no abre, no confirma, no revierte y no llama a <code>SaveChanges</code>. DUNE0029 ("La slice no maneja la transacción") rompe el build si lo hace. La única excepción es guardar dentro de un <code>try</code> que traduce un <code>DbUpdateException</code> a un error del catálogo (<code>CreateProject</code> y <code>UpdateProject</code>, por el nombre de proyecto repetido).</p>
+
+<h2>Por qué así</h2>
+<p>Si cada handler guardara a mano, alguno se olvidaría de guardar, otro guardaría antes de un error y dejaría la mitad. Con la transacción en el código generado, la regla vive en un solo lugar y se ve en el PR: es la palabra <code>Atomic</code>, <code>Eager</code> o <code>None</code> en <code>&lt;Feature&gt;Feature.cs</code>.</p>
+<p><strong>En la industria:</strong> Wolverine trae su middleware transaccional para EF Core (<a href="https://wolverinefx.net/guide/durability/efcore/transactional-middleware.html">Wolverine, EF Core Transactional Middleware</a>); con MediatR se suele escribir un <em>pipeline behavior</em> que abre y confirma. El corte por <code>ErrorOr</code> de <code>Atomic</code> es propio de este repo.</p>
+
+<h2>Qué mirar cuando un agente toca esto</h2>
+<ul>
+<li>Un comando que escribe se registra <code>Atomic</code>, salvo que tenga una razón escrita para <code>Eager</code> (outbox de Wolverine, saga) o <code>None</code> (tiene que guardar aunque falle). Un comando nuevo con <code>None</code> pide esa razón.</li>
+<li>Un <code>SaveChangesAsync</code>, <code>BeginTransaction</code> o <code>TransactionScope</code> dentro de un handler está fuera de la regla, salvo el <code>try</code> que traduce una restricción de la base.</li>
+<li>Si cambia la clase de un handler, cambia su código generado: el PR trae cambios en <code>Internal/Generated/</code>.</li>
+</ul>
+
+<h2>Practicá: recordá sin mirar</h2>
+<p>Respondé sin volver a leer arriba. Equivocarte acá ayuda a recordar.</p>
+
+<div class="quiz" data-answer="2" data-id="P1">
+<p class="tipo">Recordar</p>
+<p class="q">1. ¿Quién llama a <code>SaveChangesAsync</code> cuando corre <code>UpdateProfile</code>?</p>
+<div class="opts">
+<button>El handler, al terminar Handle</button>
+<button>El endpoint después del bus</button>
+<button>El código generado de Wolverine</button>
+<button>ApiResults antes de responder 200</button>
+</div>
+<p class="why">La línea 64 del handler generado. El handler solo cambia <code>profile.DisplayName</code> y <code>profile.Timezone</code> (<code>UpdateProfileCommandHandler.cs:34-35</code>) y devuelve la respuesta.</p>
+</div>
+
+<div class="quiz" data-answer="1" data-id="P2">
+<p class="tipo">Revisar a un agente</p>
+<p class="q">2. Un agente agregó <code>await _db.SaveChangesAsync(ct);</code> al final de <code>UpdateProfileCommand.Handler.Handle</code>, "para asegurarse de que se guarde". ¿Qué está mal?</p>
+<div class="opts">
+<button>Falta llamar también a Complete</button>
+<button>Guardar es trabajo del generado</button>
+<button>Debería guardar antes de validar</button>
+<button>Tiene que devolver un 201</button>
+</div>
+<p class="why">El generado ya guarda y confirma alrededor del handler. DUNE0029 rompe el build si la slice llama a <code>SaveChanges</code>. La única excepción es el <code>try</code> que traduce un <code>DbUpdateException</code>.</p>
+</div>
+
+<div class="quiz" data-answer="3" data-id="P3">
+<p class="tipo">Recordar</p>
+<p class="q">3. Un handler registrado <code>Atomic</code> cambia el perfil y después devuelve <code>UserErrors.NotFound</code>. ¿Qué queda en la base?</p>
+<div class="opts">
+<button>El cambio queda guardado igual</button>
+<button>Se guarda solo la mitad</button>
+<button>Queda guardado hasta el reinicio</button>
+<button>Nada, el error corta antes</button>
+</div>
+<p class="why"><code>if (outgoing1.IsError) return;</code> sale antes de <code>SaveChangesAsync</code> y de <code>Complete()</code>, así que el <code>TransactionScope</code> se descarta sin confirmar.</p>
+</div>
+
+<div class="quiz" data-answer="0" data-id="P4">
+<p class="tipo">Revisar a un agente</p>
+<p class="q">4. Un agente registró un comando nuevo que cambia el nombre de un proyecto con <code>MediatorTransaction.None</code>. El handler cambia el nombre y, en algunos casos, después devuelve un <code>Conflict</code>. ¿Qué riesgo hay?</p>
+<div class="opts">
+<button>Guarda aunque devuelva un error</button>
+<button>No guarda nunca ningún cambio</button>
+<button>El build falla por DUNE0029</button>
+<button>Wolverine rechaza el registro None</button>
+</div>
+<p class="why">Con <code>None</code> no hay corte por error: Wolverine guarda lo pendiente al final. El cliente recibe 409 y el nombre igual cambió. Un comando que escribe va <code>Atomic</code>.</p>
+</div>
+
+<div class="quiz" data-answer="1" data-id="P5">
+<p class="tipo">Recordar</p>
+<p class="q">5. ¿Por qué <code>OpenSession</code> (el login) se registra con <code>None</code> y no con <code>Atomic</code>?</p>
+<div class="opts">
+<button>Es una lectura sin cambios</button>
+<button>Guarda el intento fallido igual</button>
+<button>No tiene ningún validador registrado</button>
+<button>Corre en otro proceso aparte</button>
+</div>
+<p class="why">Un login fallido responde un error, y aun así el intento tiene que quedar guardado. <code>Atomic</code> lo descartaría con el corte por <code>IsError</code>.</p>
+</div>
+
+<div class="quiz-result"></div>
+
+<div class="source"><strong>Fuente principal</strong>
+<code>docs/architecture.md</code>, sección "Transacción del monolito (paso 29.2)". Son 5 minutos y explican cada clase con su porqué. Para ver cómo lo hace Wolverine por dentro: <a href="https://wolverinefx.net/guide/durability/efcore/transactional-middleware.html">EF Core Transactional Middleware</a>.</div>
+
+<div class="ask"><strong>¿Algo no cerró?</strong>
+Preguntame en el chat. Por ejemplo: "¿qué es el outbox de Wolverine?" o "¿por qué <code>Eager</code> chocaría con el filtro de idempotencia?".</div>
+
+<nav class="pager">
+<a href="0006-request-command-y-validador.html">← Lección 6</a>
+<a href="../reference/mapa.html">Mapa del curso</a>
+<span>Lección 8: la feature por dentro</span>
+</nav>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

@@ -62,8 +62,9 @@ Tobi las tomó en una ronda de preguntas el 2026-11-25. Están también en `NOTE
 - Lección 4 (`lessons/0004-permisos-duenio-o-permiso.html`): 5 de 7. Acertó P2 y P5, así que el error de permisos quedó corregido (`learning-records/0004`). Falló R-L3-P4 (sacar un parámetro del constructor sin `codegen write` también rompe el build) y P4 (`Read` frente a `Manage`).
 - Entre las lecciones 4 y 5 Tobi preguntó qué es el "caller" y qué es "closure". No sabía qué era `CallerId`: desde la lección 5, escribilo siempre "`CallerId` (quién pide)". Closure = cierre de cuenta (`CONTEXT.md:27`), no el closure de C#.
 - Lección 5 (`lessons/0005-errores-erroror-y-apiresults.html`): 5 de 7. Falló R-L4-P4 (roles: Admin no tiene `Manage`), que es la segunda vez, y P5 (un `code` publicado no cambia). Le pregunté qué opción eligió en las dos: no se acuerda.
-- Lección 6 entregada: `lessons/0006-request-command-y-validador.html` (`UpdateProfile`: Request, Command con `CallerId` de la sesión, validador registrado en `UsersFeature.cs:45` que corre en el generado, línea 45, y el 400 de validación). Repaso R-L4-P4 (con la regla "Admin mira, SuperAdmin cambia") y R-L5-P5. En total son 7.
-- **Esperando:** que Tobi pegue el resultado de la lección 6. Si falla roles por tercera vez, armá una hoja corta en `reference/` con la tabla de roles y permisos: Tobi dijo que no a una hoja de "revisar a un agente", no a una de referencia.
+- Lección 6 (`lessons/0006-request-command-y-validador.html`): Tobi dijo "hice bien la lección" sin pegar la línea; quedó anotada como 7 de 7. Acertó los repasos de roles y del `code`, así que los dos volvieron a "sabido".
+- Lección 7 entregada: `lessons/0007-transacciones-del-mediator.html` (Atomic, Eager y None; el generado de `UpdateProfile` en las líneas 37, 45, 49, 55, 64 y 72; DUNE0029). Repaso R-L6-P2 y R-L6-P5. En total son 7.
+- **Esperando:** el resultado de la lección 7. Con ella termina el bloque A (una slice por dentro).
 - No probado en ninguna máquina: qué excepción tira `InvokeAsync` si falta `AddMediatorHandler`, y en qué momento falla el modo `Static` si falta el código generado. La lección 3 no lo afirma. La notebook no puede probarlo: le falta el SDK 10.0.401 que pide `global.json` y Docker no estaba corriendo.
 - El mapa del curso ya responde corto todas las preguntas iniciales de Tobi: closure, `ClosureOwner`, `IOwnedResource`, `AccountClosureFacts`, `MessageNames`, orquestar, saga, RabbitMQ, `Hosts/` e `Infrastructure/`. Las lecciones las profundizan.
 - `Infrastructure/` queda como caja negra hasta las lecciones 10 a 13.
@@ -72,9 +73,9 @@ Tobi las tomó en una ronda de preguntas el 2026-11-25. Están también en `NOTE
 
 Estos datos ya están verificados contra el código. Volvé a confirmar cada número de línea antes de citarlo, porque el repo cambia.
 
-**Lección 7, transacciones del mediator:** fuente principal `docs/conventions.md:97` (Atomic, Eager y None, con un ejemplo de cada uno) y `docs/architecture.md`, sección "Transacción del monolito". En `UsersFeature.cs:40-46` hay de las tres clases. El generado de `GetUser` (lección 3) llama a `SaveChangesAsync` aunque sea `None`: explicalo o evitá afirmarlo sin leer `MediatorTransactionPolicy`.
+**Lección 8, la feature por dentro (bloque B):** ubicar `Contracts/`, `Domain/`, `Persistence/`, `Access/`, `MessageNames/` y `Telemetry/` de Users. Fuente: `docs/conventions.md:14-22` (qué va en cada carpeta técnica), ADR-0004 y `IUsersModule`/`UsersModule` como la puerta de la feature.
 
-**Lecciones 8 a 14:** están en el mapa. Para cada una:
+**Lecciones 9 a 14:** están en el mapa. Para cada una:
 1. Leé el código.
 2. Leé la investigación del paso en `docs/evolucion/investigacion/`: 27 para la saga, 25 para el broker, 28 para el período de gracia y 23-2 para Hosts.
 3. Sumá fuentes de `RESOURCES.md`.
