@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>El recorrido de un pedido</title>
+<link rel="stylesheet" href="../assets/curso.css">
+</head>
+<body>
+<main data-lesson="Lección 1 (recorrido del pedido)">
+
+<p class="kicker">Lección 1 de 14 · Bloque A: una slice por dentro · 10 minutos</p>
+<h1>El recorrido de un pedido</h1>
+<p class="win">Al terminar podés seguir un <code>GET /api/v1/users/me</code> desde el navegador hasta la base y de vuelta, y detectar si un agente se salteó un tramo.</p>
+
+<div class="answer">
+<p><strong>La idea:</strong> el endpoint no llama al código que resuelve el pedido. Arma un mensaje (la query) y se lo entrega a un intermediario, Wolverine, que busca quién lo atiende y le devuelve la respuesta.</p>
+</div>
+
+<figure>
+<svg class="diagram" viewBox="0 0 720 300" role="img" aria-label="El navegador pide al endpoint, el endpoint entrega la query al bus, el bus llama al handler, el handler lee la base y consulta a Auth, devuelve ErrorOr al endpoint, ApiResults lo traduce a HTTP y vuelve al navegador">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head" d="M0,0 L10,5 L0,10 z"/></marker>
+    <marker id="b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head back" d="M0,0 L10,5 L0,10 z"/></marker>
+  </defs>
+  <g class="node"><rect x="10" y="20" width="130" height="56" rx="6"/><text class="t" x="75" y="44">Navegador</text><text class="s" x="75" y="62">GET /users/me</text></g>
+  <g class="node key"><rect x="200" y="20" width="150" height="56" rx="6"/><text class="t" x="275" y="44">GetUserEndpoint</text><text class="s" x="275" y="62">arma la query</text></g>
+  <g class="node"><rect x="410" y="20" width="130" height="56" rx="6"/><text class="t" x="475" y="44">IMessageBus</text><text class="s" x="475" y="62">Wolverine</text></g>
+  <g class="node key"><rect x="580" y="20" width="130" height="56" rx="6"/><text class="t" x="645" y="44">GetUserQuery</text><text class="s" x="645" y="62">.Handler</text></g>
+  <g class="node ext"><rect x="470" y="160" width="120" height="50" rx="6"/><text class="t" x="530" y="182">UsersDbContext</text><text class="s" x="530" y="199">tabla de perfiles</text></g>
+  <g class="node ext"><rect x="605" y="160" width="110" height="50" rx="6"/><text class="t" x="660" y="182">IAuthModule</text><text class="s" x="660" y="199">feature Auth</text></g>
+  <g class="node"><rect x="200" y="230" width="150" height="56" rx="6"/><text class="t" x="275" y="254">ApiResults</text><text class="s" x="275" y="272">ErrorOr → HTTP</text></g>
+  <path class="edge" d="M140,48 L198,48" marker-end="url(#a)"/><text class="lbl" x="170" y="40">pide</text>
+  <path class="edge" d="M350,48 L408,48" marker-end="url(#a)"/><text class="lbl" x="380" y="40">entrega</text>
+  <path class="edge" d="M540,48 L578,48" marker-end="url(#a)"/><text class="lbl" x="560" y="40">llama</text>
+  <path class="edge" d="M625,76 L545,158" marker-end="url(#a)"/><text class="lbl" x="565" y="118">lee</text>
+  <path class="edge" d="M655,76 L660,158" marker-end="url(#a)"/><text class="lbl" x="685" y="118">consulta</text>
+  <path class="edge back" d="M590,76 Q460,140 330,78" marker-end="url(#b)"/><text class="lbl back" x="440" y="134">devuelve ErrorOr</text>
+  <path class="edge" d="M275,76 L275,228" marker-end="url(#a)"/><text class="lbl" x="250" y="160">traduce</text>
+  <path class="edge back" d="M200,258 L75,258 L75,78" marker-end="url(#b)"/><text class="lbl back" x="130" y="250">200 · 403 · 404</text>
+</svg>
+<figcaption>Gris: la ida. Naranja punteado: la vuelta. Borde fuerte: el endpoint y el handler, las dos piezas propias de este caso de uso. Borde punteado: cosas que ya existen y el handler usa.</figcaption>
+</figure>
+
+<h2>Los seis tramos, con su archivo</h2>
+<ol class="flow">
+  <li><span class="where">Hosts/Monolith/Program.cs:48 → Features/Users/UsersFeature.cs:60-62</span>
+    Al arrancar, <code>Program.cs</code> registra las rutas de Users. El grupo <code>/users</code> exige sesión (<code>RequireAuthorization()</code>), entonces sin cookie el pedido corta acá con un 401.</li>
+  <li><span class="where">Features/Users/GetUser/GetUserEndpoint.cs:13-18</span>
+    ASP.NET llama al método del endpoint y le pasa lo que pide su firma: el usuario de la sesión (<code>ClaimsPrincipal</code>), el bus (<code>IMessageBus</code>) y el aviso de cancelación (<code>CancellationToken</code>). <a href="https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis/parameter-binding?view=aspnetcore-10.0">Microsoft lo llama <em>parameter binding</em></a> (enlazar cada parámetro con su origen).</li>
+  <li><span class="where">GetUserEndpoint.cs:25-26</span>
+    El endpoint arma <code>new GetUserQuery(callerId, authId)</code> y lo entrega con <code>bus.InvokeAsync(...)</code>. No conoce al handler: solo conoce el mensaje.</li>
+  <li><span class="where">Hosts/Monolith/Internal/Generated/WolverineHandlers/GetUserQueryHandler899234218.cs:40-43</span>
+    Wolverine busca el handler de <code>GetUserQuery</code>, lo crea con sus dependencias y llama a <code>Handle</code>, en el mismo proceso y en ese momento. <a href="https://wolverinefx.net/tutorials/mediator.html#starting-with-wolverine-as-mediator">Doc de Wolverine</a>: "This execution happens inline".</li>
+  <li><span class="where">Features/Users/GetUser/GetUserQueryHandler.cs:25-38</span>
+    El handler lee el perfil, revisa el permiso, le pide la cuenta a Auth y devuelve un <code>ErrorOr</code> (una caja que trae el valor o un error).</li>
+  <li><span class="where">Shared/Http/ApiResults.cs:7-34</span>
+    De vuelta en el endpoint, <code>ApiResults.ToResult</code> traduce la caja a HTTP: valor da 200, <code>Forbidden</code> da 403 y <code>NotFound</code> da 404.</li>
+</ol>
+
+<p class="eq"><strong>Mediator</strong> (el patrón que cumple <code>IMessageBus</code> acá) = un mostrador de pedidos. El endpoint deja el pedido en el mostrador y no sabe quién cocina. Wolverine se lo pasa al cocinero (el handler) y le devuelve el plato al endpoint.</p>
+
+<h2>Por qué así</h2>
+<p>Como el endpoint no conoce al handler, el handler se prueba sin HTTP. Además Wolverine envuelve a todos los handlers con las mismas reglas, como la transacción, porque todos pasan por el mostrador. El repo lo eligió también para aprender el patrón (<code>AGENTS.md</code>: "Un patrón del plan se aplica aunque <code>Tasks</code> no lo necesite").</p>
+<p><strong>En la industria:</strong> en .NET el mediator más usado es MediatR, y <code>InvokeAsync</code> de Wolverine es su equivalente directo (<a href="https://jeremydmiller.com/2025/01/28/wolverine-for-mediatr-users/">Jeremy Miller, autor de Wolverine</a>). Para código nuevo, el equipo de Wolverine prefiere sus propios endpoints (Wolverine.HTTP) sobre el mediator detrás de una minimal API.</p>
+
+<h2>Qué mirar cuando un agente toca este recorrido</h2>
+<ul>
+<li>El endpoint entrega un mensaje con <code>bus.InvokeAsync</code>. Si hace <code>new ...Handler(...)</code>, se salteó el mostrador.</li>
+<li>El handler devuelve <code>ErrorOr&lt;T&gt;</code>, y el endpoint lo pasa por <code>ApiResults.ToResult</code>. Si arma los status a mano, puede confundir un 403 con un 404.</li>
+</ul>
+
+<h2>Practicá: recordá sin mirar</h2>
+<p>Respondé sin volver a leer arriba. Equivocarte acá ayuda a recordar.</p>
+
+<div class="quiz" data-answer="1" data-id="P1">
+<p class="tipo">Recordar</p>
+<p class="q">1. ¿Quién llama al método <code>Handle</code> del handler?</p>
+<div class="opts">
+<button>El endpoint lo llama directo</button>
+<button>Wolverine, por el código generado</button>
+<button>ASP.NET, al mapear la ruta</button>
+<button>EF Core, al leer perfiles</button>
+</div>
+<p class="why">El endpoint solo entrega el mensaje. La clase que generó Wolverine crea el handler y llama a <code>Handle</code> (tramo 4).</p>
+</div>
+
+<div class="quiz" data-answer="2" data-id="P2">
+<p class="tipo">Revisar a un agente</p>
+<p class="q">2. Un agente agregó <code>GetUserTimezone</code>. ¿Qué está mal en su endpoint?</p>
+<pre><code>var handler = new GetUserTimezoneQuery.Handler(db, auth);
+var result = await handler.Handle(query, ct);
+return ApiResults.ToResult(result, value =&gt; Results.Ok(value));</code></pre>
+<div class="opts">
+<button>Le falta el record Request</button>
+<button>Le falta usar AsNoTracking ahí</button>
+<button>Saltea el bus de Wolverine</button>
+<button>Debería devolver un status 201</button>
+</div>
+<p class="why">Crea el handler a mano, entonces se saltea el mostrador y las reglas que Wolverine pone alrededor de cada handler. Lo correcto es <code>bus.InvokeAsync&lt;ErrorOr&lt;T&gt;&gt;(query, ct)</code>.</p>
+</div>
+
+<div class="quiz" data-answer="3" data-id="P3">
+<p class="tipo">Recordar</p>
+<p class="q">3. ¿De dónde saca el endpoint el <code>IMessageBus</code> que recibe?</p>
+<div class="opts">
+<button>De la ruta /users/me</button>
+<button>Del cuerpo JSON enviado</button>
+<button>De la cookie enviada</button>
+<button>Del contenedor de dependencias</button>
+</div>
+<p class="why">ASP.NET completa cada parámetro según su origen. Un servicio como el bus sale del contenedor de dependencias (tramo 2).</p>
+</div>
+
+<div class="quiz" data-answer="0" data-id="P4">
+<p class="tipo">Revisar a un agente</p>
+<p class="q">4. Otro agente hizo que el handler devuelva <code>UserResponse?</code> y que el endpoint haga esto. ¿Qué se pierde?</p>
+<pre><code>return result is null ? Results.NotFound() : Results.Ok(result);</code></pre>
+<div class="opts">
+<button>No puede distinguir 403 de 404</button>
+<button>No puede leer la base Postgres</button>
+<button>No puede compilar el código generado</button>
+<button>No puede usar la sesión cookie</button>
+</div>
+<p class="why">Un <code>null</code> no dice por qué falló. Con <code>ErrorOr</code>, el handler distingue "no existe" (404) de "no te dejo verlo" (403), y <code>ApiResults</code> además manda el <code>code</code> del error.</p>
+</div>
+
+<div class="quiz" data-answer="1" data-id="P5">
+<p class="tipo">Recordar</p>
+<p class="q">5. En el diagrama, ¿quién convierte el <code>ErrorOr</code> en 200, 403 o 404?</p>
+<div class="opts">
+<button>El handler, antes de devolver</button>
+<button>ApiResults, llamado desde el endpoint</button>
+<button>Wolverine, en el código generado</button>
+<button>ASP.NET, con UseStatusCodePages activo</button>
+</div>
+<p class="why">El handler no sabe de HTTP. El endpoint llama a <code>ApiResults.ToResult</code> (tramo 6).</p>
+</div>
+
+<div class="quiz-result"></div>
+
+<div class="source"><strong>Fuente principal</strong>
+<a href="https://wolverinefx.net/tutorials/mediator.html">Wolverine: "Wolverine as Mediator"</a>. Leé las secciones "Starting with Wolverine as Mediator" y "Getting a Response": son 5 minutos y explican <code>InvokeAsync</code>.</div>
+
+<div class="ask"><strong>¿Algo no cerró?</strong>
+Preguntame en el chat. Por ejemplo: "¿qué es <code>ErrorOr</code> por dentro?" o "¿por qué el handler pide la cuenta a Auth y no la lee de la base?".</div>
+
+<nav class="pager">
+<a href="../reference/mapa.html">← Mapa del curso</a>
+<span>Lección 2: los archivos de una slice</span>
+</nav>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

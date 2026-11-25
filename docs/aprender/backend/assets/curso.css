@@ -1,0 +1,119 @@
+/* Hoja compartida del curso. Usa las variables del tema de T3 cuando existen
+   y cae en una paleta propia (clara u oscura) cuando el archivo se abre solo. */
+:root {
+  --c-bg: var(--background, #fbfaf6);
+  --c-fg: var(--foreground, #1f1d1a);
+  --c-muted: var(--muted-foreground, #6b665e);
+  --c-line: var(--border, #dcd7cc);
+  --c-card: var(--card, #f3f0e8);
+  --c-code: var(--code-background, #efebe1);
+  --c-accent: var(--primary, #8a3b12);
+  --c-ok: var(--success, #2f7d32);
+  --c-ko: var(--destructive, #b3261e);
+  --c-radius: var(--radius, 6px);
+  --c-serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --c-sans: var(--font-sans, system-ui, sans-serif);
+  --c-mono: var(--font-mono, ui-monospace, "Cascadia Code", Consolas, monospace);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --c-bg: var(--background, #1c1b19);
+    --c-fg: var(--foreground, #ece8df);
+    --c-muted: var(--muted-foreground, #a39d92);
+    --c-line: var(--border, #3a3733);
+    --c-card: var(--card, #252320);
+    --c-code: var(--code-background, #2a2825);
+    --c-accent: var(--primary, #e08a5b);
+    --c-ok: var(--success, #6cc070);
+    --c-ko: var(--destructive, #f07a6f);
+  }
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--c-bg);
+  color: var(--c-fg);
+  font-family: var(--c-serif);
+  font-size: 17px;
+  line-height: 1.6;
+}
+main { max-width: 42rem; margin: 0 auto; padding: 2rem 16px 4rem; }
+
+/* Encabezado */
+.kicker { font-family: var(--c-sans); font-size: .75rem; letter-spacing: .08em; text-transform: uppercase; color: var(--c-muted); margin: 0; }
+h1 { font-size: 1.9rem; line-height: 1.2; font-weight: 600; margin: .25rem 0 .5rem; }
+h2 { font-size: 1.25rem; font-weight: 600; margin: 2.5rem 0 .5rem; }
+h3 { font-size: 1.05rem; font-weight: 600; margin: 1.5rem 0 .25rem; }
+.win { font-style: italic; color: var(--c-muted); margin: 0 0 1.5rem; }
+p, li { margin: .5rem 0; }
+a { color: var(--c-accent); }
+
+/* Código */
+code { font-family: var(--c-mono); font-size: .85em; background: var(--c-code); padding: .05em .3em; border-radius: 3px; }
+pre { font-family: var(--c-mono); font-size: .8rem; line-height: 1.5; background: var(--c-code); padding: .9rem 1rem; border-radius: var(--c-radius); overflow-x: auto; }
+pre code { background: none; padding: 0; font-size: inherit; }
+pre .hl { background: color-mix(in srgb, var(--c-accent) 18%, transparent); display: inline-block; width: 100%; }
+.src { font-family: var(--c-sans); font-size: .75rem; color: var(--c-muted); margin: -.35rem 0 1rem; }
+
+/* Recuadro con la respuesta corta */
+.answer { border-left: 3px solid var(--c-accent); padding: .25rem 0 .25rem 1rem; margin: 1rem 0; }
+.answer p:first-child { margin-top: 0; }
+
+/* Equivalencia "X = Y" */
+.eq { font-family: var(--c-sans); font-size: .95rem; background: var(--c-card); border-radius: var(--c-radius); padding: .75rem 1rem; }
+
+/* Recorrido paso a paso */
+ol.flow { list-style: none; padding: 0; margin: 1rem 0; counter-reset: paso; }
+ol.flow > li { counter-increment: paso; position: relative; padding: .5rem 0 .5rem 2.5rem; border-left: 2px solid var(--c-line); margin-left: .9rem; }
+ol.flow > li::before { content: counter(paso); position: absolute; left: -.95rem; top: .45rem; width: 1.8rem; height: 1.8rem; border-radius: 50%; background: var(--c-bg); border: 2px solid var(--c-accent); color: var(--c-accent); font-family: var(--c-sans); font-size: .8rem; font-weight: 600; display: grid; place-items: center; }
+ol.flow > li:last-child { border-left-color: transparent; }
+ol.flow .where { font-family: var(--c-mono); font-size: .75rem; color: var(--c-muted); display: block; }
+
+/* Tablas */
+table { border-collapse: collapse; width: 100%; font-family: var(--c-sans); font-size: .85rem; margin: 1rem 0; }
+th, td { text-align: left; vertical-align: top; padding: .45rem .5rem; border-bottom: 1px solid var(--c-line); }
+th { font-weight: 600; color: var(--c-muted); font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; }
+.scroll { overflow-x: auto; }
+
+/* Desplegables */
+details { border: 1px solid var(--c-line); border-radius: var(--c-radius); padding: .5rem .9rem; margin: .75rem 0; }
+summary { cursor: pointer; font-family: var(--c-sans); font-size: .9rem; font-weight: 600; }
+
+/* Pie: fuente principal, preguntas y navegación */
+.source, .ask { font-family: var(--c-sans); font-size: .9rem; background: var(--c-card); border-radius: var(--c-radius); padding: .9rem 1rem; margin: 1.5rem 0; }
+.source strong, .ask strong { display: block; margin-bottom: .25rem; }
+nav.pager { display: flex; justify-content: space-between; gap: 1rem; font-family: var(--c-sans); font-size: .85rem; border-top: 1px solid var(--c-line); padding-top: 1rem; margin-top: 2rem; }
+
+@media print {
+  body { font-size: 11pt; background: #fff; color: #000; }
+  main { max-width: none; padding: 0; }
+  details { border: none; padding: 0; }
+  details > *:not(summary) { display: block; }
+  .quiz button { border-color: #999; }
+  nav.pager { display: none; }
+}
+
+/* Diagrama SVG: nodos, flechas con verbo y vuelta punteada */
+figure { margin: 1.5rem 0; }
+figcaption { font-family: var(--c-sans); font-size: .8rem; color: var(--c-muted); margin-top: .4rem; }
+svg.diagram { width: 100%; height: auto; display: block; font-family: var(--c-sans); }
+svg.diagram .node rect { fill: var(--c-card); stroke: var(--c-line); stroke-width: 1.5; }
+svg.diagram .node.key rect { stroke: var(--c-accent); stroke-width: 2; }
+svg.diagram .node.ext rect { stroke-dasharray: 4 3; }
+svg.diagram .t { fill: var(--c-fg); font-size: 13px; font-weight: 600; text-anchor: middle; }
+svg.diagram .s { fill: var(--c-muted); font-size: 11px; text-anchor: middle; }
+svg.diagram .edge { fill: none; stroke: var(--c-muted); stroke-width: 1.5; }
+svg.diagram .edge.back { stroke: var(--c-accent); stroke-dasharray: 5 4; }
+svg.diagram .lbl { fill: var(--c-muted); font-size: 11px; text-anchor: middle; }
+svg.diagram .lbl.back { fill: var(--c-accent); }
+svg.diagram .head { fill: var(--c-muted); }
+svg.diagram .head.back { fill: var(--c-accent); }
+
+/* Árbol de carpetas con etiquetas */
+pre.tree { line-height: 1.7; }
+pre.tree .dim { color: var(--c-muted); }
+pre.tree .tag { font-family: var(--c-sans); font-size: .7rem; font-weight: 600; padding: .05em .45em; border-radius: 3px; margin-left: .5rem; }
+pre.tree .tag.new { background: color-mix(in srgb, var(--c-ok) 20%, transparent); color: var(--c-ok); }
+pre.tree .tag.edit { background: color-mix(in srgb, var(--c-accent) 20%, transparent); color: var(--c-accent); }
+pre.tree .tag.gen { background: var(--c-card); color: var(--c-muted); border: 1px solid var(--c-line); }
