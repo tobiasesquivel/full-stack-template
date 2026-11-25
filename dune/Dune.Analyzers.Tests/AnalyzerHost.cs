@@ -13,8 +13,16 @@ namespace Dune.Analyzers.Tests;
 
 internal static class AnalyzerHost
 {
-    public static async Task<ImmutableArray<Diagnostic>> AnalyzeAsync(
+    public static Task<ImmutableArray<Diagnostic>> AnalyzeAsync(
         IReadOnlyList<(string Path, string Source)> files,
+        Func<ImmutableArray<DiagnosticAnalyzer>> analyzers) =>
+        AnalyzeProjectAsync("DuneBehavior", ImmutableDictionary<string, string>.Empty, files, Array.Empty<MetadataReference>(), analyzers);
+
+    public static async Task<ImmutableArray<Diagnostic>> AnalyzeProjectAsync(
+        string assemblyName,
+        ImmutableDictionary<string, string> buildProperties,
+        IReadOnlyList<(string Path, string Source)> files,
+        IEnumerable<MetadataReference> projectReferences,
         Func<ImmutableArray<DiagnosticAnalyzer>> analyzers)
     {
         var trees = files
@@ -24,17 +32,17 @@ internal static class AnalyzerHost
                 file.Path))
             .ToArray();
 
-        var references = TestReferences.All();
+        var references = TestReferences.All().Concat(projectReferences);
 
         var compilation = CSharpCompilation.Create(
-            "DuneBehavior",
+            assemblyName,
             trees,
             references,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 
         var compilationWithAnalyzers = compilation.WithAnalyzers(
             analyzers().ToImmutableArray(),
-            new AnalyzerOptions(ImmutableArray<AdditionalText>.Empty));
+            new AnalyzerOptions(ImmutableArray<AdditionalText>.Empty, new BuildPropertiesProvider(buildProperties)));
 
         TestReferences.ThrowOnFixtureErrors(compilation);
 
