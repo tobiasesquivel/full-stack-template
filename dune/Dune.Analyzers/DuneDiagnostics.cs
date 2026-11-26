@@ -468,4 +468,14 @@ internal static class DuneDiagnostics
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
         description: "ADR-0004 punto 2: en Tasks, Projects, Users y Auth, el mensaje de una slice se llama <Slice>Command si cambia estado y <Slice>Query si solo lee, y su handler vive en su propio archivo, <Mensaje>Handler.cs. Wolverine solo acepta handlers públicos y un handler público de primer nivel no compila con dependencias internal (CS0051), así que el handler es un tipo público anidado: Handler, dentro de la mitad partial del record del mensaje. En backend/Features/<Feature>/<Slice>/ de esas features es error que un tipo público anidado con un método Handle esté dentro de algo que no sea un record terminado en Command o Query, que no se llame Handler, que no viva en <Mensaje>Handler.cs o que el record no se declare también en <Mensaje>.cs de la misma carpeta (así el mensaje y el handler quedan en archivos separados). Los tests quedan fuera. Límite: no decide si un mensaje cambia estado (DUNE0019 impide que una slice de lectura escriba) ni ve validaciones de entrada escritas en el handler; las cubre la revisión.");
+
+    public static readonly DiagnosticDescriptor HostBoundary = new(
+        id: "DUNE0032",
+        title: "Un host compila algo que no le toca",
+        messageFormat: "'{0}' {1}",
+        category: "Dune",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "Límite de despliegue (pasos 23.2 y reorganización, parte 6): cada host es un proceso aparte y compila solo su carpeta y las features que despliega. backend/Hosts/Monolith compila su carpeta y backend/Features salvo Features/Tasks; backend/Hosts/Tasks compila su carpeta, Features/Tasks y Features/Health; ninguno compila *Tests.cs, Infrastructure/, Shared/, backend/Tests/ ni archivos de fuera de backend/, y el único proyecto que referencian es TemplateApp.Platform: falla un ensamblado TemplateApp.* o un archivo .dll que esté dentro del repo, se llame como se llame. La regla mira los archivos que el compilador recibe de verdad, después de MSBuild: lo que llega por un target, una condición, un Import o Directory.Build.* ya está resuelto, igual que las rutas con . o .., %2e o entidades XML. Lee la carpeta del proyecto de la propiedad MSBuildProjectDirectory (Dune.props la expone) y falla si un proyecto de backend/Hosts/ no está en su tabla. Acepta lo que genera el SDK en la carpeta intermedia del host (IntermediateOutputPath, también fuera del repo con --artifacts-path), salvo que esa carpeta apunte a otra parte del repo. Límite: no ve un enlace simbólico (lo ve check-host-items, con la ruta física) ni un build que no carga Dune, como el del Dockerfile.",
+        customTags: WellKnownDiagnosticTags.CompilationEnd);
 }

@@ -48,9 +48,7 @@ function toPosix(target) {
   return path.relative(root, target).replaceAll(path.sep, '/');
 }
 
-const MONOLITH_PROJECT = 'backend/Hosts/Monolith/TemplateApp.csproj';
 const PLATFORM_PROJECT = 'backend/Platform/TemplateApp.Platform.csproj';
-const TASKS_HOST_PROJECT = 'backend/Hosts/Tasks/TemplateApp.Tasks.csproj';
 
 async function productSources() {
   const all = [];
@@ -106,91 +104,6 @@ async function checkSlicesHaveTests() {
       }
     }
   }
-}
-
-const DEPLOYMENT_RULE = 'límite de despliegue';
-
-function msbuildValues(text, element, attribute) {
-  const pattern = new RegExp(String.raw`<${element}\b[^>]*?\b${attribute}\s*=\s*["']([^"']+)["']`, 'g');
-  return [...text.matchAll(pattern)].flatMap((match) => match[1].split(';')).map(normalizeItem).filter(Boolean);
-}
-
-function normalizeItem(value) {
-  return value.trim().replaceAll('\\', '/');
-}
-
-function resolveReference(project, reference) {
-  return path.posix.normalize(path.posix.join(path.posix.dirname(project), reference));
-}
-
-function checkOnlyReferencesPlatform(project, text) {
-  for (const reference of msbuildValues(text, 'ProjectReference', 'Include')) {
-    const target = resolveReference(project, reference);
-    if (target !== PLATFORM_PROJECT) {
-      fail(`${DEPLOYMENT_RULE}: ${project} referencia ${target}; el monolito y el host de Tasks solo referencian ${PLATFORM_PROJECT}`);
-    }
-  }
-}
-
-const HOSTS = [
-  {
-    project: MONOLITH_PROJECT,
-    compilesFeature: (feature) => !/^tasks$/i.test(feature),
-    forbids: /(^|\/)Features\/Tasks(\/|$)/i,
-    scope: 'el monolito compila solo sus archivos y Features salvo Features/Tasks',
-  },
-  {
-    project: TASKS_HOST_PROJECT,
-    compilesFeature: (feature) => feature === 'Tasks' || feature === 'Health',
-    scope: 'el host de Tasks compila solo sus archivos, Features/Tasks y Features/Health',
-  },
-];
-
-function plainPath(value) {
-  return !/\$\(|@\(|%|:|\.\./.test(value) && !value.startsWith('/') && !value.split('/').includes('.');
-}
-
-function removesFromBackend(value, pattern) {
-  return value === `$(BackendRoot)/${pattern}` || value === `../../${pattern}`;
-}
-
-function hostCompiles(include, host) {
-  if (/tests\.cs$/i.test(include) || host.forbids?.test(include)) return false;
-  if (plainPath(include)) return true;
-  const rooted = /^(?:\$\(BackendRoot\)|\.\.\/\.\.)\/(.*)$/.exec(include);
-  if (rooted === null || !plainPath(rooted[1])) return false;
-  const feature = /^Features\/([^/]+)\//.exec(rooted[1]);
-  return feature !== null && host.compilesFeature(feature[1]);
-}
-
-async function checkDeploymentBoundary() {
-  for (const host of HOSTS) {
-    const file = path.join(root, host.project);
-    if (!(await exists(file))) {
-      fail(`${DEPLOYMENT_RULE}: falta ${host.project}`);
-      continue;
-    }
-    const text = await readText(file);
-    checkOnlyReferencesPlatform(host.project, text);
-    if (/<Import\b/.test(text)) {
-      fail(`${DEPLOYMENT_RULE}: ${host.project} importa otro archivo de MSBuild; el límite se lee en el .csproj del host`);
-    }
-    if (host.forbids && !msbuildValues(text, 'Compile', 'Remove').some((value) => removesFromBackend(value, 'Features/Tasks/**'))) {
-      fail(`${DEPLOYMENT_RULE}: ${host.project} no excluye Features/Tasks/**; Tasks se compila solo en ${TASKS_HOST_PROJECT}`);
-    }
-    for (const include of msbuildValues(text, 'Compile', 'Include')) {
-      if (!hostCompiles(include, host)) {
-        fail(`${DEPLOYMENT_RULE}: ${host.project} compila ${include}; ${host.scope}, sin tests, y el resto llega por ${PLATFORM_PROJECT}`);
-      }
-    }
-    if (!msbuildValues(text, 'Compile', 'Remove').some((value) => removesFromBackend(value, 'Features/**/*Tests.cs'))) {
-      fail(`${host.project} no excluye tests del producto: falta Compile Remove "$(BackendRoot)/Features/**/*Tests.cs"`);
-    }
-  }
-  const files = [];
-  await collectFiles(path.join(backend, 'Hosts'), files);
-  const tests = files.map(toPosix).filter((file) => /tests\.cs$/i.test(file));
-  if (tests.length > 0) fail(`tests en la carpeta de un host, que compila sus *.cs: ${tests.join(', ')}`);
 }
 
 async function checkTestsReferenceTheProduct() {
@@ -577,7 +490,6 @@ async function checkGatewayIsTheOnlyEntrance() {
 
 await checkSlicesHaveTests();
 await checkTestsReferenceTheProduct();
-await checkDeploymentBoundary();
 await checkInternalsOnlyForTests();
 await checkNoBus();
 await checkResiliencePackages();

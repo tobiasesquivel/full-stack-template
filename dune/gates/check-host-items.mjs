@@ -37,8 +37,18 @@ export function violations(host, files) {
     .map((file) => `${RULE}: ${host.project} compila ${file}; ${host.scope}, sin tests, y el resto llega por backend/Platform/TemplateApp.Platform.csproj`);
 }
 
-function compiledFiles(root, project, configuration) {
-  const result = spawnSync('dotnet', ['msbuild', project, '-nologo', '-getItem:Compile', `-p:Configuration=${configuration}`], {
+const PLATFORM_PROJECT = 'backend/Platform/TemplateApp.Platform.csproj';
+const DUNE_ANALYZERS_PROJECT = 'dune/Dune.Analyzers/Dune.Analyzers.csproj';
+
+export function referenceViolations(host, references) {
+  return references
+    .map((reference) => reference.replaceAll('\\', '/'))
+    .filter((reference) => reference !== PLATFORM_PROJECT && reference !== DUNE_ANALYZERS_PROJECT)
+    .map((reference) => `${RULE}: ${host.project} referencia ${reference}; un host referencia solo ${PLATFORM_PROJECT} (y el analyzer de Dune que agrega Dune.props), también con ReferenceOutputAssembly="false"`);
+}
+
+function evaluatedItems(root, project, configuration) {
+  const result = spawnSync('dotnet', ['msbuild', project, '-nologo', '-getItem:Compile', '-getItem:ProjectReference', `-p:Configuration=${configuration}`], {
     cwd: root,
     encoding: 'utf8',
     shell: process.platform === 'win32',
@@ -47,10 +57,14 @@ function compiledFiles(root, project, configuration) {
   if (result.status !== 0) {
     process.stderr.write(result.stdout ?? '');
     process.stderr.write(result.stderr ?? '');
-    throw new Error(`dotnet msbuild ${project} -getItem:Compile terminó con ${result.status}`);
+    throw new Error(`dotnet msbuild ${project} -getItem:Compile -getItem:ProjectReference terminó con ${result.status}`);
   }
-  const items = JSON.parse(result.stdout).Items?.Compile ?? [];
-  return items.map((item) => path.relative(root, realpathSync.native(item.FullPath)).split(path.sep).join('/'));
+  const items = JSON.parse(result.stdout).Items ?? {};
+  const relative = (item) => path.relative(root, realpathSync.native(item.FullPath)).split(path.sep).join('/');
+  return {
+    files: (items.Compile ?? []).map(relative),
+    references: (items.ProjectReference ?? []).map(relative),
+  };
 }
 
 function main() {
@@ -59,10 +73,10 @@ function main() {
   const counts = [];
   for (const configuration of ['Release', 'Debug']) {
     for (const host of HOSTS) {
-      const files = compiledFiles(root, host.project, configuration);
-      counts.push(`${host.project} en ${configuration}: ${files.length} archivos`);
+      const { files, references } = evaluatedItems(root, host.project, configuration);
+      counts.push(`${host.project} en ${configuration}: ${files.length} archivos y ${references.length} referencias`);
       if (files.length === 0) failures.push(`${RULE}: ${host.project} no compila ningún archivo en ${configuration}; el gate no tiene qué revisar`);
-      failures.push(...violations(host, files));
+      failures.push(...violations(host, files), ...referenceViolations(host, references));
     }
   }
   console.log(`check-host-items: ${failures.length === 0 ? 'PASS' : 'FAIL'} (${counts.join(', ')})`);
