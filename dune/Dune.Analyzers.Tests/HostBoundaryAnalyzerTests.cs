@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
@@ -122,6 +123,31 @@ public sealed class HostBoundaryAnalyzerTests
     }
 
     [Fact]
+    public async Task AHost_RejectsAProjectOfTheRepository_WhateverItsName()
+    {
+        var diagnostics = await AnalyzeProjectAsync(
+            "TemplateApp.Tasks",
+            "Hosts/Tasks",
+            new[] { "Hosts/Tasks/Program.cs" },
+            FileReference("Billing.Core", "C:/repo/backend/Billing/bin/Release/net10.0/Billing.Core.dll"));
+
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Contains("'backend/Hosts/Tasks' referencia Billing.Core (C:/repo/backend/Billing/bin/Release/net10.0/Billing.Core.dll)", diagnostic.GetMessage(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task AHost_AcceptsAPackageFromOutsideTheRepository()
+    {
+        var diagnostics = await AnalyzeProjectAsync(
+            "TemplateApp.Tasks",
+            "Hosts/Tasks",
+            new[] { "Hosts/Tasks/Program.cs" },
+            FileReference("Billing.Core", "C:/nuget/packages/billing.core/1.0.0/lib/net10.0/Billing.Core.dll"));
+
+        Assert.Empty(diagnostics);
+    }
+
+    [Fact]
     public async Task AProjectUnderHosts_ThatTheTableDoesNotKnow_Fails()
     {
         var diagnostics = await AnalyzeHostAsync("TemplateApp.Billing", "Hosts/Billing", new[] { "Hosts/Billing/Program.cs" });
@@ -176,6 +202,22 @@ public sealed class HostBoundaryAnalyzerTests
             files.Select((file, index) => (file, $"namespace Probe{index};\ninternal static class Probe{index} {{ }}\n")).ToList(),
             references.Select(Reference).ToList(),
             AnalyzerHost.Only<HostBoundaryAnalyzer>());
+    }
+
+    private static Task<ImmutableArray<Diagnostic>> AnalyzeProjectAsync(string assembly, string folder, IEnumerable<string> files, MetadataReference reference) =>
+        AnalyzerHost.AnalyzeProjectAsync(
+            assembly,
+            ImmutableDictionary<string, string>.Empty.Add(HostBoundaryAnalyzer.ProjectDirectoryOption, Backend + folder),
+            files.Select((file, index) => (Backend + file, $"namespace Probe{index};\ninternal static class Probe{index} {{ }}\n")).ToList(),
+            new[] { reference },
+            AnalyzerHost.Only<HostBoundaryAnalyzer>());
+
+    private static MetadataReference FileReference(string assembly, string path)
+    {
+        using var image = new MemoryStream();
+        var emitted = CSharpCompilation.Create(assembly, references: TestReferences.All(), options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary)).Emit(image);
+        Assert.True(emitted.Success);
+        return MetadataReference.CreateFromImage(image.ToArray(), filePath: path);
     }
 
     private static MetadataReference Reference(string assembly) =>

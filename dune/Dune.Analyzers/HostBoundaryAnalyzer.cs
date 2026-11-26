@@ -71,11 +71,19 @@ public sealed class HostBoundaryAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        foreach (var reference in context.Compilation.ReferencedAssemblyNames)
+        var repositoryRoot = backendRoot.Substring(0, backendRoot.Length - "backend/".Length);
+        foreach (var reference in context.Compilation.References)
         {
-            if (reference.Name.StartsWith(ProductAssemblyPrefix, StringComparison.Ordinal) && reference.Name != PlatformAssembly)
+            if (context.Compilation.GetAssemblyOrModuleSymbol(reference) is not IAssemblySymbol assembly || assembly.Identity.Name == PlatformAssembly)
             {
-                Report(context, Location.None, HostsFolder + host.Folder, $"referencia {reference.Name}; un host referencia solo {PlatformAssembly}, y lo compartido va en backend/Platform");
+                continue;
+            }
+
+            var file = reference is PortableExecutableReference { FilePath: { } path } ? Collapse(DunePaths.Normalize(path)) : null;
+            var fromRepository = file is not null && file.StartsWith(repositoryRoot, StringComparison.OrdinalIgnoreCase);
+            if (fromRepository || assembly.Identity.Name.StartsWith(ProductAssemblyPrefix, StringComparison.Ordinal))
+            {
+                Report(context, Location.None, HostsFolder + host.Folder, $"referencia {assembly.Identity.Name}{(fromRepository ? $" ({file})" : string.Empty)}; un host referencia solo {PlatformAssembly} entre los proyectos del repo, y lo compartido va en backend/Platform");
             }
         }
 
