@@ -148,6 +148,29 @@ public sealed class HostBoundaryAnalyzerTests
     }
 
     [Fact]
+    public async Task AHost_AcceptsItsIntermediateOutput_OutsideTheRepository()
+    {
+        var diagnostics = await AnalyzeWithIntermediateAsync(
+            "D:/artifacts/obj/TemplateApp/release/",
+            Backend + "Hosts/Monolith/Program.cs",
+            "D:/artifacts/obj/TemplateApp/release/TemplateApp.GlobalUsings.g.cs");
+
+        Assert.Empty(diagnostics);
+    }
+
+    [Fact]
+    public async Task AHost_IgnoresAnIntermediateOutput_ThatPointsIntoAnotherFolderOfTheRepository()
+    {
+        var diagnostics = await AnalyzeWithIntermediateAsync(
+            "../../Features/Tasks/",
+            Backend + "Hosts/Monolith/Program.cs",
+            Backend + "Features/Tasks/Domain/TaskItem.cs");
+
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Contains("'backend/Features/Tasks/Domain/TaskItem.cs' no le toca a backend/Hosts/Monolith", diagnostic.GetMessage(), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task AProjectUnderHosts_ThatTheTableDoesNotKnow_Fails()
     {
         var diagnostics = await AnalyzeHostAsync("TemplateApp.Billing", "Hosts/Billing", new[] { "Hosts/Billing/Program.cs" });
@@ -195,21 +218,31 @@ public sealed class HostBoundaryAnalyzerTests
         var properties = projectDirectory is null
             ? ImmutableDictionary<string, string>.Empty
             : ImmutableDictionary<string, string>.Empty.Add(HostBoundaryAnalyzer.ProjectDirectoryOption, projectDirectory.Replace('/', '\\'));
-
-        return AnalyzerHost.AnalyzeProjectAsync(
-            assembly,
-            properties,
-            files.Select((file, index) => (file, $"namespace Probe{index};\ninternal static class Probe{index} {{ }}\n")).ToList(),
-            references.Select(Reference).ToList(),
-            AnalyzerHost.Only<HostBoundaryAnalyzer>());
+        return RunAsync(assembly, properties, files, references.Select(Reference));
     }
 
     private static Task<ImmutableArray<Diagnostic>> AnalyzeProjectAsync(string assembly, string folder, IEnumerable<string> files, MetadataReference reference) =>
-        AnalyzerHost.AnalyzeProjectAsync(
+        RunAsync(
             assembly,
             ImmutableDictionary<string, string>.Empty.Add(HostBoundaryAnalyzer.ProjectDirectoryOption, Backend + folder),
-            files.Select((file, index) => (Backend + file, $"namespace Probe{index};\ninternal static class Probe{index} {{ }}\n")).ToList(),
-            new[] { reference },
+            files.Select(file => Backend + file),
+            new[] { reference });
+
+    private static Task<ImmutableArray<Diagnostic>> AnalyzeWithIntermediateAsync(string intermediate, params string[] files) =>
+        RunAsync(
+            "TemplateApp",
+            ImmutableDictionary<string, string>.Empty
+                .Add(HostBoundaryAnalyzer.ProjectDirectoryOption, Backend + "Hosts/Monolith")
+                .Add(HostBoundaryAnalyzer.IntermediateOutputOption, intermediate),
+            files,
+            new[] { Reference("TemplateApp.Platform") });
+
+    private static Task<ImmutableArray<Diagnostic>> RunAsync(string assembly, ImmutableDictionary<string, string> properties, IEnumerable<string> files, IEnumerable<MetadataReference> references) =>
+        AnalyzerHost.AnalyzeProjectAsync(
+            assembly,
+            properties,
+            files.Select((file, index) => (file, $"namespace Probe{index};\ninternal static class Probe{index} {{ }}\n")).ToList(),
+            references.ToList(),
             AnalyzerHost.Only<HostBoundaryAnalyzer>());
 
     private static MetadataReference FileReference(string assembly, string path)

@@ -12,6 +12,7 @@ namespace Dune.Analyzers;
 public sealed class HostBoundaryAnalyzer : DiagnosticAnalyzer
 {
     public const string ProjectDirectoryOption = "build_property.MSBuildProjectDirectory";
+    public const string IntermediateOutputOption = "build_property.IntermediateOutputPath";
     private const string HostsFolder = "backend/Hosts/";
     private const string PlatformAssembly = "TemplateApp.Platform";
     private const string ProductAssemblyPrefix = "TemplateApp";
@@ -59,10 +60,13 @@ public sealed class HostBoundaryAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        AnalyzeHost(context, projectDirectory.Substring(0, hostsMarker + "/backend/".Length), projectDirectory.Substring(hostsMarker + 1 + HostsFolder.Length));
+        var intermediate = context.Options.AnalyzerConfigOptionsProvider.GlobalOptions.TryGetValue(IntermediateOutputOption, out var output) && !string.IsNullOrWhiteSpace(output)
+            ? Collapse(Rooted(DunePaths.Normalize(output), projectDirectory)).TrimEnd('/') + "/"
+            : null;
+        AnalyzeHost(context, projectDirectory.Substring(0, hostsMarker + "/backend/".Length), projectDirectory.Substring(hostsMarker + 1 + HostsFolder.Length), intermediate);
     }
 
-    private static void AnalyzeHost(CompilationAnalysisContext context, string backendRoot, string folder)
+    private static void AnalyzeHost(CompilationAnalysisContext context, string backendRoot, string folder, string? intermediate)
     {
         var host = Hosts.FirstOrDefault(candidate => candidate.Folder.Equals(folder, StringComparison.Ordinal));
         if (host.Folder is null)
@@ -72,6 +76,13 @@ public sealed class HostBoundaryAnalyzer : DiagnosticAnalyzer
         }
 
         var repositoryRoot = backendRoot.Substring(0, backendRoot.Length - "backend/".Length);
+        if (intermediate is not null
+            && intermediate.StartsWith(repositoryRoot, StringComparison.OrdinalIgnoreCase)
+            && !intermediate.StartsWith(backendRoot + "Hosts/" + host.Folder + "/", StringComparison.OrdinalIgnoreCase))
+        {
+            intermediate = null;
+        }
+
         foreach (var reference in context.Compilation.References)
         {
             if (context.Compilation.GetAssemblyOrModuleSymbol(reference) is not IAssemblySymbol assembly || assembly.Identity.Name == PlatformAssembly)
@@ -89,6 +100,11 @@ public sealed class HostBoundaryAnalyzer : DiagnosticAnalyzer
 
         foreach (var tree in context.Compilation.SyntaxTrees)
         {
+            if (intermediate is not null && Collapse(DunePaths.Normalize(tree.FilePath)).StartsWith(intermediate, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
             var relative = Relative(DunePaths.Normalize(tree.FilePath), backendRoot);
             if (relative is null)
             {
@@ -100,6 +116,9 @@ public sealed class HostBoundaryAnalyzer : DiagnosticAnalyzer
             }
         }
     }
+
+    private static string Rooted(string path, string projectDirectory) =>
+        path.StartsWith("/", StringComparison.Ordinal) || (path.Length > 1 && path[1] == ':') ? path : projectDirectory + "/" + path;
 
     private static string? Relative(string path, string backendRoot)
     {

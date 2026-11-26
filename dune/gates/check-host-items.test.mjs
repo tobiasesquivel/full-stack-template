@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { HOSTS, violations } from './check-host-items.mjs';
+import { HOSTS, referenceViolations, violations } from './check-host-items.mjs';
 
 const [monolith, tasks] = HOSTS;
 
@@ -28,6 +28,27 @@ describe('check-host-items', () => {
       ['backend/Hosts/Monolith/TemplateApp.csproj', 'backend/Hosts/Tasks/TemplateApp.Tasks.csproj'],
     );
   });
+
+  it('acepta la referencia a Platform, también con barras invertidas, y el analyzer de Dune', () => {
+    assert.deepEqual(referenceViolations(monolith, ['backend/Platform/TemplateApp.Platform.csproj']), []);
+    assert.deepEqual(referenceViolations(tasks, [String.raw`backend\Platform\TemplateApp.Platform.csproj`]), []);
+    assert.deepEqual(referenceViolations(tasks, ['dune/Dune.Analyzers/Dune.Analyzers.csproj']), []);
+  });
+
+  for (const [name, host, reference] of [
+    ['el monolito que referencia el host de Tasks', monolith, 'backend/Hosts/Tasks/TemplateApp.Tasks.csproj'],
+    ['el host de Tasks que referencia una biblioteca del repo con otro nombre', tasks, 'backend/Billing/Billing.Core.csproj'],
+    ['el host de Tasks que referencia un proyecto de fuera de backend', tasks, 'dune/Dune.CommentVerifier/Dune.CommentVerifier.csproj'],
+  ]) {
+    it(`rechaza ${name}`, () => {
+      const [failure, ...rest] = referenceViolations(host, ['backend/Platform/TemplateApp.Platform.csproj', reference]);
+      assert.deepEqual(rest, []);
+      assert.ok(
+        failure?.startsWith(`límite de despliegue: ${host.project} referencia ${reference}; un host referencia solo backend/Platform/TemplateApp.Platform.csproj (y el analyzer de Dune`),
+        failure,
+      );
+    });
+  }
 
   it('acepta lo que compila cada host hoy, también con barras invertidas', () => {
     assert.deepEqual(violations(monolith, MONOLITH_FILES), []);
