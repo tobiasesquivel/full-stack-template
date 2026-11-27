@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { coverage, solutionProblems, solutionsIn, targetsFor, verdict } from './check-codegen.mjs';
+import { coverage, targetsFor, verdict } from './check-codegen.mjs';
 import { discoverHosts } from './hosts.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -15,19 +15,6 @@ describe('check-codegen', () => {
     for (const target of targetsFor(projects)) {
       assert.equal(target.generated, `${path.posix.dirname(target.project)}/Internal/Generated`);
     }
-  });
-
-  it('pide que cada host esté en la solución del repo', () => {
-    const solution = { name: 'TemplateApp.slnx', text: '<Solution>\n  <Project Path="backend/Hosts/Monolith/TemplateApp.csproj" />\n</Solution>\n' };
-    assert.deepEqual(solutionProblems(['backend/Hosts/Monolith/TemplateApp.csproj'], [solution]), []);
-    const [problem, ...rest] = solutionProblems(['backend/Hosts/Monolith/TemplateApp.csproj', 'backend/Hosts/Billing/Acme.Billing.csproj'], [solution]);
-    assert.deepEqual(rest, []);
-    assert.match(problem, /backend\/Hosts\/Billing\/Acme\.Billing\.csproj no está en TemplateApp\.slnx/);
-    assert.equal(solutionProblems([], []).length, 1);
-  });
-
-  it('el repo tiene todos sus hosts en la solución', () => {
-    assert.deepEqual(solutionProblems(discoverHosts(ROOT).projects, solutionsIn(ROOT)), []);
   });
 
   it('revisa un host inventado sin editar el gate', () => {

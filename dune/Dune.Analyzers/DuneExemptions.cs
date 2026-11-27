@@ -66,7 +66,10 @@ internal static class DuneExemptions
             return null;
         }
 
-        return compilation.GetTypeByMetadataName(ns.Substring(0, index + marker.Length) + "." + feature + "Feature");
+        var type = compilation.GetTypeByMetadataName(ns.Substring(0, index + marker.Length) + "." + feature + "Feature");
+        return type is not null && type.DeclaringSyntaxReferences.Any(reference => IsFileType(type, DunePaths.Normalize(reference.SyntaxTree.FilePath)))
+            ? type
+            : null;
     }
 
     private static string? EnumMemberName(TypedConstant constant) =>

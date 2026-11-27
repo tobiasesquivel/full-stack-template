@@ -248,6 +248,27 @@ public sealed class TransactionOwnerAnalyzerTests
         Assert.Single(Locations(diagnostics));
     }
 
+    [Fact]
+    public async Task AFeatureClassDeclaredInAFileWithAnotherName_DoesNotExempt()
+    {
+        var diagnostics = await AnalyzeAsync(
+            (ExemptionFixture.Path, ExemptionFixture.Source),
+            ("backend/Features/Invoices/Registration.cs", """
+                using TemplateApp.Infrastructure.Messaging;
+                using TemplateApp.Shared.Architecture;
+                namespace TemplateApp.Features.Invoices;
+                [DuneExemption(DuneCheck.TransactionOwner, "En un archivo con otro nombre no cuenta.")]
+                internal static class InvoicesFeature
+                {
+                    public static object AddInvoicesFeature(object services) =>
+                        MessagingRegistration.AddMediatorHandler<IssueInvoice.IssueInvoiceCommand.Handler>(services, MediatorTransaction.None);
+                }
+                """),
+            ("backend/Features/Invoices/IssueInvoice/IssueInvoiceCommandHandler.cs", IssueInvoiceHandler));
+
+        Assert.Single(Locations(diagnostics));
+    }
+
     private const string IssueInvoiceHandler = """
         using System.Threading;
         using System.Threading.Tasks;

@@ -80,7 +80,7 @@ Cuando una slice o una feature hace algo distinto a propósito, lo declara ella,
 
 Una excepción en otro tipo, también en una clase anidada del endpoint, no exime nada: la regla sigue fallando. No se usan `#pragma warning disable`, `SuppressMessage` ni `.editorconfig` para callar una regla de Dune: apagan el id entero, sin motivo, y no los vigila nada (pendiente en `progreso.md`).
 
-Cada host declara en su `.csproj` qué features despliega: `<DuneHostFeatures>Tasks,Health</DuneHostFeatures>` (solo esas) o `<DuneHostExcludedFeatures>Tasks</DuneHostExcludedFeatures>` (todas salvo esas, como el monolito). DUNE0032 y `check-host-items` comparan lo que el host compila con esa declaración. Un nombre que no es una carpeta de `backend/Features/` falla (`check-host-items`), y también una feature de `DuneHostFeatures` que el host no compila (DUNE0032). Cada host está en la solución (`check-codegen`), porque `codegen write` corre sobre su build.
+Cada host declara en su `.csproj` qué features despliega: `<DuneHostFeatures>Tasks,Health</DuneHostFeatures>` (solo esas) o `<DuneHostExcludedFeatures>Tasks</DuneHostExcludedFeatures>` (todas salvo esas, como el monolito). DUNE0032 y `check-host-items` comparan lo que el host compila con esa declaración. Un nombre que no es una carpeta de `backend/Features/` falla (`check-host-items`), y también una feature de `DuneHostFeatures` que el host no compila (DUNE0032).
 
 ## Configuración
 

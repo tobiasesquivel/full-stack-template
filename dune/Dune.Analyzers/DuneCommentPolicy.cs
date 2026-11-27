@@ -18,16 +18,22 @@ public static class DuneCommentPolicy
     {
         const string hosts = "backend/Hosts/";
         const string generated = "/Internal/Generated/WolverineHandlers/";
-        var marker = normalizedPath.StartsWith(hosts, StringComparison.Ordinal) ? 0 : normalizedPath.IndexOf("/" + hosts, StringComparison.Ordinal) + 1;
-        if (marker <= 0 && !normalizedPath.StartsWith(hosts, StringComparison.Ordinal))
+        for (var marker = normalizedPath.IndexOf(hosts, StringComparison.Ordinal); marker >= 0; marker = normalizedPath.IndexOf(hosts, marker + 1, StringComparison.Ordinal))
         {
-            return false;
+            if (marker > 0 && normalizedPath[marker - 1] != '/')
+            {
+                continue;
+            }
+
+            var host = marker + hosts.Length;
+            var slash = normalizedPath.IndexOf('/', host);
+            if (slash > host && string.CompareOrdinal(normalizedPath, slash, generated, 0, generated.Length) == 0)
+            {
+                return true;
+            }
         }
 
-        var host = marker + hosts.Length;
-        var slash = normalizedPath.IndexOf('/', host);
-        return slash > host
-            && string.CompareOrdinal(normalizedPath, slash, generated, 0, generated.Length) == 0;
+        return false;
     }
 
     private static bool IsFeatureMigration(string normalizedPath) =>

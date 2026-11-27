@@ -123,6 +123,7 @@ public sealed class NoCommentsAnalyzerTests
     [InlineData("backend/Hosts/Monolith/Internal/Generated/WolverineHandlers/SampleHandler123.cs")]
     [InlineData("backend/Hosts/Tasks/Internal/Generated/WolverineHandlers/SampleHandler123.cs")]
     [InlineData("C:/repo/backend/Hosts/Billing/Internal/Generated/WolverineHandlers/SampleHandler123.cs")]
+    [InlineData("C:/work/backend/Hosts/clones/repo/backend/Hosts/Monolith/Internal/Generated/WolverineHandlers/SampleHandler123.cs")]
     public async Task WolverineGeneratedHandlersDirectoryIsExempt(string path)
     {
         var diagnostics = await AnalyzerHost.AnalyzeAsync(
