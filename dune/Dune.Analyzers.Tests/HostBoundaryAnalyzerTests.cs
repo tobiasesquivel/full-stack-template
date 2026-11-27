@@ -193,6 +193,22 @@ public sealed class HostBoundaryAnalyzerTests
     }
 
     [Fact]
+    public async Task AHost_ThatDeclaresAFeatureItDoesNotCompile_Fails()
+    {
+        var diagnostics = await RunAsync(
+            "Acme.Billing",
+            ImmutableDictionary<string, string>.Empty
+                .Add(HostBoundaryAnalyzer.FeaturesOption, "Invoice,Health")
+                .Add(HostBoundaryAnalyzer.ProjectDirectoryOption, Backend + "Hosts/Billing"),
+            new[] { Backend + "Hosts/Billing/Program.cs", Backend + "Features/Health/HealthFeature.cs" },
+            new[] { Reference("TemplateApp.Platform") },
+            compileDeclaredFeatures: false);
+
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Contains("'backend/Hosts/Billing' declara Invoice en DuneHostFeatures y no compila ningún archivo de backend/Features/Invoice/", diagnostic.GetMessage(), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task TheMonolith_TakesAnInventedFeature_WithoutEditingItsDeclaration()
     {
         var diagnostics = await AnalyzeHostAsync(
@@ -309,13 +325,31 @@ public sealed class HostBoundaryAnalyzerTests
             files,
             new[] { Reference("TemplateApp.Platform") });
 
-    private static Task<ImmutableArray<Diagnostic>> RunAsync(string assembly, ImmutableDictionary<string, string> properties, IEnumerable<string> files, IEnumerable<MetadataReference> references) =>
-        AnalyzerHost.AnalyzeProjectAsync(
+    private static Task<ImmutableArray<Diagnostic>> RunAsync(string assembly, ImmutableDictionary<string, string> properties, IEnumerable<string> files, IEnumerable<MetadataReference> references, bool compileDeclaredFeatures = true)
+    {
+        var all = files.ToList();
+        if (compileDeclaredFeatures
+            && properties.TryGetValue(HostBoundaryAnalyzer.ProjectDirectoryOption, out var directory)
+            && properties.TryGetValue(HostBoundaryAnalyzer.FeaturesOption, out var declared))
+        {
+            var backend = directory.Replace('\\', '/');
+            backend = backend.Substring(0, backend.LastIndexOf("/Hosts/", StringComparison.Ordinal) + 1);
+            foreach (var feature in declared.Split(',').Select(name => name.Trim()).Where(name => name.Length > 0))
+            {
+                if (!all.Any(file => file.Replace('\\', '/').Contains($"/Features/{feature}/", StringComparison.Ordinal) && !file.EndsWith("Tests.cs", StringComparison.OrdinalIgnoreCase)))
+                {
+                    all.Add($"{backend}Features/{feature}/{feature}Feature.cs");
+                }
+            }
+        }
+
+        return AnalyzerHost.AnalyzeProjectAsync(
             assembly,
             properties,
-            files.Select((file, index) => (file, $"namespace Probe{index};\ninternal static class Probe{index} {{ }}\n")).ToList(),
+            all.Select((file, index) => (file, $"namespace Probe{index};\ninternal static class Probe{index} {{ }}\n")).ToList(),
             references.ToList(),
             AnalyzerHost.Only<HostBoundaryAnalyzer>());
+    }
 
     private static MetadataReference FileReference(string assembly, string path)
     {

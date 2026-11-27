@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
@@ -9,6 +10,20 @@ export function targetsFor(projects) {
     project,
     generated: path.posix.join(path.posix.dirname(project), 'Internal/Generated'),
   }));
+}
+
+export function solutionProblems(projects, solutions) {
+  if (solutions.length !== 1) return [`la raíz del repo tiene ${solutions.length} archivos .slnx; check-codegen necesita uno para saber qué compila el build de la solución`];
+  const [{ name, text }] = solutions;
+  return projects
+    .filter((project) => !text.includes(`Path="${project}"`))
+    .map((project) => `${project} no está en ${name}: el build de la solución no lo compila y codegen write corre con --no-build; agregalo con "dotnet sln ${name} add ${project}"`);
+}
+
+export function solutionsIn(root) {
+  return readdirSync(root)
+    .filter((file) => file.endsWith('.slnx'))
+    .map((name) => ({ name, text: readFileSync(path.join(root, name), 'utf8') }));
 }
 
 export function verdict(target, porcelain) {
@@ -58,9 +73,10 @@ function main() {
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
   const configuration = process.argv.includes('--release') ? 'Release' : 'Debug';
   const { projects, problems } = discoverHosts(root);
+  const unbuilt = solutionProblems(projects, solutionsIn(root));
   const failures = [
-    ...problems.map((message) => ({ ok: false, message })),
-    ...targetsFor(projects).map((target) => check(root, configuration, target)).filter((result) => !result.ok),
+    ...[...problems, ...unbuilt].map((message) => ({ ok: false, message })),
+    ...(unbuilt.length > 0 ? [] : targetsFor(projects).map((target) => check(root, configuration, target)).filter((result) => !result.ok)),
   ];
   console.log(`check-codegen: ${failures.length === 0 ? 'PASS' : 'FAIL'} (${projects.join(', ')})`);
   for (const result of failures) console.log(`- ${result.message}`);

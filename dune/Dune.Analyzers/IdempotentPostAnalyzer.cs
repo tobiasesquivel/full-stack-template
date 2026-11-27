@@ -36,7 +36,9 @@ public sealed class IdempotentPostAnalyzer : DiagnosticAnalyzer
         if (!path.EndsWith("Endpoint.cs", StringComparison.Ordinal)
             || DunePaths.IsTestsFile(path)
             || !DunePaths.TryGetFeature(path, out _)
-            || DuneExemptions.Exempts(DuneExemptions.TopLevelType(context.ContainingSymbol), DuneExemptions.IdempotentPost)
+            || (DuneExemptions.TopLevelType(context.ContainingSymbol) is var endpoint
+                && DuneExemptions.IsFileType(endpoint, path)
+                && DuneExemptions.Exempts(endpoint, DuneExemptions.IdempotentPost))
             || ChainsOptIn(invocation))
         {
             return;

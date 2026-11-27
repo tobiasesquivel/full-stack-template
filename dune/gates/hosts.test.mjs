@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { discoverHosts } from './hosts.mjs';
+import { discoverHosts, featureFolders } from './hosts.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 
@@ -23,11 +23,17 @@ function withRepo(hosts, run) {
 }
 
 describe('hosts', () => {
-  it('encuentra los hosts del repo en backend/Hosts, ordenados', () => {
-    assert.deepEqual(discoverHosts(ROOT), {
-      projects: ['backend/Hosts/Monolith/TemplateApp.csproj', 'backend/Hosts/Tasks/TemplateApp.Tasks.csproj'],
-      problems: [],
-    });
+  it('encuentra los hosts del repo en backend/Hosts, sin problemas', () => {
+    const { projects, problems } = discoverHosts(ROOT);
+    assert.deepEqual(problems, []);
+    assert.ok(projects.includes('backend/Hosts/Monolith/TemplateApp.csproj'), projects.join(', '));
+    assert.ok(projects.includes('backend/Hosts/Tasks/TemplateApp.Tasks.csproj'), projects.join(', '));
+    assert.deepEqual(projects, [...projects].sort());
+  });
+
+  it('lista las carpetas de backend/Features del repo', () => {
+    const features = featureFolders(ROOT);
+    assert.ok(features.includes('Tasks') && features.includes('Health'), features.join(', '));
   });
 
   it('suma un host inventado sin editar ninguna lista', () => {

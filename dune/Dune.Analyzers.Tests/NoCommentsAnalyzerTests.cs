@@ -148,6 +148,7 @@ public sealed class NoCommentsAnalyzerTests
     [InlineData("backend/Hosts/Tasks/Internal/Generated/SampleHandler123.cs")]
     [InlineData("backend/Hosts/Tasks/Features/Internal/Generated/WolverineHandlers/SampleHandler123.cs")]
     [InlineData("backend/Hosts/Internal/Generated/WolverineHandlers/SampleHandler123.cs")]
+    [InlineData("C:/repo/mybackend/Hosts/Billing/Internal/Generated/WolverineHandlers/SampleHandler123.cs")]
     [InlineData("backend/Hosts/Billing/Api/Internal/Generated/WolverineHandlers/SampleHandler123.cs")]
     public async Task GeneratedLookalikeOutsideWolverineHandlersIsRejected(string path)
     {

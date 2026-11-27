@@ -34,8 +34,9 @@ public sealed class MediatorEndpointAnalyzer : DiagnosticAnalyzer
         }
 
         var root = model.SyntaxTree.GetRoot(context.CancellationToken);
-        if (root.DescendantNodes().OfType<BaseTypeDeclarationSyntax>().Any(declaration =>
-            DuneExemptions.Exempts(model.GetDeclaredSymbol(declaration, context.CancellationToken) as INamedTypeSymbol, DuneExemptions.MediatorEndpoint)))
+        if (root.DescendantNodes().OfType<BaseTypeDeclarationSyntax>()
+            .Select(declaration => model.GetDeclaredSymbol(declaration, context.CancellationToken) as INamedTypeSymbol)
+            .Any(type => DuneExemptions.IsFileType(type, path) && DuneExemptions.Exempts(type, DuneExemptions.MediatorEndpoint)))
         {
             return;
         }

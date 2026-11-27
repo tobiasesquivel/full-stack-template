@@ -175,6 +175,7 @@ public sealed class ReadSliceAnalyzer : DiagnosticAnalyzer
         {
             var path = DunePaths.Normalize(location.SourceTree?.FilePath);
             if (DunePaths.IsSliceEndpoint(path)
+                && DuneExemptions.IsFileType(type, path)
                 && !DunePaths.IsTestsFile(path)
                 && DunePaths.TryGetFeature(path, out var feature)
                 && DunePaths.TryGetSlice(path, out var slice))

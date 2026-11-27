@@ -3,7 +3,7 @@ import { realpathSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
-import { discoverHosts } from './hosts.mjs';
+import { discoverHosts, featureFolders } from './hosts.mjs';
 
 const RULE = 'límite de despliegue';
 
@@ -21,8 +21,12 @@ function names(value) {
     .filter((name) => name.length > 0);
 }
 
-export function hostFromDeclaration(project, { DuneHostFeatures, DuneHostExcludedFeatures }) {
+export function hostFromDeclaration(project, { DuneHostFeatures, DuneHostExcludedFeatures }, knownFeatures = null) {
   const features = names(DuneHostFeatures);
+  const unknown = knownFeatures === null ? [] : [...features, ...names(DuneHostExcludedFeatures)].filter((name) => !knownFeatures.includes(name));
+  if (unknown.length > 0) {
+    return { problem: `${RULE}: ${project} declara ${unknown.join(', ')}, que no es una carpeta de backend/Features; corregí el nombre en su .csproj (hoy: ${knownFeatures.join(', ')})` };
+  }
   const excluded = names(DuneHostExcludedFeatures).map((name) => name.toLowerCase());
   if ((features.length > 0) === (excluded.length > 0)) {
     return {
@@ -91,12 +95,13 @@ function evaluatedItems(root, project, configuration) {
 function main() {
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
   const { projects, problems } = discoverHosts(root);
+  const features = featureFolders(root);
   const failures = [...problems.map((problem) => `${RULE}: ${problem}`)];
   const counts = [];
   for (const configuration of ['Release', 'Debug']) {
     for (const project of projects) {
       const { files, references, declaration } = evaluatedItems(root, project, configuration);
-      const host = hostFromDeclaration(project, declaration);
+      const host = hostFromDeclaration(project, declaration, features);
       if (host.problem) {
         failures.push(host.problem);
         continue;

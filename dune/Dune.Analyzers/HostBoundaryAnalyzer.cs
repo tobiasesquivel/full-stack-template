@@ -92,8 +92,8 @@ public sealed class HostBoundaryAnalyzer : DiagnosticAnalyzer
         }
 
         host = features.Length > 0
-            ? new Host(folder, $"el host compila su carpeta y Features/{string.Join(", Features/", features)} (DuneHostFeatures de su .csproj)", feature => features.Contains(feature, StringComparer.Ordinal))
-            : new Host(folder, $"el host compila su carpeta y Features salvo Features/{string.Join(", Features/", excluded)} (DuneHostExcludedFeatures de su .csproj)", feature => !excluded.Contains(feature, StringComparer.OrdinalIgnoreCase));
+            ? new Host(folder, $"el host compila su carpeta y Features/{string.Join(", Features/", features)} (DuneHostFeatures de su .csproj)", feature => features.Contains(feature, StringComparer.Ordinal), features)
+            : new Host(folder, $"el host compila su carpeta y Features salvo Features/{string.Join(", Features/", excluded)} (DuneHostExcludedFeatures de su .csproj)", feature => !excluded.Contains(feature, StringComparer.OrdinalIgnoreCase), Array.Empty<string>());
         return true;
     }
 
@@ -127,6 +127,7 @@ public sealed class HostBoundaryAnalyzer : DiagnosticAnalyzer
             }
         }
 
+        var compiledFeatures = new HashSet<string>(StringComparer.Ordinal);
         foreach (var tree in context.Compilation.SyntaxTrees)
         {
             if (intermediate is not null && Collapse(DunePaths.Normalize(tree.FilePath)).StartsWith(intermediate, StringComparison.OrdinalIgnoreCase))
@@ -143,6 +144,15 @@ public sealed class HostBoundaryAnalyzer : DiagnosticAnalyzer
             {
                 Report(context, Location.Create(tree, default(TextSpan)), "backend/" + relative, $"no le toca a {HostsFolder}{host.Folder}; {host.Scope}, sin tests, y el resto llega por backend/Platform/TemplateApp.Platform.csproj");
             }
+            else if (FeatureOf(relative) is { } compiled)
+            {
+                compiledFeatures.Add(compiled);
+            }
+        }
+
+        foreach (var declared in host.DeclaredFeatures.Where(declared => !compiledFeatures.Contains(declared)))
+        {
+            Report(context, Location.None, HostsFolder + host.Folder, $"declara {declared} en DuneHostFeatures y no compila ningún archivo de backend/Features/{declared}/; corregí el nombre en su .csproj o sacalo de la lista");
         }
     }
 
@@ -189,14 +199,19 @@ public sealed class HostBoundaryAnalyzer : DiagnosticAnalyzer
             return true;
         }
 
+        return FeatureOf(relative) is { } feature && host.CompilesFeature(feature);
+    }
+
+    private static string? FeatureOf(string relative)
+    {
         if (!relative.StartsWith("Features/", StringComparison.OrdinalIgnoreCase))
         {
-            return false;
+            return null;
         }
 
         var rest = relative.Substring("Features/".Length);
         var slash = rest.IndexOf('/');
-        return slash > 0 && host.CompilesFeature(rest.Substring(0, slash));
+        return slash > 0 ? rest.Substring(0, slash) : null;
     }
 
     private static void Report(CompilationAnalysisContext context, Location location, string subject, string detail) =>
@@ -204,8 +219,9 @@ public sealed class HostBoundaryAnalyzer : DiagnosticAnalyzer
 
     private sealed class Host
     {
-        public Host(string folder, string scope, Func<string, bool> compilesFeature)
+        public Host(string folder, string scope, Func<string, bool> compilesFeature, string[] declaredFeatures)
         {
+            DeclaredFeatures = declaredFeatures;
             Folder = folder;
             Scope = scope;
             CompilesFeature = compilesFeature;
@@ -216,5 +232,7 @@ public sealed class HostBoundaryAnalyzer : DiagnosticAnalyzer
         public string Scope { get; }
 
         public Func<string, bool> CompilesFeature { get; }
+
+        public string[] DeclaredFeatures { get; }
     }
 }

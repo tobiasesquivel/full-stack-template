@@ -233,6 +233,27 @@ public sealed class MediatorEndpointAnalyzerTests
             Locations(diagnostics));
     }
 
+    [Fact]
+    public async Task AnExemptionOnANestedHelper_DoesNotExemptTheEndpoint()
+    {
+        var diagnostics = await AnalyzeAsync(
+            ("backend/Features/Invoices/IssueInvoice/IssueInvoiceEndpoint.cs", """
+                using TemplateApp.Shared.Architecture;
+                namespace TemplateApp.Features.Invoices.IssueInvoice;
+                internal static class IssueInvoiceEndpoint
+                {
+                    [DuneExemption(DuneCheck.MediatorEndpoint, "En una clase anidada no cuenta.")]
+                    private static class Helper
+                    {
+                    }
+
+                    public static int HandleAsync() => 1;
+                }
+                """));
+
+        Assert.Equal(new[] { ("backend/Features/Invoices/IssueInvoice/IssueInvoiceEndpoint.cs", 3) }, Locations(diagnostics));
+    }
+
     private static Task<System.Collections.Immutable.ImmutableArray<Diagnostic>> AnalyzeAsync(
         params (string Path, string Source)[] files) =>
         AnalyzerHost.AnalyzeAsync(

@@ -70,7 +70,7 @@ Excepciones (la lista es cerrada):
 
 ## Excepciones a una regla de Dune
 
-Ninguna regla de Dune guarda nombres de features, de slices ni de hosts (paso T1). Una feature nueva queda revisada desde su primer archivo.
+Desde el paso T1, las reglas que revisan features, slices y hosts (DUNE0009, 0016, 0019, 0028, 0029, 0031 y 0032, `check-host-items` y `check-codegen`) no guardan sus nombres: una feature o un host nuevo queda revisado desde su primer archivo. Queda una lista en `check-structure` (el `DisableRateLimiting` de Health, pendiente en `progreso.md`).
 
 Cuando una slice o una feature hace algo distinto a propósito, lo declara ella, en el tipo que mira la regla, con una línea visible: `[DuneExemption(DuneCheck.X, "motivo")]` (`backend/Shared/Architecture/`). El motivo es obligatorio (DUNE0033). Solo aceptan excepción los chequeos de `DuneCheck`:
 - `IdempotentPost` (DUNE0016), en la clase `<Slice>Endpoint` de un `POST` que no crea un recurso de negocio.
@@ -78,9 +78,9 @@ Cuando una slice o una feature hace algo distinto a propósito, lo declara ella,
 - `ReadSliceLoadsEntity` (DUNE0019), en la clase `<Slice>Endpoint` de una lectura que todavía carga la entidad. No apaga "una lectura no escribe".
 - `TransactionOwner` (DUNE0029), en la clase `<Feature>Feature` de una feature que corre sin la integración de EF de Wolverine y maneja su transacción (Tasks).
 
-Una excepción en otro tipo no exime nada: la regla sigue fallando. No se usan `#pragma warning disable`, `SuppressMessage` ni `.editorconfig` para callar una regla de Dune: apagan el id entero, sin motivo, y no los vigila nada (pendiente en `progreso.md`).
+Una excepción en otro tipo, también en una clase anidada del endpoint, no exime nada: la regla sigue fallando. No se usan `#pragma warning disable`, `SuppressMessage` ni `.editorconfig` para callar una regla de Dune: apagan el id entero, sin motivo, y no los vigila nada (pendiente en `progreso.md`).
 
-Cada host declara en su `.csproj` qué features despliega: `<DuneHostFeatures>Tasks,Health</DuneHostFeatures>` (solo esas) o `<DuneHostExcludedFeatures>Tasks</DuneHostExcludedFeatures>` (todas salvo esas, como el monolito). DUNE0032 y `check-host-items` comparan lo que el host compila con esa declaración.
+Cada host declara en su `.csproj` qué features despliega: `<DuneHostFeatures>Tasks,Health</DuneHostFeatures>` (solo esas) o `<DuneHostExcludedFeatures>Tasks</DuneHostExcludedFeatures>` (todas salvo esas, como el monolito). DUNE0032 y `check-host-items` comparan lo que el host compila con esa declaración. Un nombre que no es una carpeta de `backend/Features/` falla (`check-host-items`), y también una feature de `DuneHostFeatures` que el host no compila (DUNE0032). Cada host está en la solución (`check-codegen`), porque `codegen write` corre sobre su build.
 
 ## Configuración
 

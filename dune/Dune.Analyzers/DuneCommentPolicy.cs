@@ -18,8 +18,8 @@ public static class DuneCommentPolicy
     {
         const string hosts = "backend/Hosts/";
         const string generated = "/Internal/Generated/WolverineHandlers/";
-        var marker = normalizedPath.IndexOf(hosts, StringComparison.Ordinal);
-        if (marker < 0)
+        var marker = normalizedPath.StartsWith(hosts, StringComparison.Ordinal) ? 0 : normalizedPath.IndexOf("/" + hosts, StringComparison.Ordinal) + 1;
+        if (marker <= 0 && !normalizedPath.StartsWith(hosts, StringComparison.Ordinal))
         {
             return false;
         }

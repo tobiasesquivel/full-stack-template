@@ -38,6 +38,10 @@ internal static class DuneExemptions
         }
     }
 
+    public static bool IsFileType(INamedTypeSymbol? type, string normalizedPath) =>
+        type is { ContainingType: null }
+        && type.Name.Equals(System.IO.Path.GetFileNameWithoutExtension(normalizedPath), StringComparison.Ordinal);
+
     public static INamedTypeSymbol? TopLevelType(ISymbol? symbol)
     {
         INamedTypeSymbol? type = null;

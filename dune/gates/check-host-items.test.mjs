@@ -40,6 +40,15 @@ describe('check-host-items', () => {
     assert.deepEqual(violations(monolith, ['backend/Features/Invoices/InvoicesFeature.cs']), []);
   });
 
+  it('rechaza un nombre mal escrito en la declaración, que dejaría pasar la feature', () => {
+    const known = ['Auth', 'Health', 'Projects', 'Tasks', 'Users'];
+    const typo = hostFromDeclaration('backend/Hosts/Monolith/TemplateApp.csproj', { DuneHostExcludedFeatures: 'Task' }, known);
+    assert.ok(typo.problem?.startsWith('límite de despliegue: backend/Hosts/Monolith/TemplateApp.csproj declara Task, que no es una carpeta de backend/Features'), typo.problem);
+    const included = hostFromDeclaration('backend/Hosts/Tasks/TemplateApp.Tasks.csproj', { DuneHostFeatures: 'Tasks,health' }, known);
+    assert.ok(included.problem?.includes('declara health, que no es una carpeta'), included.problem);
+    assert.equal(hostFromDeclaration('backend/Hosts/Tasks/TemplateApp.Tasks.csproj', { DuneHostFeatures: 'Tasks,Health' }, known).problem, undefined);
+  });
+
   for (const [name, declaration, expected] of [
     ['un host sin declaración', {}, 'no declara qué features despliega'],
     ['un host con la declaración vacía', { DuneHostFeatures: ' , ' }, 'no declara qué features despliega'],

@@ -4,6 +4,13 @@ import path from 'node:path';
 export const HOSTS_FOLDER = 'backend/Hosts';
 const SAFE_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 
+export function featureFolders(root) {
+  return readdirSync(path.join(root, 'backend/Features'), { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .sort();
+}
+
 export function discoverHosts(root) {
   const projects = [];
   const problems = [];

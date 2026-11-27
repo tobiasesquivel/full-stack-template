@@ -259,6 +259,29 @@ public sealed class ReadSliceAnalyzerTests
             Findings(diagnostics));
     }
 
+    [Fact]
+    public async Task AnExemptionOnANestedHelperOfTheEndpoint_DoesNotExemptTheSlice()
+    {
+        var diagnostics = await AnalyzeAsync(
+            ("backend/Features/Users/GetUser/GetUserEndpoint.cs", """
+                using Microsoft.AspNetCore.Builder;
+                using Microsoft.AspNetCore.Routing;
+                namespace TemplateApp.Features.Users.GetUser;
+                public static class GetUserEndpoint
+                {
+                    public static void Map(IEndpointRouteBuilder routes) => routes.MapGet("/", () => 0);
+
+                    [TemplateApp.Shared.Architecture.DuneExemption(TemplateApp.Shared.Architecture.DuneCheck.ReadSliceLoadsEntity, "En una clase anidada no cuenta.")]
+                    private static class Helper
+                    {
+                    }
+                }
+                """),
+            ("backend/Features/Users/GetUser/GetUser.cs", GetUserThatLoads));
+
+        Assert.Single(Findings(diagnostics));
+    }
+
     private const string GetUserThatLoads = """
         using System.Threading;
         using System.Threading.Tasks;
