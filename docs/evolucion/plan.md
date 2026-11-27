@@ -559,7 +559,7 @@ El paso 0.28 se agregó el 2026-10-17, a pedido de Tobi, con otro pendiente del 
 
 **T7. El template `fst`.**
 **Concepto**: un template se prueba creándolo.
-**Cambia**: `.template.config` con `sourceName` para todas las formas del nombre; excluye Tasks, Projects, `Hosts/Tasks`, el frontend y los docs del laboratorio; docs que viajan: `conventions.md`, ADR, `architecture.md` genérico, AGENTS.md corto, `decisions.tsv` vacío con link a la historia de este repo. Se instala desde la carpeta del repo. Job de CI.
+**Cambia**: `.template.config` con `sourceName` para todas las formas del nombre; excluye Tasks, Projects, `Hosts/Tasks`, el frontend y los docs del laboratorio; docs que viajan: `conventions.md`, ADR, `architecture.md` genérico, `piramide-invertida.md`, AGENTS.md corto (con la regla "no hay merge autónomo de PRs"), `decisions.tsv` vacío con link a la historia de este repo. Se instala desde la carpeta del repo. Job de CI.
 **Verifica**: el job instala el template, crea un proyecto, compila, corre tests y Dune, mete una violación a propósito y comprueba que Dune falla; falla si queda `TemplateApp` o `templateapp`.
 
 **T8. `tools/Molde`.**

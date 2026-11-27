@@ -279,7 +279,7 @@ Esta metodología está inspirada en Lauren Tan, pero no implica adoptar todas s
 
 En particular:
 
-- No autorizo el merge autónomo de pull requests. (En full-stack-template lo reemplaza la regla 6 de `AGENTS.md`: Tobi, 2026-11-27, "hace todo autonomo incluido merges".)
+- No autorizo el merge autónomo de pull requests en los proyectos creados desde el template. (En full-stack-template, el template mismo, el merge es autónomo según la regla 6 de `AGENTS.md`: Tobi, 2026-11-27, "hace todo autonomo incluido merges".)
 - Las mejoras arquitectónicas y los nuevos mecanismos preventivos propuestos mediante esta metodología requieren mi aprobación antes de implementarse.
 - No amplíes automáticamente el scope de una tarea para realizar mejoras no solicitadas.
 - No conviertas AGENTS.md en una acumulación de reglas, correcciones y guardrails.
