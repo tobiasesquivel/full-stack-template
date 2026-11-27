@@ -8,6 +8,8 @@ namespace TemplateApp.Tests.Support.Hosts;
 
 public sealed class PostgresFixture : IAsyncLifetime
 {
+    public const int MaxConnections = 300;
+
     private PostgreSqlContainer? _postgres;
 
     public string ConnectionString { get; private set; } = string.Empty;
@@ -25,6 +27,7 @@ public sealed class PostgresFixture : IAsyncLifetime
             .WithDatabase("templateapp_tests")
             .WithUsername("postgres")
             .WithPassword("postgres")
+            .WithCommand("-c", $"max_connections={MaxConnections}")
             .Build();
 
         await _postgres.StartAsync();
