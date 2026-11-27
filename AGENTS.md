@@ -18,7 +18,8 @@ El dominio (tareas) es simple a propósito: importa el rigor técnico. **Todo el
 
 | Archivo | Para qué |
 |---|---|
-| [docs/evolucion/plan.md](docs/evolucion/plan.md) | Hoja de ruta: Fase 0 (bases) y 10 fases más. Cada paso tiene Concepto, Cambia y Verifica. |
+| [docs/evolucion/plan.md](docs/evolucion/plan.md) | Hoja de ruta: Fase 0 (bases), 10 fases más y la Fase T (template genérico del backend). Cada paso tiene Concepto, Cambia y Verifica. |
+| [docs/piramide-invertida.md](docs/piramide-invertida.md) | Qué hacer cuando un agente se equivoca: llevar la corrección al nivel más alto posible (código, chequeo, verificación, prosa). |
 | [docs/evolucion/progreso.md](docs/evolucion/progreso.md) | Paso actual, estado de cada paso y cierres. Leelo primero. |
 | [docs/evolucion/informes/informe-vsa-deep-modules.md](docs/evolucion/informes/informe-vsa-deep-modules.md) | Vertical slices + módulos profundos: dónde vive cada pieza y por qué. |
 | [docs/evolucion/informes/informe-deep-mediators.md](docs/evolucion/informes/informe-deep-mediators.md) | Módulos profundos (Ousterhout) vs vertical slices, y mediators/buses en .NET. |
@@ -39,7 +40,7 @@ El dominio (tareas) es simple a propósito: importa el rigor técnico. **Todo el
 3. **Si un paso cambia un contrato HTTP, va completo:** backend, frontend y tests juntos.
 4. **Toda regla nueva se hace ejecutable** en Dune, con una fixture válida y una violación deliberada.
 5. **Las decisiones de herramienta o licencia son de Tobi.** Los pasos marcados `⏸ DECISIÓN DE TOBI` se bloquean hasta que elija. No elijas por él.
-6. **Cada paso va en su rama y su PR.** Push y PR solo de esa rama. Cuando el CI da verde y la revisión independiente de Codex pasó, el hilo mergea su PR a `main` sin preguntar y lo dice en el cierre. Mergear no cierra el paso: fuera del modo autónomo, el paso sigue `en curso` hasta la respuesta de Tobi (regla 11). Tobi, 2026-11-23, eligió "Los dos repos (Recomendado)": "Al terminar, el hilo integra su rama a main y lo dice en el informe. En full-stack-template, con el CI en verde y la revisión de Codex pasada. Se deshace con un revert."
+6. **Cada paso va en su rama y su PR.** Push y PR solo de esa rama. Cuando el CI da verde y la revisión independiente de Codex pasó, el hilo mergea su PR a `main` sin preguntar y lo dice en el cierre. Se deshace con un revert. Tobi, 2026-11-27: "hace todo autonomo incluido merges". La restricción "No autorizo el merge autónomo de pull requests" de [piramide-invertida.md](docs/piramide-invertida.md) vale para los proyectos creados desde el template, no para este repo.
 7. **No amplíes el alcance del paso.** Si ves algo para mejorar fuera de él, anotalo como pendiente en `progreso.md`.
 8. **No adelantes pasos.** Si el plan parece equivocado, discutilo antes de ejecutar.
 9. **No cambies un gate, analyzer o test para tapar una falla.** Sí podés cambiarlo si ese cambio es el objetivo declarado del paso: con un ADR o una línea en `docs/decisions.tsv`, y con su fixture válida y su violación deliberada.
@@ -47,14 +48,14 @@ El dominio (tareas) es simple a propósito: importa el rigor técnico. **Todo el
 11. **Un paso cierra cuando Tobi entendió su concepto, no cuando los gates dan verde.** Cada paso para dos veces y espera la respuesta de Tobi: después de la explicación, antes del código, y después de la evidencia, con el concepto explicado sobre el código que cambió. Hasta que Tobi responde, el paso queda `en curso`.
 12. **Antes de explicar un paso que cambia código, investigá cómo se implementa de forma profesional.** El plan dice qué pieza entra; la investigación dice cómo queda bien en este código. Delegala a un subagente con la skill `research`: fuentes primarias (documentación oficial, repos y guías de los mantenedores), con un link por afirmación, y dentro de la arquitectura del repo (ADR-0004, `architecture.md`, `conventions.md`). El resultado va en `docs/evolucion/investigacion/paso-<N>-<tema>.md`. Contrastá cada afirmación con el código antes de usarla, y apoyá la explicación previa en ese archivo. Si la investigación choca con los docs del repo, frená y preguntale a Tobi.
 
-## Modo autónomo (pasos 23.1 a 29.2 y la reorganización del repo)
+## Modo autónomo (pasos 23.1 a 29.2, la reorganización del repo y la fase Template)
 
-Tobi lo pidió el 2026-11-16: "yo ahora voy a saltearme la parte de aprender, lo único que quiero es que por cada hilo se realice un paso". Un hilo orquestador abre un hilo por paso, del 23.1 al 29, y para después del 29. El 2026-11-20 Tobi sumó el paso 29: "crea otro hilo diciendo que siga con el siguiente paso y así hasta que en algún momento se termine el paso 29 o que tenga alguna pregunta". Si un hilo pregunta algo, el orquestador espera la respuesta de Tobi antes de abrir el siguiente. El 2026-11-24 Tobi lo extendió al resto de los pasos de Wolverine como mediator (29.2) y a la reorganización de carpetas que sigue: "Y cuando esos pasos ya estén completados todos, mergealo. Mergealo, no hace falta que me expliques nada, actuar en modo autónomo". Mientras dure, estas reglas cambian a las de arriba:
+Tobi lo pidió el 2026-11-16: "yo ahora voy a saltearme la parte de aprender, lo único que quiero es que por cada hilo se realice un paso". Un hilo orquestador abre un hilo por paso, del 23.1 al 29, y para después del 29. El 2026-11-20 Tobi sumó el paso 29: "crea otro hilo diciendo que siga con el siguiente paso y así hasta que en algún momento se termine el paso 29 o que tenga alguna pregunta". Si un hilo pregunta algo, el orquestador espera la respuesta de Tobi antes de abrir el siguiente. El 2026-11-24 Tobi lo extendió al resto de los pasos de Wolverine como mediator (29.2) y a la reorganización de carpetas que sigue: "Y cuando esos pasos ya estén completados todos, mergealo. Mergealo, no hace falta que me expliques nada, actuar en modo autónomo". El 2026-11-27 Tobi eligió "sin paradas" para la fase Template (template genérico del backend). Mientras dure, estas reglas cambian a las de arriba:
 
 - **Regla 11 en pausa.** El paso no para a explicar ni a esperar a Tobi. En "Cierres", `Enseñado` dice "modo autónomo: sin explicación previa" y `Preguntas` dice "ninguna (modo autónomo)".
 - **Cada elección la toma el agente con su recomendación** ("Las opciones que él naturalmente me preguntaría van a ser siempre las que él recomiende"). La anota como decisión. Si es de diseño, va en `docs/decisions.tsv`.
 - **Excepción: herramientas y tecnologías.** Si el paso tiene que elegir una herramienta, una librería o una tecnología, el hilo frena y le pregunta a Tobi en ese hilo ("siempre que pregunten por elegir una herramienta, yo quiero responder"). La regla 5 sigue igual.
-- **Regla 6, el merge:** el hilo del paso mergea su PR como dice la regla 6 (CI en verde y revisión de Codex pasada). El orquestador espera ese merge antes de abrir el paso siguiente, que sale de `main`. Antes del 2026-11-23 mergeaba el orquestador (Tobi eligió "Yo mergeo cada PR" el 2026-11-16).
+- **Regla 6, el merge:** el hilo del paso mergea su PR como dice la regla 6 (CI en verde y revisión de Codex pasada). El orquestador espera ese merge antes de abrir el paso siguiente, que sale de `main`.
 
 ## Cómo enseñar
 

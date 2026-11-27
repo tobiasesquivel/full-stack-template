@@ -2,7 +2,7 @@
 
 **Propósito**: usar este repo como laboratorio de práctica. El objetivo no es llegar a microservicios, sino **dominar una escalera**: cada paso agrega una pieza real, la verifica con los gates que ya existen, y deja evidencia. Al final tenés criterio para decidir en cualquier volumen.
 
-**Cómo leerlo**: una Fase 0 de bases y 10 fases con 36 pasos en orden creciente de dificultad. Cada paso tiene tres líneas fijas: **Concepto** (qué se aprende), **Cambia** (áreas y archivos), **Verifica** (gate o test del repo que lo prueba). Nada de código en este plan: los pasos describen *qué* cambia y *cómo* se prueba.
+**Cómo leerlo**: una Fase 0 de bases, 10 fases con 36 pasos en orden creciente de dificultad y la Fase T (template genérico del backend). Cada paso tiene tres líneas fijas: **Concepto** (qué se aprende), **Cambia** (áreas y archivos), **Verifica** (gate o test del repo que lo prueba). Nada de código en este plan: los pasos describen *qué* cambia y *cómo* se prueba.
 
 ---
 
@@ -515,6 +515,64 @@ El paso 0.28 se agregó el 2026-10-17, a pedido de Tobi, con otro pendiente del 
 **Concepto**: sostenibilidad organizacional, no técnica.
 **Cambia**: `docs/adr/` con las decisiones de las fases nuevas, `docs/decisions.tsv`, matriz de licencias aprobada (Polly, MediatR, FluentAssertions, MassTransit si entraron), política de deprecación de API, simulacro de recuperación con RTO/RPO medidos.
 **Verifica**: simulacro de restauración ejecutado con tiempos medidos y registrados en `artifacts/`; cada ADR con su alternativa descartada y su consecuencia.
+
+### Fase T — Template genérico del backend (pasos T0-T9)
+
+**Objetivo**: que un proyecto nuevo nazca de este repo y crezca con la misma metodología. En una carpeta vacía, `dotnet new fst -n Acme.Shop --origen <sha>` copia y renombra, y `dotnet run --project tools/Molde -- inicializar` crea las migraciones iniciales, hace `git init` y el primer commit con el sha del template. El proyecto es un **monolito modular** con Platform, Auth, Users y Health, el gateway, compose (PostgreSQL y RabbitMQ), `deploy/`, el CI y Dune copiado. No trae Tasks, Projects, el frontend ni los docs del laboratorio. Para agregar una feature, el agente corre `tools/Molde` y después escribe el dominio; Auth y Users son el ejemplo vivo de cada patrón. Diseño y decisiones: filas `template` de `docs/decisions.tsv` (2026-11-27), [piramide-invertida.md](../piramide-invertida.md), [template-generico.md](investigacion/template-generico.md) y [template-molde-versionado.md](investigacion/template-molde-versionado.md).
+
+**Cómo se decide lo que falta**: cada paso hace su investigación (regla 12) y elige el mecanismo con su recomendación (modo autónomo); lo anota en `docs/decisions.tsv`. Donde el plan nombra opciones, el paso elige entre ellas; su Verifica prueba el resultado, sea cual sea la opción.
+
+**Orden**: T1-T6 sacan los acoples a features concretas antes de armar el template; si no, cada proyecto nuevo los hereda. Rige el modo autónomo sin paradas (`AGENTS.md`). Cada paso es un PR que el hilo mergea con el CI en verde y la revisión de Codex pasada.
+
+**T0. Plan y decisiones de la fase.**
+**Concepto**: decidir antes de construir; la pirámide invertida (código, chequeos, verificación, prosa, revisión humana).
+**Cambia**: este plan, `progreso.md`, `docs/decisions.tsv`, `AGENTS.md` (regla 6 y modo autónomo), `docs/piramide-invertida.md`, las dos investigaciones.
+**Verifica**: solo docs; los gates de docs y links pasan.
+
+**T1. Dune sin nombres fijos de features ni de hosts.**
+**Concepto**: una regla que guarda una lista de nombres deja afuera lo nuevo sin avisar.
+**Cambia**: DUNE0028, 0029 y 0031 dejan de tener listas de features y valen para todas. Las excepciones escritas dentro de DUNE0016 (`Auth`), 0019 (`Users/GetUser`) y 0028 (`Auth/IssueCsrfToken`) pasan a declararse en la propia feature, en una línea visible. Las features que hoy quedan fuera de esas listas declaran su excepción del mismo modo: Tasks abre su propia transacción (DUNE0029, `MediatorTransaction.None`) y Health responde `GetLiveness` y `GetReadiness` sin mediator (DUNE0028). Las listas de hosts (DUNE0032, la excepción de código generado de DUNE0009, `check-codegen` y `check-host-items`) salen de las carpetas de `backend/Hosts/`. `dune/Dune.props` aplica Dune a todo proyecto bajo `backend/` y `gateway/`, sin depender del nombre `TemplateApp*`.
+**Verifica**: por regla, el caso de antes y el de después: con una feature inventada (`Invoices`), DUNE0028, 0029 y 0031 pasaban y ahora fallan; DUNE0016, 0019 y 0032 ya fallaban y siguen fallando, con sus excepciones movidas a la feature. Tasks y Health siguen pasando solo por su excepción declarada: si se borra la línea, fallan. Un host inventado entra en las listas sin editarlas. Un proyecto con otro nombre, en `backend/` y en `gateway/`, recibe Dune.
+
+**T2. Las listas que se pueden calcular se calculan.**
+**Concepto**: una fuente de verdad; lo derivado no se escribe a mano.
+**Cambia**: el `Search Path` de `DatabaseSearchPath` sale de las constantes `Schema` de los DbContext registrados; lo mismo los relays del outbox de `IsolatedApi` y el conteo de filas por dueño de `DatabaseRows`. La columna de dueño de cada tabla (hoy `OwnerId` o `AuthId`) sale de una declaración explícita de la entidad (por ejemplo `IOwnedResource`), no de una lista.
+**Verifica**: con un contexto de prueba registrado, aparece su schema en el `Search Path`, su outbox se vacía en los tests y sus filas se cuentan por dueño. Infrastructure no nombra ninguna feature. El ensayo de migraciones en dos despliegues (`conventions.md`, expand/contract) sigue verde.
+
+**T3. Los hosts descubren las features.**
+**Concepto**: lo nuevo agrega archivos aislados, no ramas en raíces compartidas.
+**Cambia**: cada `<F>Feature` implementa una interfaz de Platform que registra servicios, rutas públicas y rutas internas, y cada host recorre las de su compilación; `Program.cs` deja de listarlas. ADR nuevo, y se actualizan `conventions.md` y `architecture.md`, que describen la lista explícita.
+**Verifica**: una feature inventada responde por una ruta pública y por una interna sin tocar `Program.cs`, en el monolito y en el host de Tasks; un test lista las features que arrancaron en cada host; el host de Tasks sigue viendo solo Tasks y Health.
+
+**T4. Cada feature declara sus permisos.**
+**Concepto**: el dueño de un dato es quien lo declara.
+**Cambia**: `Access/<F>Permissions.cs` declara los permisos y qué rol recibe cada uno; Auth los junta sin nombrar features (`RolePermissions`, `TaskPermissionNames`). Una feature desplegada en otro proceso (Tasks) no se compila en el monolito: el paso elige cómo llega su declaración a Auth (opciones: configuración del monolito, o el proceso remoto la publica por el bus o por HTTP interno al arrancar) y actualiza la sección de permisos de `architecture.md`.
+**Verifica**: los permisos de los tres roles no cambian, comprobados por la consulta de sesión que usa Tasks (`AuthSessionClient`), no solo el rol `User` de `TestAccounts`. Un test cambia un permiso de Tasks en la fuente elegida y el cambio aparece en esa consulta. Auth no conserva una copia local (`TaskPermissionNames` desaparece) ni importa el `Contracts` de ninguna feature por permisos.
+
+**T5. El cierre de cuenta con participantes anotados.**
+**Concepto**: una saga que espera a participantes declarados, sin conocerlos por nombre.
+**Cambia**: cada feature con datos por dueño se anota como participante; la saga de Users espera a los anotados (los de otro proceso, por configuración). Users y Auth dejan de nombrar a Tasks y a Projects (`CompleteAccountClosure`, `MessageNames/Task*`). El paso elige cómo se retoman las sagas guardadas que esperan una respuesta concreta de Tasks (el estado guardado se traduce al de participantes al arrancar la versión nueva; el paso elige cómo) y dónde queda la limpieza de suscripciones retiradas (`RetiredBinding`, opción: Platform). Cubre el caso de hoy en que, tras un rechazo, la saga espera la confirmación de que Tasks liberó al usuario (`AccountClosureSaga`).
+**Verifica**: los tests del cierre (V1-V7 del paso 26) siguen verdes. Un cierre guardado por la versión anterior en cada estado de espera (esperando la retención inicial, y rechazado esperando que Tasks libere al usuario) termina después de actualizar y reiniciar. Las suscripciones retiradas desaparecen de RabbitMQ, consultado como hoy en `RetiredBindingsTests`. Un módulo de prueba anotado como participante demuestra que el cierre espera su confirmación y lo libera si Auth rechaza. El cierre completa con solo Auth y Users.
+
+**T6. Dune avisa si una slice no está registrada.**
+**Concepto**: un error accionable dice qué línea falta y dónde.
+**Cambia**: regla nueva: una slice cuya ruta o cuyo handler del mediator no está registrado en su `<F>Feature.cs` falla con el texto de la línea a agregar. Conserva las excepciones declaradas en T1: `Auth/IssueCsrfToken`, que emite la cookie sin un comando, y las rutas de salud de Health.
+**Verifica**: fixture válida y una violación deliberada por cada registro faltante (ruta y handler, por separado); las excepciones siguen pasando sin mediator, pero sus rutas siguen obligadas a estar registradas: borrar el registro de la ruta de `IssueCsrfToken` o de una ruta de Health falla.
+
+**T7. El template `fst`.**
+**Concepto**: un template se prueba creándolo.
+**Cambia**: `.template.config` con `sourceName` para todas las formas del nombre; excluye Tasks, Projects, `Hosts/Tasks`, el frontend y los docs del laboratorio; docs que viajan: `conventions.md`, ADR, `architecture.md` genérico, `piramide-invertida.md`, AGENTS.md corto (con la regla "no hay merge autónomo de PRs"), `decisions.tsv` vacío con link a la historia de este repo. Adapta lo que hoy espera a Tasks o al frontend: la solución, el proyecto de tests (referencia a `Hosts/Tasks`, `ApiPair`), `compose.yaml`, el gateway, `deploy/`, `check-structure` (pide `frontend/nginx.conf`) y las migraciones del historial compartido de `Infrastructure/Persistence/Migrations`. `templateapp` en minúsculas tiene su propio reemplazo derivado. Adapta también el `ci.yml` que viaja: sin `npm ci` de `frontend/` ni las imágenes `tasks` y `web`. `dotnet new fst` recibe el sha del template en un parámetro obligatorio (`--origen`) y lo escribe en un archivo del proyecto; T8 lo usa. Se instala desde la carpeta del repo. Job de CI; hasta T8, el job hace `git init` y un commit en el proyecto temporal antes de los gates, porque `check-codegen` usa `git ls-files`.
+**Verifica**: el job instala el template, crea `Acme.Shop` (nombre con punto), compila, corre tests y Dune, mete una violación a propósito y comprueba que Dune falla; falla si queda `TemplateApp` o `templateapp`. Además arranca el proyecto con compose y prueba salud y registro de usuario a través del gateway (entrada única, ADR-0005). Todos los comandos corren desde una copia limpia del proyecto generado, no desde este repo: el job ejecuta los pasos que declara su `ci.yml` (gates de Node incluidos, que hoy cargan paquetes de `frontend/node_modules`), y falla si alguno no puede correr ahí.
+
+**T8. `tools/Molde`.**
+**Concepto**: el camino convencional es el más corto; el molde viaja con el proyecto y su versión coincide con su Dune.
+**Cambia**: programa C# sin librerías nuevas, con archivos de texto con marcadores: `inicializar` (migraciones iniciales, `git init`, primer commit con el sha), `feature` (`--con-dueño`: dueño, permisos, participante del cierre; sin `Contracts/` por defecto), `comando`, `query`, `evento`, `contract` y `consumidor`. Registra la slice en su feature, corre la migración y regenera Wolverine. No genera sagas ni procesos propios. `inicializar` lee el sha que dejó `--origen` (T7).
+**Verifica**: el job de T7 corre `inicializar` en lugar de su `git init`; el primer commit contiene el sha exacto de la revisión instalada; genera dos features que se hablan por contract y una pieza de cada tipo, y todo compila y pasa Dune y tests.
+
+**T9. Docs que viajan y skill.**
+**Concepto**: la prosa es el último recurso, y la que queda se vigila.
+**Cambia**: skill "agregar feature" con índice patrón → caso real en Auth o Users (y link fijado al sha para la proyección y el proceso propio de este repo); procedimiento para extraer un servicio; gate que falla si un doc que viaja nombra un archivo o una carpeta que no existe en el proyecto generado.
+**Verifica**: el gate falla con una ruta inexistente deliberada; corre dentro del job de T7.
 
 ---
 
