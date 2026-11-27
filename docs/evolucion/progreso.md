@@ -339,6 +339,7 @@ Cosas vistas durante un paso que no le corresponden. Cada una espera su paso.
 - `AfterCommit` (paso 28) no dispara dentro de un comando `Atomic` del monolito: es un interceptor de transacciones de EF y ahí la transacción es un `TransactionScope` (paso 29.2). Hoy ningún comando atómico lo usa. Sin paso asignado.
 - `WithdrawAccountClosure` y `DeleteUser` escriben su log y su marca de traza antes de que Wolverine confirme: si el commit falla, el log ya dijo que el cierre cambió (paso 29.2). Sin paso asignado.
 - No se midió el costo del `SaveChangesAsync` sin cambios que Wolverine llama al final de cada lectura `None` (paso 29.2). Sin paso asignado.
+- `architecture.md` quedó atrás del código en Projects: dice que `ProjectsDbContext` mapea solo `Projects` (también mapea `ProjectTaskCounters` e `InboxMessages`) y que las entidades auditadas son `TaskItem` y `UserProfile` (`Project` también es `IAuditable`). El mapa de `docs/diagramas/` sigue al código. Visto al armar el diagrama de arquitectura (2026-11-25). Sin paso asignado.
 
 ## Cierres
 
