@@ -1,9 +1,11 @@
 using ErrorOr;
+using TemplateApp.Shared.Architecture;
 using TemplateApp.Shared.Http;
 using Wolverine;
 
 namespace TemplateApp.Features.Auth.CheckSession;
 
+[DuneExemption(DuneCheck.IdempotentPost, "El gateway consulta la sesión en cada request; no crea un recurso.")]
 internal static class CheckSessionEndpoint
 {
     public static void Map(IEndpointRouteBuilder internalApi) => internalApi.MapPost("/session-checks", HandleAsync);

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Text;
 using Microsoft.CodeAnalysis;
@@ -8,11 +9,43 @@ namespace Dune.Analyzers;
 
 public static class DuneCommentPolicy
 {
-    public static bool IsExemptPath(string normalizedPath) =>
+    public static bool IsExemptPath(string normalizedPath, string? repositoryRoot = null) =>
         DunePaths.ContainsOrdinal(normalizedPath, "backend/Infrastructure/Persistence/Migrations/")
         || IsFeatureMigration(normalizedPath)
-        || DunePaths.ContainsOrdinal(normalizedPath, "backend/Hosts/Monolith/Internal/Generated/WolverineHandlers/")
-        || DunePaths.ContainsOrdinal(normalizedPath, "backend/Hosts/Tasks/Internal/Generated/WolverineHandlers/");
+        || IsHostGeneratedHandler(normalizedPath, repositoryRoot);
+
+    private static bool IsHostGeneratedHandler(string normalizedPath, string? repositoryRoot)
+    {
+        const string hosts = "backend/Hosts/";
+        const string generated = "/Internal/Generated/WolverineHandlers/";
+        int marker;
+        if (repositoryRoot is not null)
+        {
+            var root = DunePaths.Normalize(repositoryRoot).TrimEnd('/') + "/";
+            if (!normalizedPath.StartsWith(root + hosts, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            marker = root.Length;
+        }
+        else if (normalizedPath.StartsWith(hosts, StringComparison.Ordinal))
+        {
+            marker = 0;
+        }
+        else
+        {
+            marker = normalizedPath.IndexOf("/" + hosts, StringComparison.Ordinal) + 1;
+            if (marker == 0)
+            {
+                return false;
+            }
+        }
+
+        var host = marker + hosts.Length;
+        var slash = normalizedPath.IndexOf('/', host);
+        return slash > host && string.CompareOrdinal(normalizedPath, slash, generated, 0, generated.Length) == 0;
+    }
 
     private static bool IsFeatureMigration(string normalizedPath) =>
         DunePaths.TryGetFeature(normalizedPath, out var feature)

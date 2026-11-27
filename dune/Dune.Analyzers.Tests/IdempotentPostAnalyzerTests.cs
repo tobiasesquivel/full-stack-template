@@ -39,7 +39,7 @@ public sealed class IdempotentPostAnalyzerTests
         """;
 
     [Fact]
-    public async Task PostsThatChainWithIdempotencyAndAuthPostsAreAccepted()
+    public async Task PostsThatChainWithIdempotency_OrDeclareTheirException_AreAccepted()
     {
         var diagnostics = await AnalyzeAsync(
             ("backend/Features/Tasks/CreateTask/CreateTaskEndpoint.cs", """
@@ -70,7 +70,9 @@ public sealed class IdempotentPostAnalyzerTests
             ("backend/Features/Auth/OpenSession/OpenSessionEndpoint.cs", """
                 using Microsoft.AspNetCore.Builder;
                 using Microsoft.AspNetCore.Routing;
+                using TemplateApp.Shared.Architecture;
                 namespace TemplateApp.Features.Auth.OpenSession;
+                [DuneExemption(DuneCheck.IdempotentPost, "Abrir sesión no crea un recurso de negocio.")]
                 public static class OpenSessionEndpoint
                 {
                     public static void Map(IEndpointRouteBuilder auth) => auth.MapPost("/login", Handle);
@@ -151,10 +153,33 @@ public sealed class IdempotentPostAnalyzerTests
             Locations(diagnostics));
     }
 
+    [Theory]
+    [InlineData("")]
+    [InlineData("[DuneExemption(DuneCheck.IdempotentPost, \"\")]")]
+    [InlineData("[DuneExemption(DuneCheck.MediatorEndpoint, \"Exime otro chequeo.\")]")]
+    public async Task AnAuthPost_WithoutItsOwnException_IsRejected(string exemption)
+    {
+        var diagnostics = await AnalyzeAsync(
+            ("backend/Features/Auth/OpenSession/OpenSessionEndpoint.cs", $$"""
+                using Microsoft.AspNetCore.Builder;
+                using Microsoft.AspNetCore.Routing;
+                using TemplateApp.Shared.Architecture;
+                namespace TemplateApp.Features.Auth.OpenSession;
+                {{exemption}}
+                public static class OpenSessionEndpoint
+                {
+                    public static void Map(IEndpointRouteBuilder auth) => auth.MapPost("/login", Handle);
+                    private static string Handle() => "opened";
+                }
+                """));
+
+        Assert.Equal(new[] { ("backend/Features/Auth/OpenSession/OpenSessionEndpoint.cs", 8) }, Locations(diagnostics));
+    }
+
     private static Task<System.Collections.Immutable.ImmutableArray<Diagnostic>> AnalyzeAsync(
         params (string Path, string Source)[] files) =>
         AnalyzerHost.AnalyzeAsync(
-            new List<(string, string)>(files) { ("stubs/AspNetCore.cs", AspNetStub) },
+            new List<(string, string)>(files) { ("stubs/AspNetCore.cs", AspNetStub), (ExemptionFixture.Path, ExemptionFixture.Source) },
             AnalyzerHost.Only<IdempotentPostAnalyzer>());
 
     private static (string Path, int Line)[] Locations(System.Collections.Immutable.ImmutableArray<Diagnostic> diagnostics) =>

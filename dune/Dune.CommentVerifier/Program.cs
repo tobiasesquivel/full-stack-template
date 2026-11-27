@@ -169,7 +169,7 @@ public static class Program
 
         return results
             .Where(file => !IsExcludedDirectory(file))
-            .Where(file => !Dune.Analyzers.DuneCommentPolicy.IsExemptPath(Dune.Analyzers.DunePaths.Normalize(file)))
+            .Where(file => !Dune.Analyzers.DuneCommentPolicy.IsExemptPath(Dune.Analyzers.DunePaths.Normalize(file), root))
             .ToList();
     }
 

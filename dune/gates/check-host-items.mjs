@@ -3,6 +3,7 @@ import { realpathSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
+import { discoverHosts, featureFolders } from './hosts.mjs';
 
 const RULE = 'límite de despliegue';
 
@@ -13,18 +14,40 @@ function ownsFeature(features) {
   };
 }
 
-export const HOSTS = [
-  {
-    project: 'backend/Hosts/Monolith/TemplateApp.csproj',
-    scope: 'el monolito compila sus archivos y Features salvo Features/Tasks',
-    compiles: ownsFeature((feature) => !/^tasks$/i.test(feature)),
-  },
-  {
-    project: 'backend/Hosts/Tasks/TemplateApp.Tasks.csproj',
-    scope: 'el host de Tasks compila sus archivos, Features/Tasks y Features/Health',
-    compiles: ownsFeature((feature) => feature === 'Tasks' || feature === 'Health'),
-  },
-];
+function names(value) {
+  return (value ?? '')
+    .split(',')
+    .map((name) => name.trim())
+    .filter((name) => name.length > 0);
+}
+
+export function hostFromDeclaration(project, { DuneHostFeatures, DuneHostExcludedFeatures }, knownFeatures = null) {
+  const features = names(DuneHostFeatures);
+  const unknown = knownFeatures === null ? [] : [...features, ...names(DuneHostExcludedFeatures)].filter((name) => !knownFeatures.includes(name));
+  if (unknown.length > 0) {
+    return { problem: `${RULE}: ${project} declara ${unknown.join(', ')}, que no es una carpeta de backend/Features; corregí el nombre en su .csproj (hoy: ${knownFeatures.join(', ')})` };
+  }
+  const excluded = names(DuneHostExcludedFeatures).map((name) => name.toLowerCase());
+  if ((features.length > 0) === (excluded.length > 0)) {
+    return {
+      problem:
+        features.length > 0
+          ? `${RULE}: ${project} declara DuneHostFeatures y DuneHostExcludedFeatures; su .csproj declara una sola: las features que despliega o las que deja afuera`
+          : `${RULE}: ${project} no declara qué features despliega; su .csproj lleva <DuneHostFeatures>A,B</DuneHostFeatures> (solo esas) o <DuneHostExcludedFeatures>A</DuneHostExcludedFeatures> (todas salvo esas)`,
+    };
+  }
+  return features.length > 0
+    ? {
+        project,
+        scope: `el host compila sus archivos y Features/${features.join(', Features/')} (DuneHostFeatures de su .csproj)`,
+        compiles: ownsFeature((feature) => features.includes(feature)),
+      }
+    : {
+        project,
+        scope: `el host compila sus archivos y Features salvo Features/${names(DuneHostExcludedFeatures).join(', Features/')} (DuneHostExcludedFeatures de su .csproj)`,
+        compiles: ownsFeature((feature) => !excluded.includes(feature.toLowerCase())),
+      };
+}
 
 export function violations(host, files) {
   const own = `${path.posix.dirname(host.project)}/`;
@@ -48,7 +71,7 @@ export function referenceViolations(host, references) {
 }
 
 function evaluatedItems(root, project, configuration) {
-  const result = spawnSync('dotnet', ['msbuild', project, '-nologo', '-getItem:Compile', '-getItem:ProjectReference', `-p:Configuration=${configuration}`], {
+  const result = spawnSync('dotnet', ['msbuild', project, '-nologo', '-getItem:Compile', '-getItem:ProjectReference', '-getProperty:DuneHostFeatures', '-getProperty:DuneHostExcludedFeatures', `-p:Configuration=${configuration}`], {
     cwd: root,
     encoding: 'utf8',
     shell: process.platform === 'win32',
@@ -59,21 +82,30 @@ function evaluatedItems(root, project, configuration) {
     process.stderr.write(result.stderr ?? '');
     throw new Error(`dotnet msbuild ${project} -getItem:Compile -getItem:ProjectReference terminó con ${result.status}`);
   }
-  const items = JSON.parse(result.stdout).Items ?? {};
+  const output = JSON.parse(result.stdout);
+  const items = output.Items ?? {};
   const relative = (item) => path.relative(root, realpathSync.native(item.FullPath)).split(path.sep).join('/');
   return {
     files: (items.Compile ?? []).map(relative),
     references: (items.ProjectReference ?? []).map(relative),
+    declaration: output.Properties ?? {},
   };
 }
 
 function main() {
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
-  const failures = [];
+  const { projects, problems } = discoverHosts(root);
+  const features = featureFolders(root);
+  const failures = [...problems.map((problem) => `${RULE}: ${problem}`)];
   const counts = [];
   for (const configuration of ['Release', 'Debug']) {
-    for (const host of HOSTS) {
-      const { files, references } = evaluatedItems(root, host.project, configuration);
+    for (const project of projects) {
+      const { files, references, declaration } = evaluatedItems(root, project, configuration);
+      const host = hostFromDeclaration(project, declaration, features);
+      if (host.problem) {
+        failures.push(host.problem);
+        continue;
+      }
       counts.push(`${host.project} en ${configuration}: ${files.length} archivos y ${references.length} referencias`);
       if (files.length === 0) failures.push(`${RULE}: ${host.project} no compila ningún archivo en ${configuration}; el gate no tiene qué revisar`);
       failures.push(...violations(host, files), ...referenceViolations(host, references));

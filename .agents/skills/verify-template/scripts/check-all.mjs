@@ -71,6 +71,8 @@ const GATES = [
   { name: 'check-codegen-test', ...node('--test', 'dune/gates/check-codegen.test.mjs') },
   { name: 'check-host-items', ...node('dune/gates/check-host-items.mjs') },
   { name: 'check-host-items-test', ...node('--test', 'dune/gates/check-host-items.test.mjs') },
+  { name: 'hosts-test', ...node('--test', 'dune/gates/hosts.test.mjs') },
+  { name: 'dune-props-test', ...node('--test', 'dune/gates/dune-props.test.mjs') },
   { name: 'dotnet-test', cmd: 'dotnet', args: ['test', 'TemplateApp.slnx', '--configuration', 'Release'] },
   { name: 'comment-verifier', cmd: 'dotnet', args: ['run', '--project', 'dune/Dune.CommentVerifier', '--', '--root', '.'] },
   { name: 'check-structure', ...node('dune/gates/check-structure.mjs') },

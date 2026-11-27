@@ -4,7 +4,7 @@ Registro vivo del [plan](plan.md). El agente lo actualiza al cerrar cada paso.
 
 ## Paso actual
 
-**Fase T, paso T0: plan y decisiones de la fase Template.** Estado: en curso (PR de docs). Después siguen T1 a T9 en modo autónomo sin paradas y con merge autónomo, un hilo por paso que sale de `main` cuando se mergeó el anterior (`AGENTS.md`, "Modo autónomo"). El paso 30 sigue bloqueado por la decisión de Tobi, como dice el párrafo de abajo.
+**Fase T, paso T2: las listas que se pueden calcular se calculan.** Estado: pendiente. T0 cerró con el PR #126 y T1 el 2026-11-27. Siguen T2 a T9 en modo autónomo sin paradas y con merge autónomo, un hilo por paso que sale de `main` cuando se mergeó el anterior (`AGENTS.md`, "Modo autónomo"). El paso 30 sigue bloqueado por la decisión de Tobi, como dice el párrafo de abajo.
 
 **Paso 30: Pasarela de pago detrás de un puerto propio.** Estado: bloqueado por la decisión de Tobi (proveedor y modalidad, regla 5). El paso 29.2 cerró el 2026-11-24 en modo autónomo. El modo autónomo sigue para la reorganización de carpetas (`AGENTS.md`, "Modo autónomo"), que va en partes, una por PR: las partes 1 (`Infrastructure/Messaging`), 2 (`Infrastructure/Persistence`), 3 (`Infrastructure/Http`), 4 (los nombres del bus en `MessageNames/`), 5 (`backend/Tests/Support`), 6 (el host del monolito en `backend/Hosts/Monolith/`), 7 (`docs/agents/`), 8 (los informes en `docs/evolucion/informes/`), 9 (los gates Node en `dune/gates/`) y 10 (lo suelto en la raíz de cada feature, a carpetas técnicas) cerraron el 2026-11-24; no queda ninguna parte. Desde el paso 30 rige la regla 11.
 
@@ -106,8 +106,8 @@ Estados: `pendiente`, `en curso`, `cerrado`, `bloqueado (⏸ decisión de Tobi)`
 | 34 | Cadena de suministro | pendiente | |
 | 35 | Despliegue progresivo con rollback probado | pendiente | |
 | 36 | Gobernanza final | pendiente | |
-| T0 | Plan y decisiones de la fase Template | en curso | |
-| T1 | Dune sin nombres fijos de features ni de hosts | pendiente | |
+| T0 | Plan y decisiones de la fase Template | cerrado | PR #126 |
+| T1 | Dune sin nombres fijos de features ni de hosts | cerrado | `artifacts/verify-template/fase-t1/` (check-all sin e2e: 33 etapas PASS, .NET 646/646), `fase-t1-evidencia/antes-analyzers.txt` (con los analyzers de `main`, la feature inventada `Invoices` pasa DUNE0028, 0029 y 0031: las 5 pruebas nuevas en rojo), `antes-dune-props.txt` (con el `Dune.props` de `main`, un proyecto con otro nombre en `backend/` o en `gateway/` no recibe Dune), `despues-borrar-excepciones.txt` (borrando cada línea de excepción del código real: DUNE0016 en `RegisterUser`, DUNE0019 en `GetUser`, DUNE0028 en `IssueCsrfToken`, `GetLiveness` y `GetReadiness`, DUNE0029 en cuatro handlers de Tasks), `host-inventado.txt` (`backend/Hosts/Billing` con `DuneHostFeatures` = Health: build y `check-host-items` PASS sin editar listas; con un archivo de Tasks, DUNE0032 y `check-host-items` FAIL; sin declaración, `check-host-items` FAIL), `ruta-mayusculas.txt` (el host de Tasks compilado con la ruta en mayúsculas y un archivo de Users: DUNE0032 FAIL). Después de las 8 rondas de revisión: build sin errores, pruebas de Dune 359/359, gates Node 225/225, `check-host-items`, `check-codegen` y el verificador de comentarios PASS, y el CI en verde (12 de 12 sobre `adba3a9`). e2e `NOT_RUN`: no cambia frontend ni contrato HTTP |
 | T2 | Las listas que se pueden calcular se calculan | pendiente | |
 | T3 | Los hosts descubren las features | pendiente | |
 | T4 | Cada feature declara sus permisos | pendiente | |
@@ -121,6 +121,10 @@ Estados: `pendiente`, `en curso`, `cerrado`, `bloqueado (⏸ decisión de Tobi)`
 
 Cosas vistas durante un paso que no le corresponden. Cada una espera su paso.
 
+- Cualquier regla de Dune se apaga con `#pragma warning disable DUNE00xx`, con `NoWarn` o con `SuppressMessage`, y nada lo vigila (medido con una regla de prueba en la investigación de T1). Una regla Roslyn guardiana no alcanza: el mismo `SuppressMessage` la apaga. Salida posible: un gate de Node que falle si el código propio nombra un id `DUNE` en un `#pragma` o en un `SuppressMessage`. Visto en T1. Sin paso asignado.
+- DUNE0033 no avisa si una `[DuneExemption]` quedó sin efecto: puesta en otro tipo que el que mira su regla, o en una slice que ya no la necesita. Salida posible: que cada regla anote lo que eximió y falle al final de la compilación por la excepción que no eximió nada (lo que IDE0079 hace solo en el IDE). Visto en T1. Sin paso asignado.
+- `check-structure` todavía nombra una feature: solo `backend/Features/Health/` (y `InternalApi.cs`) puede usar `DisableRateLimiting`. Ya estaba en `main` y el plan de T1 no la lista. Salida posible: una excepción declarada, como `[DuneExemption]`, o una regla por forma (las sondas de salud). Visto en la revisión de T1. Sin paso asignado.
+- Una variante más fuerte de DUNE0032: cada feature se compila en un solo host, salvo las que se declaran compartidas (Health). El analyzer no ve los otros hosts, así que iría en `check-host-items`. Visto en T1. Sin paso asignado.
 - `check-all --gates-only` corre `dotnet test` (5 minutos) y no tiene forma de saltearlo; con varios hilos en la misma PC, esa etapa da fallas falsas por esperas vencidas y corta la corrida antes de los gates Node. Salida posible: un `--skip dotnet-test` o una opción `--node-gates-only`. Visto en las partes 8 y 9 de la reorganización. Sin paso asignado.
 - Las reglas de Dune que reconocen un tipo por su namespace escrito en el analyzer quedan ciegas sin aviso cuando el tipo se muda: pasó con DUNE0023 en la parte 1, con DUNE0022 y DUNE0029 en la parte 2 y con DUNE0016 en la parte 3, que además aceptaba un `WithIdempotency` falso en el namespace viejo (reorganización, partes 2 y 3). Salida: que la regla falle si no encuentra en la compilación el tipo que busca. DUNE0030 (parte 4) ya lo hace con sus seis registros del bus; falta en las demás. Sin paso asignado.
 - Reorganización de carpetas: las partes 1 a 10 cerraron el 2026-11-24 y no queda ninguna. El frontend no tuvo parte: ya está por feature y por propósito (paso 0.13).
@@ -354,6 +358,19 @@ Cosas vistas durante un paso que no le corresponden. Cada una espera su paso.
 - `architecture.md` quedó atrás del código en Projects: dice que `ProjectsDbContext` mapea solo `Projects` (también mapea `ProjectTaskCounters` e `InboxMessages`) y que las entidades auditadas son `TaskItem` y `UserProfile` (`Project` también es `IAuditable`). El mapa de `docs/diagramas/` sigue al código. Visto al armar el diagrama de arquitectura (2026-11-25). Sin paso asignado.
 
 ## Cierres
+
+### Paso T1 — 2026-11-27
+- Enseñado: modo autónomo: sin explicación previa.
+- Preguntas: ninguna (modo autónomo).
+- Qué cambió: ninguna regla de Dune nombra una feature, una slice ni un host. DUNE0028, 0029 y 0031 valen para toda feature. Las excepciones salen de los analyzers y pasan a la feature, con `[DuneExemption(DuneCheck.X, "motivo")]` (`backend/Shared/Architecture/`) en el tipo que mira la regla: los cuatro `POST` de Auth (DUNE0016), `GetUserEndpoint` (DUNE0019, solo "carga una entidad"), `IssueCsrfTokenEndpoint`, `GetLivenessEndpoint` y `GetReadinessEndpoint` (DUNE0028) y `TasksFeature` (DUNE0029). DUNE0033, nueva, falla una excepción sin motivo o con un chequeo desconocido. Cada host declara en su `.csproj` qué features despliega (`DuneHostFeatures` o `DuneHostExcludedFeatures`); DUNE0032 lee esa declaración y `check-host-items` y `check-codegen` descubren los hosts en `backend/Hosts/` (`dune/gates/hosts.mjs`). DUNE0009 exime el código generado de Wolverine de cualquier host. `Dune.props` carga Dune en todo proyecto bajo `backend/` y `gateway/`, sin mirar el nombre. Pruebas nuevas: `hosts.test.mjs`, `dune-props.test.mjs` (también en el CI de Linux) y las de cada analyzer con la feature inventada `Invoices` y el host inventado `Billing`. Docs: `conventions.md` (sección "Excepciones a una regla de Dune"), `architecture.md` y `verificacion.md`. Investigación: [paso-t1-dune-generico.md](investigacion/paso-t1-dune-generico.md).
+- Decisiones: filas T1 en `docs/decisions.tsv`. Dos choques con el texto del plan, decididos en modo autónomo: Tasks no se marca con `MediatorTransaction.None` (en el monolito `None` es "Wolverine guarda al final"), y la lista de cada host va en el `.csproj` del host, no en la feature. Revisión independiente (Codex `gpt-6.2-sol`, esfuerzo alto): 8 rondas. Las 7 primeras no aprobaron por 11 medios y 9 bajos, todos aplicados con su prueba: una excepción en una clase anidada o en otra parte de una clase `partial`, un nombre mal escrito en la declaración de un host, un host que se compila con la ruta en mayúsculas o fuera de `backend/Hosts/`, enlaces y `.csproj` sueltos o anidados en `backend/Hosts/`, `check-codegen` con `--no-build` sobre un host que la solución no compila, y una carrera entre las pruebas de los gates. La octava aprobó con un bajo (un enlace dentro de la carpeta de un host), también aplicado.
+- Evidencia: fila T1 de la tabla. `NOT_RUN`: e2e (no cambia frontend ni contrato HTTP).
+
+### Paso T0 — 2026-11-27
+- Enseñado: modo autónomo: sin explicación previa.
+- Preguntas: ninguna (modo autónomo).
+- Qué cambió: el plan de la Fase T (T0 a T9), las decisiones `template` de `docs/decisions.tsv`, la regla 6 y el modo autónomo de `AGENTS.md`, `docs/piramide-invertida.md` y dos investigaciones. Solo docs.
+- Evidencia: PR #126.
 
 ### Reorganización, parte 10 — 2026-11-24
 - Enseñado: modo autónomo: sin explicación previa.

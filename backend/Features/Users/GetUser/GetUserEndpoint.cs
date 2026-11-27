@@ -1,11 +1,13 @@
 using System.Security.Claims;
 using ErrorOr;
 using TemplateApp.Features.Users.Contracts;
+using TemplateApp.Shared.Architecture;
 using TemplateApp.Shared.Http;
 using Wolverine;
 
 namespace TemplateApp.Features.Users.GetUser;
 
+[DuneExemption(DuneCheck.ReadSliceLoadsEntity, "IAuthModule.CanAccessAsync recibe el perfil entero para decidir el permiso; proyectar queda pendiente.")]
 internal static class GetUserEndpoint
 {
     public static void Map(IEndpointRouteBuilder users)

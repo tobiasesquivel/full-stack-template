@@ -1,22 +1,26 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { TARGETS, coverage, verdict } from './check-codegen.mjs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { coverage, targetsFor, verdict } from './check-codegen.mjs';
+import { discoverHosts } from './hosts.mjs';
 
-const [monolith, tasks] = TARGETS;
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
+const [monolith, tasks] = targetsFor(['backend/Hosts/Monolith/TemplateApp.csproj', 'backend/Hosts/Tasks/TemplateApp.Tasks.csproj']);
 
 describe('check-codegen', () => {
-  it('revisa el código generado del monolito y el de Tasks', () => {
-    assert.deepEqual(
-      TARGETS.map((target) => target.project),
-      ['backend/Hosts/Monolith/TemplateApp.csproj', 'backend/Hosts/Tasks/TemplateApp.Tasks.csproj'],
-    );
+  it('revisa la carpeta Internal/Generated de cada host que encuentra en backend/Hosts', () => {
+    const { projects } = discoverHosts(ROOT);
+    assert.ok(projects.length >= 2, projects.join(', '));
+    for (const target of targetsFor(projects)) {
+      assert.equal(target.generated, `${path.posix.dirname(target.project)}/Internal/Generated`);
+    }
   });
 
-  it('revisa la carpeta Internal/Generated del proyecto, donde escribe codegen write', () => {
-    assert.deepEqual(
-      TARGETS.map((target) => target.generated),
-      ['backend/Hosts/Monolith/Internal/Generated', 'backend/Hosts/Tasks/Internal/Generated'],
-    );
+  it('revisa un host inventado sin editar el gate', () => {
+    assert.deepEqual(targetsFor(['backend/Hosts/Billing/Acme.Billing.csproj']), [
+      { project: 'backend/Hosts/Billing/Acme.Billing.csproj', generated: 'backend/Hosts/Billing/Internal/Generated' },
+    ]);
   });
 
   it('acepta el código generado sin cambios después de codegen write', () => {

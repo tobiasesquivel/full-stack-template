@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Diagnostics;
@@ -31,7 +32,7 @@ public sealed class NoCommentsAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        if (DuneCommentPolicy.IsExemptPath(path))
+        if (DuneCommentPolicy.IsExemptPath(path, RepositoryRoot(context.Options.AnalyzerConfigOptionsProvider.GlobalOptions)))
         {
             return;
         }
@@ -41,6 +42,23 @@ public sealed class NoCommentsAnalyzer : DiagnosticAnalyzer
         {
             context.ReportDiagnostic(Diagnostic.Create(DuneDiagnostics.NoComments, trivia.GetLocation()));
         }
+    }
+
+    private static string? RepositoryRoot(AnalyzerConfigOptions options)
+    {
+        if (!options.TryGetValue(HostBoundaryAnalyzer.ProjectDirectoryOption, out var directory)
+            || !options.TryGetValue(HostBoundaryAnalyzer.ProjectPathOption, out var projectPath)
+            || string.IsNullOrWhiteSpace(directory)
+            || string.IsNullOrWhiteSpace(projectPath))
+        {
+            return null;
+        }
+
+        var project = DunePaths.Normalize(directory).TrimEnd('/');
+        var relative = DunePaths.Normalize(projectPath).Trim('/');
+        return project.EndsWith("/" + relative, StringComparison.OrdinalIgnoreCase)
+            ? project.Substring(0, project.Length - relative.Length)
+            : null;
     }
 
     private static bool IsDuneFile(string normalizedPath) =>

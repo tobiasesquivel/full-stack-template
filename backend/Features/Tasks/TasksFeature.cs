@@ -11,9 +11,11 @@ using TemplateApp.Infrastructure.Messaging;
 using TemplateApp.Infrastructure.Messaging.Mediator;
 using TemplateApp.Infrastructure.Messaging.Outbox;
 using TemplateApp.Infrastructure.Persistence;
+using TemplateApp.Shared.Architecture;
 
 namespace TemplateApp.Features.Tasks;
 
+[DuneExemption(DuneCheck.TransactionOwner, "Tasks corre en su propio proceso, sin la integración de EF de Wolverine: cada slice abre y confirma su transacción.")]
 internal static class TasksFeature
 {
     public const string MonolithService = "Monolith";

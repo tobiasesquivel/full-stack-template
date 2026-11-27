@@ -97,14 +97,18 @@ public sealed class MediatorEndpointAnalyzerTests
                 }
                 """),
             ("backend/Features/Auth/IssueCsrfToken/IssueCsrfTokenEndpoint.cs", """
+                using TemplateApp.Shared.Architecture;
                 namespace TemplateApp.Features.Auth.IssueCsrfToken;
+                [DuneExemption(DuneCheck.MediatorEndpoint, "Solo escribe la cookie de antiforgery: no hay caso de uso que despachar.")]
                 internal static class IssueCsrfTokenEndpoint
                 {
                     public static int HandleAsync() => 1;
                 }
                 """),
             ("backend/Features/Health/GetLiveness/GetLivenessEndpoint.cs", """
+                using TemplateApp.Shared.Architecture;
                 namespace TemplateApp.Features.Health.GetLiveness;
+                [DuneExemption(DuneCheck.MediatorEndpoint, "La sonda responde sin pasar por el mediator.")]
                 internal static class GetLivenessEndpoint
                 {
                     public static int HandleAsync() => 1;
@@ -112,6 +116,53 @@ public sealed class MediatorEndpointAnalyzerTests
                 """));
 
         Assert.Empty(Locations(diagnostics));
+    }
+
+    [Fact]
+    public async Task AnEndpointWithoutTheMediator_FailsInAnyFeature_UnlessItDeclaresItsException()
+    {
+        var diagnostics = await AnalyzeAsync(
+            ("backend/Features/Invoices/IssueInvoice/IssueInvoiceEndpoint.cs", """
+                namespace TemplateApp.Features.Invoices.IssueInvoice;
+                internal static class IssueInvoiceEndpoint
+                {
+                    public static int HandleAsync() => 1;
+                }
+                """),
+            ("backend/Features/Health/GetReadiness/GetReadinessEndpoint.cs", """
+                namespace TemplateApp.Features.Health.GetReadiness;
+                internal static class GetReadinessEndpoint
+                {
+                    public static int HandleAsync() => 1;
+                }
+                """),
+            ("backend/Features/Auth/IssueCsrfToken/IssueCsrfTokenEndpoint.cs", """
+                namespace TemplateApp.Features.Auth.IssueCsrfToken;
+                internal static class IssueCsrfTokenEndpoint
+                {
+                    public static int HandleAsync() => 1;
+                }
+                """),
+            ("backend/Features/Health/GetLiveness/GetLivenessEndpoint.cs", """
+                using TemplateApp.Shared.Architecture;
+                namespace TemplateApp.Features.Health.GetLiveness;
+                [DuneExemption(DuneCheck.IdempotentPost, "Exime otro chequeo: no alcanza para DUNE0028.")]
+                [DuneExemption(DuneCheck.MediatorEndpoint, " ")]
+                internal static class GetLivenessEndpoint
+                {
+                    public static int HandleAsync() => 1;
+                }
+                """));
+
+        Assert.Equal(
+            new[]
+            {
+                ("backend/Features/Auth/IssueCsrfToken/IssueCsrfTokenEndpoint.cs", 2),
+                ("backend/Features/Health/GetLiveness/GetLivenessEndpoint.cs", 5),
+                ("backend/Features/Health/GetReadiness/GetReadinessEndpoint.cs", 2),
+                ("backend/Features/Invoices/IssueInvoice/IssueInvoiceEndpoint.cs", 2),
+            },
+            Locations(diagnostics));
     }
 
     [Fact]
@@ -182,12 +233,34 @@ public sealed class MediatorEndpointAnalyzerTests
             Locations(diagnostics));
     }
 
+    [Fact]
+    public async Task AnExemptionOnANestedHelper_DoesNotExemptTheEndpoint()
+    {
+        var diagnostics = await AnalyzeAsync(
+            ("backend/Features/Invoices/IssueInvoice/IssueInvoiceEndpoint.cs", """
+                using TemplateApp.Shared.Architecture;
+                namespace TemplateApp.Features.Invoices.IssueInvoice;
+                internal static class IssueInvoiceEndpoint
+                {
+                    [DuneExemption(DuneCheck.MediatorEndpoint, "En una clase anidada no cuenta.")]
+                    private static class Helper
+                    {
+                    }
+
+                    public static int HandleAsync() => 1;
+                }
+                """));
+
+        Assert.Equal(new[] { ("backend/Features/Invoices/IssueInvoice/IssueInvoiceEndpoint.cs", 3) }, Locations(diagnostics));
+    }
+
     private static Task<System.Collections.Immutable.ImmutableArray<Diagnostic>> AnalyzeAsync(
         params (string Path, string Source)[] files) =>
         AnalyzerHost.AnalyzeAsync(
             new List<(string, string)>(files)
             {
                 ("packages/Wolverine.cs", Wolverine),
+                (ExemptionFixture.Path, ExemptionFixture.Source),
                 ("backend/Features/Tasks/CreateTask/CreateTaskCommand.cs", CreateTaskSlice),
                 ("backend/Features/Tasks/CreateTask/CreateTask.cs", CreateTaskHandler),
                 ("backend/Features/Tasks/UpdateTask/UpdateTaskCommand.cs", UpdateTaskSlice),

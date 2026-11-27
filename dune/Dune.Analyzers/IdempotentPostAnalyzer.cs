@@ -9,7 +9,6 @@ namespace Dune.Analyzers;
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class IdempotentPostAnalyzer : DiagnosticAnalyzer
 {
-    private const string ExcludedFeature = "Auth";
     private const string Opt = "WithIdempotency";
     private const string OptNamespace = "TemplateApp.Infrastructure.Http.Idempotency";
 
@@ -36,8 +35,10 @@ public sealed class IdempotentPostAnalyzer : DiagnosticAnalyzer
         var path = DunePaths.Normalize(invocation.Syntax.SyntaxTree.FilePath);
         if (!path.EndsWith("Endpoint.cs", StringComparison.Ordinal)
             || DunePaths.IsTestsFile(path)
-            || !DunePaths.TryGetFeature(path, out var feature)
-            || feature.Equals(ExcludedFeature, StringComparison.Ordinal)
+            || !DunePaths.TryGetFeature(path, out _)
+            || (DuneExemptions.TopLevelType(context.ContainingSymbol) is var endpoint
+                && DuneExemptions.IsFileType(endpoint, path)
+                && DuneExemptions.Exempts(endpoint, DuneExemptions.IdempotentPost))
             || ChainsOptIn(invocation))
         {
             return;
