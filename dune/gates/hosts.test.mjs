@@ -63,6 +63,18 @@ describe('hosts', () => {
     });
   });
 
+  it('rechaza un enlace dentro de la carpeta de un host, sin seguirlo', () => {
+    withRepo({ Monolith: ['TemplateApp.csproj'] }, (root) => {
+      const outside = path.join(root, 'outside');
+      mkdirSync(outside);
+      writeFileSync(path.join(outside, 'Billing.csproj'), '<Project />');
+      symlinkSync(outside, path.join(root, 'backend/Hosts/Monolith/Billing'), 'junction');
+      const { projects, problems } = discoverHosts(root);
+      assert.deepEqual(projects, ['backend/Hosts/Monolith/TemplateApp.csproj']);
+      assert.deepEqual(problems, ['backend/Hosts/Monolith/Billing es un enlace dentro de la carpeta de un host; sus archivos quedarían fuera de los controles']);
+    });
+  });
+
   it('reconoce la extensión .csproj sin mirar mayúsculas', () => {
     withRepo({ Monolith: ['TemplateApp.csproj'], Billing: ['Acme.Billing.CSPROJ'] }, (root) => {
       writeFileSync(path.join(root, 'backend/Hosts/Extra.CSPROJ'), '<Project />');

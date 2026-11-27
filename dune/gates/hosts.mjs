@@ -16,8 +16,12 @@ export function featureFolders(root) {
 function nestedProjects(directory, relative) {
   const found = [];
   for (const entry of readdirSync(directory, { withFileTypes: true })) {
-    if (!entry.isDirectory() || BUILD_OUTPUT.has(entry.name.toLowerCase())) continue;
     const child = `${relative}/${entry.name}`;
+    if (entry.isSymbolicLink()) {
+      found.push(child);
+      continue;
+    }
+    if (!entry.isDirectory() || BUILD_OUTPUT.has(entry.name.toLowerCase())) continue;
     for (const inner of readdirSync(path.join(directory, entry.name), { withFileTypes: true })) {
       if (inner.isFile() && PROJECT.test(inner.name)) found.push(`${child}/${inner.name}`);
     }
@@ -55,7 +59,11 @@ export function discoverHosts(root) {
       continue;
     }
     for (const nested of nestedProjects(path.join(base, folder), `${HOSTS_FOLDER}/${folder}`).sort()) {
-      problems.push(`${nested} está dentro de la carpeta de un host; cada host vive en ${HOSTS_FOLDER}/<Host>/ y su .csproj va en la raíz de esa carpeta`);
+      problems.push(
+        PROJECT.test(nested)
+          ? `${nested} está dentro de la carpeta de un host; cada host vive en ${HOSTS_FOLDER}/<Host>/ y su .csproj va en la raíz de esa carpeta`
+          : `${nested} es un enlace dentro de la carpeta de un host; sus archivos quedarían fuera de los controles`,
+      );
     }
     const csprojs = readdirSync(path.join(base, folder), { withFileTypes: true })
       .filter((entry) => entry.isFile() && PROJECT.test(entry.name))
