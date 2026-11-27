@@ -122,6 +122,7 @@ public sealed class NoCommentsAnalyzerTests
     [Theory]
     [InlineData("backend/Hosts/Monolith/Internal/Generated/WolverineHandlers/SampleHandler123.cs")]
     [InlineData("backend/Hosts/Tasks/Internal/Generated/WolverineHandlers/SampleHandler123.cs")]
+    [InlineData("C:/repo/backend/Hosts/Billing/Internal/Generated/WolverineHandlers/SampleHandler123.cs")]
     public async Task WolverineGeneratedHandlersDirectoryIsExempt(string path)
     {
         var diagnostics = await AnalyzerHost.AnalyzeAsync(
@@ -146,6 +147,8 @@ public sealed class NoCommentsAnalyzerTests
     [InlineData("backend/Features/Users/Internal/Generated/WolverineHandlers/SampleHandler123.cs")]
     [InlineData("backend/Hosts/Tasks/Internal/Generated/SampleHandler123.cs")]
     [InlineData("backend/Hosts/Tasks/Features/Internal/Generated/WolverineHandlers/SampleHandler123.cs")]
+    [InlineData("backend/Hosts/Internal/Generated/WolverineHandlers/SampleHandler123.cs")]
+    [InlineData("backend/Hosts/Billing/Api/Internal/Generated/WolverineHandlers/SampleHandler123.cs")]
     public async Task GeneratedLookalikeOutsideWolverineHandlersIsRejected(string path)
     {
         var diagnostics = await AnalyzerHost.AnalyzeAsync(

@@ -68,7 +68,8 @@ internal static class AnalyzerHost
             new IdempotentPostAnalyzer(),
             new PublicSurfaceAnalyzer(),
             new PersistenceOwnershipAnalyzer(),
-            new MediatorHandlerShapeAnalyzer());
+            new MediatorHandlerShapeAnalyzer(),
+            new DuneExemptionAnalyzer());
 
     public static Func<ImmutableArray<DiagnosticAnalyzer>> Only<T>()
         where T : DiagnosticAnalyzer, new() =>

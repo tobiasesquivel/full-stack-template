@@ -2,11 +2,13 @@ using ErrorOr;
 using TemplateApp.Features.Auth.Access;
 using TemplateApp.Features.Auth.Domain;
 using TemplateApp.Features.Users.Contracts;
+using TemplateApp.Shared.Architecture;
 using TemplateApp.Shared.Http;
 using Wolverine;
 
 namespace TemplateApp.Features.Auth.RegisterUser;
 
+[DuneExemption(DuneCheck.IdempotentPost, "El email de la cuenta es único: repetir el registro no crea una segunda cuenta.")]
 internal static class RegisterUserEndpoint
 {
     public static void Map(IEndpointRouteBuilder auth) =>

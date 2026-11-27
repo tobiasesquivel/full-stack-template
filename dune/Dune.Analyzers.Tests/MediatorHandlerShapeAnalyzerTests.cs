@@ -148,7 +148,7 @@ public sealed class MediatorHandlerShapeAnalyzerTests
     }
 
     [Fact]
-    public async Task TestsAndFeaturesWithoutTheMediator_AreLeftOut()
+    public async Task Tests_AreLeftOut()
     {
         var diagnostics = await AnalyzeAsync(
             ("backend/Features/Tasks/CreateTask/CreateTaskHelpersTests.cs", """
@@ -156,6 +156,24 @@ public sealed class MediatorHandlerShapeAnalyzerTests
                 internal static class CreateTaskHelpersTests
                 {
                     public sealed class Fake
+                    {
+                        public int Handle(int value) => value;
+                    }
+                }
+                """));
+
+        Assert.Empty(diagnostics);
+    }
+
+    [Fact]
+    public async Task AFeatureThatNoListNames_IsChecked()
+    {
+        var diagnostics = await AnalyzeAsync(
+            ("backend/Features/Invoices/IssueInvoice/IssueInvoice.cs", """
+                namespace TemplateApp.Features.Invoices.IssueInvoice;
+                internal static class IssueInvoice
+                {
+                    public sealed class Handler
                     {
                         public int Handle(int value) => value;
                     }
@@ -172,7 +190,10 @@ public sealed class MediatorHandlerShapeAnalyzerTests
                 }
                 """));
 
-        Assert.Empty(diagnostics);
+        Assert.Equal(
+            new[] { "backend/Features/Health/GetLiveness/GetLiveness.cs", "backend/Features/Invoices/IssueInvoice/IssueInvoice.cs" },
+            diagnostics.Select(diagnostic => diagnostic.Location.SourceTree!.FilePath).OrderBy(path => path, System.StringComparer.Ordinal).ToArray());
+        Assert.All(diagnostics, diagnostic => Assert.Contains("no es un record <Slice>Command ni <Slice>Query", diagnostic.GetMessage(), System.StringComparison.Ordinal));
     }
 
     private static Task<ImmutableArray<Diagnostic>> AnalyzeAsync(params (string Path, string Source)[] files) =>

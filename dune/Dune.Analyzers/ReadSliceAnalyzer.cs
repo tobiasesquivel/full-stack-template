@@ -13,10 +13,6 @@ public sealed class ReadSliceAnalyzer : DiagnosticAnalyzer
 {
     private const string EfNamespace = "Microsoft.EntityFrameworkCore";
 
-    private static readonly ImmutableHashSet<string> EntityLoadExceptions = ImmutableHashSet.Create(
-        StringComparer.Ordinal,
-        "Users/GetUser");
-
     private static readonly ImmutableHashSet<string> WriteVerbs = ImmutableHashSet.Create(
         StringComparer.Ordinal,
         "MapPost",
@@ -92,15 +88,21 @@ public sealed class ReadSliceAnalyzer : DiagnosticAnalyzer
             var getSlices = new ConcurrentDictionary<string, byte>(StringComparer.Ordinal);
             var writeSlices = new ConcurrentDictionary<string, byte>(StringComparer.Ordinal);
             var findings = new ConcurrentBag<(string Slice, Diagnostic Diagnostic)>();
+            var exemptSlices = new ConcurrentDictionary<string, byte>(StringComparer.Ordinal);
 
             start.RegisterOperationAction(
                 operation => AnalyzeInvocation(operation, getSlices, writeSlices, findings),
                 OperationKind.Invocation);
+            start.RegisterSymbolAction(
+                symbol => CollectExemption((INamedTypeSymbol)symbol.Symbol, exemptSlices),
+                SymbolKind.NamedType);
             start.RegisterCompilationEndAction(end =>
             {
                 foreach (var finding in findings)
                 {
-                    if (getSlices.ContainsKey(finding.Slice) && !writeSlices.ContainsKey(finding.Slice))
+                    if (getSlices.ContainsKey(finding.Slice)
+                        && !writeSlices.ContainsKey(finding.Slice)
+                        && !(finding.Diagnostic.Descriptor == DuneDiagnostics.ReadSliceLoadsEntity && exemptSlices.ContainsKey(finding.Slice)))
                     {
                         end.ReportDiagnostic(finding.Diagnostic);
                     }
@@ -151,7 +153,7 @@ public sealed class ReadSliceAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        if (!EntityLoadExceptions.Contains(key) && LoadedEntity(invocation, context.Compilation) is { } entity)
+        if (LoadedEntity(invocation, context.Compilation) is { } entity)
         {
             findings.Add((key, Diagnostic.Create(
                 DuneDiagnostics.ReadSliceLoadsEntity,
@@ -159,6 +161,26 @@ public sealed class ReadSliceAnalyzer : DiagnosticAnalyzer
                 key,
                 entity.Name,
                 method.Name)));
+        }
+    }
+
+    private static void CollectExemption(INamedTypeSymbol type, ConcurrentDictionary<string, byte> exemptSlices)
+    {
+        if (!DuneExemptions.Exempts(type, DuneExemptions.ReadSliceLoadsEntity))
+        {
+            return;
+        }
+
+        foreach (var location in type.Locations.Where(location => location.IsInSource))
+        {
+            var path = DunePaths.Normalize(location.SourceTree?.FilePath);
+            if (DunePaths.IsSliceEndpoint(path)
+                && !DunePaths.IsTestsFile(path)
+                && DunePaths.TryGetFeature(path, out var feature)
+                && DunePaths.TryGetSlice(path, out var slice))
+            {
+                exemptSlices.TryAdd(feature + "/" + slice, 0);
+            }
         }
     }
 

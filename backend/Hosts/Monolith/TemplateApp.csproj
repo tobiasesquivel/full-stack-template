@@ -7,6 +7,7 @@
     <RootNamespace>TemplateApp</RootNamespace>
     <UserSecretsId>templateapp-backend-dev</UserSecretsId>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <DuneHostExcludedFeatures>Tasks</DuneHostExcludedFeatures>
     <BackendRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../..'))</BackendRoot>
   </PropertyGroup>
 

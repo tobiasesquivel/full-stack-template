@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Text;
 using Microsoft.CodeAnalysis;
@@ -11,8 +12,23 @@ public static class DuneCommentPolicy
     public static bool IsExemptPath(string normalizedPath) =>
         DunePaths.ContainsOrdinal(normalizedPath, "backend/Infrastructure/Persistence/Migrations/")
         || IsFeatureMigration(normalizedPath)
-        || DunePaths.ContainsOrdinal(normalizedPath, "backend/Hosts/Monolith/Internal/Generated/WolverineHandlers/")
-        || DunePaths.ContainsOrdinal(normalizedPath, "backend/Hosts/Tasks/Internal/Generated/WolverineHandlers/");
+        || IsHostGeneratedHandler(normalizedPath);
+
+    private static bool IsHostGeneratedHandler(string normalizedPath)
+    {
+        const string hosts = "backend/Hosts/";
+        const string generated = "/Internal/Generated/WolverineHandlers/";
+        var marker = normalizedPath.IndexOf(hosts, StringComparison.Ordinal);
+        if (marker < 0)
+        {
+            return false;
+        }
+
+        var host = marker + hosts.Length;
+        var slash = normalizedPath.IndexOf('/', host);
+        return slash > host
+            && string.CompareOrdinal(normalizedPath, slash, generated, 0, generated.Length) == 0;
+    }
 
     private static bool IsFeatureMigration(string normalizedPath) =>
         DunePaths.TryGetFeature(normalizedPath, out var feature)

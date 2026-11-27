@@ -2,11 +2,14 @@ import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
+import { discoverHosts } from './hosts.mjs';
 
-export const TARGETS = ['backend/Hosts/Monolith/TemplateApp.csproj', 'backend/Hosts/Tasks/TemplateApp.Tasks.csproj'].map((project) => ({
-  project,
-  generated: path.posix.join(path.posix.dirname(project), 'Internal/Generated'),
-}));
+export function targetsFor(projects) {
+  return projects.map((project) => ({
+    project,
+    generated: path.posix.join(path.posix.dirname(project), 'Internal/Generated'),
+  }));
+}
 
 export function verdict(target, porcelain) {
   const stale = porcelain
@@ -54,8 +57,12 @@ function check(root, configuration, target) {
 function main() {
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
   const configuration = process.argv.includes('--release') ? 'Release' : 'Debug';
-  const failures = TARGETS.map((target) => check(root, configuration, target)).filter((result) => !result.ok);
-  console.log(`check-codegen: ${failures.length === 0 ? 'PASS' : 'FAIL'}`);
+  const { projects, problems } = discoverHosts(root);
+  const failures = [
+    ...problems.map((message) => ({ ok: false, message })),
+    ...targetsFor(projects).map((target) => check(root, configuration, target)).filter((result) => !result.ok),
+  ];
+  console.log(`check-codegen: ${failures.length === 0 ? 'PASS' : 'FAIL'} (${projects.join(', ')})`);
   for (const result of failures) console.log(`- ${result.message}`);
   if (failures.length > 0) process.exit(1);
 }

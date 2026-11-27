@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { HOSTS, referenceViolations, violations } from './check-host-items.mjs';
+import { hostFromDeclaration, referenceViolations, violations } from './check-host-items.mjs';
 
-const [monolith, tasks] = HOSTS;
+const monolith = hostFromDeclaration('backend/Hosts/Monolith/TemplateApp.csproj', { DuneHostExcludedFeatures: 'Tasks' });
+const tasks = hostFromDeclaration('backend/Hosts/Tasks/TemplateApp.Tasks.csproj', { DuneHostFeatures: 'Tasks,Health' });
 
 const MONOLITH_FILES = [
   'backend/Hosts/Monolith/Program.cs',
@@ -22,12 +23,33 @@ const TASKS_FILES = [
 ];
 
 describe('check-host-items', () => {
-  it('evalúa el monolito y el host de Tasks', () => {
-    assert.deepEqual(
-      HOSTS.map((host) => host.project),
-      ['backend/Hosts/Monolith/TemplateApp.csproj', 'backend/Hosts/Tasks/TemplateApp.Tasks.csproj'],
-    );
+  it('lee qué compila cada host de la declaración de su .csproj', () => {
+    assert.equal(monolith.scope, 'el host compila sus archivos y Features salvo Features/Tasks (DuneHostExcludedFeatures de su .csproj)');
+    assert.equal(tasks.scope, 'el host compila sus archivos y Features/Tasks, Features/Health (DuneHostFeatures de su .csproj)');
   });
+
+  it('revisa un host inventado con su propia declaración, sin editar el gate', () => {
+    const billing = hostFromDeclaration('backend/Hosts/Billing/Acme.Billing.csproj', { DuneHostFeatures: ' Invoices , Health ' });
+    assert.deepEqual(violations(billing, ['backend/Hosts/Billing/Program.cs', 'backend/Features/Invoices/InvoicesFeature.cs', 'backend/Features/Health/HealthFeature.cs']), []);
+    const [failure, ...rest] = violations(billing, ['backend/Features/Tasks/TasksFeature.cs']);
+    assert.deepEqual(rest, []);
+    assert.ok(failure?.startsWith('límite de despliegue: backend/Hosts/Billing/Acme.Billing.csproj compila backend/Features/Tasks/TasksFeature.cs; el host compila sus archivos y Features/Invoices, Features/Health'), failure);
+  });
+
+  it('deja entrar al monolito una feature inventada sin editar su declaración', () => {
+    assert.deepEqual(violations(monolith, ['backend/Features/Invoices/InvoicesFeature.cs']), []);
+  });
+
+  for (const [name, declaration, expected] of [
+    ['un host sin declaración', {}, 'no declara qué features despliega'],
+    ['un host con la declaración vacía', { DuneHostFeatures: ' , ' }, 'no declara qué features despliega'],
+    ['un host con las dos declaraciones', { DuneHostFeatures: 'Invoices', DuneHostExcludedFeatures: 'Tasks' }, 'declara DuneHostFeatures y DuneHostExcludedFeatures'],
+  ]) {
+    it(`rechaza ${name}`, () => {
+      const host = hostFromDeclaration('backend/Hosts/Billing/Acme.Billing.csproj', declaration);
+      assert.ok(host.problem?.startsWith(`límite de despliegue: backend/Hosts/Billing/Acme.Billing.csproj ${expected}`), host.problem);
+    });
+  }
 
   it('acepta la referencia a Platform, también con barras invertidas, y el analyzer de Dune', () => {
     assert.deepEqual(referenceViolations(monolith, ['backend/Platform/TemplateApp.Platform.csproj']), []);

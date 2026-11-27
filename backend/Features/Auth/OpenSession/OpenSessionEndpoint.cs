@@ -2,11 +2,13 @@ using ErrorOr;
 using TemplateApp.Features.Auth.Access;
 using TemplateApp.Features.Auth.Domain;
 using TemplateApp.Features.Users.Contracts;
+using TemplateApp.Shared.Architecture;
 using TemplateApp.Shared.Http;
 using Wolverine;
 
 namespace TemplateApp.Features.Auth.OpenSession;
 
+[DuneExemption(DuneCheck.IdempotentPost, "Abrir sesión no crea un recurso de negocio: cada intento abre una sesión o registra el fallo.")]
 internal static class OpenSessionEndpoint
 {
     public static void Map(IEndpointRouteBuilder auth) =>

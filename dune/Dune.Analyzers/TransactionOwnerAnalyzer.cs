@@ -14,8 +14,6 @@ public sealed class TransactionOwnerAnalyzer : DiagnosticAnalyzer
 {
     private const string EfNamespace = "Microsoft.EntityFrameworkCore";
 
-    private static readonly string[] OwnedFeatures = { "Auth", "Users", "Projects" };
-
     private static readonly ImmutableHashSet<string> FacadeTransactions = ImmutableHashSet.Create(
         StringComparer.Ordinal,
         "BeginTransaction",
@@ -95,8 +93,9 @@ public sealed class TransactionOwnerAnalyzer : DiagnosticAnalyzer
         var path = DunePaths.Normalize(operation.Syntax.SyntaxTree.FilePath);
         if (DunePaths.IsTestsFile(path)
             || !DunePaths.TryGetFeature(path, out var feature)
-            || Array.IndexOf(OwnedFeatures, feature) < 0
-            || MediatorRegistrations.EnclosingType(operation) is not { } type)
+            || MediatorRegistrations.EnclosingType(operation) is not { } type
+            || operation.SemanticModel is not { } model
+            || DuneExemptions.Exempts(DuneExemptions.FeatureType(model.Compilation, type, feature), DuneExemptions.TransactionOwner))
         {
             return;
         }

@@ -1,11 +1,16 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { TARGETS, coverage, verdict } from './check-codegen.mjs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { coverage, targetsFor, verdict } from './check-codegen.mjs';
+import { discoverHosts } from './hosts.mjs';
 
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
+const TARGETS = targetsFor(discoverHosts(ROOT).projects);
 const [monolith, tasks] = TARGETS;
 
 describe('check-codegen', () => {
-  it('revisa el código generado del monolito y el de Tasks', () => {
+  it('revisa el código generado de cada host que encuentra en backend/Hosts', () => {
     assert.deepEqual(
       TARGETS.map((target) => target.project),
       ['backend/Hosts/Monolith/TemplateApp.csproj', 'backend/Hosts/Tasks/TemplateApp.Tasks.csproj'],
@@ -17,6 +22,12 @@ describe('check-codegen', () => {
       TARGETS.map((target) => target.generated),
       ['backend/Hosts/Monolith/Internal/Generated', 'backend/Hosts/Tasks/Internal/Generated'],
     );
+  });
+
+  it('revisa un host inventado sin editar el gate', () => {
+    assert.deepEqual(targetsFor(['backend/Hosts/Billing/Acme.Billing.csproj']), [
+      { project: 'backend/Hosts/Billing/Acme.Billing.csproj', generated: 'backend/Hosts/Billing/Internal/Generated' },
+    ]);
   });
 
   it('acepta el código generado sin cambios después de codegen write', () => {

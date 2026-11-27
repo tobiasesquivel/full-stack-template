@@ -54,11 +54,14 @@ public sealed class ReadSliceAnalyzerTests
         }
         """;
 
-    private static (string Path, string Source) Endpoint(string feature, string slice, string verb) =>
+    private const string LoadsEntityExemption = """[TemplateApp.Shared.Architecture.DuneExemption(TemplateApp.Shared.Architecture.DuneCheck.ReadSliceLoadsEntity, "Responde la cuenta entera; proyectar queda pendiente.")]""";
+
+    private static (string Path, string Source) Endpoint(string feature, string slice, string verb, string exemption = "") =>
         ($"backend/Features/{feature}/{slice}/{slice}Endpoint.cs", $$"""
             using Microsoft.AspNetCore.Builder;
             using Microsoft.AspNetCore.Routing;
             namespace TemplateApp.Features.{{feature}}.{{slice}};
+            {{exemption}}
             public static class {{slice}}Endpoint
             {
                 public static void Map(IEndpointRouteBuilder routes) => routes.{{verb}}("/", () => 0);
@@ -66,7 +69,7 @@ public sealed class ReadSliceAnalyzerTests
             """);
 
     [Fact]
-    public async Task ProjectingReadsWritingSlicesTestsAndTheGetUserExceptionAreAccepted()
+    public async Task ProjectingReadsWritingSlicesTestsAndADeclaredLoadExceptionAreAccepted()
     {
         var diagnostics = await AnalyzeAsync(
             Endpoint("Tasks", "GetTask", "MapGet"),
@@ -163,7 +166,7 @@ public sealed class ReadSliceAnalyzerTests
                     }
                 }
                 """),
-            Endpoint("Users", "GetUser", "MapGet"),
+            Endpoint("Users", "GetUser", "MapGet", LoadsEntityExemption),
             ("backend/Features/Users/GetUser/GetUser.cs", """
                 using System.Threading;
                 using System.Threading.Tasks;
@@ -213,7 +216,7 @@ public sealed class ReadSliceAnalyzerTests
                     }
                 }
                 """),
-            Endpoint("Users", "GetUser", "MapGet"),
+            Endpoint("Users", "GetUser", "MapGet", LoadsEntityExemption),
             ("backend/Features/Users/GetUser/GetUser.cs", """
                 using System.Threading;
                 using System.Threading.Tasks;
@@ -242,9 +245,37 @@ public sealed class ReadSliceAnalyzerTests
             Findings(diagnostics));
     }
 
+    [Theory]
+    [InlineData("")]
+    [InlineData("""[TemplateApp.Shared.Architecture.DuneExemption(TemplateApp.Shared.Architecture.DuneCheck.MediatorEndpoint, "Exime otro chequeo.")]""")]
+    public async Task ALoadInAReadSlice_IsRejected_UnlessItsEndpointDeclaresTheException(string exemption)
+    {
+        var diagnostics = await AnalyzeAsync(
+            Endpoint("Users", "GetUser", "MapGet", exemption),
+            ("backend/Features/Users/GetUser/GetUser.cs", GetUserThatLoads));
+
+        Assert.Equal(
+            new[] { ("backend/Features/Users/GetUser/GetUser.cs", 10, "carga la entidad 'UserProfile' con SingleOrDefaultAsync") },
+            Findings(diagnostics));
+    }
+
+    private const string GetUserThatLoads = """
+        using System.Threading;
+        using System.Threading.Tasks;
+        using Microsoft.EntityFrameworkCore;
+        using TemplateApp.Features.Users.Domain;
+        using TemplateApp.Infrastructure.Persistence;
+        namespace TemplateApp.Features.Users.GetUser;
+        public sealed class GetUser(AppDbContext db)
+        {
+            public Task<UserProfile?> ExecuteAsync(string authId, CancellationToken ct) =>
+                db.UserProfiles.AsNoTracking().SingleOrDefaultAsync(p => p.AuthId == authId, ct);
+        }
+        """;
+
     private static Task<ImmutableArray<Diagnostic>> AnalyzeAsync(params (string Path, string Source)[] files) =>
         AnalyzerHost.AnalyzeAsync(
-            new List<(string, string)>(files) { ("backend/Model.cs", Model) },
+            new List<(string, string)>(files) { ("backend/Model.cs", Model), (ExemptionFixture.Path, ExemptionFixture.Source) },
             AnalyzerHost.Only<ReadSliceAnalyzer>());
 
     private static (string Path, int Line, string Kind)[] Findings(ImmutableArray<Diagnostic> diagnostics) =>

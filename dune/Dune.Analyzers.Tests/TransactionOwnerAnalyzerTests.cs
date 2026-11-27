@@ -38,6 +38,9 @@ public sealed class TransactionOwnerAnalyzerTests
             {
             }
         }
+        """;
+
+    private const string ProjectsFeature = """
         namespace TemplateApp.Features.Projects
         {
             public static class ProjectsFeature
@@ -56,6 +59,7 @@ public sealed class TransactionOwnerAnalyzerTests
     public async Task AHandler_LeavesTheTransactionToWolverine_AndSavesOnlyToTranslateAConstraint()
     {
         var diagnostics = await AnalyzeAsync(
+            ("backend/Features/Projects/ProjectsFeature.cs", ProjectsFeature),
             ("backend/Features/Projects/CreateProject/CreateProject.cs", """
                 using System.Threading;
                 using System.Threading.Tasks;
@@ -113,6 +117,7 @@ public sealed class TransactionOwnerAnalyzerTests
     public async Task AHandler_ThatSavesLoose_OrOpensOrCommitsATransaction_IsRejected()
     {
         var diagnostics = await AnalyzeAsync(
+            ("backend/Features/Projects/ProjectsFeature.cs", ProjectsFeature),
             ("backend/Features/Projects/CreateProject/CreateProject.cs", """
                 using System.Threading;
                 using System.Threading.Tasks;
@@ -176,6 +181,88 @@ public sealed class TransactionOwnerAnalyzerTests
             },
             Locations(diagnostics));
     }
+
+    [Fact]
+    public async Task AFeatureThatNoListNames_LeavesTheTransactionToWolverine()
+    {
+        var diagnostics = await AnalyzeAsync(
+            ("backend/Features/Invoices/InvoicesFeature.cs", """
+                using TemplateApp.Infrastructure.Messaging;
+                namespace TemplateApp.Features.Invoices;
+                internal static class InvoicesFeature
+                {
+                    public static object AddInvoicesFeature(object services) =>
+                        MessagingRegistration.AddMediatorHandler<IssueInvoice.IssueInvoiceCommand.Handler>(services, MediatorTransaction.Atomic);
+                }
+                """),
+            ("backend/Features/Invoices/IssueInvoice/IssueInvoiceCommandHandler.cs", IssueInvoiceHandler));
+
+        Assert.Equal(new[] { ("backend/Features/Invoices/IssueInvoice/IssueInvoiceCommandHandler.cs", 11) }, Locations(diagnostics));
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task AFeatureOwnsItsTransaction_OnlyWhileItsFeatureClassDeclaresIt(bool declared)
+    {
+        var exemption = declared ? """[DuneExemption(DuneCheck.TransactionOwner, "Corre en su propio proceso, sin la integración de EF de Wolverine.")]""" : string.Empty;
+        var diagnostics = await AnalyzeAsync(
+            (ExemptionFixture.Path, ExemptionFixture.Source),
+            ("backend/Features/Invoices/InvoicesFeature.cs", $$"""
+                using TemplateApp.Infrastructure.Messaging;
+                using TemplateApp.Shared.Architecture;
+                namespace TemplateApp.Features.Invoices;
+                {{exemption}}
+                internal static class InvoicesFeature
+                {
+                    public static object AddInvoicesFeature(object services) =>
+                        MessagingRegistration.AddMediatorHandler<IssueInvoice.IssueInvoiceCommand.Handler>(services, MediatorTransaction.None);
+                }
+                """),
+            ("backend/Features/Invoices/IssueInvoice/IssueInvoiceCommandHandler.cs", IssueInvoiceHandler));
+
+        Assert.Equal(declared ? 0 : 1, Locations(diagnostics).Length);
+    }
+
+    [Fact]
+    public async Task AnExemptionOnAnotherTypeOrForAnotherCheck_DoesNotCount()
+    {
+        var diagnostics = await AnalyzeAsync(
+            (ExemptionFixture.Path, ExemptionFixture.Source),
+            ("backend/Features/Invoices/InvoicesFeature.cs", """
+                using TemplateApp.Infrastructure.Messaging;
+                using TemplateApp.Shared.Architecture;
+                namespace TemplateApp.Features.Invoices;
+                [DuneExemption(DuneCheck.MediatorEndpoint, "Otro chequeo.")]
+                internal static class InvoicesFeature
+                {
+                    public static object AddInvoicesFeature(object services) =>
+                        MessagingRegistration.AddMediatorHandler<IssueInvoice.IssueInvoiceCommand.Handler>(services, MediatorTransaction.None);
+                }
+                """),
+            ("backend/Features/Invoices/IssueInvoice/IssueInvoiceCommandHandler.cs", IssueInvoiceHandler.Replace(
+                "internal sealed partial record IssueInvoiceCommand",
+                "[TemplateApp.Shared.Architecture.DuneExemption(TemplateApp.Shared.Architecture.DuneCheck.TransactionOwner, \"En el handler no cuenta.\")]\ninternal sealed partial record IssueInvoiceCommand",
+                System.StringComparison.Ordinal)));
+
+        Assert.Single(Locations(diagnostics));
+    }
+
+    private const string IssueInvoiceHandler = """
+        using System.Threading;
+        using System.Threading.Tasks;
+        using TemplateApp.Features.Projects.Persistence;
+        namespace TemplateApp.Features.Invoices.IssueInvoice;
+        internal sealed partial record IssueInvoiceCommand
+        {
+            public sealed class Handler
+            {
+                private readonly ProjectsDbContext _db;
+                public Handler(ProjectsDbContext db) => _db = db;
+                public Task<int> Handle(IssueInvoiceCommand command, CancellationToken ct) => _db.SaveChangesAsync(ct);
+            }
+        }
+        """;
 
     private static Task<System.Collections.Immutable.ImmutableArray<Diagnostic>> AnalyzeAsync(
         params (string Path, string Source)[] files) =>

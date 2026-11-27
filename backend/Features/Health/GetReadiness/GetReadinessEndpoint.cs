@@ -1,7 +1,9 @@
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using TemplateApp.Shared.Architecture;
 
 namespace TemplateApp.Features.Health.GetReadiness;
 
+[DuneExemption(DuneCheck.MediatorEndpoint, "La sonda de disponibilidad corre los health checks del host, sin caso de uso.")]
 internal static class GetReadinessEndpoint
 {
     public static void Map(IEndpointRouteBuilder health) => health.MapGet("/ready", HandleAsync);

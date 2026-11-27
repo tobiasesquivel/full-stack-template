@@ -9,8 +9,6 @@ namespace Dune.Analyzers;
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class MediatorHandlerShapeAnalyzer : DiagnosticAnalyzer
 {
-    private static readonly string[] MediatorFeatures = { "Tasks", "Projects", "Users", "Auth" };
-
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
         ImmutableArray.Create(DuneDiagnostics.MediatorHandlerShape);
 
@@ -35,9 +33,7 @@ public sealed class MediatorHandlerShapeAnalyzer : DiagnosticAnalyzer
         {
             var path = DunePaths.Normalize(location.SourceTree?.FilePath);
             if (DunePaths.IsTestsFile(path)
-                || !DunePaths.TryGetSlice(path, out _)
-                || !DunePaths.TryGetFeature(path, out var feature)
-                || Array.IndexOf(MediatorFeatures, feature) < 0)
+                || !DunePaths.TryGetSlice(path, out _))
             {
                 continue;
             }

@@ -12,10 +12,6 @@ namespace Dune.Analyzers;
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class MediatorEndpointAnalyzer : DiagnosticAnalyzer
 {
-    private static readonly string[] MediatorFeatures = { "Tasks", "Projects", "Users", "Auth" };
-
-    private static readonly string[] SlicesWithoutCommand = { "/Features/Auth/IssueCsrfToken/" };
-
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
         ImmutableArray.Create(DuneDiagnostics.MediatorEndpoint);
 
@@ -32,14 +28,18 @@ public sealed class MediatorEndpointAnalyzer : DiagnosticAnalyzer
         var path = DunePaths.Normalize(model.SyntaxTree.FilePath);
         if (!DunePaths.IsSliceEndpoint(path)
             || DunePaths.IsTestsFile(path)
-            || !DunePaths.TryGetFeature(path, out var feature)
-            || Array.IndexOf(MediatorFeatures, feature) < 0
-            || SlicesWithoutCommand.Any(slice => path.IndexOf(slice, StringComparison.Ordinal) >= 0))
+            || !DunePaths.TryGetFeature(path, out var feature))
         {
             return;
         }
 
         var root = model.SyntaxTree.GetRoot(context.CancellationToken);
+        if (root.DescendantNodes().OfType<BaseTypeDeclarationSyntax>().Any(declaration =>
+            DuneExemptions.Exempts(model.GetDeclaredSymbol(declaration, context.CancellationToken) as INamedTypeSymbol, DuneExemptions.MediatorEndpoint)))
+        {
+            return;
+        }
+
         var folder = path.Substring(0, path.LastIndexOf('/') + 1);
         var dispatches = new List<IInvocationOperation>();
         foreach (var syntax in root.DescendantNodes().OfType<InvocationExpressionSyntax>())

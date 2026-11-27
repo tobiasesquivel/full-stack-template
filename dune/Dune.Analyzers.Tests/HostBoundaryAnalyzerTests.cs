@@ -171,32 +171,92 @@ public sealed class HostBoundaryAnalyzerTests
     }
 
     [Fact]
-    public async Task AProjectUnderHosts_ThatTheTableDoesNotKnow_Fails()
+    public async Task AnInventedHost_IsCheckedWithItsOwnDeclaration_WithoutEditingTheRule()
     {
-        var diagnostics = await AnalyzeHostAsync("TemplateApp.Billing", "Hosts/Billing", new[] { "Hosts/Billing/Program.cs" });
+        var declaration = ImmutableDictionary<string, string>.Empty.Add(HostBoundaryAnalyzer.FeaturesOption, "Invoices,Health");
+
+        var accepted = await AnalyzeInventedHostAsync(
+            declaration,
+            "Hosts/Billing",
+            "Hosts/Billing/Program.cs",
+            "Features/Invoices/IssueInvoice/IssueInvoiceCommand.cs",
+            "Features/Health/GetLiveness/GetLivenessEndpoint.cs");
+        var rejected = await AnalyzeInventedHostAsync(
+            declaration,
+            "Hosts/Billing",
+            "Hosts/Billing/Program.cs",
+            "Features/Tasks/Domain/TaskItem.cs");
+
+        Assert.Empty(accepted);
+        var diagnostic = Assert.Single(rejected);
+        Assert.Contains("'backend/Features/Tasks/Domain/TaskItem.cs' no le toca a backend/Hosts/Billing; el host compila su carpeta y Features/Invoices, Features/Health (DuneHostFeatures de su .csproj)", diagnostic.GetMessage(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task TheMonolith_TakesAnInventedFeature_WithoutEditingItsDeclaration()
+    {
+        var diagnostics = await AnalyzeHostAsync(
+            "TemplateApp",
+            "Hosts/Monolith",
+            new[] { "Hosts/Monolith/Program.cs", "Features/Invoices/IssueInvoice/IssueInvoiceCommand.cs" },
+            "TemplateApp.Platform");
+
+        Assert.Empty(diagnostics);
+    }
+
+    [Theory]
+    [InlineData(null, null, "no declara qué features despliega; su .csproj lleva <DuneHostFeatures>")]
+    [InlineData(" , ", null, "no declara qué features despliega")]
+    [InlineData("Invoices", "Tasks", "declara DuneHostFeatures y DuneHostExcludedFeatures")]
+    public async Task AHost_ThatDoesNotDeclareExactlyOneList_Fails(string? features, string? excluded, string expected)
+    {
+        var declaration = ImmutableDictionary<string, string>.Empty;
+        if (features is not null)
+        {
+            declaration = declaration.Add(HostBoundaryAnalyzer.FeaturesOption, features);
+        }
+
+        if (excluded is not null)
+        {
+            declaration = declaration.Add(HostBoundaryAnalyzer.ExcludedFeaturesOption, excluded);
+        }
+
+        var diagnostics = await AnalyzeInventedHostAsync(declaration, "Hosts/Billing", "Hosts/Billing/Program.cs");
 
         var diagnostic = Assert.Single(diagnostics);
-        Assert.Contains("'backend/Hosts/Billing' es un host que la regla no conoce", diagnostic.GetMessage(), StringComparison.Ordinal);
+        Assert.Contains("'backend/Hosts/Billing' " + expected, diagnostic.GetMessage(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task AProjectNestedInsideAHostFolder_Fails()
+    {
+        var diagnostics = await AnalyzeInventedHostAsync(
+            ImmutableDictionary<string, string>.Empty.Add(HostBoundaryAnalyzer.FeaturesOption, "Invoices"),
+            "Hosts/Billing/Api",
+            "Hosts/Billing/Api/Program.cs");
+
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Contains("'backend/Hosts/Billing/Api' no es la carpeta de un host", diagnostic.GetMessage(), StringComparison.Ordinal);
     }
 
     [Theory]
     [InlineData(null)]
     [InlineData("")]
-    public async Task AHostAssembly_WithoutItsProjectDirectory_Fails(string? directory)
+    public async Task AProjectThatCompilesHostFiles_WithoutItsProjectDirectory_Fails(string? directory)
     {
-        var diagnostics = await AnalyzeAsync("TemplateApp", directory, new[] { Backend + "Features/Tasks/Domain/TaskItem.cs" });
+        var diagnostics = await AnalyzeAsync("Acme.Shop", directory, new[] { Backend + "Hosts/Monolith/Program.cs" });
 
         var diagnostic = Assert.Single(diagnostics);
-        Assert.Contains("'TemplateApp' es un host y la regla no puede leer la carpeta de su proyecto", diagnostic.GetMessage(), StringComparison.Ordinal);
+        Assert.Contains("'Acme.Shop' compila C:/repo/backend/Hosts/Monolith/Program.cs, de un host, y la regla no puede leer la carpeta de su proyecto", diagnostic.GetMessage(), StringComparison.Ordinal);
     }
 
     [Fact]
-    public async Task AHostAssembly_OutsideBackendHosts_Fails()
+    public async Task AProjectThatCompilesHostFiles_OutsideBackendHosts_Fails()
     {
-        var diagnostics = await AnalyzeAsync("TemplateApp", Backend.TrimEnd('/'), new[] { Backend + "Program.cs" });
+        var diagnostics = await AnalyzeAsync("Acme.Shop", Backend.TrimEnd('/'), new[] { Backend + "Hosts/Monolith/Program.cs" });
 
         var diagnostic = Assert.Single(diagnostics);
-        Assert.Contains("'TemplateApp' es un host y su proyecto está en C:/repo/backend", diagnostic.GetMessage(), StringComparison.Ordinal);
+        Assert.Contains("'Acme.Shop' compila C:/repo/backend/Hosts/Monolith/Program.cs, de un host, y su proyecto está en C:/repo/backend", diagnostic.GetMessage(), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -217,21 +277,33 @@ public sealed class HostBoundaryAnalyzerTests
     {
         var properties = projectDirectory is null
             ? ImmutableDictionary<string, string>.Empty
-            : ImmutableDictionary<string, string>.Empty.Add(HostBoundaryAnalyzer.ProjectDirectoryOption, projectDirectory.Replace('/', '\\'));
+            : Declared(projectDirectory).Add(HostBoundaryAnalyzer.ProjectDirectoryOption, projectDirectory.Replace('/', '\\'));
         return RunAsync(assembly, properties, files, references.Select(Reference));
     }
+
+    private static ImmutableDictionary<string, string> Declared(string projectDirectory) =>
+        projectDirectory.EndsWith("Hosts/Monolith", StringComparison.Ordinal) ? ImmutableDictionary<string, string>.Empty.Add(HostBoundaryAnalyzer.ExcludedFeaturesOption, "Tasks")
+        : projectDirectory.EndsWith("Hosts/Tasks", StringComparison.Ordinal) ? ImmutableDictionary<string, string>.Empty.Add(HostBoundaryAnalyzer.FeaturesOption, "Tasks, Health")
+        : ImmutableDictionary<string, string>.Empty;
+
+    private static Task<ImmutableArray<Diagnostic>> AnalyzeInventedHostAsync(ImmutableDictionary<string, string> declaration, string folder, params string[] files) =>
+        RunAsync(
+            "Acme.Billing",
+            declaration.Add(HostBoundaryAnalyzer.ProjectDirectoryOption, Backend + folder),
+            files.Select(file => Backend + file),
+            new[] { Reference("TemplateApp.Platform") });
 
     private static Task<ImmutableArray<Diagnostic>> AnalyzeProjectAsync(string assembly, string folder, IEnumerable<string> files, MetadataReference reference) =>
         RunAsync(
             assembly,
-            ImmutableDictionary<string, string>.Empty.Add(HostBoundaryAnalyzer.ProjectDirectoryOption, Backend + folder),
+            Declared(Backend + folder).Add(HostBoundaryAnalyzer.ProjectDirectoryOption, Backend + folder),
             files.Select(file => Backend + file),
             new[] { reference });
 
     private static Task<ImmutableArray<Diagnostic>> AnalyzeWithIntermediateAsync(string intermediate, params string[] files) =>
         RunAsync(
             "TemplateApp",
-            ImmutableDictionary<string, string>.Empty
+            Declared(Backend + "Hosts/Monolith")
                 .Add(HostBoundaryAnalyzer.ProjectDirectoryOption, Backend + "Hosts/Monolith")
                 .Add(HostBoundaryAnalyzer.IntermediateOutputOption, intermediate),
             files,

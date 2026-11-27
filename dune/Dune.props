@@ -1,14 +1,20 @@
 <Project>
-  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'TemplateApp' Or '$(MSBuildProjectName)' == 'TemplateApp.Tests' Or '$(MSBuildProjectName)' == 'TemplateApp.Gateway' Or '$(MSBuildProjectName)' == 'TemplateApp.Platform' Or '$(MSBuildProjectName)' == 'TemplateApp.Tasks' Or $(MSBuildProjectDirectory.Replace('\', '/').Contains('/backend/Hosts/'))">
+  <PropertyGroup>
+    <DuneRepositoryRoot>$([MSBuild]::NormalizeDirectory('$(MSBuildThisFileDirectory)', '..'))</DuneRepositoryRoot>
+    <DuneProjectPath>$([MSBuild]::MakeRelative('$(DuneRepositoryRoot)', '$(MSBuildProjectDirectory)').Replace('\', '/'))/</DuneProjectPath>
+    <DuneApplies Condition="$(DuneProjectPath.StartsWith('backend/', StringComparison.OrdinalIgnoreCase)) Or $(DuneProjectPath.StartsWith('gateway/', StringComparison.OrdinalIgnoreCase))">true</DuneApplies>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(DuneApplies)' == 'true'">
     <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
-    <WarningsAsErrors>DUNE0001;DUNE0002;DUNE0003;DUNE0004;DUNE0005;DUNE0006;DUNE0007;DUNE0008;DUNE0009;DUNE0010;DUNE0011;DUNE0012;DUNE0013;DUNE0014;DUNE0015;DUNE0016;DUNE0017;DUNE0018;DUNE0019;DUNE0020;DUNE0021;DUNE0022;DUNE0023;DUNE0024;DUNE0025;DUNE0026;DUNE0027;DUNE0028;DUNE0029;DUNE0032;RS0030;RS0031;RS0032;RS0033;RS0034;CA1849</WarningsAsErrors>
+    <WarningsAsErrors>DUNE0001;DUNE0002;DUNE0003;DUNE0004;DUNE0005;DUNE0006;DUNE0007;DUNE0008;DUNE0009;DUNE0010;DUNE0011;DUNE0012;DUNE0013;DUNE0014;DUNE0015;DUNE0016;DUNE0017;DUNE0018;DUNE0019;DUNE0020;DUNE0021;DUNE0022;DUNE0023;DUNE0024;DUNE0025;DUNE0026;DUNE0027;DUNE0028;DUNE0029;DUNE0032;DUNE0033;RS0030;RS0031;RS0032;RS0033;RS0034;CA1849</WarningsAsErrors>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <AnalysisMode>All</AnalysisMode>
     <CodeAnalysisTreatWarningsAsErrors>false</CodeAnalysisTreatWarningsAsErrors>
   </PropertyGroup>
 
-  <ItemGroup Condition="'$(MSBuildProjectName)' == 'TemplateApp' Or '$(MSBuildProjectName)' == 'TemplateApp.Tests' Or '$(MSBuildProjectName)' == 'TemplateApp.Gateway' Or '$(MSBuildProjectName)' == 'TemplateApp.Platform' Or '$(MSBuildProjectName)' == 'TemplateApp.Tasks' Or $(MSBuildProjectDirectory.Replace('\', '/').Contains('/backend/Hosts/'))">
+  <ItemGroup Condition="'$(DuneApplies)' == 'true'">
     <ProjectReference Include="$(MSBuildThisFileDirectory)Dune.Analyzers/Dune.Analyzers.csproj"
                       PrivateAssets="all"
                       ReferenceOutputAssembly="false"
@@ -17,6 +23,8 @@
     <AdditionalFiles Include="$(MSBuildThisFileDirectory)BannedSymbols.txt" />
     <CompilerVisibleProperty Include="MSBuildProjectDirectory" />
     <CompilerVisibleProperty Include="IntermediateOutputPath" />
+    <CompilerVisibleProperty Include="DuneHostFeatures" />
+    <CompilerVisibleProperty Include="DuneHostExcludedFeatures" />
   </ItemGroup>
 
 </Project>

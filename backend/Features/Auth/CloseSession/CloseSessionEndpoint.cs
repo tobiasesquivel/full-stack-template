@@ -2,9 +2,11 @@ using ErrorOr;
 using TemplateApp.Features.Auth.Access;
 using Wolverine;
 using TemplateApp.Infrastructure.Http;
+using TemplateApp.Shared.Architecture;
 
 namespace TemplateApp.Features.Auth.CloseSession;
 
+[DuneExemption(DuneCheck.IdempotentPost, "Cerrar una sesión ya cerrada no cambia nada.")]
 internal static class CloseSessionEndpoint
 {
     public static void Map(IEndpointRouteBuilder auth) =>
