@@ -42,6 +42,28 @@ describe('hosts', () => {
     });
   });
 
+  it('rechaza un .csproj suelto en backend/Hosts, fuera de la carpeta de un host', () => {
+    withRepo({ Monolith: ['TemplateApp.csproj'] }, (root) => {
+      writeFileSync(path.join(root, 'backend/Hosts/Billing.csproj'), '<Project />');
+      const { projects, problems } = discoverHosts(root);
+      assert.deepEqual(projects, ['backend/Hosts/Monolith/TemplateApp.csproj']);
+      assert.deepEqual(problems, ['backend/Hosts/Billing.csproj está suelto; cada host vive en backend/Hosts/<Host>/, con su .csproj en la raíz de esa carpeta']);
+    });
+  });
+
+  it('rechaza la carpeta de hosts escrita con otras mayúsculas', () => {
+    const root = mkdtempSync(path.join(os.tmpdir(), 'dune-hosts-'));
+    try {
+      mkdirSync(path.join(root, 'backend/hosts/Billing'), { recursive: true });
+      writeFileSync(path.join(root, 'backend/hosts/Billing/Acme.Billing.csproj'), '<Project />');
+      const { projects, problems } = discoverHosts(root);
+      assert.deepEqual(projects, []);
+      assert.ok(problems.includes('backend/hosts: la carpeta de hosts se escribe backend/Hosts; con otra grafía, check-host-items y check-codegen no la recorren'), problems.join('\n'));
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it('rechaza un host que es un enlace a otra carpeta, aunque la carpeta tenga un .csproj', () => {
     withRepo({ Monolith: ['TemplateApp.csproj'] }, (root) => {
       const outside = path.join(root, 'outside');
