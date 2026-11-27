@@ -520,7 +520,7 @@ El paso 0.28 se agregó el 2026-10-17, a pedido de Tobi, con otro pendiente del 
 
 **Objetivo**: que un proyecto nuevo nazca de este repo y crezca con la misma metodología. En una carpeta vacía, `dotnet new fst -n Acme.Shop` copia y renombra, y `dotnet run --project tools/Molde -- inicializar` crea las migraciones iniciales, hace `git init` y el primer commit con el sha del template. El proyecto es un **monolito modular** con Platform, Auth, Users y Health, el gateway, compose (PostgreSQL y RabbitMQ), `deploy/`, el CI y Dune copiado. No trae Tasks, Projects, el frontend ni los docs del laboratorio. Para agregar una feature, el agente corre `tools/Molde` y después escribe el dominio; Auth y Users son el ejemplo vivo de cada patrón. Diseño y decisiones: filas `template` de `docs/decisions.tsv` (2026-11-27), [piramide-invertida.md](../piramide-invertida.md), [template-generico.md](investigacion/template-generico.md) y [template-molde-versionado.md](investigacion/template-molde-versionado.md).
 
-**Orden**: T1-T6 sacan los acoples a features concretas antes de armar el template; si no, cada proyecto nuevo los hereda. Rige el modo autónomo sin paradas (`AGENTS.md`). Cada paso es un PR que mergea Tobi.
+**Orden**: T1-T6 sacan los acoples a features concretas antes de armar el template; si no, cada proyecto nuevo los hereda. Rige el modo autónomo sin paradas (`AGENTS.md`). Cada paso es un PR que el hilo mergea con el CI en verde y la revisión de Codex pasada.
 
 **T0. Plan y decisiones de la fase.**
 **Concepto**: decidir antes de construir; la pirámide invertida (código, chequeos, verificación, prosa, revisión humana).
