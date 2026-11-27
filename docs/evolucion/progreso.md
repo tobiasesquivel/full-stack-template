@@ -4,6 +4,8 @@ Registro vivo del [plan](plan.md). El agente lo actualiza al cerrar cada paso.
 
 ## Paso actual
 
+**Fase T, paso T0: plan y decisiones de la fase Template.** Estado: en curso (PR de docs, lo mergea Tobi). Después siguen T1 a T9 en modo autónomo sin paradas, un hilo por paso que sale de `main` cuando Tobi mergeó el anterior (`AGENTS.md`, "Modo autónomo"). El paso 30 sigue bloqueado por la decisión de Tobi, como dice el párrafo de abajo.
+
 **Paso 30: Pasarela de pago detrás de un puerto propio.** Estado: bloqueado por la decisión de Tobi (proveedor y modalidad, regla 5). El paso 29.2 cerró el 2026-11-24 en modo autónomo. El modo autónomo sigue para la reorganización de carpetas (`AGENTS.md`, "Modo autónomo"), que va en partes, una por PR: las partes 1 (`Infrastructure/Messaging`), 2 (`Infrastructure/Persistence`), 3 (`Infrastructure/Http`), 4 (los nombres del bus en `MessageNames/`), 5 (`backend/Tests/Support`), 6 (el host del monolito en `backend/Hosts/Monolith/`), 7 (`docs/agents/`), 8 (los informes en `docs/evolucion/informes/`), 9 (los gates Node en `dune/gates/`) y 10 (lo suelto en la raíz de cada feature, a carpetas técnicas) cerraron el 2026-11-24; no queda ninguna parte. Desde el paso 30 rige la regla 11.
 
 La Fase 0 va antes del paso 2. El paso 1 (línea base) ya cerró y sirve de referencia para la Fase 0.
@@ -104,6 +106,16 @@ Estados: `pendiente`, `en curso`, `cerrado`, `bloqueado (⏸ decisión de Tobi)`
 | 34 | Cadena de suministro | pendiente | |
 | 35 | Despliegue progresivo con rollback probado | pendiente | |
 | 36 | Gobernanza final | pendiente | |
+| T0 | Plan y decisiones de la fase Template | en curso | |
+| T1 | Dune revisa toda feature | pendiente | |
+| T2 | Las listas que se pueden calcular se calculan | pendiente | |
+| T3 | Los hosts descubren las features | pendiente | |
+| T4 | Cada feature declara sus permisos | pendiente | |
+| T5 | El cierre de cuenta con participantes anotados | pendiente | |
+| T6 | Dune avisa si una slice no está registrada | pendiente | |
+| T7 | El template `fst` | pendiente | |
+| T8 | `tools/Molde` | pendiente | |
+| T9 | Docs que viajan y skill | pendiente | |
 
 ## Pendientes fuera de alcance
 
