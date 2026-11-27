@@ -107,7 +107,7 @@ Estados: `pendiente`, `en curso`, `cerrado`, `bloqueado (⏸ decisión de Tobi)`
 | 35 | Despliegue progresivo con rollback probado | pendiente | |
 | 36 | Gobernanza final | pendiente | |
 | T0 | Plan y decisiones de la fase Template | en curso | |
-| T1 | Dune revisa toda feature | pendiente | |
+| T1 | Dune sin nombres fijos de features ni de hosts | pendiente | |
 | T2 | Las listas que se pueden calcular se calculan | pendiente | |
 | T3 | Los hosts descubren las features | pendiente | |
 | T4 | Cada feature declara sus permisos | pendiente | |

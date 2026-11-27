@@ -1,7 +1,7 @@
 # Template genérico: cómo lo hacen los profesionales (investigación)
 
 - Fecha: 2026-11-27.
-- Estado: **Listo** como investigación. No toca código. Deja abiertas tres decisiones para Tobi (al final, en "Qué aplica a este repo").
+- Estado: **antecedente**. Las tres decisiones que dejaba abiertas ya se tomaron: las piezas las genera `tools/Molde` dentro del proyecto, no `dotnet new` ([template-molde-versionado.md](template-molde-versionado.md)); la slice se registra en su feature con una regla de Dune que avisa; Dune viaja copiado. El diseño vigente está en la Fase T de [plan.md](../plan.md) y en las filas `template` de `docs/decisions.tsv`.
 - Pregunta: ¿cómo arman los profesionales un template (= un proyecto molde del que se crean proyectos nuevos) que mantiene su arquitectura mientras crece, y que guía a personas y agentes de código a sumar features de la forma convencional?
 - Decisiones ya tomadas por Tobi, que esta investigación no discute: `dotnet new` (= el comando del SDK de .NET que crea proyectos desde un template) para el proyecto y para un generador de piezas (feature, command, query, event, contract); el proyecto nuevo arranca con Auth y Users y sin features de negocio; los docs del laboratorio quedan en este repo y no van al proyecto generado; por ahora, solo backend.
 - Base: rama `t3/generic-backend-template` en `ace5653`.

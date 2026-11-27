@@ -527,45 +527,45 @@ El paso 0.28 se agregó el 2026-10-17, a pedido de Tobi, con otro pendiente del 
 **Cambia**: este plan, `progreso.md`, `docs/decisions.tsv`, `AGENTS.md` (regla 6 y modo autónomo), `docs/piramide-invertida.md`, las dos investigaciones.
 **Verifica**: solo docs; los gates de docs y links pasan.
 
-**T1. Dune revisa toda feature.**
+**T1. Dune sin nombres fijos de features ni de hosts.**
 **Concepto**: una regla que guarda una lista de nombres deja afuera lo nuevo sin avisar.
-**Cambia**: DUNE0016, 0019, 0028, 0029, 0031 y 0032 dejan de nombrar features: valen para todas, y cada excepción la declara la propia feature en una línea visible. `dune/Dune.props` aplica Dune a todo proyecto bajo `backend/`, sin depender del nombre `TemplateApp*`.
-**Verifica**: una fixture con una feature inventada (`Invoices`) que viola cada regla falla; antes del paso pasaba. Un proyecto con otro nombre recibe Dune.
+**Cambia**: DUNE0028, 0029 y 0031 dejan de tener listas de features y valen para todas. Las excepciones escritas dentro de DUNE0016 (`Auth`), 0019 (`Users/GetUser`) y 0028 (`Auth/IssueCsrfToken`) pasan a declararse en la propia feature, en una línea visible. Las listas de hosts (DUNE0032, la excepción de código generado de DUNE0009, `check-codegen` y `check-host-items`) salen de las carpetas de `backend/Hosts/`. `dune/Dune.props` aplica Dune a todo proyecto bajo `backend/` y `gateway/`, sin depender del nombre `TemplateApp*`.
+**Verifica**: por regla, el caso de antes y el de después: con una feature inventada (`Invoices`), DUNE0028, 0029 y 0031 pasaban y ahora fallan; DUNE0016, 0019 y 0032 ya fallaban y siguen fallando, con sus excepciones movidas a la feature. Un host inventado entra en las listas sin editarlas. Un proyecto con otro nombre, en `backend/` y en `gateway/`, recibe Dune.
 
 **T2. Las listas que se pueden calcular se calculan.**
 **Concepto**: una fuente de verdad; lo derivado no se escribe a mano.
-**Cambia**: el `Search Path` de `DatabaseSearchPath` sale de las constantes `Schema` de los DbContext registrados; lo mismo los relays del outbox de `IsolatedApi` y el conteo de filas por dueño de `DatabaseRows`.
-**Verifica**: el test comprueba que cada contexto registrado está en el `Search Path`; Infrastructure no nombra ninguna feature.
+**Cambia**: el `Search Path` de `DatabaseSearchPath` sale de las constantes `Schema` de los DbContext registrados; lo mismo los relays del outbox de `IsolatedApi` y el conteo de filas por dueño de `DatabaseRows`. La columna de dueño de cada tabla (hoy `OwnerId` o `AuthId`) sale de una declaración explícita de la entidad (por ejemplo `IOwnedResource`), no de una lista.
+**Verifica**: con un contexto de prueba registrado, aparece su schema en el `Search Path`, su outbox se vacía en los tests y sus filas se cuentan por dueño. Infrastructure no nombra ninguna feature. El ensayo de migraciones en dos despliegues (`conventions.md`, expand/contract) sigue verde.
 
 **T3. Los hosts descubren las features.**
 **Concepto**: lo nuevo agrega archivos aislados, no ramas en raíces compartidas.
-**Cambia**: cada `<F>Feature` implementa una interfaz de Platform y cada host recorre las de su compilación; `Program.cs` deja de listarlas. ADR nuevo, porque `conventions.md` pedía `Program.cs` explícito.
-**Verifica**: un test con una feature inventada responde sin tocar `Program.cs`; un test lista las features que arrancaron en cada host; el host de Tasks sigue viendo solo Tasks y Health.
+**Cambia**: cada `<F>Feature` implementa una interfaz de Platform que registra servicios, rutas públicas y rutas internas, y cada host recorre las de su compilación; `Program.cs` deja de listarlas. ADR nuevo, y se actualizan `conventions.md` y `architecture.md`, que describen la lista explícita.
+**Verifica**: una feature inventada responde por una ruta pública y por una interna sin tocar `Program.cs`, en el monolito y en el host de Tasks; un test lista las features que arrancaron en cada host; el host de Tasks sigue viendo solo Tasks y Health.
 
 **T4. Cada feature declara sus permisos.**
 **Concepto**: el dueño de un dato es quien lo declara.
-**Cambia**: `Access/<F>Permissions.cs` declara los permisos y qué rol recibe cada uno; Auth los junta sin nombrar features (`RolePermissions`, `TaskPermissionNames`).
-**Verifica**: los permisos de cada rol no cambian (test de `TestAccounts`); Auth no importa el `Contracts` de ninguna feature por permisos.
+**Cambia**: `Access/<F>Permissions.cs` declara los permisos y qué rol recibe cada uno; Auth los junta sin nombrar features (`RolePermissions`, `TaskPermissionNames`). Una feature desplegada en otro proceso (Tasks) no se compila en el monolito: el paso define cómo llega su declaración a Auth y actualiza la sección de permisos de `architecture.md`.
+**Verifica**: los permisos de los tres roles no cambian, comprobados por la consulta de sesión que usa Tasks (`AuthSessionClient`), no solo el rol `User` de `TestAccounts`; Auth no importa el `Contracts` de ninguna feature por permisos.
 
 **T5. El cierre de cuenta con participantes anotados.**
 **Concepto**: una saga que espera a participantes declarados, sin conocerlos por nombre.
-**Cambia**: cada feature con datos por dueño se anota como participante; la saga de Users espera a los anotados (los de otro proceso, por configuración). Users y Auth dejan de nombrar a Tasks y a Projects (`CompleteAccountClosure`, `MessageNames/Task*`, `RetiredBinding`).
-**Verifica**: los tests del cierre (V1-V7 del paso 26) siguen verdes; el cierre completa con un proyecto que tiene solo Auth y Users.
+**Cambia**: cada feature con datos por dueño se anota como participante; la saga de Users espera a los anotados (los de otro proceso, por configuración). Users y Auth dejan de nombrar a Tasks y a Projects (`CompleteAccountClosure`, `MessageNames/Task*`). El paso define cómo se retoman las sagas guardadas que esperan una respuesta concreta de Tasks y dónde queda la limpieza de suscripciones retiradas (`RetiredBinding`).
+**Verifica**: los tests del cierre (V1-V7 del paso 26) siguen verdes. Un cierre iniciado con la versión anterior, que queda esperando a Tasks, termina después de actualizar y reiniciar. Un módulo de prueba anotado como participante demuestra que el cierre espera su confirmación y lo libera si Auth rechaza. El cierre completa con solo Auth y Users.
 
 **T6. Dune avisa si una slice no está registrada.**
 **Concepto**: un error accionable dice qué línea falta y dónde.
-**Cambia**: regla nueva: un endpoint de slice que no aparece en su `<F>Feature.cs` falla con el texto de la línea a agregar.
-**Verifica**: fixture válida y violación deliberada.
+**Cambia**: regla nueva: una slice cuya ruta o cuyo handler del mediator no está registrado en su `<F>Feature.cs` falla con el texto de la línea a agregar. Conserva la excepción de `Auth/IssueCsrfToken`, que emite la cookie sin un comando.
+**Verifica**: fixture válida y una violación deliberada por cada registro faltante (ruta y handler, por separado); la excepción sigue pasando.
 
 **T7. El template `fst`.**
 **Concepto**: un template se prueba creándolo.
-**Cambia**: `.template.config` con `sourceName` para todas las formas del nombre; excluye Tasks, Projects, `Hosts/Tasks`, el frontend y los docs del laboratorio; docs que viajan: `conventions.md`, ADR, `architecture.md` genérico, `piramide-invertida.md`, AGENTS.md corto (con la regla "no hay merge autónomo de PRs"), `decisions.tsv` vacío con link a la historia de este repo. Se instala desde la carpeta del repo. Job de CI.
-**Verifica**: el job instala el template, crea un proyecto, compila, corre tests y Dune, mete una violación a propósito y comprueba que Dune falla; falla si queda `TemplateApp` o `templateapp`.
+**Cambia**: `.template.config` con `sourceName` para todas las formas del nombre; excluye Tasks, Projects, `Hosts/Tasks`, el frontend y los docs del laboratorio; docs que viajan: `conventions.md`, ADR, `architecture.md` genérico, `piramide-invertida.md`, AGENTS.md corto (con la regla "no hay merge autónomo de PRs"), `decisions.tsv` vacío con link a la historia de este repo. Adapta lo que hoy espera a Tasks o al frontend: la solución, el proyecto de tests (referencia a `Hosts/Tasks`, `ApiPair`), `compose.yaml`, el gateway, `deploy/`, `check-structure` (pide `frontend/nginx.conf`) y las migraciones del historial compartido de `Infrastructure/Persistence/Migrations`. `templateapp` en minúsculas tiene su propio reemplazo derivado. Se instala desde la carpeta del repo. Job de CI; hasta T8, el job hace `git init` y un commit en el proyecto temporal antes de los gates, porque `check-codegen` usa `git ls-files`.
+**Verifica**: el job instala el template, crea `Acme.Shop` (nombre con punto), compila, corre tests y Dune, mete una violación a propósito y comprueba que Dune falla; falla si queda `TemplateApp` o `templateapp`. Además arranca el proyecto con compose y prueba salud y registro de usuario a través del gateway (entrada única, ADR-0005).
 
 **T8. `tools/Molde`.**
 **Concepto**: el camino convencional es el más corto; el molde viaja con el proyecto y su versión coincide con su Dune.
-**Cambia**: programa C# sin librerías nuevas, con archivos de texto con marcadores: `inicializar` (migraciones iniciales, `git init`, primer commit con el sha), `feature` (`--con-dueño`: dueño, permisos, participante del cierre; sin `Contracts/` por defecto), `comando`, `query`, `evento`, `contract` y `consumidor`. Registra la slice en su feature, corre la migración y regenera Wolverine. No genera sagas ni procesos propios.
-**Verifica**: el job de T7 corre `inicializar`, genera dos features que se hablan por contract y una pieza de cada tipo, y todo compila y pasa Dune y tests.
+**Cambia**: programa C# sin librerías nuevas, con archivos de texto con marcadores: `inicializar` (migraciones iniciales, `git init`, primer commit con el sha), `feature` (`--con-dueño`: dueño, permisos, participante del cierre; sin `Contracts/` por defecto), `comando`, `query`, `evento`, `contract` y `consumidor`. Registra la slice en su feature, corre la migración y regenera Wolverine. No genera sagas ni procesos propios. El paso define cómo llega al proyecto el sha del template instalado (`dotnet new` no lo conoce por sí solo).
+**Verifica**: el job de T7 corre `inicializar` en lugar de su `git init`; el primer commit contiene el sha exacto de la revisión instalada; genera dos features que se hablan por contract y una pieza de cada tipo, y todo compila y pasa Dune y tests.
 
 **T9. Docs que viajan y skill.**
 **Concepto**: la prosa es el último recurso, y la que queda se vigila.
