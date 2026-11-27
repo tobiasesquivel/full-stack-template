@@ -551,13 +551,13 @@ El paso 0.28 se agregó el 2026-10-17, a pedido de Tobi, con otro pendiente del 
 
 **T5. El cierre de cuenta con participantes anotados.**
 **Concepto**: una saga que espera a participantes declarados, sin conocerlos por nombre.
-**Cambia**: cada feature con datos por dueño se anota como participante; la saga de Users espera a los anotados (los de otro proceso, por configuración). Users y Auth dejan de nombrar a Tasks y a Projects (`CompleteAccountClosure`, `MessageNames/Task*`). El paso elige cómo se retoman las sagas guardadas que esperan una respuesta concreta de Tasks (opciones: traducir el estado guardado al de participantes, o terminar las viejas con el código anterior antes de cambiar) y dónde queda la limpieza de suscripciones retiradas (`RetiredBinding`, opción: Platform). Cubre el caso de hoy en que, tras un rechazo, la saga espera la confirmación de que Tasks liberó al usuario (`AccountClosureSaga`).
+**Cambia**: cada feature con datos por dueño se anota como participante; la saga de Users espera a los anotados (los de otro proceso, por configuración). Users y Auth dejan de nombrar a Tasks y a Projects (`CompleteAccountClosure`, `MessageNames/Task*`). El paso elige cómo se retoman las sagas guardadas que esperan una respuesta concreta de Tasks (el estado guardado se traduce al de participantes al arrancar la versión nueva; el paso elige cómo) y dónde queda la limpieza de suscripciones retiradas (`RetiredBinding`, opción: Platform). Cubre el caso de hoy en que, tras un rechazo, la saga espera la confirmación de que Tasks liberó al usuario (`AccountClosureSaga`).
 **Verifica**: los tests del cierre (V1-V7 del paso 26) siguen verdes. Un cierre guardado por la versión anterior en cada estado de espera (esperando la retención inicial, y rechazado esperando que Tasks libere al usuario) termina después de actualizar y reiniciar. Las suscripciones retiradas desaparecen de RabbitMQ, consultado como hoy en `RetiredBindingsTests`. Un módulo de prueba anotado como participante demuestra que el cierre espera su confirmación y lo libera si Auth rechaza. El cierre completa con solo Auth y Users.
 
 **T6. Dune avisa si una slice no está registrada.**
 **Concepto**: un error accionable dice qué línea falta y dónde.
 **Cambia**: regla nueva: una slice cuya ruta o cuyo handler del mediator no está registrado en su `<F>Feature.cs` falla con el texto de la línea a agregar. Conserva las excepciones declaradas en T1: `Auth/IssueCsrfToken`, que emite la cookie sin un comando, y las rutas de salud de Health.
-**Verifica**: fixture válida y una violación deliberada por cada registro faltante (ruta y handler, por separado); las excepciones siguen pasando.
+**Verifica**: fixture válida y una violación deliberada por cada registro faltante (ruta y handler, por separado); las excepciones siguen pasando sin mediator, pero sus rutas siguen obligadas a estar registradas: borrar el registro de la ruta de `IssueCsrfToken` o de una ruta de Health falla.
 
 **T7. El template `fst`.**
 **Concepto**: un template se prueba creándolo.
