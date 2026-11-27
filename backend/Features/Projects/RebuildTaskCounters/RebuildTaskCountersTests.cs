@@ -11,6 +11,7 @@ using TemplateApp.Tests.Support.Clients;
 using TemplateApp.Tests.Support.Hosts;
 using TemplateApp.Tests.Support.Rows;
 using Xunit;
+using TemplateApp.Features.Tasks.Persistence;
 
 namespace TemplateApp.Features.Projects.RebuildTaskCounters;
 
@@ -33,7 +34,7 @@ public sealed class RebuildTaskCountersTests : IDisposable
     {
         IsolatedApi api = await StartAsync();
         await TaskCounterScenario.SeedAsync(api);
-        await api.DrainOutboxAsync();
+        await api.DrainAsync();
         List<TaskCounterRow> before = await api.Pair.Monolith.Services.AllTaskCountersAsync();
 
         await ExecuteSqlAsync(api, """DELETE FROM projects."ProjectTaskCounters" """);
@@ -51,7 +52,7 @@ public sealed class RebuildTaskCountersTests : IDisposable
         await TaskCounterScenario.SeedAsync(api);
 
         await RebuildAsync(api);
-        await api.DrainOutboxAsync();
+        await api.DrainAsync();
 
         Assert.Equal(await api.Pair.Monolith.Services.CountedTasksAsync(), await api.Pair.Monolith.Services.AllTaskCountersAsync());
     }
@@ -66,7 +67,7 @@ public sealed class RebuildTaskCountersTests : IDisposable
         await RebuildAsync(api);
 
         await alice.CreateTaskAsync("Después", project);
-        await api.DrainOutboxAsync();
+        await api.DrainAsync();
 
         Assert.Equal((2, 0), await api.Pair.Monolith.Services.TaskCountersAsync(project));
     }
@@ -78,7 +79,7 @@ public sealed class RebuildTaskCountersTests : IDisposable
         TestSession alice = await api.SignUpAsync("alice");
         string project = await alice.CreateProjectAsync("Casa");
         await alice.CreateTaskAsync("Comprar pan", project);
-        await api.DrainOutboxAsync();
+        await api.DrainAsync();
         OutboxRow applied = Assert.Single(await api.Pair.Tasks.Services.AllOutboxRowsAsync());
         await RebuildAsync(api);
 
@@ -103,14 +104,14 @@ public sealed class RebuildTaskCountersTests : IDisposable
         string project = await alice.CreateProjectAsync("Casa");
         await MonolithListener.StopAsync(api);
         await alice.CreateTaskAsync("En la cola", project);
-        await api.PublishOutboxAsync();
+        await api.PublishOutboxAsync<TasksDbContext>();
         Assert.Equal(1u, await broker.CountAsync(TaskEventsBroker.Queue));
 
         await RebuildAsync(api);
         Assert.Equal((1, 0), await api.Pair.Monolith.Services.TaskCountersAsync(project));
         await MonolithListener.StartAsync(api);
         await alice.CreateTaskAsync("Después, en la misma cola", project);
-        await api.DrainOutboxAsync();
+        await api.DrainAsync();
 
         Assert.Equal((2, 0), await api.Pair.Monolith.Services.TaskCountersAsync(project));
     }
@@ -122,7 +123,7 @@ public sealed class RebuildTaskCountersTests : IDisposable
         TestSession alice = await first.SignUpAsync("alice");
         string project = await alice.CreateProjectAsync("Casa");
         await alice.CreateTaskAsync("Abierta", project);
-        await first.DrainOutboxAsync();
+        await first.DrainAsync();
         await ExecuteSqlAsync(first, """DELETE FROM projects."ProjectTaskCounters" """);
 
         IsolatedApi second = IsolatedApi.StartOn(first.Database, _broker, first.Prefix);

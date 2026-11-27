@@ -55,7 +55,7 @@ public sealed class AccountClosureGracePeriodTests : IDisposable
         Assert.Equal(2, reminders.Values.Count);
         Assert.Equal(0, await GracePeriodsAsync(api, closure));
         Assert.Equal("Completed", await DeleteUserBrokerTests.SagaStateAsync(api, closure));
-        Assert.Equal(OwnedRows.None, await api.Pair.Monolith.Services.OwnedRowsAsync(bob.AuthId));
+        Assert.Empty((await api.Pair.OwnedRowsAsync(bob.AuthId)).NonZero);
     }
 
     [Fact]
@@ -79,7 +79,7 @@ public sealed class AccountClosureGracePeriodTests : IDisposable
         ProblemAssert.Problem(cancelled, HttpStatusCode.Conflict, "User.ClosureNotCancellable");
         Assert.Equal(["requested", "reminder-sent:1", "reminder-sent:2", "grace-expired", "closure-started", "completed"], await HistoryAsync(api, closure));
         Assert.Equal("Completed", await DeleteUserBrokerTests.SagaStateAsync(api, closure));
-        Assert.Equal(OwnedRows.None, await api.Pair.Monolith.Services.OwnedRowsAsync(bob.AuthId));
+        Assert.Empty((await api.Pair.OwnedRowsAsync(bob.AuthId)).NonZero);
     }
 
     [Fact]

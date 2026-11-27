@@ -237,7 +237,7 @@ public sealed class CreateTaskTests : IClassFixture<ApiFixture>
 
         Assert.Equal(HttpStatusCode.InternalServerError, failed.Status);
         OwnedRows rows = await services.OwnedRowsAsync(alice.AuthId);
-        Assert.Equal((0L, 0L), (rows.Tasks, rows.IdempotencyKeys));
+        Assert.Equal((0L, 0L), (rows["tasks.TaskItems"], rows["platform.IdempotencyKeys"]));
     }
 
     [Fact]
@@ -286,7 +286,7 @@ public sealed class CreateTaskTests : IClassFixture<ApiFixture>
             Assert.True(problem.GetProperty("errors").TryGetProperty("ProjectId", out _));
         }
 
-        Assert.Equal(0, (await _fixture.Services.OwnedRowsAsync(alice.AuthId)).Tasks);
+        Assert.Equal(0, (await _fixture.OwnedRowsAsync(alice.AuthId))["tasks.TaskItems"]);
     }
 
     [Fact]
@@ -303,7 +303,7 @@ public sealed class CreateTaskTests : IClassFixture<ApiFixture>
         var rejected = await alice.SendAsync(HttpMethod.Post, "api/v1/tasks", new { title = "Embalar", projectId });
 
         ProblemAssert.Problem(rejected, HttpStatusCode.Conflict, "Task.ProjectArchived");
-        Assert.Equal(0, (await _fixture.Services.OwnedRowsAsync(alice.AuthId)).Tasks);
+        Assert.Equal(0, (await _fixture.OwnedRowsAsync(alice.AuthId))["tasks.TaskItems"]);
     }
 
     private const string ReplayedHeader = "Idempotent-Replayed";

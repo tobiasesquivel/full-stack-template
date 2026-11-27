@@ -37,8 +37,8 @@ public sealed class UserDeletionsTests : IAsyncDisposable
         await broker.PublishUserDeletedAsync(Guid.NewGuid(), alice.AuthId);
         await ConsumedAsync(api, broker);
 
-        Assert.Equal(0, (await api.Pair.Monolith.Services.OwnedRowsAsync(alice.AuthId)).Tasks);
-        Assert.Equal(1, (await api.Pair.Monolith.Services.OwnedRowsAsync(bob.AuthId)).Tasks);
+        Assert.Equal(0, (await api.Pair.OwnedRowsAsync(alice.AuthId))["tasks.TaskItems"]);
+        Assert.Equal(1, (await api.Pair.OwnedRowsAsync(bob.AuthId))["tasks.TaskItems"]);
         Assert.Equal(1, await DeletedEventsAsync(api, done));
         Assert.Equal(1, await DeletedEventsAsync(api, open));
         Assert.Equal(1, await TombstonesAsync(api, alice.AuthId));
@@ -62,7 +62,7 @@ public sealed class UserDeletionsTests : IAsyncDisposable
 
         Assert.Equal(1, await DeletedEventsAsync(api, first));
         Assert.Equal(1, await InboxRowsAsync(api, message));
-        Assert.Equal(1, (await api.Pair.Monolith.Services.OwnedRowsAsync(alice.AuthId)).Tasks);
+        Assert.Equal(1, (await api.Pair.OwnedRowsAsync(alice.AuthId))["tasks.TaskItems"]);
         Assert.Equal(0, await DeletedEventsAsync(api, seeded.ToString()));
     }
 

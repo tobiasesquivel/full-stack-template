@@ -10,6 +10,8 @@ using TemplateApp.Tests.Support.Hosts;
 using TemplateApp.Tests.Support.Probes;
 using TemplateApp.Tests.Support.Rows;
 using Xunit;
+using TemplateApp.Features.Tasks.Persistence;
+using TemplateApp.Features.Auth.Persistence;
 
 namespace TemplateApp.Features.Users.OrchestrateAccountClosure;
 
@@ -42,7 +44,7 @@ public sealed class AccountClosureSagaTests : IAsyncDisposable
 
         (_, Guid closure) = await DeleteUserTests.RequestClosureAsync(before, bob, "api/v1/users/me");
         Assert.Equal(1, await Eventually.Async(() => DeleteUserBrokerTests.HoldsAsync(before, bob.AuthId), holds => holds == 1, Wait));
-        await before.PublishOutboxAsync();
+        await before.PublishOutboxAsync<TasksDbContext>();
         Assert.Equal(1u, await Eventually.Async(() => broker.CountAsync(MonolithListener.Closures), waiting => waiting == 1, Wait));
         string? midState = await DeleteUserBrokerTests.SagaStateAsync(before, closure);
         before.Dispose();
@@ -55,7 +57,7 @@ public sealed class AccountClosureSagaTests : IAsyncDisposable
         Assert.Equal("Completed", await DeleteUserBrokerTests.SagaStateAsync(after, closure));
         Assert.Equal("Completed", await DeleteUserBrokerTests.DecisionAsync(after, closure));
         Assert.Equal(1, await HeldRepliesAsync(after, closure));
-        Assert.Equal(OwnedRows.None, await after.Pair.Monolith.Services.OwnedRowsAsync(bob.AuthId));
+        Assert.Empty((await after.Pair.OwnedRowsAsync(bob.AuthId)).NonZero);
         Assert.Equal(1, await after.Pair.Monolith.Services.CountAsync($"""SELECT count(*) AS "Value" FROM tasks."DeletedOwners" WHERE "OwnerId" = {bob.AuthId}"""));
         Assert.Equal(["completed"], finished.Values.Select(v => (string)v.Tags["templateapp.account_closure.outcome"]!));
     }
@@ -70,10 +72,10 @@ public sealed class AccountClosureSagaTests : IAsyncDisposable
         (_, Guid closure) = await DeleteUserTests.RequestClosureAsync(api, alice, "api/v1/users/me");
         Assert.Equal(1, await Eventually.Async(() => DeleteUserBrokerTests.HoldsAsync(api, alice.AuthId), holds => holds == 1, Wait));
         await TasksListener.StopAsync(api);
-        await api.PublishOutboxAsync();
+        await api.PublishOutboxAsync<TasksDbContext>();
         Assert.Equal("Rejected", await Eventually.Async(() => DeleteUserBrokerTests.DecisionAsync(api, closure), decision => decision == "Rejected", Wait));
         Assert.Equal("Deciding", await DeleteUserBrokerTests.SagaStateAsync(api, closure));
-        await api.PublishAuthOutboxAsync();
+        await api.PublishOutboxAsync<AuthDbContext>();
         Assert.Equal("ReleasingTasks", await Eventually.Async(() => DeleteUserBrokerTests.SagaStateAsync(api, closure), state => state == "ReleasingTasks", Wait));
         JsonElement whileReleasing = await DeleteUserTests.MeAsync(alice, "api/v1/users/me");
         JsonElement closureWhileReleasing = await ClosureAsync(alice, closure);
@@ -147,7 +149,7 @@ public sealed class AccountClosureSagaTests : IAsyncDisposable
         await TasksListener.StartAsync(api);
         await api.DrainAsync();
 
-        Assert.Equal(0, (await api.Pair.Monolith.Services.OwnedRowsAsync(bob.AuthId)).Profiles);
+        Assert.Equal(0, (await api.Pair.OwnedRowsAsync(bob.AuthId))["users.UserProfiles"]);
         Assert.Null(await DeleteUserBrokerTests.DecisionAsync(api, closure));
     }
 
@@ -184,7 +186,7 @@ public sealed class AccountClosureSagaTests : IAsyncDisposable
 
         Assert.Null(await DeleteUserBrokerTests.SagaStateAsync(api, closure));
         Assert.Null(await DeleteUserBrokerTests.DecisionAsync(api, closure));
-        Assert.Equal(1, (await api.Pair.Monolith.Services.OwnedRowsAsync(bob.AuthId)).Accounts);
+        Assert.Equal(1, (await api.Pair.OwnedRowsAsync(bob.AuthId))["auth.AspNetUsers"]);
     }
 
     public async ValueTask DisposeAsync()

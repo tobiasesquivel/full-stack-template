@@ -46,7 +46,7 @@ public sealed class ApplyTaskEventTests : IAsyncDisposable
         await alice.CreateTaskAsync("Suelta");
 
         Assert.Equal((0, 0), await CountersAsync(api, project));
-        await api.DrainOutboxAsync();
+        await api.DrainAsync();
 
         Assert.Equal((2, 1), await CountersAsync(api, project));
         Assert.Equal(await api.Pair.Monolith.Services.CountedTasksAsync(), await api.Pair.Monolith.Services.AllTaskCountersAsync());
@@ -61,9 +61,9 @@ public sealed class ApplyTaskEventTests : IAsyncDisposable
         string project = await alice.CreateProjectAsync("Casa");
         await alice.CreateTaskAsync("Comprar pan", project);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => api.Relay.RunOnceAsync(TestContext.Current.CancellationToken));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => api.RelayOf<TasksDbContext>().RunOnceAsync(TestContext.Current.CancellationToken));
         Assert.Equal((1, 0), await Eventually.Async(() => CountersAsync(api, project), counters => counters == (1, 0), TimeSpan.FromSeconds(30)));
-        await api.DrainOutboxAsync();
+        await api.DrainAsync();
 
         Assert.Equal((1, 0), await CountersAsync(api, project));
         Assert.Equal(1, await InboxRowsAsync(api));
@@ -172,9 +172,9 @@ public sealed class ApplyTaskEventTests : IAsyncDisposable
         string task = await alice.CreateTaskAsync("Comprar pan", project);
         await MonolithListener.StopAsync(api);
 
-        await api.PublishOutboxAsync();
+        await api.PublishOutboxAsync<TasksDbContext>();
         api.Clock.Advance(TimeSpan.FromDays(1));
-        await api.PublishOutboxAsync();
+        await api.PublishOutboxAsync<TasksDbContext>();
 
         OutboxRow published = Assert.Single(await api.Pair.Tasks.Services.OutboxRowsAsync(task));
         Assert.Equal((0, null), (published.Attempts, published.FailedAt));
@@ -182,7 +182,7 @@ public sealed class ApplyTaskEventTests : IAsyncDisposable
         Assert.Equal((0, 0), await CountersAsync(api, project));
 
         await MonolithListener.StartAsync(api);
-        await api.DrainOutboxAsync();
+        await api.DrainAsync();
 
         Assert.Equal((1, 0), await CountersAsync(api, project));
     }

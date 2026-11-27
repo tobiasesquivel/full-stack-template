@@ -43,7 +43,7 @@ public sealed class SnapshotTaskCountsTests : IDisposable
             Assert.Equal(4, undelivered.Length);
         }
 
-        await _api.DrainOutboxAsync();
+        await _api.DrainAsync();
 
         using JsonDocument delivered = await SnapshotAsync();
         Assert.Equal(4, delivered.RootElement.GetProperty("undeliveredMessageIds").GetArrayLength());

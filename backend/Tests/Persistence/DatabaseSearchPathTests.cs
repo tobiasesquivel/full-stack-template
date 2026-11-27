@@ -9,7 +9,8 @@ namespace TemplateApp.Tests.Persistence;
 
 public sealed class DatabaseSearchPathTests : IClassFixture<ApiFixture>
 {
-    private const string ExpectedSearchPath = "public,auth,users,tasks,platform,projects";
+    private const string MonolithSearchPath = "public,auth,platform,projects,users";
+    private const string TasksSearchPath = "public,platform,tasks";
 
     private readonly ApiFixture _fixture;
     private readonly PostgresFixture _postgres;
@@ -21,10 +22,10 @@ public sealed class DatabaseSearchPathTests : IClassFixture<ApiFixture>
     }
 
     [Fact]
-    public async Task EveryContextSession_SearchesPublicAndEveryFeatureSchema()
+    public async Task EveryContextSession_SearchesPublicAndTheSchemaOfEveryContextOfItsHost()
     {
-        Assert.Equal(Enumerable.Repeat(ExpectedSearchPath, 5), await SessionSearchPathsAsync(_fixture.Services));
-        Assert.Equal(Enumerable.Repeat(ExpectedSearchPath, 3), await SessionSearchPathsAsync(_fixture.TasksServices));
+        Assert.Equal(Enumerable.Repeat(MonolithSearchPath, 5), await SessionSearchPathsAsync(_fixture.Services));
+        Assert.Equal(Enumerable.Repeat(TasksSearchPath, 3), await SessionSearchPathsAsync(_fixture.TasksServices));
     }
 
     [Fact]
@@ -35,20 +36,26 @@ public sealed class DatabaseSearchPathTests : IClassFixture<ApiFixture>
             new Dictionary<string, string> { ["ConnectionStrings:DefaultConnection"] = configured },
             TestDatabases.SkipInitialization);
 
-        Assert.Equal(Enumerable.Repeat(ExpectedSearchPath, 5), await SessionSearchPathsAsync(api.Monolith.Services));
-        Assert.Equal(Enumerable.Repeat(ExpectedSearchPath, 3), await SessionSearchPathsAsync(api.Tasks.Services));
+        Assert.Equal(Enumerable.Repeat(MonolithSearchPath, 5), await SessionSearchPathsAsync(api.Monolith.Services));
+        Assert.Equal(Enumerable.Repeat(TasksSearchPath, 3), await SessionSearchPathsAsync(api.Tasks.Services));
     }
 
     [Fact]
-    public void TheSchemaOfEveryContext_IsInTheSearchPath()
+    public void TheRegisteredSchemaOfEveryContext_IsItsDefaultSchema_AndIsInTheSearchPath()
     {
         foreach (IServiceProvider host in new[] { _fixture.Services, _fixture.TasksServices })
         {
             using IServiceScope scope = host.CreateScope();
+            string[] searchPath = DatabaseSearchPath.Of(host).Split(',');
 
             Assert.All(
-                scope.ServiceProvider.MigratedContexts(),
-                context => Assert.Contains(context.Model.GetDefaultSchema(), ExpectedSearchPath.Split(',')));
+                host.GetServices<MigratedContext>(),
+                migrated =>
+                {
+                    DbContext context = (DbContext)scope.ServiceProvider.GetRequiredService(migrated.ContextType);
+                    Assert.Equal(migrated.Schema, context.Model.GetDefaultSchema());
+                    Assert.Contains(migrated.Schema, searchPath);
+                });
         }
     }
 

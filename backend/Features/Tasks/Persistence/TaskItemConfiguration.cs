@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using TemplateApp.Features.Tasks.Domain;
+using TemplateApp.Infrastructure.Persistence.Ownership;
 
 namespace TemplateApp.Features.Tasks.Persistence;
 
@@ -9,6 +10,7 @@ internal sealed class TaskItemConfiguration : IEntityTypeConfiguration<TaskItem>
     public void Configure(EntityTypeBuilder<TaskItem> builder)
     {
         builder.HasKey(t => t.Id);
+        builder.ErasedWithOwner(t => t.OwnerId);
 
         builder.Ignore(t => t.DomainEvents);
 

@@ -1,7 +1,9 @@
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using TemplateApp.Features.Auth.Domain;
 using TemplateApp.Infrastructure.Messaging;
+using TemplateApp.Infrastructure.Persistence.Ownership;
 
 namespace TemplateApp.Features.Auth.Persistence;
 
@@ -21,6 +23,8 @@ internal sealed class AuthDbContext : IdentityDbContext<AppIdentityUser>
     {
         base.OnModelCreating(builder);
         builder.HasDefaultSchema(Schema);
+        builder.Entity<AppIdentityUser>().ErasedWithOwner(u => u.Id);
+        builder.Entity<IdentityUserRole<string>>().ErasedWithOwner(r => r.UserId);
         builder.ApplyConfiguration(new SessionConfiguration());
         builder.ApplyConfiguration(new AccountClosureConfiguration());
         builder.MapOutbox();
