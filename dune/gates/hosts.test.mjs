@@ -51,6 +51,27 @@ describe('hosts', () => {
     });
   });
 
+  it('rechaza un .csproj en una subcarpeta de un host y conserva el host válido', () => {
+    withRepo({ Monolith: ['TemplateApp.csproj'] }, (root) => {
+      mkdirSync(path.join(root, 'backend/Hosts/Monolith/Billing'), { recursive: true });
+      writeFileSync(path.join(root, 'backend/Hosts/Monolith/Billing/Billing.csproj'), '<Project />');
+      mkdirSync(path.join(root, 'backend/Hosts/Monolith/obj/Release'), { recursive: true });
+      writeFileSync(path.join(root, 'backend/Hosts/Monolith/obj/Release/Copy.csproj'), '<Project />');
+      const { projects, problems } = discoverHosts(root);
+      assert.deepEqual(projects, ['backend/Hosts/Monolith/TemplateApp.csproj']);
+      assert.deepEqual(problems, ['backend/Hosts/Monolith/Billing/Billing.csproj está dentro de la carpeta de un host; cada host vive en backend/Hosts/<Host>/ y su .csproj va en la raíz de esa carpeta']);
+    });
+  });
+
+  it('reconoce la extensión .csproj sin mirar mayúsculas', () => {
+    withRepo({ Monolith: ['TemplateApp.csproj'], Billing: ['Acme.Billing.CSPROJ'] }, (root) => {
+      writeFileSync(path.join(root, 'backend/Hosts/Extra.CSPROJ'), '<Project />');
+      const { projects, problems } = discoverHosts(root);
+      assert.deepEqual(projects, ['backend/Hosts/Billing/Acme.Billing.CSPROJ', 'backend/Hosts/Monolith/TemplateApp.csproj']);
+      assert.deepEqual(problems, ['backend/Hosts/Extra.CSPROJ está suelto; cada host vive en backend/Hosts/<Host>/, con su .csproj en la raíz de esa carpeta']);
+    });
+  });
+
   it('rechaza la carpeta de hosts escrita con otras mayúsculas', () => {
     const root = mkdtempSync(path.join(os.tmpdir(), 'dune-hosts-'));
     try {
