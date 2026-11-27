@@ -165,6 +165,8 @@ jobs:
         run: node dune/gates/check-codegen.mjs --release
       - name: Límite de despliegue sobre los archivos que evalúa MSBuild en cada host
         run: node dune/gates/check-host-items.mjs
+      - name: Dune.props carga Dune por carpeta (backend/ y gateway/, no dune/)
+        run: node --test dune/gates/dune-props.test.mjs
       - name: Verificador de comentarios C#
         run: dotnet run --project dune/Dune.CommentVerifier -- --root .
       - name: Analyzer tests Dune
@@ -228,6 +230,9 @@ jobs:
       - name: Tests del gate de archivos de cada host
         if: ${{ !cancelled() }}
         run: node --test dune/gates/check-host-items.test.mjs
+      - name: Tests del descubrimiento de hosts
+        if: ${{ !cancelled() }}
+        run: node --test dune/gates/hosts.test.mjs
       - name: Tests del reparto de backend en shards
         if: ${{ !cancelled() }}
         run: node --test .github/scripts/backend-test-shards.test.mjs
