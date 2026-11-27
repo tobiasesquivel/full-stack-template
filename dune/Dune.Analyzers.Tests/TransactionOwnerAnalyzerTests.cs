@@ -269,6 +269,33 @@ public sealed class TransactionOwnerAnalyzerTests
         Assert.Single(Locations(diagnostics));
     }
 
+    [Fact]
+    public async Task AnExemptionWrittenInAnotherPartOfAPartialFeatureClass_DoesNotExempt()
+    {
+        var diagnostics = await AnalyzeAsync(
+            (ExemptionFixture.Path, ExemptionFixture.Source),
+            ("backend/Features/Invoices/InvoicesFeature.cs", """
+                using TemplateApp.Infrastructure.Messaging;
+                namespace TemplateApp.Features.Invoices;
+                internal static partial class InvoicesFeature
+                {
+                    public static object AddInvoicesFeature(object services) =>
+                        MessagingRegistration.AddMediatorHandler<IssueInvoice.IssueInvoiceCommand.Handler>(services, MediatorTransaction.None);
+                }
+                """),
+            ("backend/Features/Invoices/Registration.cs", """
+                using TemplateApp.Shared.Architecture;
+                namespace TemplateApp.Features.Invoices;
+                [DuneExemption(DuneCheck.TransactionOwner, "En otra parte de la clase no cuenta.")]
+                internal static partial class InvoicesFeature
+                {
+                }
+                """),
+            ("backend/Features/Invoices/IssueInvoice/IssueInvoiceCommandHandler.cs", IssueInvoiceHandler));
+
+        Assert.Single(Locations(diagnostics));
+    }
+
     private const string IssueInvoiceHandler = """
         using System.Threading;
         using System.Threading.Tasks;

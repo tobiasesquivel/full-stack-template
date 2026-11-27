@@ -12,7 +12,8 @@ namespace Dune.Analyzers.Tests;
 
 public sealed class HostBoundaryAnalyzerTests
 {
-    private const string Backend = "C:/repo/backend/";
+    private const string Repository = "C:/repo/";
+    private const string Backend = Repository + "backend/";
 
     public static TheoryData<string, string> FilesOutsideTheMonolith => new()
     {
@@ -209,6 +210,42 @@ public sealed class HostBoundaryAnalyzerTests
     }
 
     [Fact]
+    public async Task AHostBuiltThroughAnUppercasePath_IsStillChecked()
+    {
+        var diagnostics = await RunAsync(
+            "TemplateApp.Tasks",
+            ImmutableDictionary<string, string>.Empty
+                .Add(HostBoundaryAnalyzer.FeaturesOption, "Tasks,Health")
+                .Add(HostBoundaryAnalyzer.ProjectDirectoryOption, "C:\\REPO\\BACKEND\\HOSTS\\TASKS")
+                .Add(HostBoundaryAnalyzer.ProjectPathOption, "BACKEND/HOSTS/TASKS/"),
+            new[]
+            {
+                "C:/REPO/BACKEND/HOSTS/TASKS/Program.cs",
+                "C:/REPO/BACKEND/Features/Tasks/TasksFeature.cs",
+                "C:/REPO/BACKEND/Features/Health/HealthFeature.cs",
+                "C:/REPO/BACKEND/Features/Users/UsersFeature.cs",
+            },
+            new[] { Reference("TemplateApp.Platform") });
+
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Contains("'backend/Features/Users/UsersFeature.cs' no le toca a backend/Hosts/TASKS", diagnostic.GetMessage(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ARepositoryClonedUnderAnotherBackendHostsFolder_IsNotTakenForAHost()
+    {
+        var diagnostics = await RunAsync(
+            "TemplateApp.Platform",
+            ImmutableDictionary<string, string>.Empty
+                .Add(HostBoundaryAnalyzer.ProjectDirectoryOption, "C:/backend/Hosts/clones/repo/backend/Platform")
+                .Add(HostBoundaryAnalyzer.ProjectPathOption, "backend/Platform/"),
+            new[] { "C:/backend/Hosts/clones/repo/backend/Infrastructure/Http/Remote/RemoteServices.cs" },
+            Array.Empty<MetadataReference>());
+
+        Assert.Empty(diagnostics);
+    }
+
+    [Fact]
     public async Task TheMonolith_TakesAnInventedFeature_WithoutEditingItsDeclaration()
     {
         var diagnostics = await AnalyzeHostAsync(
@@ -272,7 +309,7 @@ public sealed class HostBoundaryAnalyzerTests
         var diagnostics = await AnalyzeAsync("Acme.Shop", Backend.TrimEnd('/'), new[] { Backend + "Hosts/Monolith/Program.cs" });
 
         var diagnostic = Assert.Single(diagnostics);
-        Assert.Contains("'Acme.Shop' compila C:/repo/backend/Hosts/Monolith/Program.cs, de un host, y su proyecto está en C:/repo/backend", diagnostic.GetMessage(), StringComparison.Ordinal);
+        Assert.Contains("'Acme.Shop' compila C:/repo/backend/Hosts/Monolith/Program.cs, de un host, y su proyecto está en backend/", diagnostic.GetMessage(), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -328,6 +365,13 @@ public sealed class HostBoundaryAnalyzerTests
     private static Task<ImmutableArray<Diagnostic>> RunAsync(string assembly, ImmutableDictionary<string, string> properties, IEnumerable<string> files, IEnumerable<MetadataReference> references, bool compileDeclaredFeatures = true)
     {
         var all = files.ToList();
+        if (properties.TryGetValue(HostBoundaryAnalyzer.ProjectDirectoryOption, out var projectDirectory)
+            && !properties.ContainsKey(HostBoundaryAnalyzer.ProjectPathOption)
+            && projectDirectory.Replace('\\', '/').StartsWith(Repository, StringComparison.OrdinalIgnoreCase))
+        {
+            properties = properties.Add(HostBoundaryAnalyzer.ProjectPathOption, projectDirectory.Replace('\\', '/').Substring(Repository.Length) + "/");
+        }
+
         if (compileDeclaredFeatures
             && properties.TryGetValue(HostBoundaryAnalyzer.ProjectDirectoryOption, out var directory)
             && properties.TryGetValue(HostBoundaryAnalyzer.FeaturesOption, out var declared))

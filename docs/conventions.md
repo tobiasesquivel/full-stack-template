@@ -78,7 +78,7 @@ Cuando una slice o una feature hace algo distinto a propósito, lo declara ella,
 - `ReadSliceLoadsEntity` (DUNE0019), en la clase `<Slice>Endpoint` de una lectura que todavía carga la entidad. No apaga "una lectura no escribe".
 - `TransactionOwner` (DUNE0029), en la clase `<Feature>Feature` de una feature que corre sin la integración de EF de Wolverine y maneja su transacción (Tasks).
 
-Una excepción en otro tipo, también en una clase anidada del endpoint, no exime nada: la regla sigue fallando. No se usan `#pragma warning disable`, `SuppressMessage` ni `.editorconfig` para callar una regla de Dune: apagan el id entero, sin motivo, y no los vigila nada (pendiente en `progreso.md`).
+Una excepción en otro tipo, en una clase anidada del endpoint o en otro archivo de una clase `partial` no exime nada: la regla sigue fallando. No se usan `#pragma warning disable`, `SuppressMessage` ni `.editorconfig` para callar una regla de Dune: apagan el id entero, sin motivo, y no los vigila nada (pendiente en `progreso.md`).
 
 Cada host declara en su `.csproj` qué features despliega: `<DuneHostFeatures>Tasks,Health</DuneHostFeatures>` (solo esas) o `<DuneHostExcludedFeatures>Tasks</DuneHostExcludedFeatures>` (todas salvo esas, como el monolito). DUNE0032 y `check-host-items` comparan lo que el host compila con esa declaración. Un nombre que no es una carpeta de `backend/Features/` falla (`check-host-items`), y también una feature de `DuneHostFeatures` que el host no compila (DUNE0032).
 

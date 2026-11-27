@@ -12,6 +12,7 @@ namespace Dune.Analyzers;
 public sealed class HostBoundaryAnalyzer : DiagnosticAnalyzer
 {
     public const string ProjectDirectoryOption = "build_property.MSBuildProjectDirectory";
+    public const string ProjectPathOption = "build_property.DuneProjectPath";
     public const string IntermediateOutputOption = "build_property.IntermediateOutputPath";
     private const string HostsFolder = "backend/Hosts/";
     private const string PlatformAssembly = "TemplateApp.Platform";
@@ -33,32 +34,41 @@ public sealed class HostBoundaryAnalyzer : DiagnosticAnalyzer
     {
         var assembly = context.Compilation.AssemblyName ?? string.Empty;
         var options = context.Options.AnalyzerConfigOptionsProvider.GlobalOptions;
-        var hostFile = context.Compilation.SyntaxTrees
-            .Select(tree => DunePaths.Normalize(tree.FilePath))
-            .FirstOrDefault(path => DunePaths.ContainsOrdinal(path, "/" + HostsFolder));
-        if (!options.TryGetValue(ProjectDirectoryOption, out var directory) || string.IsNullOrWhiteSpace(directory))
+        var paths = context.Compilation.SyntaxTrees.Select(tree => DunePaths.Normalize(tree.FilePath)).ToArray();
+        if (!options.TryGetValue(ProjectDirectoryOption, out var directory) || string.IsNullOrWhiteSpace(directory)
+            || !options.TryGetValue(ProjectPathOption, out var projectPath) || string.IsNullOrWhiteSpace(projectPath))
         {
-            if (hostFile is not null)
+            var anyHostFile = paths.FirstOrDefault(path => path.IndexOf("/" + HostsFolder, StringComparison.OrdinalIgnoreCase) >= 0);
+            if (anyHostFile is not null)
             {
-                Report(context, Location.None, assembly, $"compila {hostFile}, de un host, y la regla no puede leer la carpeta de su proyecto; Dune.props tiene que exponer MSBuildProjectDirectory con CompilerVisibleProperty");
+                Report(context, Location.None, assembly, $"compila {anyHostFile}, de un host, y la regla no puede leer la carpeta de su proyecto; Dune.props tiene que exponer MSBuildProjectDirectory y DuneProjectPath con CompilerVisibleProperty");
             }
 
             return;
         }
 
         var projectDirectory = DunePaths.Normalize(directory).TrimEnd('/');
-        var hostsMarker = projectDirectory.LastIndexOf("/" + HostsFolder, StringComparison.Ordinal);
-        if (hostsMarker < 0)
+        var relativeProject = DunePaths.Normalize(projectPath).Trim('/');
+        if (!projectDirectory.EndsWith("/" + relativeProject, StringComparison.OrdinalIgnoreCase))
         {
+            Report(context, Location.None, assembly, $"tiene DuneProjectPath {relativeProject}/ y su carpeta es {projectDirectory}; la regla no puede ubicar la raíz del repo");
+            return;
+        }
+
+        var repositoryRoot = projectDirectory.Substring(0, projectDirectory.Length - relativeProject.Length);
+        if (!relativeProject.StartsWith(HostsFolder, StringComparison.OrdinalIgnoreCase))
+        {
+            var hostFile = paths.FirstOrDefault(path => Collapse(path).StartsWith(repositoryRoot + HostsFolder, StringComparison.OrdinalIgnoreCase));
             if (hostFile is not null)
             {
-                Report(context, Location.None, assembly, $"compila {hostFile}, de un host, y su proyecto está en {projectDirectory}; cada host vive en {HostsFolder}<Host>/, con su .csproj en la raíz de esa carpeta");
+                Report(context, Location.None, assembly, $"compila {hostFile}, de un host, y su proyecto está en {relativeProject}/; cada host vive en {HostsFolder}<Host>/, con su .csproj en la raíz de esa carpeta");
             }
 
             return;
         }
 
-        var folder = projectDirectory.Substring(hostsMarker + 1 + HostsFolder.Length);
+        var backendSlash = projectDirectory.Length - relativeProject.Length - 1 + "backend/".Length;
+        var folder = projectDirectory.Substring(backendSlash + 1 + "Hosts/".Length);
         if (folder.Length == 0 || folder.IndexOf('/') >= 0)
         {
             Report(context, Location.None, HostsFolder + folder, $"no es la carpeta de un host; cada host vive en {HostsFolder}<Host>/, con su .csproj en la raíz de esa carpeta");
@@ -74,7 +84,7 @@ public sealed class HostBoundaryAnalyzer : DiagnosticAnalyzer
         var intermediate = options.TryGetValue(IntermediateOutputOption, out var output) && !string.IsNullOrWhiteSpace(output)
             ? Collapse(Rooted(DunePaths.Normalize(output), projectDirectory)).TrimEnd('/') + "/"
             : null;
-        AnalyzeHost(context, projectDirectory.Substring(0, hostsMarker + "/backend/".Length), host, intermediate);
+        AnalyzeHost(context, projectDirectory.Substring(0, backendSlash + 1), projectDirectory.Substring(backendSlash + 1) + "/", host, intermediate);
     }
 
     private static bool TryReadHost(AnalyzerConfigOptions options, string folder, out Host host, out string problem)
@@ -102,12 +112,12 @@ public sealed class HostBoundaryAnalyzer : DiagnosticAnalyzer
             ? value.Split(',').Select(name => name.Trim()).Where(name => name.Length > 0).ToArray()
             : Array.Empty<string>();
 
-    private static void AnalyzeHost(CompilationAnalysisContext context, string backendRoot, Host host, string? intermediate)
+    private static void AnalyzeHost(CompilationAnalysisContext context, string backendRoot, string ownFolder, Host host, string? intermediate)
     {
         var repositoryRoot = backendRoot.Substring(0, backendRoot.Length - "backend/".Length);
         if (intermediate is not null
             && intermediate.StartsWith(repositoryRoot, StringComparison.OrdinalIgnoreCase)
-            && !intermediate.StartsWith(backendRoot + "Hosts/" + host.Folder + "/", StringComparison.OrdinalIgnoreCase))
+            && !intermediate.StartsWith(backendRoot + ownFolder, StringComparison.OrdinalIgnoreCase))
         {
             intermediate = null;
         }
@@ -140,7 +150,7 @@ public sealed class HostBoundaryAnalyzer : DiagnosticAnalyzer
             {
                 Report(context, Location.Create(tree, default(TextSpan)), DunePaths.Normalize(tree.FilePath), $"está fuera de backend/; {host.Scope}, sin tests, y el resto llega por backend/Platform/TemplateApp.Platform.csproj");
             }
-            else if (!Compiles(host, relative))
+            else if (!Compiles(host, ownFolder, relative))
             {
                 Report(context, Location.Create(tree, default(TextSpan)), "backend/" + relative, $"no le toca a {HostsFolder}{host.Folder}; {host.Scope}, sin tests, y el resto llega por backend/Platform/TemplateApp.Platform.csproj");
             }
@@ -187,14 +197,14 @@ public sealed class HostBoundaryAnalyzer : DiagnosticAnalyzer
         return string.Join("/", segments);
     }
 
-    private static bool Compiles(Host host, string relative)
+    private static bool Compiles(Host host, string ownFolder, string relative)
     {
         if (relative.EndsWith("Tests.cs", StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }
 
-        if (relative.StartsWith("Hosts/" + host.Folder + "/", StringComparison.Ordinal))
+        if (relative.StartsWith(ownFolder, StringComparison.Ordinal))
         {
             return true;
         }

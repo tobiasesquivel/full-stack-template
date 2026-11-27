@@ -17,7 +17,11 @@ internal static class DuneExemptions
 
     public static bool Exempts(INamedTypeSymbol? type, string check) =>
         type is not null
-        && Read(type).Any(exemption => check.Equals(exemption.Check, StringComparison.Ordinal) && !string.IsNullOrWhiteSpace(exemption.Reason));
+        && Read(type).Any(exemption =>
+            check.Equals(exemption.Check, StringComparison.Ordinal)
+            && !string.IsNullOrWhiteSpace(exemption.Reason)
+            && exemption.Attribute.ApplicationSyntaxReference is { } written
+            && IsFileType(type, DunePaths.Normalize(written.SyntaxTree.FilePath)));
 
     public static IEnumerable<(AttributeData Attribute, string? Check, string? Reason)> Read(INamedTypeSymbol type)
     {
@@ -66,10 +70,7 @@ internal static class DuneExemptions
             return null;
         }
 
-        var type = compilation.GetTypeByMetadataName(ns.Substring(0, index + marker.Length) + "." + feature + "Feature");
-        return type is not null && type.DeclaringSyntaxReferences.Any(reference => IsFileType(type, DunePaths.Normalize(reference.SyntaxTree.FilePath)))
-            ? type
-            : null;
+        return compilation.GetTypeByMetadataName(ns.Substring(0, index + marker.Length) + "." + feature + "Feature");
     }
 
     private static string? EnumMemberName(TypedConstant constant) =>
