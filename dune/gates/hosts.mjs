@@ -15,7 +15,11 @@ export function discoverHosts(root) {
   const projects = [];
   const problems = [];
   const base = path.join(root, HOSTS_FOLDER);
-  const folders = readdirSync(base, { withFileTypes: true })
+  const entries = readdirSync(base, { withFileTypes: true });
+  for (const link of entries.filter((entry) => entry.isSymbolicLink()).map((entry) => entry.name).sort()) {
+    problems.push(`${HOSTS_FOLDER}/${link} es un enlace; un host es una carpeta real dentro de ${HOSTS_FOLDER}, y un enlace dejaría sus archivos fuera de los controles`);
+  }
+  const folders = entries
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name)
     .sort();

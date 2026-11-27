@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { describe, it } from 'node:test';
@@ -39,6 +39,19 @@ describe('hosts', () => {
   it('suma un host inventado sin editar ninguna lista', () => {
     withRepo({ Monolith: ['TemplateApp.csproj'], Billing: ['Acme.Billing.csproj', 'appsettings.json'] }, (root) => {
       assert.deepEqual(discoverHosts(root).projects, ['backend/Hosts/Billing/Acme.Billing.csproj', 'backend/Hosts/Monolith/TemplateApp.csproj']);
+    });
+  });
+
+  it('rechaza un host que es un enlace a otra carpeta, aunque la carpeta tenga un .csproj', () => {
+    withRepo({ Monolith: ['TemplateApp.csproj'] }, (root) => {
+      const outside = path.join(root, 'outside');
+      mkdirSync(outside);
+      writeFileSync(path.join(outside, 'TemplateApp.Tasks.csproj'), '<Project />');
+      symlinkSync(outside, path.join(root, 'backend/Hosts/Tasks'), 'junction');
+      const { projects, problems } = discoverHosts(root);
+      assert.deepEqual(projects, ['backend/Hosts/Monolith/TemplateApp.csproj']);
+      assert.equal(problems.length, 1, problems.join('\n'));
+      assert.ok(problems[0].startsWith('backend/Hosts/Tasks es un enlace'), problems[0]);
     });
   });
 

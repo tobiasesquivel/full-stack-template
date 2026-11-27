@@ -9,31 +9,44 @@ namespace Dune.Analyzers;
 
 public static class DuneCommentPolicy
 {
-    public static bool IsExemptPath(string normalizedPath) =>
+    public static bool IsExemptPath(string normalizedPath, string? repositoryRoot = null) =>
         DunePaths.ContainsOrdinal(normalizedPath, "backend/Infrastructure/Persistence/Migrations/")
         || IsFeatureMigration(normalizedPath)
-        || IsHostGeneratedHandler(normalizedPath);
+        || IsHostGeneratedHandler(normalizedPath, repositoryRoot);
 
-    private static bool IsHostGeneratedHandler(string normalizedPath)
+    private static bool IsHostGeneratedHandler(string normalizedPath, string? repositoryRoot)
     {
         const string hosts = "backend/Hosts/";
         const string generated = "/Internal/Generated/WolverineHandlers/";
-        for (var marker = normalizedPath.IndexOf(hosts, StringComparison.Ordinal); marker >= 0; marker = normalizedPath.IndexOf(hosts, marker + 1, StringComparison.Ordinal))
+        int marker;
+        var comparison = StringComparison.Ordinal;
+        if (repositoryRoot is not null)
         {
-            if (marker > 0 && normalizedPath[marker - 1] != '/')
+            var root = DunePaths.Normalize(repositoryRoot).TrimEnd('/') + "/";
+            if (!normalizedPath.StartsWith(root + hosts, StringComparison.OrdinalIgnoreCase))
             {
-                continue;
+                return false;
             }
 
-            var host = marker + hosts.Length;
-            var slash = normalizedPath.IndexOf('/', host);
-            if (slash > host && string.CompareOrdinal(normalizedPath, slash, generated, 0, generated.Length) == 0)
+            marker = root.Length;
+            comparison = StringComparison.OrdinalIgnoreCase;
+        }
+        else if (normalizedPath.StartsWith(hosts, StringComparison.Ordinal))
+        {
+            marker = 0;
+        }
+        else
+        {
+            marker = normalizedPath.IndexOf("/" + hosts, StringComparison.Ordinal) + 1;
+            if (marker == 0)
             {
-                return true;
+                return false;
             }
         }
 
-        return false;
+        var host = marker + hosts.Length;
+        var slash = normalizedPath.IndexOf('/', host);
+        return slash > host && string.Compare(normalizedPath, slash, generated, 0, generated.Length, comparison) == 0;
     }
 
     private static bool IsFeatureMigration(string normalizedPath) =>
