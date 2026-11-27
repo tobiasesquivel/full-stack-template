@@ -63,6 +63,10 @@ public sealed class HostBoundaryAnalyzer : DiagnosticAnalyzer
             {
                 Report(context, Location.None, assembly, $"compila {hostFile}, de un host, y su proyecto está en {relativeProject}/; cada host vive en {HostsFolder}<Host>/, con su .csproj en la raíz de esa carpeta");
             }
+            else if (Names(options, FeaturesOption).Length > 0 || Names(options, ExcludedFeaturesOption).Length > 0)
+            {
+                Report(context, Location.None, assembly, $"declara DuneHostFeatures o DuneHostExcludedFeatures y su proyecto está en {relativeProject}/; un host vive en {HostsFolder}<Host>/, donde lo encuentran DUNE0032, check-host-items y check-codegen");
+            }
 
             return;
         }

@@ -231,6 +231,24 @@ public sealed class HostBoundaryAnalyzerTests
         Assert.Contains("'backend/Features/Users/UsersFeature.cs' no le toca a backend/Hosts/TASKS", diagnostic.GetMessage(), StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("DuneHostFeatures")]
+    [InlineData("DuneHostExcludedFeatures")]
+    public async Task AProjectThatDeclaresItsFeaturesOutsideBackendHosts_Fails(string declaration)
+    {
+        var diagnostics = await RunAsync(
+            "TemplateApp.Tasks",
+            ImmutableDictionary<string, string>.Empty
+                .Add("build_property." + declaration, "Tasks")
+                .Add(HostBoundaryAnalyzer.ProjectDirectoryOption, Backend + "Deploy/Tasks"),
+            new[] { Backend + "Deploy/Tasks/Program.cs", Backend + "Features/Tasks/TasksFeature.cs" },
+            new[] { Reference("TemplateApp.Platform") },
+            compileDeclaredFeatures: false);
+
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Contains("'TemplateApp.Tasks' declara DuneHostFeatures o DuneHostExcludedFeatures y su proyecto está en backend/Deploy/Tasks/", diagnostic.GetMessage(), StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task ARepositoryClonedUnderAnotherBackendHostsFolder_IsNotTakenForAHost()
     {

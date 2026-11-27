@@ -19,7 +19,6 @@ public static class DuneCommentPolicy
         const string hosts = "backend/Hosts/";
         const string generated = "/Internal/Generated/WolverineHandlers/";
         int marker;
-        var comparison = StringComparison.Ordinal;
         if (repositoryRoot is not null)
         {
             var root = DunePaths.Normalize(repositoryRoot).TrimEnd('/') + "/";
@@ -29,7 +28,6 @@ public static class DuneCommentPolicy
             }
 
             marker = root.Length;
-            comparison = StringComparison.OrdinalIgnoreCase;
         }
         else if (normalizedPath.StartsWith(hosts, StringComparison.Ordinal))
         {
@@ -46,7 +44,7 @@ public static class DuneCommentPolicy
 
         var host = marker + hosts.Length;
         var slash = normalizedPath.IndexOf('/', host);
-        return slash > host && string.Compare(normalizedPath, slash, generated, 0, generated.Length, comparison) == 0;
+        return slash > host && string.CompareOrdinal(normalizedPath, slash, generated, 0, generated.Length) == 0;
     }
 
     private static bool IsFeatureMigration(string normalizedPath) =>

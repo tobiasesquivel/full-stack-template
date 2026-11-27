@@ -142,7 +142,8 @@ public sealed class NoCommentsAnalyzerTests
 
     [Theory]
     [InlineData("C:/work/backend/Hosts/clones/repo/", "C:/work/backend/Hosts/clones/repo/backend/Hosts/Monolith/Internal/Generated/WolverineHandlers/SampleHandler123.cs", false)]
-    [InlineData("C:/REPO/", "C:/REPO/BACKEND/HOSTS/TASKS/INTERNAL/GENERATED/WOLVERINEHANDLERS/SampleHandler123.cs", false)]
+    [InlineData("C:/REPO/", "C:/REPO/BACKEND/HOSTS/TASKS/Internal/Generated/WolverineHandlers/SampleHandler123.cs", false)]
+    [InlineData("C:/repo/", "C:/repo/backend/Hosts/Tasks/Internal/Generated/Wolverinehandlers/SampleHandler123.cs", true)]
     [InlineData("C:/repo/", "C:/repo/backend/Hosts/Tasks/Internal/backend/Hosts/Billing/Internal/Generated/WolverineHandlers/SampleHandler123.cs", true)]
     [InlineData("C:/repo/", "C:/other/backend/Hosts/Tasks/Internal/Generated/WolverineHandlers/SampleHandler123.cs", true)]
     public async Task TheGeneratedFolder_IsMeasuredFromTheRepositoryRoot_WhenTheBuildGivesIt(string root, string path, bool rejected)
