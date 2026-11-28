@@ -55,22 +55,23 @@ public sealed class DeclarePermissionsTests : IClassFixture<ApiFixture>
     }
 
     [Fact]
-    public async Task ANewDeclaration_ReplacesWhatTheFeatureGrants_AndLeavesTheOtherFeaturesAlone()
+    public async Task ADeclaration_OnlyAdds_AndLeavesTheOtherFeaturesAlone()
     {
         using ApiPair api = await FreshApiAsync();
         using HttpClient monolith = api.CreateMonolithClient();
         List<string> others = await GrantsAsync(api.Monolith.Services);
 
-        using (HttpResponseMessage granted = await DeclareAsync(monolith, "Probe", new { permission = "Permissions.Probe.Read", roles = new[] { "User", "Admin" } }))
-            Assert.Equal(HttpStatusCode.NoContent, granted.StatusCode);
-        using (HttpResponseMessage narrowed = await DeclareAsync(monolith, "Probe", new { permission = "Permissions.Probe.Read", roles = new[] { "Admin" } }))
-            Assert.Equal(HttpStatusCode.NoContent, narrowed.StatusCode);
-        Assert.Equal(["Admin:Permissions.Probe.Read"], await GrantsAsync(api.Monolith.Services, "Permissions.Probe."));
+        using (HttpResponseMessage first = await DeclareAsync(monolith, "Probe", new { permission = "Permissions.Probe.Read", roles = new[] { "Admin" } }))
+            Assert.Equal(HttpStatusCode.NoContent, first.StatusCode);
+        using (HttpResponseMessage wider = await DeclareAsync(monolith, "Probe", new { permission = "Permissions.Probe.Read", roles = new[] { "User", "Admin" } }))
+            Assert.Equal(HttpStatusCode.NoContent, wider.StatusCode);
+        Assert.Equal(["Admin:Permissions.Probe.Read", "User:Permissions.Probe.Read"], await GrantsAsync(api.Monolith.Services, "Permissions.Probe."));
 
-        using (HttpResponseMessage emptied = await DeclareAsync(monolith, "Probe"))
-            Assert.Equal(HttpStatusCode.NoContent, emptied.StatusCode);
-        Assert.Empty(await GrantsAsync(api.Monolith.Services, "Permissions.Probe."));
-        Assert.Equal(others, await GrantsAsync(api.Monolith.Services));
+        using (HttpResponseMessage older = await DeclareAsync(monolith, "Probe"))
+            Assert.Equal(HttpStatusCode.NoContent, older.StatusCode);
+        Assert.Equal(["Admin:Permissions.Probe.Read", "User:Permissions.Probe.Read"], await GrantsAsync(api.Monolith.Services, "Permissions.Probe."));
+        List<string> after = await GrantsAsync(api.Monolith.Services);
+        Assert.Equal(others, after.Where(grant => !grant.Contains(":Permissions.Probe.", StringComparison.Ordinal)));
     }
 
     [Fact]

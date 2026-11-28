@@ -31,7 +31,7 @@ internal sealed class PermissionCatalog
         scope.Complete();
     }
 
-    public async Task SyncAsync(FeaturePermissions declaration, CancellationToken ct)
+    public async Task GrantAsync(FeaturePermissions declaration, CancellationToken ct)
     {
         IReadOnlyList<string> problems = PermissionDeclarationRules.Problems(declaration);
         if (problems.Count > 0)
@@ -39,23 +39,20 @@ internal sealed class PermissionCatalog
 
         using TransactionScope scope = CrossContextTransaction.Begin();
         await LockAsync(ct);
-        string prefix = FeaturePermissions.PrefixOf(declaration.Feature);
         foreach (string roleName in AppRoles.GetAll())
         {
             IdentityRole role = await EnsureRoleAsync(roleName);
-            HashSet<string> wanted = declaration.Grants
-                .Where(grant => grant.Roles.Contains(roleName, StringComparer.Ordinal))
-                .Select(grant => grant.Permission)
+            HashSet<string> held = (await _roles.GetClaimsAsync(role))
+                .Where(claim => claim.Type == ClaimType)
+                .Select(claim => claim.Value)
                 .ToHashSet(StringComparer.Ordinal);
-            List<Claim> held = (await _roles.GetClaimsAsync(role))
-                .Where(claim => claim.Type == ClaimType && claim.Value.StartsWith(prefix, StringComparison.Ordinal))
-                .ToList();
+            IEnumerable<string> missing = declaration.Grants
+                .Where(grant => grant.Roles.Contains(roleName, StringComparer.Ordinal) && !held.Contains(grant.Permission))
+                .Select(grant => grant.Permission)
+                .Order(StringComparer.Ordinal);
 
-            foreach (Claim stale in held.Where(claim => !wanted.Contains(claim.Value)))
-                Ensure(await _roles.RemoveClaimAsync(role, stale), $"remove permission '{stale.Value}' from role '{roleName}'");
-
-            foreach (string missing in wanted.Except(held.Select(claim => claim.Value), StringComparer.Ordinal).Order(StringComparer.Ordinal))
-                Ensure(await _roles.AddClaimAsync(role, new Claim(ClaimType, missing)), $"grant permission '{missing}' to role '{roleName}'");
+            foreach (string permission in missing)
+                Ensure(await _roles.AddClaimAsync(role, new Claim(ClaimType, permission)), $"grant permission '{permission}' to role '{roleName}'");
         }
 
         scope.Complete();

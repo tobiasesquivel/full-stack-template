@@ -70,7 +70,7 @@ public sealed class FeaturePermissionsTests : IClassFixture<ApiFixture>
     }
 
     [Fact]
-    public async Task ChangingATasksPermission_InTheTasksProcess_ReachesTheSessionCheck_AndTheMonolithKeepsIt()
+    public async Task ChangingATasksPermission_InTheTasksProcess_ReachesTheSessionCheck_AndAnOlderTasksDoesNotTakeItBack()
     {
         string database = await TestDatabases.CreateEmptyAsync(_server);
         string authId;
@@ -85,21 +85,25 @@ public sealed class FeaturePermissionsTests : IClassFixture<ApiFixture>
 
         FeaturePermissions changed = new("Tasks",
         [
-            new(TasksPermissions.Create, [AppRoles.Admin, AppRoles.SuperAdmin]),
+            new(TasksPermissions.Create, [AppRoles.User, AppRoles.Admin, AppRoles.SuperAdmin]),
             new(TasksPermissions.Read, [AppRoles.User, AppRoles.Admin, AppRoles.SuperAdmin]),
             new(TasksPermissions.Update, [AppRoles.Admin, AppRoles.SuperAdmin]),
             new(TasksPermissions.Delete, [AppRoles.Admin, AppRoles.SuperAdmin]),
         ]);
-        using ApiPair after = Pair(database, services => services.AddSingleton(new HostPermissions([changed])));
+        string[] withRead = ["Permissions.Projects.Create", "Permissions.Tasks.Create", "Permissions.Tasks.Read"];
+        using (ApiPair after = Pair(database, services => services.AddSingleton(new HostPermissions([changed]))))
+        {
+            _ = after.Monolith.Services;
+            Assert.Equal(UserPermissions, await MonolithCheckAsync(after, authId));
 
-        _ = after.Monolith.Services;
-        Assert.Equal(UserPermissions, await MonolithCheckAsync(after, authId));
+            _ = after.Tasks.Services;
+            await after.TasksDeclared.WaitAsync(DeclarationTimeout, TestContext.Current.CancellationToken);
+            Assert.Equal(withRead, await TasksCheckAsync(after.Tasks.Services, after.Monolith.Services, authId));
+        }
 
-        _ = after.Tasks.Services;
-        await after.TasksDeclared.WaitAsync(DeclarationTimeout, TestContext.Current.CancellationToken);
-        Assert.Equal(
-            ["Permissions.Projects.Create", "Permissions.Tasks.Read"],
-            await TasksCheckAsync(after.Tasks.Services, after.Monolith.Services, authId));
+        using ApiPair older = Pair(database, configureTasks: null);
+        older.Start();
+        Assert.Equal(withRead, await TasksCheckAsync(older.Tasks.Services, older.Monolith.Services, authId));
     }
 
     [Fact]

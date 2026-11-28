@@ -17,7 +17,7 @@ internal sealed partial record DeclarePermissionsCommand
 
         public async Task<ErrorOr<Success>> Handle(DeclarePermissionsCommand command, CancellationToken ct)
         {
-            await _catalog.SyncAsync(new FeaturePermissions(command.Feature, command.Grants), ct);
+            await _catalog.GrantAsync(new FeaturePermissions(command.Feature, command.Grants), ct);
             return Result.Success;
         }
     }

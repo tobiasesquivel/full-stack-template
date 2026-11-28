@@ -18,6 +18,6 @@ internal sealed class RoleSeeder : IDatabaseSeeder
     {
         await _catalog.EnsureRolesAsync(ct);
         foreach (FeaturePermissions declaration in _declarations.All)
-            await _catalog.SyncAsync(declaration, ct);
+            await _catalog.GrantAsync(declaration, ct);
     }
 }
