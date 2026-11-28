@@ -6,19 +6,19 @@ El mapa visual del sistema, de lo macro a lo micro (contexto, contenedores, mens
 
 ## Forma del backend
 
-El backend son dos procesos ASP.NET Core 10, con namespace raíz `TemplateApp` ([ADR-0005](adr/0005-gateway-y-procesos-propios.md)). El monolito (`backend/Hosts/Monolith/TemplateApp.csproj`, que compila `Features/` menos `Features/Tasks/`) tiene Auth, Users, Projects y Health. Desde el paso 23.2, Tasks corre en su propio proceso (`backend/Hosts/Tasks/TemplateApp.Tasks.csproj`, que compila `Features/Tasks/` y `Features/Health/`). Los dos usan la librería `backend/Platform/TemplateApp.Platform.csproj`, que compila `Infrastructure/` y `Shared/`. Cada host vive en `backend/Hosts/<Host>/` con su `Program.cs`, su `.csproj`, sus `appsettings`, su Dockerfile y su código generado de Wolverine; las features no cambian de carpeta, porque cada `.csproj` las incluye donde están. El monolito conserva el nombre de ensamblado `TemplateApp` (reorganización, parte 6). Un gateway YARP (`gateway/`, otro proyecto y otro proceso) los tiene adelante: toda request a la API entra por él.
+El backend son dos procesos ASP.NET Core 10, con namespace raíz `TemplateApp` ([ADR-0005](adr/0005-gateway-y-procesos-propios.md)). El monolito (`backend/Hosts/Monolith/TemplateApp.csproj`, que compila `Features/` menos `Features/Tasks/`) tiene Auth, Users, Projects y Health. Desde el paso 23.2, Tasks corre en su propio proceso (`backend/Hosts/Tasks/TemplateApp.Tasks.csproj`, que compila `Features/Tasks/` y `Features/Health/`). Los dos usan la librería `backend/Platform/TemplateApp.Platform.csproj`, que compila `Infrastructure/` y `Shared/`. Cada host vive en `backend/Hosts/<Host>/` con su `Program.cs`, su `.csproj`, sus `appsettings`, su Dockerfile y su código generado de Wolverine; las features no cambian de carpeta, porque cada `.csproj` las incluye donde están. El monolito conserva el nombre de ensamblado `TemplateApp` (reorganización, parte 6). Ningún `Program.cs` nombra features: desde el paso T3 cada host descubre las clases `<Feature>Feature` (que implementan `IFeature`, de `Infrastructure/Hosting`) que compiló su ensamblado, registra sus servicios y mapea sus rutas públicas e internas, en orden de nombre ([ADR-0006](adr/0006-hosts-descubren-features.md)). Qué features compila cada host lo decide su `.csproj`. Un gateway YARP (`gateway/`, otro proyecto y otro proceso) los tiene adelante: toda request a la API entra por él.
 
 ```text
 backend/
 ├── Platform/                TemplateApp.Platform.csproj: compila Infrastructure/ y Shared/
 ├── Hosts/
-│   ├── Monolith/            host del monolito: Program.cs (plataforma + lista explícita de features), TemplateApp.csproj y su Dockerfile
+│   ├── Monolith/            host del monolito: Program.cs (plataforma; descubre las features), TemplateApp.csproj y su Dockerfile
 │   └── Tasks/               host de Tasks: Program.cs, su .csproj y su Dockerfile
 ├── Infrastructure/          fontanería técnica; no nombra ninguna feature
 ├── Shared/                  núcleo mínimo; no nombra ninguna feature
 └── Features/
     └── Tasks/
-        ├── TasksFeature.cs  registra DI y rutas de la feature
+        ├── TasksFeature.cs  implementa IFeature: registra DI y rutas de la feature
         ├── TaskErrors.cs    piezas internas que comparten varias slices
         ├── Contracts/       lo que usa otra feature: la puerta I<Feature>Module y sus datos
         ├── Domain/          modelos puros y reglas del dominio
@@ -314,7 +314,7 @@ frontend/src/app/
 
 Dune hace cumplir esta arquitectura con analyzers Roslyn, símbolos prohibidos y gates de Node. Vive en `dune/`: los gates de Node y sus tests, en `dune/gates/`. La raíz solo lo conecta: `Directory.Build.props` importa `dune/Dune.props`, y `TemplateApp.slnx` y CI llaman a `dune/`. `Dune.props` carga Dune en todo proyecto bajo `backend/` y `gateway/`, se llame como se llame, y en ninguno de `dune/` (`dune/gates/dune-props.test.mjs`).
 
-Desde el paso T1, las reglas que revisan features, slices y hosts no guardan sus nombres: una feature nueva queda revisada desde su primer archivo. Lo que una feature hace distinto lo declara ella con `[DuneExemption(DuneCheck.X, "motivo")]` (`Shared/Architecture`), en el tipo que mira la regla; DUNE0033 exige el motivo. Un host es toda carpeta de `backend/Hosts/` con un `.csproj`, y ese `.csproj` declara qué features despliega con `DuneHostFeatures` (solo esas) o `DuneHostExcludedFeatures` (todas salvo esas). DUNE0032 y `check-host-items` leen esa declaración. `check-host-items` y `check-codegen` descubren los hosts en la carpeta (`dune/gates/hosts.mjs`).
+Desde el paso T1, las reglas que revisan features, slices y hosts no guardan sus nombres: una feature nueva queda revisada desde su primer archivo. Lo que una feature hace distinto lo declara ella con `[DuneExemption(DuneCheck.X, "motivo")]` (`Shared/Architecture`), en el tipo que mira la regla; DUNE0033 exige el motivo. Desde el paso T3, DUNE0034 exige que toda feature que un host compila tenga su `<Feature>Feature` descubrible: así una feature nueva no queda afuera del host sin aviso. Un host es toda carpeta de `backend/Hosts/` con un `.csproj`, y ese `.csproj` declara qué features despliega con `DuneHostFeatures` (solo esas) o `DuneHostExcludedFeatures` (todas salvo esas). DUNE0032 y `check-host-items` leen esa declaración. `check-host-items` y `check-codegen` descubren los hosts en la carpeta (`dune/gates/hosts.mjs`).
 
 Cada regla tiene una fixture válida y una violación deliberada. Las pruebas observan diagnósticos o códigos de salida, no búsquedas de texto.
 
