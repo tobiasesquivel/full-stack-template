@@ -104,7 +104,7 @@ public sealed class VersionedApiAnalyzerTests
                 }
                 """));
 
-        Assert.Equal(new[] { 6, 8, 9, 9, 10, 10 }, Lines(diagnostics));
+        Assert.Equal(new[] { 8, 9, 9, 10, 10 }, Lines(diagnostics));
     }
 
     [Fact]

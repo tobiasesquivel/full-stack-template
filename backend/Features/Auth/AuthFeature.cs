@@ -10,6 +10,7 @@ using TemplateApp.Features.Auth.Domain.Events;
 using TemplateApp.Features.Auth.MessageNames;
 using TemplateApp.Features.Auth.Persistence;
 using TemplateApp.Features.Auth.Telemetry;
+using TemplateApp.Infrastructure.Hosting;
 using TemplateApp.Infrastructure.Http;
 using TemplateApp.Infrastructure.Http.RateLimiting;
 using TemplateApp.Infrastructure.Messaging;
@@ -20,11 +21,11 @@ using TemplateApp.Infrastructure.Persistence.Initialization;
 
 namespace TemplateApp.Features.Auth;
 
-internal static class AuthFeature
+internal sealed class AuthFeature : IFeature
 {
     public const string RateLimitPolicy = "auth";
 
-    public static IServiceCollection AddAuthFeature(this IServiceCollection services)
+    public void AddServices(IServiceCollection services)
     {
         services.AddMigratedDbContext<AuthDbContext>(AuthDbContext.Schema, adoptsLegacyTables: true);
         services.AddOutbox<AuthDbContext>();
@@ -36,9 +37,9 @@ internal static class AuthFeature
         services.AddEventHandler<AccountClosureRejected, PublishAuthEvents.AuthEventPublisher>();
         services.AddIntegrationEventHandler<DecideAccountClosureInfo, DecideAccountClosure.DecideAccountClosureCommandsConsumer>(AuthCommands.DecideAccountClosure, AuthCommands.Version, AuthCommands.Exchange, DecideAccountClosure.DecideAccountClosure.Consumer);
         services.AddRetiredBinding(TaskEvents.Exchange, TaskEvents.OwnerTasksHeld, DecideAccountClosure.DecideAccountClosure.Consumer);
-        services.AddAuthIdentity();
-        services.AddAuthSession();
-        services.AddAuthHttpPolicy();
+        AddAuthIdentity(services);
+        AddAuthSession(services);
+        AddAuthHttpPolicy(services);
 
         services.AddSingleton<AuthMetrics>();
         services.AddScoped<AccessPolicy>();
@@ -53,11 +54,9 @@ internal static class AuthFeature
         services.AddMediatorHandler<CloseSession.CloseSessionCommand.Handler>(MediatorTransaction.None);
         services.AddMediatorHandler<CheckSession.CheckSessionCommand.Handler>(MediatorTransaction.None);
         services.AddScoped<DecideAccountClosure.DecideAccountClosure>();
-
-        return services;
     }
 
-    private static IServiceCollection AddAuthIdentity(this IServiceCollection services)
+    private static void AddAuthIdentity(IServiceCollection services)
     {
         services
             .AddIdentityCore<AppIdentityUser>(options =>
@@ -75,11 +74,9 @@ internal static class AuthFeature
             .AddRoles<IdentityRole>()
             .AddEntityFrameworkStores<AuthDbContext>()
             .AddDefaultTokenProviders();
-
-        return services;
     }
 
-    private static IServiceCollection AddAuthSession(this IServiceCollection services)
+    private static void AddAuthSession(IServiceCollection services)
     {
         services.AddOptionsWithValidateOnStart<Access.SessionOptions, SessionOptionsValidator>()
             .BindConfiguration(Access.SessionOptions.Section);
@@ -87,11 +84,9 @@ internal static class AuthFeature
         services.AddSessionCookie();
         services.AddOptions<CookieAuthenticationOptions>(SessionCookie.Scheme)
             .Configure<IOptions<Access.SessionOptions>>((cookie, session) => SessionHttpPolicy.ConfigureCookie(cookie, session.Value));
-
-        return services;
     }
 
-    private static IServiceCollection AddAuthHttpPolicy(this IServiceCollection services)
+    private static void AddAuthHttpPolicy(IServiceCollection services)
     {
         services.AddOptionsWithValidateOnStart<AuthRateLimitOptions, AuthRateLimitOptionsValidator>()
             .BindConfiguration(AuthRateLimitOptions.Section);
@@ -100,11 +95,9 @@ internal static class AuthFeature
                 limiter.AddPolicy(RateLimitPolicy, http => RateLimitPartition.GetFixedWindowLimiter(
                     ApiRateLimiting.ClientAddressOf(http),
                     _ => ApiRateLimiting.FixedWindow(limits.Value.PermitLimit, limits.Value.Window))));
-
-        return services;
     }
 
-    public static RouteGroupBuilder MapAuthEndpoints(this RouteGroupBuilder api)
+    public void MapEndpoints(RouteGroupBuilder api)
     {
         RouteGroupBuilder auth = api.MapGroup("/auth");
 
@@ -112,14 +105,10 @@ internal static class AuthFeature
         RegisterUser.RegisterUserEndpoint.Map(auth);
         OpenSession.OpenSessionEndpoint.Map(auth);
         CloseSession.CloseSessionEndpoint.Map(auth);
-
-        return api;
     }
 
-    public static RouteGroupBuilder MapAuthInternalEndpoints(this RouteGroupBuilder internalApi)
+    public void MapInternalEndpoints(RouteGroupBuilder internalApi)
     {
         CheckSession.CheckSessionEndpoint.Map(internalApi);
-
-        return internalApi;
     }
 }

@@ -6,6 +6,7 @@ using TemplateApp.Features.Users.MessageNames;
 using TemplateApp.Features.Users.OrchestrateAccountClosure;
 using TemplateApp.Features.Users.Persistence;
 using TemplateApp.Features.Users.Telemetry;
+using TemplateApp.Infrastructure.Hosting;
 using TemplateApp.Infrastructure.Messaging;
 using TemplateApp.Infrastructure.Messaging.Mediator;
 using TemplateApp.Infrastructure.Messaging.Outbox;
@@ -13,11 +14,11 @@ using TemplateApp.Infrastructure.Persistence;
 
 namespace TemplateApp.Features.Users;
 
-internal static class UsersFeature
+internal sealed class UsersFeature : IFeature
 {
     public const string ClosuresConsumer = "users.account-closures";
 
-    public static IServiceCollection AddUsersFeature(this IServiceCollection services)
+    public void AddServices(IServiceCollection services)
     {
         services.AddMigratedDbContext<UsersDbContext>(UsersDbContext.Schema, adoptsLegacyTables: true);
         services.AddOptionsWithValidateOnStart<AccountClosureOptions, AccountClosureOptionsValidator>()
@@ -52,10 +53,9 @@ internal static class UsersFeature
         services.AddScoped<StartAccountClosure.StartAccountClosure>();
         services.AddScoped<RemindAccountClosure.RemindAccountClosure>();
         services.AddScoped<ScheduleAccountClosure.IAccountClosureGraceSteps, ScheduleAccountClosure.AccountClosureGraceSteps>();
-        return services;
     }
 
-    public static RouteGroupBuilder MapUsersEndpoints(this RouteGroupBuilder api)
+    public void MapEndpoints(RouteGroupBuilder api)
     {
         RouteGroupBuilder users = api.MapGroup("/users").RequireAuthorization();
 
@@ -65,7 +65,5 @@ internal static class UsersFeature
         WithdrawAccountClosure.WithdrawAccountClosureEndpoint.Map(users);
         UpdateProfile.UpdateProfileEndpoint.Map(users);
         DeleteUser.DeleteUserEndpoint.Map(users);
-
-        return api;
     }
 }

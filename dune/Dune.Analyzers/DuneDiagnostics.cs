@@ -487,4 +487,14 @@ internal static class DuneDiagnostics
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
         description: "Paso T1: las reglas que revisan features y slices no guardan sus nombres. Lo que una feature hace distinto lo declara ella, en el tipo que mira la regla, con [DuneExemption(DuneCheck.X, \"motivo\")] (backend/Shared/Architecture). Aceptan excepción IdempotentPost (DUNE0016) y MediatorEndpoint (DUNE0028) en la clase <Slice>Endpoint, ReadSliceLoadsEntity (DUNE0019, solo \"carga una entidad\") en la clase <Slice>Endpoint de su slice, y TransactionOwner (DUNE0029) en la clase <Feature>Feature. La excepción cuenta solo en el tipo de primer nivel que da nombre a su archivo (la clase <Slice>Endpoint o <Feature>Feature) y escrita en ese archivo: no en una clase anidada ni en otra parte de una clase partial. Es error un atributo con el motivo vacío o con un valor que no es un miembro de DuneCheck: esa excepción no exime nada. Límite: no avisa si una excepción quedó sin efecto, por ejemplo en otro tipo que el que mira su regla; la cubre la revisión.");
+
+    public static readonly DiagnosticDescriptor FeatureDiscovery = new(
+        id: "DUNE0034",
+        title: "Feature que el host no descubre",
+        messageFormat: "'{0}' {1}",
+        category: "Dune",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "Paso T3: cada host descubre las features de su compilación (FeatureHosting.AddFeatures y MapFeatures, en Infrastructure/Hosting) y Program.cs no las nombra. Un host crea cada clase que implementa TemplateApp.Infrastructure.Hosting.IFeature, registra sus servicios y mapea sus rutas públicas e internas. Por eso, si una compilación tiene archivos de backend/Features/<Feature>/ (sin contar tests ni migraciones), es error que no exista TemplateApp.Features.<Feature>.<Feature>Feature, que sea estática, abstracta o no sea una clase, que no implemente IFeature o que no tenga un constructor público sin parámetros: esa feature compilaría y el host no la arrancaría. También es error que un tipo implemente IFeature fuera de backend/Features/<Feature>/<Feature>Feature.cs con ese nombre: el host lo arrancaría como una feature más. Si la compilación tiene features y no encuentra IFeature, avisa que quedó ciega. Los tests quedan fuera.",
+        customTags: WellKnownDiagnosticTags.CompilationEnd);
 }

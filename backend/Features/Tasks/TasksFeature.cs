@@ -5,6 +5,7 @@ using TemplateApp.Features.Tasks.Domain.Events;
 using TemplateApp.Features.Tasks.MessageNames;
 using TemplateApp.Features.Tasks.Persistence;
 using TemplateApp.Features.Tasks.Telemetry;
+using TemplateApp.Infrastructure.Hosting;
 using TemplateApp.Infrastructure.Http;
 using TemplateApp.Infrastructure.Http.Remote;
 using TemplateApp.Infrastructure.Messaging;
@@ -16,11 +17,11 @@ using TemplateApp.Shared.Architecture;
 namespace TemplateApp.Features.Tasks;
 
 [DuneExemption(DuneCheck.TransactionOwner, "Tasks corre en su propio proceso, sin la integración de EF de Wolverine: cada slice abre y confirma su transacción.")]
-internal static class TasksFeature
+internal sealed class TasksFeature : IFeature
 {
     public const string MonolithService = "Monolith";
 
-    public static IServiceCollection AddTasksFeature(this IServiceCollection services)
+    public void AddServices(IServiceCollection services)
     {
         services.AddMigratedDbContext<TasksDbContext>(TasksDbContext.Schema, adoptsLegacyTables: true);
         services.AddOutbox<TasksDbContext>();
@@ -67,10 +68,9 @@ internal static class TasksFeature
         services.AddScoped<DeleteOwnedTasks.DeleteOwnedTasks>();
         services.AddScoped<HoldOwnerTasks.HoldOwnerTasks>();
         services.AddScoped<ReleaseOwnerTasks.ReleaseOwnerTasks>();
-        return services;
     }
 
-    public static RouteGroupBuilder MapTasksEndpoints(this RouteGroupBuilder api)
+    public void MapEndpoints(RouteGroupBuilder api)
     {
         RouteGroupBuilder tasks = api.MapGroup("/tasks").RequireAuthorization();
 
@@ -79,14 +79,10 @@ internal static class TasksFeature
         GetTask.GetTaskEndpoint.Map(tasks);
         UpdateTask.UpdateTaskEndpoint.Map(tasks);
         DeleteTask.DeleteTaskEndpoint.Map(tasks);
-
-        return api;
     }
 
-    public static RouteGroupBuilder MapTasksInternalEndpoints(this RouteGroupBuilder internalApi)
+    public void MapInternalEndpoints(RouteGroupBuilder internalApi)
     {
         SnapshotTaskCounts.SnapshotTaskCountsEndpoint.Map(internalApi);
-
-        return internalApi;
     }
 }

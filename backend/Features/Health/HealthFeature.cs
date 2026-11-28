@@ -1,20 +1,19 @@
+using TemplateApp.Infrastructure.Hosting;
+
 namespace TemplateApp.Features.Health;
 
-internal static class HealthFeature
+internal sealed class HealthFeature : IFeature
 {
-    public static IServiceCollection AddHealthFeature(this IServiceCollection services)
+    public void AddServices(IServiceCollection services)
     {
         services.AddHealthChecks();
-        return services;
     }
 
-    public static RouteGroupBuilder MapHealthEndpoints(this RouteGroupBuilder api)
+    public void MapEndpoints(RouteGroupBuilder api)
     {
         RouteGroupBuilder health = api.MapGroup("/health").AllowAnonymous().DisableRateLimiting();
 
         GetLiveness.GetLivenessEndpoint.Map(health);
         GetReadiness.GetReadinessEndpoint.Map(health);
-
-        return api;
     }
 }
