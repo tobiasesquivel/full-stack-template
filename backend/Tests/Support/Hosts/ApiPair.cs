@@ -168,10 +168,18 @@ public sealed class ApiPair : IDisposable
 
     private sealed class KestrelRoute(Uri address) : DelegatingHandler(new SocketsHttpHandler())
     {
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
-            request.RequestUri = new UriBuilder(request.RequestUri!) { Scheme = address.Scheme, Host = address.Host, Port = address.Port }.Uri;
-            return base.SendAsync(request, cancellationToken);
+            Uri original = request.RequestUri!;
+            request.RequestUri = new UriBuilder(original) { Scheme = address.Scheme, Host = address.Host, Port = address.Port }.Uri;
+            try
+            {
+                return await base.SendAsync(request, cancellationToken);
+            }
+            finally
+            {
+                request.RequestUri = original;
+            }
         }
 
         protected override void Dispose(bool disposing)

@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -167,6 +168,32 @@ public sealed class FeaturePermissionsTests : IClassFixture<ApiFixture>
         Assert.Equal("healthy", await CheckStatusAsync(ready));
     }
 
+    [Fact]
+    public async Task OnKestrel_ADeclarationAnswered503Once_IsRetriedAgainstTheMonolith()
+    {
+        string database = await TestDatabases.CreateEmptyAsync(_server);
+        ConcurrentQueue<string> hosts = new();
+        int declarations = 0;
+        using ApiPair api = new(
+            database,
+            new Dictionary<string, string>(),
+            _ => { },
+            (request, server) =>
+            {
+                if (!ApiPair.IsPermissionsDeclaration(request))
+                    return null;
+
+                hosts.Enqueue(request.RequestUri!.Host);
+                return Interlocked.Increment(ref declarations) == 1 ? new UnavailableAfterForwarding(server) : null;
+            },
+            kestrel: true);
+
+        api.Start();
+
+        Assert.True(api.TasksDeclared.IsCompletedSuccessfully);
+        Assert.Equal([ApiPair.MonolithAuthority, ApiPair.MonolithAuthority], hosts);
+    }
+
     private async Task<string> RegisterWithOnlyRoleAsync(string role)
     {
         string name = TestAccounts.UniqueName(role.ToLowerInvariant());
@@ -232,6 +259,16 @@ public sealed class FeaturePermissionsTests : IClassFixture<ApiFixture>
     {
         using JsonDocument body = JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
         return body.RootElement.GetProperty("checks").GetProperty(TasksFeature.PermissionsDeclarationCheck).GetString()!;
+    }
+
+    private sealed class UnavailableAfterForwarding(HttpMessageHandler server) : HttpMessageHandler
+    {
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            using HttpMessageInvoker forward = new(server, disposeHandler: false);
+            using HttpResponseMessage served = await forward.SendAsync(request, cancellationToken);
+            return new HttpResponseMessage(HttpStatusCode.ServiceUnavailable);
+        }
     }
 
     private sealed class Unavailable : HttpMessageHandler

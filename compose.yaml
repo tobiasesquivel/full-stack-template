@@ -135,7 +135,7 @@ services:
       api:
         condition: service_started
       tasks:
-        condition: service_started
+        condition: service_healthy
       otel:
         condition: service_started
     environment:

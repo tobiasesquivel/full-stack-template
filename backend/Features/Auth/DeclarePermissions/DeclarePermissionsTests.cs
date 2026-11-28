@@ -54,7 +54,7 @@ public sealed class DeclarePermissionsTests : IClassFixture<ApiFixture>
         [
             null,
             "not-a-seal",
-            DataProtectionProvider.Create("another-deployment").CreateProtector("TemplateApp.PermissionDeclaration.v1").Protect("{}"),
+            PermissionDeclarationSeal.Seal(AnotherDeployment(), escalation),
             PermissionDeclarationSeal.Seal(keys, escalation, DateTimeOffset.UtcNow.AddMinutes(-1)),
         ];
         foreach (string? seal in seals)
@@ -132,6 +132,9 @@ public sealed class DeclarePermissionsTests : IClassFixture<ApiFixture>
         api.Start();
         return api;
     }
+
+    private static IDataProtectionProvider AnotherDeployment() =>
+        DataProtectionProvider.Create(Directory.CreateTempSubdirectory("another-deployment-keys"), builder => builder.SetApplicationName("TemplateApp"));
 
     private static PermissionGrant Grant(string permission, params string[] roles) => new(permission, roles);
 
