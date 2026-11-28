@@ -11,6 +11,7 @@ namespace Dune.Analyzers;
 public sealed class FeatureDiscoveryAnalyzer : DiagnosticAnalyzer
 {
     private const string FeatureInterface = "TemplateApp.Infrastructure.Hosting.IFeature";
+    private const string TestsProject = "backend/Tests/";
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
         ImmutableArray.Create(DuneDiagnostics.FeatureDiscovery);
@@ -21,6 +22,11 @@ public sealed class FeatureDiscoveryAnalyzer : DiagnosticAnalyzer
         context.EnableConcurrentExecution();
         context.RegisterCompilationStartAction(start =>
         {
+            if (IsTestsProject(start.Options.AnalyzerConfigOptionsProvider.GlobalOptions))
+            {
+                return;
+            }
+
             var contract = start.Compilation.GetTypeByMetadataName(FeatureInterface);
             if (contract is not null)
             {
@@ -42,7 +48,7 @@ public sealed class FeatureDiscoveryAnalyzer : DiagnosticAnalyzer
         foreach (var location in type.Locations.Where(location => location.IsInSource))
         {
             var path = DunePaths.Normalize(location.SourceTree?.FilePath);
-            if (IsTestCode(path) || IsFeatureRoot(type, path))
+            if (IsFeatureRoot(type, path))
             {
                 continue;
             }
@@ -55,8 +61,9 @@ public sealed class FeatureDiscoveryAnalyzer : DiagnosticAnalyzer
         }
     }
 
-    private static bool IsTestCode(string path) =>
-        DunePaths.ContainsOrdinal(path, "backend/Tests/") || path.EndsWith("Tests.cs", StringComparison.Ordinal);
+    private static bool IsTestsProject(AnalyzerConfigOptions options) =>
+        options.TryGetValue(HostBoundaryAnalyzer.ProjectPathOption, out var projectPath)
+        && DunePaths.Normalize(projectPath).TrimStart('/').StartsWith(TestsProject, StringComparison.OrdinalIgnoreCase);
 
     private static bool IsFeatureRoot(INamedTypeSymbol type, string path) =>
         type.ContainingType is null
@@ -74,7 +81,6 @@ public sealed class FeatureDiscoveryAnalyzer : DiagnosticAnalyzer
         {
             var path = DunePaths.Normalize(tree.FilePath);
             if (DunePaths.IsBackendFile(path)
-                && !IsTestCode(path)
                 && !DunePaths.IsMigration(path)
                 && DunePaths.TryGetFeature(path, out var feature)
                 && !features.ContainsKey(feature))

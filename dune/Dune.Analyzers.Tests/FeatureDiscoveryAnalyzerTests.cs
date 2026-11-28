@@ -208,10 +208,48 @@ public sealed class FeatureDiscoveryAnalyzerTests
         Assert.Contains("no se puede revisar", diagnostic.GetMessage(), System.StringComparison.Ordinal);
     }
 
+    private const string GenericProbe = """
+        using TemplateApp.Infrastructure.Hosting;
+        namespace TemplateApp.Features.Invoices;
+        internal sealed class Probe<T> : IFeature
+        {
+            public void AddServices()
+            {
+            }
+        }
+        """;
+
+    private const string ValidFeature = """
+        using TemplateApp.Infrastructure.Hosting;
+        namespace TemplateApp.Features.Invoices;
+        internal sealed class InvoicesFeature : IFeature
+        {
+            public void AddServices()
+            {
+            }
+        }
+        """;
+
     [Fact]
-    public async Task TestsAndMigrations_AreLeftOut()
+    public async Task Migrations_DoNotMakeAFeatureFolder()
     {
         var diagnostics = await AnalyzeAsync(
+            ("backend/Infrastructure/Hosting/IFeature.cs", Contract),
+            ("backend/Features/Invoices/Persistence/Migrations/20261127000000_Init.cs", """
+                namespace TemplateApp.Features.Invoices.Persistence.Migrations;
+                internal sealed class Init
+                {
+                }
+                """));
+
+        Assert.Empty(diagnostics);
+    }
+
+    [Fact]
+    public async Task TheTestsProject_IsLeftOut()
+    {
+        var diagnostics = await AnalyzeProjectAsync(
+            "backend/Tests/",
             ("backend/Infrastructure/Hosting/IFeature.cs", Contract),
             ("backend/Features/Invoices/CreateInvoice/CreateInvoiceTests.cs", """
                 namespace TemplateApp.Features.Invoices.CreateInvoice;
@@ -219,16 +257,10 @@ public sealed class FeatureDiscoveryAnalyzerTests
                 {
                 }
                 """),
-            ("backend/Features/Invoices/Persistence/Migrations/20261127000000_Init.cs", """
-                namespace TemplateApp.Features.Invoices.Persistence.Migrations;
-                internal sealed class Init
-                {
-                }
-                """),
-            ("backend/Tests/Hosting/ProbeFeature.cs", """
+            ("backend/Tests/Hosting/InvoicesFeature.cs", """
                 using TemplateApp.Infrastructure.Hosting;
                 namespace TemplateApp.Tests.Hosting;
-                internal sealed class ProbeFeature : IFeature
+                public sealed class InvoicesFeature : IFeature
                 {
                     public void AddServices()
                     {
@@ -238,6 +270,32 @@ public sealed class FeatureDiscoveryAnalyzerTests
 
         Assert.Empty(diagnostics);
     }
+
+    [Theory]
+    [InlineData("C:/build/obj/TemplateApp/Release/ProbeTests.cs")]
+    [InlineData("backend/Features/Invoices/ProbeTests.cs")]
+    [InlineData("backend/Tests/Hosting/Probe.cs")]
+    public async Task AGenericIFeatureInAHost_IsRejected_EvenIfItsFileLooksLikeATest(string probePath)
+    {
+        var diagnostics = await AnalyzeProjectAsync(
+            "backend/Hosts/Monolith/",
+            ("backend/Infrastructure/Hosting/IFeature.cs", Contract),
+            ("backend/Features/Invoices/CreateInvoice/CreateInvoiceEndpoint.cs", Slice),
+            ("backend/Features/Invoices/InvoicesFeature.cs", ValidFeature),
+            (probePath, GenericProbe));
+
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Contains("'Probe' implementa IFeature y no es la clase", diagnostic.GetMessage(), System.StringComparison.Ordinal);
+        Assert.EndsWith(probePath, diagnostic.Location.SourceTree!.FilePath, System.StringComparison.Ordinal);
+    }
+
+    private static Task<ImmutableArray<Diagnostic>> AnalyzeProjectAsync(string projectPath, params (string Path, string Source)[] files) =>
+        AnalyzerHost.AnalyzeProjectAsync(
+            "TemplateApp",
+            ImmutableDictionary<string, string>.Empty.Add(HostBoundaryAnalyzer.ProjectPathOption, projectPath),
+            new List<(string, string)>(files),
+            System.Array.Empty<MetadataReference>(),
+            AnalyzerHost.Only<FeatureDiscoveryAnalyzer>());
 
     private static Task<ImmutableArray<Diagnostic>> AnalyzeAsync(params (string Path, string Source)[] files) =>
         AnalyzerHost.AnalyzeAsync(new List<(string, string)>(files), AnalyzerHost.Only<FeatureDiscoveryAnalyzer>());
