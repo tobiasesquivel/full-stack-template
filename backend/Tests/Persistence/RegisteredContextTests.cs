@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.DependencyInjection;
+using TemplateApp.Infrastructure.Persistence;
 using TemplateApp.Tests.Support.Contexts;
 using TemplateApp.Tests.Support.Hosts;
 using TemplateApp.Tests.Support.Rows;
@@ -22,12 +23,12 @@ public sealed class RegisteredContextTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task ARegisteredContext_JoinsTheSearchPath_DrainsItsOutbox_AndCountsItsRowsByOwner()
+    public async Task AContextRegisteredOnlyInTasks_JoinsOnlyItsSearchPath_DrainsItsOutbox_AndCountsItsRowsByOwner()
     {
-        _api = await IsolatedApi.StartAsync(_server, _rabbit.Uri, ProbeDbContext.Register);
+        _api = await IsolatedApi.StartAsync(_server, _rabbit.Uri, configureTasks: ProbeDbContext.Register);
         CancellationToken ct = TestContext.Current.CancellationToken;
         string holder = Guid.NewGuid().ToString();
-        await using (AsyncServiceScope scope = _api.Pair.Monolith.Services.CreateAsyncScope())
+        await using (AsyncServiceScope scope = _api.Pair.Tasks.Services.CreateAsyncScope())
         {
             ProbeDbContext probe = scope.ServiceProvider.GetRequiredService<ProbeDbContext>();
             await probe.GetService<IRelationalDatabaseCreator>().CreateTablesAsync(ct);
@@ -35,9 +36,11 @@ public sealed class RegisteredContextTests : IAsyncDisposable
             await probe.SaveChangesAsync(ct);
         }
 
-        Assert.Equal("public,auth,platform,probe,projects,users", await SearchPathAsync(_api.Pair.Monolith.Services));
+        Assert.Equal("public,auth,platform,projects,users", await SearchPathAsync(_api.Pair.Monolith.Services));
         Assert.Equal("public,platform,probe,tasks", await SearchPathAsync(_api.Pair.Tasks.Services));
         Assert.Equal(2, (await _api.Pair.OwnedRowsAsync(holder))["probe.ProbeItems"]);
+        OwnedRows monolithRows = await _api.Pair.Monolith.Services.OwnedRowsAsync(holder);
+        Assert.Throws<KeyNotFoundException>(() => monolithRows["probe.ProbeItems"]);
         Assert.Equal(3, await _api.Pair.Monolith.Services.CountAsync($"""SELECT count(*) AS "Value" FROM probe."OutboxMessages" WHERE "ProcessedAt" IS NULL"""));
 
         await _api.DrainAsync();
@@ -49,8 +52,8 @@ public sealed class RegisteredContextTests : IAsyncDisposable
     private static async Task<string> SearchPathAsync(IServiceProvider host)
     {
         using IServiceScope scope = host.CreateScope();
-        ProbeDbContext probe = scope.ServiceProvider.GetRequiredService<ProbeDbContext>();
-        return await probe.Database.SqlQuery<string>($"SELECT current_setting('search_path') AS \"Value\"").SingleAsync();
+        PlatformDbContext platform = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        return await platform.Database.SqlQuery<string>($"SELECT current_setting('search_path') AS \"Value\"").SingleAsync();
     }
 
     public ValueTask DisposeAsync()

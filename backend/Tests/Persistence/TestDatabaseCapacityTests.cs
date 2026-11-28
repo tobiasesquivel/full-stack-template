@@ -16,6 +16,8 @@ public sealed class TestDatabaseCapacityTests
         await using NpgsqlConnection connection = await TestDatabases.OpenAsync(_postgres.ConnectionString);
         await using NpgsqlCommand show = new("SHOW max_connections", connection);
 
-        Assert.Equal(PostgresFixture.MaxConnections.ToString(System.Globalization.CultureInfo.InvariantCulture), await show.ExecuteScalarAsync(TestContext.Current.CancellationToken));
+        int maxConnections = int.Parse((string)(await show.ExecuteScalarAsync(TestContext.Current.CancellationToken))!, System.Globalization.CultureInfo.InvariantCulture);
+
+        Assert.True(maxConnections >= PostgresFixture.MaxConnections, $"The test database accepts {maxConnections} connections; the suite needs at least {PostgresFixture.MaxConnections} (a pool per host and connection string).");
     }
 }

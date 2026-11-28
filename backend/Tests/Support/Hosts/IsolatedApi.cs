@@ -47,7 +47,8 @@ internal sealed class IsolatedApi : IDisposable
         Action<IServiceCollection>? configure = null,
         Func<HttpRequestMessage, HttpMessageHandler, HttpMessageHandler?>? interceptRemote = null,
         IReadOnlyDictionary<string, string>? settings = null,
-        bool kestrel = false) =>
+        bool kestrel = false,
+        Action<IServiceCollection>? configureTasks = null) =>
         StartOn(
             new NpgsqlConnectionStringBuilder(await TestDatabases.CreateEmptyAsync(server)) { Pooling = false }.ConnectionString,
             broker,
@@ -55,7 +56,8 @@ internal sealed class IsolatedApi : IDisposable
             configure,
             interceptRemote,
             settings,
-            kestrel);
+            kestrel,
+            configureTasks);
 
     public static string NewPrefix() => $"t{Guid.NewGuid():N}"[..13];
 
@@ -66,7 +68,8 @@ internal sealed class IsolatedApi : IDisposable
         Action<IServiceCollection>? configure = null,
         Func<HttpRequestMessage, HttpMessageHandler, HttpMessageHandler?>? interceptRemote = null,
         IReadOnlyDictionary<string, string>? settings = null,
-        bool kestrel = false)
+        bool kestrel = false,
+        Action<IServiceCollection>? configureTasks = null)
     {
         FakeTimeProvider clock = new(DateTimeOffset.FromUnixTimeSeconds(DateTimeOffset.UtcNow.ToUnixTimeSeconds()));
         Dictionary<string, string> all = new(settings ?? new Dictionary<string, string>())
@@ -83,7 +86,8 @@ internal sealed class IsolatedApi : IDisposable
                 configure?.Invoke(services);
             },
             interceptRemote,
-            kestrel);
+            kestrel,
+            configureTasks);
         pair.Start();
         return new IsolatedApi(database, prefix, pair, clock);
     }

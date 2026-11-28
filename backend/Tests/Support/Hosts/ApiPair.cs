@@ -24,7 +24,8 @@ public sealed class ApiPair : IDisposable
         IReadOnlyDictionary<string, string> settings,
         Action<IServiceCollection> configureServices,
         Func<HttpRequestMessage, HttpMessageHandler, HttpMessageHandler?>? interceptRemote = null,
-        bool kestrel = false)
+        bool kestrel = false,
+        Action<IServiceCollection>? configureTasks = null)
     {
         _kestrel = kestrel;
         _monolith = new MonolithFactory(connectionString, settings, services =>
@@ -35,6 +36,7 @@ public sealed class ApiPair : IDisposable
         _tasks = new TasksFactory(connectionString, settings, services =>
         {
             configureServices(services);
+            configureTasks?.Invoke(services);
             RouteRemoteCalls(services, interceptRemote);
         });
     }

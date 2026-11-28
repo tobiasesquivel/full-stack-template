@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using TemplateApp.Infrastructure.Persistence;
+using TemplateApp.Tests.Support.Contexts;
 using TemplateApp.Tests.Support.Hosts;
 using Xunit;
 
@@ -58,6 +59,20 @@ public sealed class DatabaseSearchPathTests : IClassFixture<ApiFixture>
                 });
         }
     }
+
+    [Theory]
+    [InlineData("ProbeData")]
+    [InlineData("probe-data")]
+    [InlineData("1probe")]
+    [InlineData("")]
+    public void ASchemaThatPostgreSqlWouldFoldOrNeedQuotes_IsRejectedWhenTheContextIsRegistered(string schema) =>
+        Assert.Throws<ArgumentException>(() => new ServiceCollection().AddMigratedDbContext<ProbeDbContext>(schema, adoptsLegacyTables: false));
+
+    [Fact]
+    public void APlainLowercaseSchema_IsRegistered() =>
+        Assert.Contains(
+            new ServiceCollection().AddMigratedDbContext<ProbeDbContext>("probe_2", adoptsLegacyTables: false),
+            descriptor => descriptor.ImplementationInstance is MigratedContext { Schema: "probe_2" });
 
     private static async Task<string[]> SessionSearchPathsAsync(IServiceProvider services)
     {

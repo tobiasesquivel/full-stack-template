@@ -18,6 +18,9 @@ public static class ContextRegistration
         bool appliesMigrations = true)
         where TContext : DbContext
     {
+        if (!IsPlainSchemaName(schema))
+            throw new ArgumentException($"The schema of {typeof(TContext).Name} must be lowercase letters, digits and underscores, starting with a letter or underscore: PostgreSQL folds any other name in the Search Path.", nameof(schema));
+
         services.AddDbContext<TContext>((provider, options) => options
             .UseNpgsql(
                 DatabaseSearchPath.ConnectionString(provider),
@@ -41,6 +44,11 @@ public static class ContextRegistration
                 DatabaseSearchPath.ConnectionString(provider),
                 npgsql => npgsql.MigrationsHistoryTable(HistoryTable, LegacySchema))
             .ConfigureWarnings(warnings => warnings.Ignore(RelationalEventId.PendingModelChangesWarning)));
+
+    private static bool IsPlainSchemaName(string schema) =>
+        schema.Length > 0
+        && schema[0] is (>= 'a' and <= 'z') or '_'
+        && schema.All(c => c is (>= 'a' and <= 'z') or (>= '0' and <= '9') or '_');
 
     public static IReadOnlyList<DbContext> MigratedContexts(this IServiceProvider services) =>
         services.GetServices<MigratedContext>()
