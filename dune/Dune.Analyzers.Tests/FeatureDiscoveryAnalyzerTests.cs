@@ -230,8 +230,27 @@ public sealed class FeatureDiscoveryAnalyzerTests
         }
         """;
 
+    [Theory]
+    [InlineData("Migrations")]
+    [InlineData("ModelSnapshots")]
+    [InlineData("Designer")]
+    public async Task AFeatureWhoseNameLooksLikeAMigration_StillNeedsItsFeatureClass(string feature)
+    {
+        var diagnostics = await AnalyzeAsync(
+            ("backend/Infrastructure/Hosting/IFeature.cs", Contract),
+            ("backend/Features/" + feature + "/Run/RunEndpoint.cs", $$"""
+                namespace TemplateApp.Features.{{feature}}.Run;
+                internal static class RunEndpoint
+                {
+                }
+                """));
+
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Contains("'" + feature + "Feature' falta", diagnostic.GetMessage(), System.StringComparison.Ordinal);
+    }
+
     [Fact]
-    public async Task Migrations_DoNotMakeAFeatureFolder()
+    public async Task AFeatureFolderWithOnlyMigrations_StillNeedsItsFeatureClass()
     {
         var diagnostics = await AnalyzeAsync(
             ("backend/Infrastructure/Hosting/IFeature.cs", Contract),
@@ -242,7 +261,8 @@ public sealed class FeatureDiscoveryAnalyzerTests
                 }
                 """));
 
-        Assert.Empty(diagnostics);
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Contains("'InvoicesFeature' falta", diagnostic.GetMessage(), System.StringComparison.Ordinal);
     }
 
     [Fact]

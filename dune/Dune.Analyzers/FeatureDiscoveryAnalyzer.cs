@@ -81,7 +81,6 @@ public sealed class FeatureDiscoveryAnalyzer : DiagnosticAnalyzer
         {
             var path = DunePaths.Normalize(tree.FilePath);
             if (DunePaths.IsBackendFile(path)
-                && !DunePaths.IsMigration(path)
                 && DunePaths.TryGetFeature(path, out var feature)
                 && !features.ContainsKey(feature))
             {
