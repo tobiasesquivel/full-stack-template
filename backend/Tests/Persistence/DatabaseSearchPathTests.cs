@@ -65,6 +65,7 @@ public sealed class DatabaseSearchPathTests : IClassFixture<ApiFixture>
     [InlineData("probe-data")]
     [InlineData("1probe")]
     [InlineData("")]
+    [InlineData("probe_0123456789012345678901234567890123456789012345678901234567")]
     public void ASchemaThatPostgreSqlWouldFoldOrNeedQuotes_IsRejectedWhenTheContextIsRegistered(string schema) =>
         Assert.Throws<ArgumentException>(() => new ServiceCollection().AddMigratedDbContext<ProbeDbContext>(schema, adoptsLegacyTables: false));
 

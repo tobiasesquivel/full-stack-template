@@ -135,7 +135,7 @@ internal sealed class IsolatedApi : IDisposable
                  + (SELECT count(*) FROM wolverine.wolverine_incoming_envelopes WHERE status = 'Incoming') AS "Value"
             """);
 
-    private Task<long> UndeliveredAsync() =>
+    public Task<long> UndeliveredAsync() =>
         Pair.Monolith.Services.CountAsync(FormattableStringFactory.Create(
             $$"""
             WITH expected("Type", "Consumer") AS (VALUES

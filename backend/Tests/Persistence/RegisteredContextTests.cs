@@ -43,10 +43,24 @@ public sealed class RegisteredContextTests : IAsyncDisposable
         Assert.Throws<KeyNotFoundException>(() => monolithRows["probe.ProbeItems"]);
         Assert.Equal(3, await _api.Pair.Monolith.Services.CountAsync($"""SELECT count(*) AS "Value" FROM probe."OutboxMessages" WHERE "ProcessedAt" IS NULL"""));
 
+        await PostponeOneMessageAsync(_api.Clock.GetUtcNow().AddDays(1));
+        await _api.PublishOutboxAsync<ProbeDbContext>();
+        Assert.Equal(1, await _api.UndeliveredAsync());
+
+        await PostponeOneMessageAsync(null);
         await _api.DrainAsync();
 
         Assert.Equal(0, await _api.Pair.Monolith.Services.CountAsync($"""SELECT count(*) AS "Value" FROM probe."OutboxMessages" WHERE "ProcessedAt" IS NULL"""));
         Assert.Equal(3, await _api.Pair.Monolith.Services.CountAsync($"""SELECT count(*) AS "Value" FROM probe."OutboxMessages" WHERE "ProcessedAt" IS NOT NULL"""));
+    }
+
+    private async Task PostponeOneMessageAsync(DateTimeOffset? until)
+    {
+        await using AsyncServiceScope scope = _api!.Pair.Tasks.Services.CreateAsyncScope();
+        ProbeDbContext probe = scope.ServiceProvider.GetRequiredService<ProbeDbContext>();
+        await probe.Database.ExecuteSqlAsync(
+            $"""UPDATE probe."OutboxMessages" SET "NextAttemptAt" = {until} WHERE "Id" = (SELECT min("Id") FROM probe."OutboxMessages")""",
+            TestContext.Current.CancellationToken);
     }
 
     private static async Task<string> SearchPathAsync(IServiceProvider host)

@@ -10,6 +10,7 @@ public static class ContextRegistration
 {
     public const string LegacySchema = "public";
     public const string HistoryTable = "__EFMigrationsHistory";
+    private const int MaxIdentifierLength = 63;
 
     public static IServiceCollection AddMigratedDbContext<TContext>(
         this IServiceCollection services,
@@ -19,7 +20,7 @@ public static class ContextRegistration
         where TContext : DbContext
     {
         if (!IsPlainSchemaName(schema))
-            throw new ArgumentException($"The schema of {typeof(TContext).Name} must be lowercase letters, digits and underscores, starting with a letter or underscore: PostgreSQL folds any other name in the Search Path.", nameof(schema));
+            throw new ArgumentException($"The schema of {typeof(TContext).Name} must be at most 63 lowercase letters, digits and underscores, starting with a letter or underscore: PostgreSQL folds or truncates any other name in the Search Path.", nameof(schema));
 
         services.AddDbContext<TContext>((provider, options) => options
             .UseNpgsql(
@@ -46,7 +47,7 @@ public static class ContextRegistration
             .ConfigureWarnings(warnings => warnings.Ignore(RelationalEventId.PendingModelChangesWarning)));
 
     private static bool IsPlainSchemaName(string schema) =>
-        schema.Length > 0
+        schema.Length is > 0 and <= MaxIdentifierLength
         && schema[0] is (>= 'a' and <= 'z') or '_'
         && schema.All(c => c is (>= 'a' and <= 'z') or (>= '0' and <= '9') or '_');
 
