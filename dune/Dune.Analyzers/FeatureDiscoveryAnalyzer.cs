@@ -42,7 +42,7 @@ public sealed class FeatureDiscoveryAnalyzer : DiagnosticAnalyzer
         foreach (var location in type.Locations.Where(location => location.IsInSource))
         {
             var path = DunePaths.Normalize(location.SourceTree?.FilePath);
-            if (!DunePaths.IsBackendFile(path) || IsTestCode(path) || IsFeatureRoot(type, path))
+            if (IsTestCode(path) || IsFeatureRoot(type, path))
             {
                 continue;
             }
