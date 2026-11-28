@@ -80,6 +80,8 @@
 | Rate limiter `"auth"` y antiforgery (`BackendInfrastructure.cs:158-176`) | `AddAuthFeature()` | Según `docs/conventions.md`, antiforgery protege register, login, refresh y logout: solo endpoints de Auth. La política `"auth"` lleva el nombre de la feature. [INFERENCE] Si otra feature necesita antiforgery, la configuración vuelve al host. |
 | `Infrastructure/Middlewares/*`, `ActivityTraceEnricher`, setup OTel | **Quedan** en Infrastructure. | Plumbing general-purpose. No nombran features. |
 
+> Nota del paso T3 (2026-11-27): la propuesta de este informe de que `Program.cs` liste las features de forma explícita (`Add<X>Feature`, la tabla de arriba y el árbol de abajo) describe el diseño anterior. Desde T3 cada `<X>Feature` implementa `IFeature` y cada host la descubre en su ensamblado, sin nombrarla: [ADR-0006](../../adr/0006-hosts-descubren-features.md).
+
 ### 2.2 Árbol propuesto (estado después de los pasos 21-22)
 
 ```text

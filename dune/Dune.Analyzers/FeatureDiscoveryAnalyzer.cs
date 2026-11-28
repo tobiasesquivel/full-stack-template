@@ -51,12 +51,14 @@ public sealed class FeatureDiscoveryAnalyzer : DiagnosticAnalyzer
                 DuneDiagnostics.FeatureDiscovery,
                 location,
                 type.Name,
-                "implementa IFeature fuera de Features/<Feature>/<Feature>Feature.cs: el host lo descubriría como una feature más"));
+                "implementa IFeature y no es la clase <Feature>Feature de primer nivel, no genérica ni file, de Features/<Feature>/<Feature>Feature.cs: el host lo descubriría como una feature más o no lo podría crear"));
         }
     }
 
     private static bool IsFeatureRoot(INamedTypeSymbol type, string path) =>
         type.ContainingType is null
+        && type.Arity == 0
+        && !type.IsFileLocal
         && DunePaths.TryGetFeature(path, out var feature)
         && DunePaths.FeatureSegments(path, feature).Length == 1
         && path.EndsWith("/" + feature + "Feature.cs", StringComparison.Ordinal)

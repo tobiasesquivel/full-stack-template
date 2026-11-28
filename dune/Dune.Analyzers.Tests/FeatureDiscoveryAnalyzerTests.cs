@@ -110,7 +110,32 @@ public sealed class FeatureDiscoveryAnalyzerTests
                 """));
 
         var diagnostic = Assert.Single(diagnostics);
-        Assert.Contains("'" + name + "' implementa IFeature fuera de", diagnostic.GetMessage(), System.StringComparison.Ordinal);
+        Assert.Contains("'" + name + "' implementa IFeature y no es la clase", diagnostic.GetMessage(), System.StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("file sealed class InvoicesFeature<T> : IFeature { public void AddServices() { } }")]
+    [InlineData("internal sealed class InvoicesFeature<T> : IFeature { public void AddServices() { } }")]
+    [InlineData("file sealed class Helper : IFeature { public void AddServices() { } }")]
+    public async Task AGenericOrFileLocalIFeature_NextToTheFeatureClass_IsRejected(string extra)
+    {
+        var diagnostics = await AnalyzeAsync(
+            ("backend/Infrastructure/Hosting/IFeature.cs", Contract),
+            ("backend/Features/Invoices/CreateInvoice/CreateInvoiceEndpoint.cs", Slice),
+            ("backend/Features/Invoices/InvoicesFeature.cs", $$"""
+                using TemplateApp.Infrastructure.Hosting;
+                namespace TemplateApp.Features.Invoices;
+                internal sealed class InvoicesFeature : IFeature
+                {
+                    public void AddServices()
+                    {
+                    }
+                }
+                {{extra}}
+                """));
+
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Contains("implementa IFeature y no es la clase", diagnostic.GetMessage(), System.StringComparison.Ordinal);
     }
 
     [Fact]
