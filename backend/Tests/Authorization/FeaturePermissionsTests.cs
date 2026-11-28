@@ -252,7 +252,14 @@ public sealed class FeaturePermissionsTests : IClassFixture<ApiFixture>
     {
         using IServiceScope scope = monolith.CreateScope();
         PermissionCatalog catalog = scope.ServiceProvider.GetRequiredService<PermissionCatalog>();
-        await catalog.GrantAsync([new FeaturePermissions("Tasks", new TasksPermissions().Grants)], TestContext.Current.CancellationToken);
+        FeaturePermissions seededByMain = new("Tasks",
+        [
+            new("Permissions.Tasks.Create", [AppRoles.User, AppRoles.Admin, AppRoles.SuperAdmin]),
+            new("Permissions.Tasks.Read", [AppRoles.Admin, AppRoles.SuperAdmin]),
+            new("Permissions.Tasks.Update", [AppRoles.Admin, AppRoles.SuperAdmin]),
+            new("Permissions.Tasks.Delete", [AppRoles.Admin, AppRoles.SuperAdmin]),
+        ]);
+        await catalog.GrantAsync([seededByMain], TestContext.Current.CancellationToken);
     }
 
     private static async Task DeleteRolesAsync(string database)

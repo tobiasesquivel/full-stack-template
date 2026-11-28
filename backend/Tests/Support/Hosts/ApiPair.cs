@@ -27,6 +27,7 @@ public sealed class ApiPair : IDisposable
     private readonly TasksFactory _tasks;
     private readonly bool _kestrel;
     private readonly TaskCompletionSource<Func<HttpMessageHandler>> _monolithStarted = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private KestrelRoute? _kestrelRoute;
 
     public ApiPair(
         string connectionString,
@@ -41,7 +42,7 @@ public sealed class ApiPair : IDisposable
         {
             configureServices(services);
             RouteRemoteCalls(services, interceptRemote);
-            services.AddHostedService(provider => new StartedSignal(provider, _monolithStarted));
+            services.AddHostedService(provider => new StartedSignal(provider, _monolithStarted, address => _kestrelRoute = new KestrelRoute(address)));
         });
         _tasks = new TasksFactory(connectionString, settings, services =>
         {
@@ -91,6 +92,7 @@ public sealed class ApiPair : IDisposable
     {
         _monolith.Dispose();
         _tasks.Dispose();
+        _kestrelRoute?.Release();
     }
 
     private void RouteRemoteCalls(IServiceCollection services, Func<HttpRequestMessage, HttpMessageHandler, HttpMessageHandler?>? interceptRemote) =>
@@ -144,7 +146,7 @@ public sealed class ApiPair : IDisposable
             ConfigureCommon(builder, connectionString, settings, configureServices);
     }
 
-    private sealed class StartedSignal(IServiceProvider services, TaskCompletionSource<Func<HttpMessageHandler>> started) : IHostedService
+    private sealed class StartedSignal(IServiceProvider services, TaskCompletionSource<Func<HttpMessageHandler>> started, Func<Uri, KestrelRoute> own) : IHostedService
     {
         public Task StartAsync(CancellationToken cancellationToken)
         {
@@ -155,13 +157,13 @@ public sealed class ApiPair : IDisposable
 
         public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 
-        private static Func<HttpMessageHandler> Route(IServer server)
+        private Func<HttpMessageHandler> Route(IServer server)
         {
             if (server is TestServer memory)
                 return memory.CreateHandler;
 
             Uri address = new(server.Features.GetRequiredFeature<IServerAddressesFeature>().Addresses.First());
-            KestrelRoute kestrel = new(address);
+            KestrelRoute kestrel = own(address);
             return () => kestrel;
         }
     }
@@ -181,6 +183,8 @@ public sealed class ApiPair : IDisposable
                 request.RequestUri = original;
             }
         }
+
+        public void Release() => base.Dispose(true);
 
         protected override void Dispose(bool disposing)
         {
