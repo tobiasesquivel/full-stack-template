@@ -142,11 +142,11 @@ internal static class DuneDiagnostics
     public static readonly DiagnosticDescriptor ContractKind = new(
         id: "DUNE0015",
         title: "Tipo no admitido en Contracts",
-        messageFormat: "'{0}' no es un contrato; en Contracts/ van {1}, records *Details/*Summary/*Info/*Response, *Permissions o *EndpointNames con constantes y *Extensions",
+        messageFormat: "'{0}' no es un contrato; en Contracts/ van {1}, records *Details/*Summary/*Info/*Response, *EndpointNames con constantes y *Extensions",
         category: "Dune",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
-        description: "Contracts/ es lo único que ve otra feature, y cada clase de tipo se reconoce por su nombre: una sola puerta I<Feature>Module, datos con un sufijo de la lista cerrada (Details, Summary, Info), responses HTTP, constantes y métodos de extensión. Desde el paso 22 no hay excepciones: AppIdentityUser vive en Auth/Persistence.");
+        description: "Contracts/ es lo único que ve otra feature, y cada clase de tipo se reconoce por su nombre: una sola puerta I<Feature>Module, datos con un sufijo de la lista cerrada (Details, Summary, Info), responses HTTP, constantes y métodos de extensión. Desde el paso 22 no hay excepciones: AppIdentityUser vive en Auth/Persistence. Desde el paso T4 los permisos no son un contrato: cada feature los declara en Access/<Feature>Permissions.cs (DUNE0035) y Auth los recibe sin importarlos, así que una clase *Permissions en Contracts/ es error.");
 
     public static readonly DiagnosticDescriptor ContractDoorSignature = new(
         id: "DUNE0015",
