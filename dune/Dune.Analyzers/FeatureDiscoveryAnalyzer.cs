@@ -17,7 +17,7 @@ public sealed class FeatureDiscoveryAnalyzer : DiagnosticAnalyzer
 
     public override void Initialize(AnalysisContext context)
     {
-        context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
+        context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.Analyze | GeneratedCodeAnalysisFlags.ReportDiagnostics);
         context.EnableConcurrentExecution();
         context.RegisterCompilationStartAction(start =>
         {
@@ -42,7 +42,7 @@ public sealed class FeatureDiscoveryAnalyzer : DiagnosticAnalyzer
         foreach (var location in type.Locations.Where(location => location.IsInSource))
         {
             var path = DunePaths.Normalize(location.SourceTree?.FilePath);
-            if (!DunePaths.IsBackendFile(path) || DunePaths.IsTestsFile(path) || IsFeatureRoot(type, path))
+            if (!DunePaths.IsBackendFile(path) || IsTestCode(path) || IsFeatureRoot(type, path))
             {
                 continue;
             }
@@ -54,6 +54,9 @@ public sealed class FeatureDiscoveryAnalyzer : DiagnosticAnalyzer
                 "implementa IFeature y no es la clase <Feature>Feature de primer nivel, no genérica ni file, de Features/<Feature>/<Feature>Feature.cs: el host lo descubriría como una feature más o no lo podría crear"));
         }
     }
+
+    private static bool IsTestCode(string path) =>
+        DunePaths.ContainsOrdinal(path, "backend/Tests/") || path.EndsWith("Tests.cs", StringComparison.Ordinal);
 
     private static bool IsFeatureRoot(INamedTypeSymbol type, string path) =>
         type.ContainingType is null
@@ -71,7 +74,7 @@ public sealed class FeatureDiscoveryAnalyzer : DiagnosticAnalyzer
         {
             var path = DunePaths.Normalize(tree.FilePath);
             if (DunePaths.IsBackendFile(path)
-                && !DunePaths.IsTestsFile(path)
+                && !IsTestCode(path)
                 && !DunePaths.IsMigration(path)
                 && DunePaths.TryGetFeature(path, out var feature)
                 && !features.ContainsKey(feature))
