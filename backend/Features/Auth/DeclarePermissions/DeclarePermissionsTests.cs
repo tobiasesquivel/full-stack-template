@@ -26,6 +26,7 @@ public sealed class DeclarePermissionsTests : IClassFixture<ApiFixture>
     [Theory]
     [InlineData("Tasks", "Permissions.Users.Manage", "User", "a feature declares only its own permissions")]
     [InlineData("Tasks", "Permissions.Tasks.read", "User", "a feature declares only its own permissions")]
+    [InlineData("Tasks", "Permissions.Tasks.Read\n", "User", "a feature declares only its own permissions")]
     [InlineData("Tasks", "Permissions.Tasks.Read", "Owner", "names the unknown role 'Owner'")]
     [InlineData("tasks", "Permissions.tasks.Read", "User", "must be a PascalCase name")]
     [InlineData("Users", "Permissions.Users.Manage", "User", "runs in this process")]

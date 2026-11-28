@@ -53,6 +53,6 @@ internal static partial class PermissionDeclarationRules
         return problems;
     }
 
-    [GeneratedRegex("^[A-Z][A-Za-z0-9]{0,63}$", RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"\A[A-Z][A-Za-z0-9]{0,63}\z", RegexOptions.CultureInvariant)]
     private static partial Regex Name();
 }

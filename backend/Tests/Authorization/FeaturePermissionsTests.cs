@@ -174,30 +174,31 @@ public sealed class FeaturePermissionsTests : IClassFixture<ApiFixture>
     {
         string database = await TestDatabases.CreateEmptyAsync(_server);
         bool routeMissing = true;
+        FeaturePermissions withRead = new("Tasks",
+        [
+            .. new TasksPermissions().Grants.Where(grant => grant.Permission != TasksPermissions.Read),
+            new(TasksPermissions.Read, [AppRoles.User, AppRoles.Admin, AppRoles.SuperAdmin]),
+        ]);
         using ApiPair api = new(
             database,
             new Dictionary<string, string>(),
             _ => { },
-            (request, _) => routeMissing && ApiPair.IsPermissionsDeclaration(request) ? new RouteMissing() : null);
+            (request, _) => routeMissing && ApiPair.IsPermissionsDeclaration(request) ? new RouteMissing() : null,
+            configureTasks: services => services.AddSingleton(new HostPermissions([withRead])));
         _ = api.Monolith.Services;
+        await SeedLikeThePreviousReleaseAsync(api.Monolith.Services);
         _ = api.Tasks.Services;
 
         await api.TasksDeclared.WaitAsync(DeclarationTimeout, TestContext.Current.CancellationToken);
-        using HttpClient tasks = api.CreateTasksClient();
-        using (HttpResponseMessage ready = await tasks.GetAsync("/api/v1/health/ready", TestContext.Current.CancellationToken))
-            Assert.Equal(HttpStatusCode.OK, ready.StatusCode);
-        Assert.Equal(0, await CountAsync(database, "SELECT count(*) FROM auth.\"AspNetRoleClaims\" WHERE \"ClaimValue\" LIKE 'Permissions.Tasks.%'"));
-
-        routeMissing = false;
-        long declared = await Eventually.Async(
-            () => CountAsync(database, "SELECT count(*) FROM auth.\"AspNetRoleClaims\" WHERE \"ClaimValue\" LIKE 'Permissions.Tasks.%'"),
-            count => count > 0,
-            DeclarationTimeout);
-
-        Assert.Equal(9, declared);
         TestSession alice = new(api.CreateClient());
         await alice.RegisterAsync(TestAccounts.UniqueName("alice"));
-        await alice.CreateTaskAsync("Con la ruta de vuelta");
+        await alice.CreateTaskAsync("Con el monolito anterior");
+        Assert.Equal(0, await CountAsync(database, UserReadsTasks));
+
+        routeMissing = false;
+        long declared = await Eventually.Async(() => CountAsync(database, UserReadsTasks), count => count > 0, DeclarationTimeout);
+
+        Assert.Equal(1, declared);
     }
 
     [Fact]
@@ -242,6 +243,16 @@ public sealed class FeaturePermissionsTests : IClassFixture<ApiFixture>
         }
 
         return session.AuthId;
+    }
+
+    private const string UserReadsTasks =
+        "SELECT count(*) FROM auth.\"AspNetRoleClaims\" c JOIN auth.\"AspNetRoles\" r ON r.\"Id\" = c.\"RoleId\" WHERE r.\"Name\" = 'User' AND c.\"ClaimValue\" = 'Permissions.Tasks.Read'";
+
+    private static async Task SeedLikeThePreviousReleaseAsync(IServiceProvider monolith)
+    {
+        using IServiceScope scope = monolith.CreateScope();
+        PermissionCatalog catalog = scope.ServiceProvider.GetRequiredService<PermissionCatalog>();
+        await catalog.GrantAsync([new FeaturePermissions("Tasks", new TasksPermissions().Grants)], TestContext.Current.CancellationToken);
     }
 
     private static async Task DeleteRolesAsync(string database)
