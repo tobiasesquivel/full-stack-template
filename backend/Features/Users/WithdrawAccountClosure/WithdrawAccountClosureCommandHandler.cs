@@ -48,7 +48,7 @@ internal sealed partial record WithdrawAccountClosureCommand
             if (ownerId is null)
                 return UserErrors.ClosureNotFound(closureId);
 
-            if (!await _auth.CanAccessAsync(command.CallerId, new ClosureOwner(ownerId), UserPermissions.Manage, ct))
+            if (!await _auth.CanAccessAsync(command.CallerId, new ClosureOwner(ownerId), UsersPermissions.Manage, ct))
                 return UserErrors.Forbidden;
 
             UserProfile? profile = (await _db.UserProfiles

@@ -28,7 +28,7 @@ internal sealed partial record UpdateTaskCommand
             if (item is null)
                 return TaskErrors.NotFound(command.Id);
 
-            if (!command.Caller.CanAccess(item, TaskPermissions.Update))
+            if (!command.Caller.CanAccess(item, TasksPermissions.Update))
                 return TaskErrors.Forbidden;
 
             string title = TaskItem.NormalizeTitle(command.Title);

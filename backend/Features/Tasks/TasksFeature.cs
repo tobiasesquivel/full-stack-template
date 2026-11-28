@@ -20,6 +20,7 @@ namespace TemplateApp.Features.Tasks;
 internal sealed class TasksFeature : IFeature
 {
     public const string MonolithService = "Monolith";
+    public const string PermissionsDeclarationCheck = "permissions";
 
     public void AddServices(IServiceCollection services)
     {
@@ -35,6 +36,10 @@ internal sealed class TasksFeature : IFeature
         services.AddOptions<CookieAuthenticationOptions>(SessionCookie.Scheme)
             .Configure(cookie => cookie.Events.OnValidatePrincipal = RemoteSession.ValidatePrincipalAsync);
         services.AddRemoteClient<AuthSessionClient>(MonolithService, RemoteRetry.Idempotent);
+        services.AddRemoteClient<AuthPermissionsClient>(MonolithService, RemoteRetry.Idempotent);
+        services.AddSingleton<PermissionsDeclaration>();
+        services.AddHostedService(sp => sp.GetRequiredService<PermissionsDeclaration>());
+        services.AddHealthChecks().AddCheck<PermissionsDeclarationHealthCheck>(PermissionsDeclarationCheck);
         services.AddRemoteClient<ProjectsClient>(MonolithService, RemoteRetry.Idempotent);
         services.AddIntegrationEventPublication<PublishTaskEvents.TaskCreatedIntegrationEvent>(TaskEvents.Created, TaskEvents.Version, TaskEvents.Exchange);
         services.AddIntegrationEventPublication<PublishTaskEvents.TaskCompletedIntegrationEvent>(TaskEvents.Completed, TaskEvents.Version, TaskEvents.Exchange);
@@ -72,7 +77,7 @@ internal sealed class TasksFeature : IFeature
 
     public void MapEndpoints(RouteGroupBuilder api)
     {
-        RouteGroupBuilder tasks = api.MapGroup("/tasks").RequireAuthorization();
+        RouteGroupBuilder tasks = api.MapGroup("/tasks").RequireAuthorization().AddEndpointFilter(PermissionsDeclarationGate.RequireDeclaredAsync);
 
         CreateTask.CreateTaskEndpoint.Map(tasks);
         ListTasks.ListTasksEndpoint.Map(tasks);

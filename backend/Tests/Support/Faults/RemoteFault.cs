@@ -1,3 +1,5 @@
+using TemplateApp.Tests.Support.Hosts;
+
 namespace TemplateApp.Tests.Support.Faults;
 
 public sealed class RemoteFault
@@ -40,7 +42,7 @@ public sealed class RemoteFault
 
     public HttpMessageHandler? Intercept(HttpRequestMessage request, HttpMessageHandler server)
     {
-        if (!Active || !_matches(request))
+        if (!Active || !_matches(request) || ApiPair.IsPermissionsDeclaration(request))
             return null;
 
         Calls++;

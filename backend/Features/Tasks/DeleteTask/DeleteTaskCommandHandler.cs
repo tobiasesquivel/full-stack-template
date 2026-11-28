@@ -22,7 +22,7 @@ internal sealed partial record DeleteTaskCommand
             if (item is null)
                 return TaskErrors.NotFound(command.Id);
 
-            if (!command.Caller.CanAccess(item, TaskPermissions.Delete))
+            if (!command.Caller.CanAccess(item, TasksPermissions.Delete))
                 return TaskErrors.Forbidden;
 
             item.MarkDeleted();

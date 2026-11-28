@@ -66,7 +66,7 @@ internal sealed class AccessPolicy
             IList<Claim> claims = await _roles.GetClaimsAsync(role);
             foreach (Claim claim in claims)
             {
-                if (claim.Type == RolePermissions.ClaimType)
+                if (claim.Type == PermissionCatalog.ClaimType)
                     permissions.Add(claim.Value);
             }
         }

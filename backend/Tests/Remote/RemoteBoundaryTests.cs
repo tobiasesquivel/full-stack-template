@@ -1,7 +1,5 @@
 using System.Diagnostics;
 using System.Net;
-using System.Reflection;
-using TemplateApp.Features.Auth.Access;
 using TemplateApp.Features.Tasks;
 using TemplateApp.Features.Tasks.Access;
 using TemplateApp.Tests.Support;
@@ -181,15 +179,4 @@ public sealed class RemoteBoundaryTests : IClassFixture<ApiFixture>
         Assert.InRange(clock.Elapsed, TimeSpan.FromMilliseconds(600), TimeSpan.FromMilliseconds(1500));
         Assert.InRange(projects.Calls, 2, 3);
     }
-
-    [Fact]
-    public void TaskPermissionCopies_OnBothSidesOfTheBoundary_Match()
-    {
-        Assert.Equal(Constants(typeof(TaskPermissions)), Constants(typeof(TaskPermissionNames)));
-    }
-
-    private static Dictionary<string, string> Constants(Type type) =>
-        type.GetFields(BindingFlags.Public | BindingFlags.Static)
-            .Where(field => field.IsLiteral)
-            .ToDictionary(field => field.Name, field => (string)field.GetRawConstantValue()!, StringComparer.Ordinal);
 }

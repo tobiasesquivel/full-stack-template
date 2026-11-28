@@ -39,7 +39,7 @@ internal sealed partial record GetAccountClosureQuery
                 return UserErrors.ClosureNotFound(closureId);
 
             string ownerId = closure?.UserId ?? facts[0].UserId;
-            if (!await _auth.CanAccessAsync(query.CallerId, new ClosureOwner(ownerId), UserPermissions.Read, ct))
+            if (!await _auth.CanAccessAsync(query.CallerId, new ClosureOwner(ownerId), UsersPermissions.Read, ct))
                 return UserErrors.Forbidden;
 
             var requested = facts.Find(f => f.Kind == AccountClosureFacts.Requested);

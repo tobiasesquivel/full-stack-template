@@ -48,7 +48,7 @@ internal static class TestAccounts
             Assert.Equal(userName, user.GetProperty("userName").GetString());
             Assert.Equal("UTC", user.GetProperty("timezone").GetString());
             string[] permissions = user.GetProperty("permissions").EnumerateArray().Select(p => p.GetString()!).ToArray();
-            Assert.Equal(["Permissions.Tasks.Create", "Permissions.Projects.Create"], permissions);
+            Assert.Equal(["Permissions.Projects.Create", "Permissions.Tasks.Create"], permissions);
         }
 
         AssertSessionCookie(session);

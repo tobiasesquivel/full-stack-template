@@ -16,7 +16,7 @@ public sealed class ContractsAnalyzer : DiagnosticAnalyzer
     private const string ContractsSegment = ".Contracts";
 
     private static readonly string[] DataSuffixes = { "Details", "Summary", "Info" };
-    private static readonly string[] ConstantSuffixes = { "Permissions", "EndpointNames" };
+    private static readonly string[] ConstantSuffixes = { "EndpointNames" };
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
         ImmutableArray.Create(DuneDiagnostics.ContractKind, DuneDiagnostics.ContractDoorSignature, DuneDiagnostics.ContractUnused);

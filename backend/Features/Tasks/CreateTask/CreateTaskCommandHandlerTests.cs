@@ -21,7 +21,7 @@ public sealed class CreateTaskCommandHandlerTests : IClassFixture<ApiFixture>
     public async Task Handle_WithCreatePermission_StoresTheTaskForTheCaller()
     {
         using IServiceScope scope = _fixture.TasksServices.CreateScope();
-        var owner = HandlerCalls.Caller(TaskPermissions.Create);
+        var owner = HandlerCalls.Caller(TasksPermissions.Create);
 
         var created = await scope.Handler<CreateTaskCommand.Handler>()
             .Handle(new CreateTaskCommand(owner, "  Sin HTTP  ", null), TestContext.Current.CancellationToken);

@@ -1,6 +1,7 @@
 using ErrorOr;
 using Microsoft.EntityFrameworkCore;
 using TemplateApp.Features.Auth.Contracts;
+using TemplateApp.Features.Projects.Access;
 using TemplateApp.Features.Projects.Contracts;
 using TemplateApp.Features.Projects.Persistence;
 
@@ -27,7 +28,7 @@ internal sealed partial record GetProjectQuery
             if (row is null)
                 return ProjectErrors.NotFound(query.Id);
 
-            if (!await _auth.CanAccessAsync(query.CallerId, row, ProjectPermissions.Read, ct))
+            if (!await _auth.CanAccessAsync(query.CallerId, row, ProjectsPermissions.Read, ct))
                 return ProjectErrors.Forbidden;
 
             return await _responses.ComposeAsync(row, ct);

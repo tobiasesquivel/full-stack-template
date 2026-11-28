@@ -5,6 +5,7 @@ using TemplateApp.Features.Auth.Contracts;
 using TemplateApp.Features.Auth.Domain;
 using TemplateApp.Features.Auth.Persistence;
 using TemplateApp.Features.Users.Contracts;
+using TemplateApp.Infrastructure.Access;
 
 namespace TemplateApp.Features.Auth.RegisterUser;
 

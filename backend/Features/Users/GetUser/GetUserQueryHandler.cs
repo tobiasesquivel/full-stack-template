@@ -1,6 +1,7 @@
 using ErrorOr;
 using Microsoft.EntityFrameworkCore;
 using TemplateApp.Features.Auth.Contracts;
+using TemplateApp.Features.Users.Access;
 using TemplateApp.Features.Users.Contracts;
 using TemplateApp.Features.Users.Domain;
 using TemplateApp.Features.Users.Persistence;
@@ -28,7 +29,7 @@ internal sealed partial record GetUserQuery
             if (profile is null)
                 return UserErrors.NotFound(query.AuthId);
 
-            if (!await _auth.CanAccessAsync(query.CallerId, profile, UserPermissions.Read, ct))
+            if (!await _auth.CanAccessAsync(query.CallerId, profile, UsersPermissions.Read, ct))
                 return UserErrors.Forbidden;
 
             UserAccountDetails? account = await _auth.FindAccountAsync(query.AuthId, ct);

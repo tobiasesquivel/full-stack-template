@@ -28,7 +28,7 @@ internal sealed partial record GetTaskQuery
             if (task is null)
                 return TaskErrors.NotFound(query.Id);
 
-            if (!query.Caller.CanAccess(task, TaskPermissions.Read))
+            if (!query.Caller.CanAccess(task, TasksPermissions.Read))
                 return TaskErrors.Forbidden;
 
             return task.Response;

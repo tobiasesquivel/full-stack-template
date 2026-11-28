@@ -75,13 +75,6 @@ public sealed class ContractsAnalyzerTests
                     public static UserResponse From(UserAccountDetails account) => new(account.AuthId);
                 }
                 """),
-            ("backend/Features/Users/Contracts/UserPermissions.cs", """
-                namespace TemplateApp.Features.Users.Contracts;
-                public static class UserPermissions
-                {
-                    public const string Read = "Permissions.Users.Read";
-                }
-                """),
             ("backend/Features/Users/Contracts/UserEndpointNames.cs", """
                 namespace TemplateApp.Features.Users.Contracts;
                 public static class UserEndpointNames
@@ -114,7 +107,7 @@ public sealed class ContractsAnalyzerTests
                 namespace TemplateApp.Features.Auth.RegisterUser;
                 public static class RegisterUser
                 {
-                    public static string Describe(UserResponse user) => UserEndpointNames.GetUser + UserPermissions.Read + user.AuthId;
+                    public static string Describe(UserResponse user) => UserEndpointNames.GetUser + user.AuthId;
                 }
                 """),
             ("backend/Features/Tasks/TaskResponse.cs", """
@@ -155,10 +148,17 @@ public sealed class ContractsAnalyzerTests
                 {
                     public static string Read() => "Permissions.Tasks.Read";
                 }
+                """),
+            ("backend/Features/Users/Contracts/UserPermissions.cs", """
+                namespace TemplateApp.Features.Users.Contracts;
+                public static class UserPermissions
+                {
+                    public const string Read = "Permissions.Users.Read";
+                }
                 """));
 
         Assert.Equal(
-            new[] { "AppIdentityUser.cs:2", "IAccessPolicy.cs:2", "SessionUser.cs:2", "TaskPermissions.cs:2", "TaskState.cs:2", "UserProfileSnapshot.cs:2" },
+            new[] { "AppIdentityUser.cs:2", "IAccessPolicy.cs:2", "SessionUser.cs:2", "TaskPermissions.cs:2", "TaskState.cs:2", "UserPermissions.cs:2", "UserProfileSnapshot.cs:2" },
             Locations(diagnostics, compilationEnd: false));
     }
 
