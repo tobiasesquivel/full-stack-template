@@ -5,6 +5,7 @@ using TemplateApp.Tests.Support.Clients;
 using TemplateApp.Tests.Support.Hosts;
 using TemplateApp.Tests.Support.Rows;
 using Xunit;
+using TemplateApp.Features.Tasks.Persistence;
 
 namespace TemplateApp.Tests.Messaging;
 
@@ -32,7 +33,7 @@ public sealed class TaskEventPublishingTests : IAsyncDisposable
         TestSession alice = await api.SignUpAsync("alice");
         string task = await alice.CreateTaskAsync("Comprar pan", await alice.CreateProjectAsync("Casa"));
 
-        await api.PublishOutboxAsync();
+        await api.PublishOutboxAsync<TasksDbContext>();
 
         OutboxRow row = Assert.Single(await api.Pair.Tasks.Services.OutboxRowsAsync(task));
         Assert.Equal((0, null), (row.Attempts, row.FailedAt));

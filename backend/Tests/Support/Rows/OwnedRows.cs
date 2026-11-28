@@ -1,6 +1,14 @@
 namespace TemplateApp.Tests.Support.Rows;
 
-internal sealed record OwnedRows(long Accounts, long Roles, long Sessions, long Profiles, long Tasks, long Projects, long IdempotencyKeys)
+internal sealed class OwnedRows
 {
-    public static readonly OwnedRows None = new(0, 0, 0, 0, 0, 0, 0);
+    private readonly IReadOnlyDictionary<string, long> _byTable;
+
+    public OwnedRows(IReadOnlyDictionary<string, long> byTable) => _byTable = byTable;
+
+    public Dictionary<string, long> NonZero => _byTable.Where(table => table.Value > 0).ToDictionary();
+
+    public long this[string table] => _byTable.TryGetValue(table, out long rows)
+        ? rows
+        : throw new KeyNotFoundException($"No context of these hosts erases {table} with its owner. They erase: {string.Join(", ", _byTable.Keys)}.");
 }

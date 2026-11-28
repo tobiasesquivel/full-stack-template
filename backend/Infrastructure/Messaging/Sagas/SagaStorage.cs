@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Options;
 using Npgsql;
 using TemplateApp.Infrastructure.Messaging.Mediator;
 using TemplateApp.Infrastructure.Persistence;
@@ -15,7 +14,7 @@ internal static class SagaStorage
     public static void Configure(WolverineOptions options)
     {
         options.Services.AddKeyedSingleton(Schema, (provider, _) =>
-            NpgsqlDataSource.Create(DatabaseSearchPath.Apply(provider.GetRequiredService<IOptions<DatabaseOptions>>().Value.DefaultConnection)));
+            NpgsqlDataSource.Create(DatabaseSearchPath.ConnectionString(provider)));
         options.PersistMessagesWithPostgresqlUsingDataSourceFromContainer(provider => provider.GetRequiredKeyedService<NpgsqlDataSource>(Schema), Schema);
         options.UseEntityFrameworkCoreTransactions();
         options.Policies.Add(new MediatorTransactionPolicy());

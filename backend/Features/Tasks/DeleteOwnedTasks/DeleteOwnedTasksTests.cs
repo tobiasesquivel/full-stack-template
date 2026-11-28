@@ -71,7 +71,7 @@ public sealed class DeleteOwnedTasksTests : IClassFixture<ApiFixture>
         await deletion;
 
         Assert.True(waited, "The deletion did not wait for the task being created.");
-        Assert.Equal(0, (await _fixture.Services.OwnedRowsAsync(alice.AuthId)).Tasks);
+        Assert.Equal(0, (await _fixture.OwnedRowsAsync(alice.AuthId))["tasks.TaskItems"]);
         Assert.Equal("tasks.task-deleted", (await _fixture.TasksServices.OutboxRowsAsync(late.ToString())).Last().Type);
     }
 

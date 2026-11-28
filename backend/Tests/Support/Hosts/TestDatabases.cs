@@ -3,7 +3,6 @@ using Wolverine;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Npgsql;
-using TemplateApp.Infrastructure.Persistence;
 
 namespace TemplateApp.Tests.Support.Hosts;
 
@@ -27,9 +26,25 @@ public static class TestDatabases
 
     public static async Task<NpgsqlConnection> OpenAsync(string database)
     {
-        NpgsqlConnection connection = new(DatabaseSearchPath.Apply(database));
-        await connection.OpenAsync();
-        return connection;
+        NpgsqlConnection connection = new(database);
+        try
+        {
+            await connection.OpenAsync();
+            await using NpgsqlCommand searchEverySchema = new(
+                """
+                SELECT set_config('search_path', string_agg(quote_ident(nspname), ',' ORDER BY nspname <> 'public', nspname), false)
+                FROM pg_namespace
+                WHERE nspname NOT LIKE 'pg\_%' AND nspname <> 'information_schema'
+                """,
+                connection);
+            await searchEverySchema.ExecuteScalarAsync();
+            return connection;
+        }
+        catch
+        {
+            await connection.DisposeAsync();
+            throw;
+        }
     }
 
     public static string WithWrongPassword(string server) =>

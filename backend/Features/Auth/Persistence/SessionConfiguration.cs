@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using TemplateApp.Features.Auth.Domain;
+using TemplateApp.Infrastructure.Persistence.Ownership;
 
 namespace TemplateApp.Features.Auth.Persistence;
 
@@ -9,6 +10,7 @@ internal sealed class SessionConfiguration : IEntityTypeConfiguration<Session>
     public void Configure(EntityTypeBuilder<Session> builder)
     {
         builder.HasKey(s => s.Id);
+        builder.ErasedWithOwner(s => s.UserId);
 
         builder.Property(s => s.UserId)
             .IsRequired()

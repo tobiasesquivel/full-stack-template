@@ -144,7 +144,7 @@ public sealed class OutboxRelayTests : IAsyncDisposable
         await RelayOf(api).RunOnceAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.InternalServerError, failed.Status);
-        Assert.Equal(0L, (await api.Tasks.Services.OwnedRowsAsync(alice.AuthId)).Tasks);
+        Assert.Equal(0L, (await api.OwnedRowsAsync(alice.AuthId))["tasks.TaskItems"]);
         Assert.Empty(await api.Tasks.Services.AllOutboxRowsAsync());
         Assert.Empty(probe.Calls);
     }

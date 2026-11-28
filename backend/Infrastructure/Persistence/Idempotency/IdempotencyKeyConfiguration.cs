@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using TemplateApp.Infrastructure.Persistence.Ownership;
 
 namespace TemplateApp.Infrastructure.Persistence.Idempotency;
 
@@ -8,6 +9,7 @@ public sealed class IdempotencyKeyConfiguration : IEntityTypeConfiguration<Idemp
     public void Configure(EntityTypeBuilder<IdempotencyKey> builder)
     {
         builder.HasKey(k => new { k.OwnerId, k.Key });
+        builder.ErasedWithOwner(k => k.OwnerId);
 
         builder.Property(k => k.OwnerId)
             .IsRequired()

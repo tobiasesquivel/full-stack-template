@@ -92,7 +92,7 @@ jobs:
       ConnectionStrings__DefaultConnection: Host=localhost;Port=5432;Database=template_tests;Username=postgres;Password=template-ci;
     steps:
       - name: PostgreSQL propio y desechable
-        run: docker run --detach --name postgres --publish 5432:5432 --env POSTGRES_PASSWORD=template-ci --env POSTGRES_DB=template_tests postgres:18
+        run: docker run --detach --name postgres --publish 5432:5432 --env POSTGRES_PASSWORD=template-ci --env POSTGRES_DB=template_tests postgres:18 -c max_connections=300
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with:

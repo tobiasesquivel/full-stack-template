@@ -41,7 +41,7 @@ public sealed class HoldOwnerTasksTests : IAsyncDisposable
         SessionResponse refused = await alice.SendAsync(HttpMethod.Post, "api/v1/tasks", new { title = "Durante el cierre" });
         ProblemAssert.Problem(refused, HttpStatusCode.Conflict, "Task.OwnerClosing");
         await bob.CreateTaskAsync("Bob sigue");
-        Assert.Equal(1, (await api.Pair.Monolith.Services.OwnedRowsAsync(alice.AuthId)).Tasks);
+        Assert.Equal(1, (await api.Pair.OwnedRowsAsync(alice.AuthId))["tasks.TaskItems"]);
         Assert.Equal(1, await HoldsAsync(api, alice.AuthId, closure));
         Assert.Equal(1, await HeldEventsAsync(api, closure));
     }

@@ -9,6 +9,8 @@ using TemplateApp.Tests.Support.Hosts;
 using TemplateApp.Tests.Support.Probes;
 using TemplateApp.Tests.Support.Rows;
 using Xunit;
+using TemplateApp.Features.Auth.Persistence;
+using TemplateApp.Features.Users.Persistence;
 
 namespace TemplateApp.Features.Users.DeleteUser;
 
@@ -51,7 +53,7 @@ public sealed class DeleteUserBrokerTests : IDisposable
         Assert.Equal("active", me.GetProperty("accountStatus").GetString());
         JsonElement last = me.GetProperty("lastClosure");
         Assert.Equal((closure, "rejected", "Auth.LastSuperAdmin"), (last.GetProperty("closureId").GetGuid(), last.GetProperty("outcome").GetString(), last.GetProperty("reason").GetString()));
-        Assert.Equal(new OwnedRows(1, 2, 1, 1, 2, 1, 0), await api.Pair.Monolith.Services.OwnedRowsAsync(alice.AuthId));
+        Assert.Equal(new Dictionary<string, long> { ["auth.AspNetUsers"] = 1, ["auth.AspNetUserRoles"] = 2, ["auth.Sessions"] = 1, ["users.UserProfiles"] = 1, ["tasks.TaskItems"] = 2, ["projects.Projects"] = 1 }, (await api.Pair.OwnedRowsAsync(alice.AuthId)).NonZero);
         Assert.Equal(0, await HoldsAsync(api, alice.AuthId));
         Assert.Equal("Rejected", await DecisionAsync(api, closure));
         await alice.CreateTaskAsync("Después del rechazo");
@@ -80,7 +82,7 @@ public sealed class DeleteUserBrokerTests : IDisposable
             headers: new Dictionary<string, string> { ["Idempotency-Key"] = Guid.NewGuid().ToString() });
         keyed.Payload?.Dispose();
         Assert.Equal(HttpStatusCode.Created, keyed.Status);
-        Assert.Equal(new OwnedRows(1, 1, 1, 1, 2, 1, 1), await api.Pair.Monolith.Services.OwnedRowsAsync(bob.AuthId));
+        Assert.Equal(new Dictionary<string, long> { ["auth.AspNetUsers"] = 1, ["auth.AspNetUserRoles"] = 1, ["auth.Sessions"] = 1, ["users.UserProfiles"] = 1, ["tasks.TaskItems"] = 2, ["projects.Projects"] = 1, ["platform.IdempotencyKeys"] = 1 }, (await api.Pair.OwnedRowsAsync(bob.AuthId)).NonZero);
 
         (_, Guid closure) = await DeleteUserTests.RequestClosureAsync(api, bob, "api/v1/users/me");
         await api.DrainAsync();
@@ -88,7 +90,7 @@ public sealed class DeleteUserBrokerTests : IDisposable
         SessionResponse denied = await bob.SendAsync(HttpMethod.Get, "api/v1/users/me", csrf: false);
         denied.Payload?.Dispose();
         Assert.Equal(HttpStatusCode.Unauthorized, denied.Status);
-        Assert.Equal(OwnedRows.None, await api.Pair.Monolith.Services.OwnedRowsAsync(bob.AuthId));
+        Assert.Empty((await api.Pair.OwnedRowsAsync(bob.AuthId)).NonZero);
         Assert.Equal(0, await HoldsAsync(api, bob.AuthId));
         Assert.Equal(1, await api.Pair.Monolith.Services.CountAsync($"""SELECT count(*) AS "Value" FROM tasks."DeletedOwners" WHERE "OwnerId" = {bob.AuthId}"""));
         Assert.Equal("Completed", await DecisionAsync(api, closure));
@@ -114,16 +116,16 @@ public sealed class DeleteUserBrokerTests : IDisposable
         await TasksListener.StopAsync(api);
 
         await DeleteUserTests.RequestClosureAsync(api, alice, "api/v1/users/me");
-        await api.PublishUsersOutboxAsync();
-        await api.PublishAuthOutboxAsync();
+        await api.PublishOutboxAsync<UsersDbContext>();
+        await api.PublishOutboxAsync<AuthDbContext>();
         JsonElement whileDown = await DeleteUserTests.MeAsync(alice, "api/v1/users/me");
-        OwnedRows rowsWhileDown = await api.Pair.Monolith.Services.OwnedRowsAsync(alice.AuthId);
+        OwnedRows rowsWhileDown = await api.Pair.OwnedRowsAsync(alice.AuthId);
         await TasksListener.StartAsync(api);
         await api.DrainAsync();
 
         Assert.Equal("closing", whileDown.GetProperty("accountStatus").GetString());
-        Assert.Equal(new OwnedRows(1, 1, 1, 1, 2, 0, 0), rowsWhileDown);
-        Assert.Equal(OwnedRows.None, await api.Pair.Monolith.Services.OwnedRowsAsync(alice.AuthId));
+        Assert.Equal(new Dictionary<string, long> { ["auth.AspNetUsers"] = 1, ["auth.AspNetUserRoles"] = 1, ["auth.Sessions"] = 1, ["users.UserProfiles"] = 1, ["tasks.TaskItems"] = 2 }, rowsWhileDown.NonZero);
+        Assert.Empty((await api.Pair.OwnedRowsAsync(alice.AuthId)).NonZero);
     }
 
     public void Dispose()

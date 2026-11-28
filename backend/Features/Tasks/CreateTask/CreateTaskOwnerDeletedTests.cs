@@ -43,8 +43,8 @@ public sealed class CreateTaskOwnerDeletedTests : IClassFixture<ApiFixture>
             headers: new Dictionary<string, string> { ["Idempotency-Key"] = Guid.NewGuid().ToString() });
 
         ProblemAssert.Problem(rejected, HttpStatusCode.Unauthorized, "Task.OwnerDeleted");
-        OwnedRows rows = await _fixture.Services.OwnedRowsAsync(alice.AuthId);
-        Assert.Equal((0L, 0L), (rows.Tasks, rows.IdempotencyKeys));
+        OwnedRows rows = await _fixture.OwnedRowsAsync(alice.AuthId);
+        Assert.Equal((0L, 0L), (rows["tasks.TaskItems"], rows["platform.IdempotencyKeys"]));
     }
 
     [Fact]
@@ -62,7 +62,7 @@ public sealed class CreateTaskOwnerDeletedTests : IClassFixture<ApiFixture>
 
         Assert.True(waited, $"POST /tasks did not wait for the deletion: it answered {(int)created.Status} while the tombstone was not committed yet.");
         ProblemAssert.Problem(created, HttpStatusCode.Unauthorized, "Task.OwnerDeleted");
-        Assert.Equal(0, (await _fixture.Services.OwnedRowsAsync(alice.AuthId)).Tasks);
+        Assert.Equal(0, (await _fixture.OwnedRowsAsync(alice.AuthId))["tasks.TaskItems"]);
     }
 
     [Theory]
@@ -91,7 +91,7 @@ public sealed class CreateTaskOwnerDeletedTests : IClassFixture<ApiFixture>
 
         Assert.True(waited, "The deletion did not wait for the POST that had already passed the tombstone: CreateTask let the owner lock go before saving.");
         Assert.Equal(HttpStatusCode.Created, created.Status);
-        Assert.Equal(0, (await tasks.OwnedRowsAsync(alice.AuthId)).Tasks);
+        Assert.Equal(0, (await tasks.OwnedRowsAsync(alice.AuthId))["tasks.TaskItems"]);
     }
 
     private static async Task DeleteByEventAsync(IServiceProvider tasks, string ownerId)

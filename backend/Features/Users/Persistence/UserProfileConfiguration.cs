@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using TemplateApp.Features.Users.Domain;
+using TemplateApp.Infrastructure.Persistence.Ownership;
 
 namespace TemplateApp.Features.Users.Persistence;
 
@@ -9,6 +10,7 @@ internal sealed class UserProfileConfiguration : IEntityTypeConfiguration<UserPr
     public void Configure(EntityTypeBuilder<UserProfile> builder)
     {
         builder.HasKey(u => u.AuthId);
+        builder.ErasedWithOwner(u => u.AuthId);
 
         builder.Ignore(u => u.DomainEvents);
 

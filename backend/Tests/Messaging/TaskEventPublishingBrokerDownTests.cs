@@ -5,6 +5,7 @@ using TemplateApp.Tests.Support.Hosts;
 using TemplateApp.Tests.Support.Rows;
 using Testcontainers.RabbitMq;
 using Xunit;
+using TemplateApp.Features.Tasks.Persistence;
 
 namespace TemplateApp.Tests.Messaging;
 
@@ -37,7 +38,7 @@ public sealed class TaskEventPublishingBrokerDownTests : IAsyncDisposable
         Stopwatch down = Stopwatch.StartNew();
         for (int cycle = 0; cycle < 20; cycle++)
         {
-            await api.Relay.RunOnceAsync(TestContext.Current.CancellationToken);
+            await api.RelayOf<TasksDbContext>().RunOnceAsync(TestContext.Current.CancellationToken);
             api.Clock.Advance(TimeSpan.FromMinutes(1));
         }
 
@@ -51,14 +52,14 @@ public sealed class TaskEventPublishingBrokerDownTests : IAsyncDisposable
         OutboxRow published = await Eventually.Async(
             async () =>
             {
-                await api.Relay.RunOnceAsync(TestContext.Current.CancellationToken);
+                await api.RelayOf<TasksDbContext>().RunOnceAsync(TestContext.Current.CancellationToken);
                 api.Clock.Advance(TimeSpan.FromMinutes(1));
                 return Assert.Single(await api.Pair.Tasks.Services.OutboxRowsAsync(task));
             },
             row => row.ProcessedAt is not null,
             Wait);
         Assert.Equal(0, published.Attempts);
-        await api.DrainOutboxAsync();
+        await api.DrainAsync();
         Assert.Equal((1, 0), await api.Pair.Monolith.Services.TaskCountersAsync(project));
     }
 

@@ -1,7 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Options;
 using TemplateApp.Infrastructure.Persistence.Audit;
 using TemplateApp.Infrastructure.Persistence.Transactions;
 
@@ -11,6 +10,7 @@ public static class ContextRegistration
 {
     public const string LegacySchema = "public";
     public const string HistoryTable = "__EFMigrationsHistory";
+    private const int MaxIdentifierLength = 63;
 
     public static IServiceCollection AddMigratedDbContext<TContext>(
         this IServiceCollection services,
@@ -19,12 +19,15 @@ public static class ContextRegistration
         bool appliesMigrations = true)
         where TContext : DbContext
     {
+        if (!IsPlainSchemaName(schema))
+            throw new ArgumentException($"The schema of {typeof(TContext).Name} must be at most 63 lowercase letters, digits and underscores, starting with a letter or underscore: PostgreSQL folds or truncates any other name in the Search Path.", nameof(schema));
+
         services.AddDbContext<TContext>((provider, options) => options
             .UseNpgsql(
-                ConnectionString(provider),
+                DatabaseSearchPath.ConnectionString(provider),
                 npgsql => npgsql.MigrationsHistoryTable(HistoryTable, schema))
             .AddInterceptors(provider.GetRequiredService<AuditInterceptor>()));
-        services.AddSingleton(new MigratedContext(typeof(TContext), adoptsLegacyTables, appliesMigrations));
+        services.AddSingleton(new MigratedContext(typeof(TContext), schema, adoptsLegacyTables, appliesMigrations));
         return services;
     }
 
@@ -39,12 +42,14 @@ public static class ContextRegistration
     internal static IServiceCollection AddLegacyDbContext(this IServiceCollection services) =>
         services.AddDbContext<AppDbContext>((provider, options) => options
             .UseNpgsql(
-                ConnectionString(provider),
+                DatabaseSearchPath.ConnectionString(provider),
                 npgsql => npgsql.MigrationsHistoryTable(HistoryTable, LegacySchema))
             .ConfigureWarnings(warnings => warnings.Ignore(RelationalEventId.PendingModelChangesWarning)));
 
-    private static string ConnectionString(IServiceProvider provider) =>
-        DatabaseSearchPath.Apply(provider.GetRequiredService<IOptions<DatabaseOptions>>().Value.DefaultConnection);
+    private static bool IsPlainSchemaName(string schema) =>
+        schema.Length is > 0 and <= MaxIdentifierLength
+        && schema[0] is (>= 'a' and <= 'z') or '_'
+        && schema.All(c => c is (>= 'a' and <= 'z') or (>= '0' and <= '9') or '_');
 
     public static IReadOnlyList<DbContext> MigratedContexts(this IServiceProvider services) =>
         services.GetServices<MigratedContext>()

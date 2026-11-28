@@ -43,7 +43,7 @@ public sealed class DeleteUserTests : IClassFixture<ApiFixture>
         Assert.Equal(1, await GracePeriodsAsync(_fixture.Services, alice.AuthId));
         Assert.Equal(1, await RequestedFactsAsync(_fixture.Services, alice.AuthId));
         Assert.Equal(0, await ClosureRequestsAsync(_fixture.Services, alice.AuthId));
-        Assert.Equal(1, (await _fixture.Services.OwnedRowsAsync(alice.AuthId)).Accounts);
+        Assert.Equal(1, (await _fixture.OwnedRowsAsync(alice.AuthId))["auth.AspNetUsers"]);
         await alice.CreateTaskAsync("Durante el período de gracia");
     }
 

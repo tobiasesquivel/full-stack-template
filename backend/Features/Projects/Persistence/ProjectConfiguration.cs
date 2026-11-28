@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using TemplateApp.Features.Projects.Domain;
+using TemplateApp.Infrastructure.Persistence.Ownership;
 
 namespace TemplateApp.Features.Projects.Persistence;
 
@@ -11,6 +12,7 @@ internal sealed class ProjectConfiguration : IEntityTypeConfiguration<Project>
     public void Configure(EntityTypeBuilder<Project> builder)
     {
         builder.HasKey(p => p.Id);
+        builder.ErasedWithOwner(p => p.OwnerId);
 
         builder.Property(p => p.OwnerId)
             .IsRequired()

@@ -121,7 +121,7 @@ public sealed class RemoteBoundaryTests : IClassFixture<ApiFixture>
 
         ProblemAssert.Problem(inProject, HttpStatusCode.ServiceUnavailable, "Http.ServiceUnavailable");
         Assert.Equal(3, projects.Calls);
-        Assert.Equal(new OwnedRows(1, 1, 1, 1, 1, 1, 0), await api.Monolith.Services.OwnedRowsAsync(alice.AuthId));
+        Assert.Equal(new Dictionary<string, long> { ["auth.AspNetUsers"] = 1, ["auth.AspNetUserRoles"] = 1, ["auth.Sessions"] = 1, ["users.UserProfiles"] = 1, ["tasks.TaskItems"] = 1, ["projects.Projects"] = 1 }, (await api.OwnedRowsAsync(alice.AuthId)).NonZero);
         Assert.False(string.IsNullOrEmpty(loose));
     }
 

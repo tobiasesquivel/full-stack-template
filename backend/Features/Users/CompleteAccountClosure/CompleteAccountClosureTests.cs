@@ -45,7 +45,7 @@ public sealed class CompleteAccountClosureTests : IDisposable
         Assert.Equal(1, fault.Failures);
         Assert.Equal(["completed"], finished.Values.Select(v => (string)v.Tags["templateapp.account_closure.outcome"]!));
         Assert.Equal("Completed", await DeleteUserBrokerTests.SagaStateAsync(api, closure));
-        Assert.Equal(OwnedRows.None, await api.Pair.Monolith.Services.OwnedRowsAsync(bob.AuthId));
+        Assert.Empty((await api.Pair.OwnedRowsAsync(bob.AuthId)).NonZero);
         Assert.Equal(1, await api.Pair.Monolith.Services.CountAsync(
             $"""SELECT count(*) AS "Value" FROM users."OutboxMessages" WHERE "Type" = 'users.user-deleted' AND "Payload"->>'authId' = {bob.AuthId}"""));
     }

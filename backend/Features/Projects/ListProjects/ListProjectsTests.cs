@@ -91,7 +91,7 @@ public sealed class ListProjectsTests : IClassFixture<ApiFixture>, IDisposable
             tasksPerProject[Guid.Parse(projectId)] = i;
         }
 
-        await _isolated.DrainOutboxAsync();
+        await _isolated.DrainAsync();
 
         using IServiceScope scope = services.CreateScope();
         commands.Reset();

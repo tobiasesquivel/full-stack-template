@@ -59,7 +59,7 @@ public sealed class GetProjectTests : IClassFixture<ApiFixture>, IDisposable
         var completed = await alice.SendAsync(HttpMethod.Put, $"api/v1/tasks/{done}", new { title = "Embalar", isCompleted = true, version });
         completed.Payload?.Dispose();
         Assert.Equal(HttpStatusCode.OK, completed.Status);
-        await api.DrainOutboxAsync();
+        await api.DrainAsync();
 
         JsonElement project = await alice.ProjectAsync(id);
 
@@ -78,13 +78,13 @@ public sealed class GetProjectTests : IClassFixture<ApiFixture>, IDisposable
         string task = await alice.CreateTaskAsync("Embalar", id);
 
         Assert.Equal((0, 0), await CountersAsync(alice, id));
-        await api.DrainOutboxAsync();
+        await api.DrainAsync();
         Assert.Equal((1, 0), await CountersAsync(alice, id));
 
         await TaskCounterScenario.SetCompletedAsync(alice, task, true);
 
         Assert.Equal((1, 0), await CountersAsync(alice, id));
-        await api.DrainOutboxAsync();
+        await api.DrainAsync();
         Assert.Equal((1, 1), await CountersAsync(alice, id));
     }
 

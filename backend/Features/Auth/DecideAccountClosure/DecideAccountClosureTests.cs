@@ -56,7 +56,7 @@ public sealed class DecideAccountClosureTests : IDisposable
         Assert.Equal(2, waiting);
         string?[] outcomes = [await DeleteUserBrokerTests.DecisionAsync(api, aliceClosure), await DeleteUserBrokerTests.DecisionAsync(api, bobClosure)];
         Assert.Equal(["Completed", "Rejected"], outcomes.Order(StringComparer.Ordinal));
-        long accountsLeft = (await api.Pair.Monolith.Services.OwnedRowsAsync(alice.AuthId)).Accounts + (await api.Pair.Monolith.Services.OwnedRowsAsync(bob.AuthId)).Accounts;
+        long accountsLeft = (await api.Pair.OwnedRowsAsync(alice.AuthId))["auth.AspNetUsers"] + (await api.Pair.OwnedRowsAsync(bob.AuthId))["auth.AspNetUsers"];
         Assert.Equal(1, accountsLeft);
     }
 
@@ -74,7 +74,7 @@ public sealed class DecideAccountClosureTests : IDisposable
         Assert.Equal("Completed", await DeleteUserBrokerTests.DecisionAsync(api, closure));
         Assert.Equal(0, await api.Pair.Monolith.Services.CountAsync(
             $"""SELECT count(*) AS "Value" FROM auth."OutboxMessages" WHERE "Type" = 'auth.account-closure-rejected'"""));
-        Assert.Equal(OwnedRows.None, await api.Pair.Monolith.Services.OwnedRowsAsync(bob.AuthId));
+        Assert.Empty((await api.Pair.OwnedRowsAsync(bob.AuthId)).NonZero);
     }
 
     [Fact]
@@ -88,7 +88,7 @@ public sealed class DecideAccountClosureTests : IDisposable
         await Assert.ThrowsAsync<NpgsqlException>(() => DecideAsync(api, closure, bob.AuthId));
 
         Assert.Equal(1, fault.Failures);
-        Assert.Equal(new OwnedRows(1, 1, 1, 1, 0, 0, 0), await api.Pair.Monolith.Services.OwnedRowsAsync(bob.AuthId));
+        Assert.Equal(new Dictionary<string, long> { ["auth.AspNetUsers"] = 1, ["auth.AspNetUserRoles"] = 1, ["auth.Sessions"] = 1, ["users.UserProfiles"] = 1 }, (await api.Pair.OwnedRowsAsync(bob.AuthId)).NonZero);
         Assert.Null(await DeleteUserBrokerTests.DecisionAsync(api, closure));
         Assert.Equal(0, await api.Pair.Monolith.Services.CountAsync($"""SELECT count(*) AS "Value" FROM auth."OutboxMessages" """));
         Assert.Equal(0, await api.Pair.Monolith.Services.CountAsync($"""SELECT count(*) AS "Value" FROM auth."InboxMessages" """));
