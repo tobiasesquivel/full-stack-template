@@ -172,8 +172,8 @@ public sealed class FeaturePermissionsTests : IClassFixture<ApiFixture>
     public async Task OnKestrel_ADeclarationAnswered503Once_IsRetriedAgainstTheMonolith()
     {
         string database = await TestDatabases.CreateEmptyAsync(_server);
-        ConcurrentQueue<string> hosts = new();
-        int declarations = 0;
+        ConcurrentQueue<(HttpRequestMessage Request, string Host)> sends = new();
+        UnavailableAfterForwarding first = null!;
         using ApiPair api = new(
             database,
             new Dictionary<string, string>(),
@@ -183,15 +183,19 @@ public sealed class FeaturePermissionsTests : IClassFixture<ApiFixture>
                 if (!ApiPair.IsPermissionsDeclaration(request))
                     return null;
 
-                hosts.Enqueue(request.RequestUri!.Host);
-                return Interlocked.Increment(ref declarations) == 1 ? new UnavailableAfterForwarding(server) : null;
+                sends.Enqueue((request, request.RequestUri!.Host));
+                return sends.Count == 1 ? first = new UnavailableAfterForwarding(server) : null;
             },
             kestrel: true);
 
         api.Start();
 
         Assert.True(api.TasksDeclared.IsCompletedSuccessfully);
-        Assert.Equal([ApiPair.MonolithAuthority, ApiPair.MonolithAuthority], hosts);
+        Assert.Equal(HttpStatusCode.NoContent, first.Forwarded);
+        (HttpRequestMessage Request, string Host)[] attempts = [.. sends];
+        Assert.Equal(2, attempts.Length);
+        Assert.Same(attempts[0].Request, attempts[1].Request);
+        Assert.All(attempts, attempt => Assert.Equal(ApiPair.MonolithAuthority, attempt.Host));
     }
 
     private async Task<string> RegisterWithOnlyRoleAsync(string role)
@@ -263,10 +267,13 @@ public sealed class FeaturePermissionsTests : IClassFixture<ApiFixture>
 
     private sealed class UnavailableAfterForwarding(HttpMessageHandler server) : HttpMessageHandler
     {
+        public HttpStatusCode? Forwarded { get; private set; }
+
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             using HttpMessageInvoker forward = new(server, disposeHandler: false);
             using HttpResponseMessage served = await forward.SendAsync(request, cancellationToken);
+            Forwarded = served.StatusCode;
             return new HttpResponseMessage(HttpStatusCode.ServiceUnavailable);
         }
     }
