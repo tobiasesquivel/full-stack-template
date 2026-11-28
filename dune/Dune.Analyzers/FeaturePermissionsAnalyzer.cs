@@ -47,6 +47,7 @@ public sealed class FeaturePermissionsAnalyzer : DiagnosticAnalyzer
         var type = (INamedTypeSymbol)context.Symbol;
         if (!type.AllInterfaces.Contains(contract, SymbolEqualityComparer.Default))
         {
+            ReportUndiscoverable(context, type);
             return;
         }
 
@@ -56,6 +57,26 @@ public sealed class FeaturePermissionsAnalyzer : DiagnosticAnalyzer
             if (problem is not null)
             {
                 context.ReportDiagnostic(Diagnostic.Create(DuneDiagnostics.FeaturePermissions, location, type.Name, problem));
+            }
+        }
+    }
+
+    private static void ReportUndiscoverable(SymbolAnalysisContext context, INamedTypeSymbol type)
+    {
+        if (type.ContainingType is not null)
+        {
+            return;
+        }
+
+        foreach (var location in type.Locations.Where(location => location.IsInSource))
+        {
+            if (IsDeclarationFile(DunePaths.Normalize(location.SourceTree?.FilePath), out _))
+            {
+                context.ReportDiagnostic(Diagnostic.Create(
+                    DuneDiagnostics.FeaturePermissions,
+                    location,
+                    type.Name,
+                    "está en el archivo de la declaración y no implementa IFeaturePermissions: el host no la descubre y Auth nunca recibe esos permisos"));
             }
         }
     }

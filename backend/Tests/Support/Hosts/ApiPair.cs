@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server;
+using Microsoft.AspNetCore.Hosting.Server.Features;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
@@ -24,7 +26,7 @@ public sealed class ApiPair : IDisposable
     private readonly MonolithFactory _monolith;
     private readonly TasksFactory _tasks;
     private readonly bool _kestrel;
-    private readonly TaskCompletionSource<TestServer?> _monolithStarted = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly TaskCompletionSource<Func<HttpMessageHandler>> _monolithStarted = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     public ApiPair(
         string connectionString,
@@ -93,19 +95,14 @@ public sealed class ApiPair : IDisposable
 
     private void RouteRemoteCalls(IServiceCollection services, Func<HttpRequestMessage, HttpMessageHandler, HttpMessageHandler?>? interceptRemote) =>
         services.ConfigureHttpClientDefaults(client => client.ConfigurePrimaryHttpMessageHandler(() =>
-            new InterceptedRoutes(interceptRemote, new InMemoryRoutes(request => request.RequestUri!.Host switch
-            {
-                TasksAuthority => _tasks.Server,
-                MonolithAuthority => StartedMonolith(),
-                string other => throw new InvalidOperationException($"No in-memory host answers {other}."),
-            }))));
+            new InterceptedRoutes(interceptRemote, new PairRoutes(this))));
 
-    private TestServer StartedMonolith()
+    private HttpMessageHandler StartedMonolith()
     {
         if (!_monolithStarted.Task.IsCompletedSuccessfully)
             throw new HttpRequestException("The monolith has not started yet.");
 
-        return _monolithStarted.Task.GetAwaiter().GetResult() ?? _monolith.Server;
+        return _monolithStarted.Task.GetAwaiter().GetResult()();
     }
 
     internal static void ConfigureCommon(IWebHostBuilder builder, string connectionString, IReadOnlyDictionary<string, string> settings, Action<IServiceCollection> configureServices)
@@ -147,16 +144,54 @@ public sealed class ApiPair : IDisposable
             ConfigureCommon(builder, connectionString, settings, configureServices);
     }
 
-    private sealed class StartedSignal(IServiceProvider services, TaskCompletionSource<TestServer?> started) : IHostedService
+    private sealed class StartedSignal(IServiceProvider services, TaskCompletionSource<Func<HttpMessageHandler>> started) : IHostedService
     {
         public Task StartAsync(CancellationToken cancellationToken)
         {
-            TestServer? server = services.GetRequiredService<IServer>() as TestServer;
-            services.GetRequiredService<IHostApplicationLifetime>().ApplicationStarted.Register(() => started.TrySetResult(server));
+            IServer server = services.GetRequiredService<IServer>();
+            services.GetRequiredService<IHostApplicationLifetime>().ApplicationStarted.Register(() => started.TrySetResult(Route(server)));
             return Task.CompletedTask;
         }
 
         public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+
+        private static Func<HttpMessageHandler> Route(IServer server)
+        {
+            if (server is TestServer memory)
+                return memory.CreateHandler;
+
+            Uri address = new(server.Features.GetRequiredFeature<IServerAddressesFeature>().Addresses.First());
+            KestrelRoute kestrel = new(address);
+            return () => kestrel;
+        }
+    }
+
+    private sealed class KestrelRoute(Uri address) : DelegatingHandler(new SocketsHttpHandler())
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            request.RequestUri = new UriBuilder(request.RequestUri!) { Scheme = address.Scheme, Host = address.Host, Port = address.Port }.Uri;
+            return base.SendAsync(request, cancellationToken);
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+        }
+    }
+
+    private sealed class PairRoutes(ApiPair pair) : HttpMessageHandler
+    {
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            HttpMessageHandler target = request.RequestUri!.Host switch
+            {
+                TasksAuthority => pair._tasks.Server.CreateHandler(),
+                MonolithAuthority => pair.StartedMonolith(),
+                string other => throw new InvalidOperationException($"No in-memory host answers {other}."),
+            };
+            using HttpMessageInvoker invoker = new(target);
+            return await invoker.SendAsync(request, cancellationToken);
+        }
     }
 
     private sealed class InterceptedRoutes(Func<HttpRequestMessage, HttpMessageHandler, HttpMessageHandler?>? intercept, HttpMessageHandler inner) : DelegatingHandler(inner)

@@ -1,11 +1,14 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Npgsql;
 using TemplateApp.Features.Auth.Access;
 using TemplateApp.Features.Tasks;
 using TemplateApp.Features.Tasks.Access;
+using TemplateApp.Hosts.Monolith;
 using TemplateApp.Infrastructure.Access;
 using TemplateApp.Infrastructure.Persistence;
 using TemplateApp.Tests.Support.Clients;
@@ -109,15 +112,23 @@ public sealed class FeaturePermissionsTests : IClassFixture<ApiFixture>
     [Fact]
     public async Task ALocalDeclaration_WithAnotherFeaturesPermission_StopsTheSeeder_BeforeTouchingTheRoles()
     {
-        FeaturePermissions foreign = new("Users", [new(TasksPermissions.Read, [AppRoles.User])]);
-        using IServiceScope scope = _fixture.Services.CreateScope();
+        string database = await TestDatabases.CreateEmptyAsync(_server);
+        using WebApplicationFactory<MonolithHost> monolith = ApiFixture.CreateFactory(database);
+        using IServiceScope scope = monolith.Services.CreateScope();
+        await DeleteRolesAsync(database);
         PermissionCatalog catalog = scope.ServiceProvider.GetRequiredService<PermissionCatalog>();
+        FeaturePermissions foreign = new("Users", [new(TasksPermissions.Read, [AppRoles.User])]);
+        HostPermissions local = scope.ServiceProvider.GetRequiredService<HostPermissions>();
 
         InvalidOperationException error = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => new RoleSeeder(catalog, new HostPermissions([foreign])).SeedAsync(TestContext.Current.CancellationToken));
+            () => new RoleSeeder(catalog, new HostPermissions([.. local.All, foreign])).SeedAsync(TestContext.Current.CancellationToken));
 
         Assert.Contains($"Permission '{TasksPermissions.Read}' must be Permissions.Users.<Action>", error.Message, StringComparison.Ordinal);
-        await new RoleSeeder(catalog, scope.ServiceProvider.GetRequiredService<HostPermissions>()).SeedAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(0, await CountAsync(database, "SELECT count(*) FROM auth.\"AspNetRoles\""));
+        Assert.Equal(0, await CountAsync(database, "SELECT count(*) FROM auth.\"AspNetRoleClaims\""));
+
+        await new RoleSeeder(catalog, local).SeedAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(AppRoles.GetAll().Count, await CountAsync(database, "SELECT count(*) FROM auth.\"AspNetRoles\""));
     }
 
     [Fact]
@@ -133,14 +144,23 @@ public sealed class FeaturePermissionsTests : IClassFixture<ApiFixture>
         _ = api.Tasks.Services;
         using HttpClient tasks = api.CreateTasksClient();
 
+        TestSession alice = new(api.CreateClient());
+        await alice.RegisterAsync(TestAccounts.UniqueName("alice"));
+
         using (HttpResponseMessage waiting = await tasks.GetAsync("/api/v1/health/ready", TestContext.Current.CancellationToken))
         {
             Assert.Equal(HttpStatusCode.ServiceUnavailable, waiting.StatusCode);
             Assert.Equal("unhealthy", await CheckStatusAsync(waiting));
         }
 
+        SessionResponse early = await alice.SendAsync(HttpMethod.Get, "api/v1/tasks", csrf: false);
+        ProblemAssert.Problem(early, HttpStatusCode.ServiceUnavailable, "Http.ServiceUnavailable");
+
         refuse = false;
         await api.TasksDeclared.WaitAsync(DeclarationTimeout, TestContext.Current.CancellationToken);
+        SessionResponse served = await alice.SendAsync(HttpMethod.Get, "api/v1/tasks", csrf: false);
+        served.Payload?.Dispose();
+        Assert.Equal(HttpStatusCode.OK, served.Status);
 
         using HttpResponseMessage ready = await tasks.GetAsync("/api/v1/health/ready", TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.OK, ready.StatusCode);
@@ -159,6 +179,20 @@ public sealed class FeaturePermissionsTests : IClassFixture<ApiFixture>
         }
 
         return session.AuthId;
+    }
+
+    private static async Task DeleteRolesAsync(string database)
+    {
+        await using NpgsqlConnection connection = await TestDatabases.OpenAsync(database);
+        await using NpgsqlCommand delete = new("DELETE FROM auth.\"AspNetRoleClaims\"; DELETE FROM auth.\"AspNetRoles\";", connection);
+        await delete.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
+    }
+
+    private static async Task<long> CountAsync(string database, string sql)
+    {
+        await using NpgsqlConnection connection = await TestDatabases.OpenAsync(database);
+        await using NpgsqlCommand count = new(sql, connection);
+        return (long)(await count.ExecuteScalarAsync(TestContext.Current.CancellationToken))!;
     }
 
     private static ApiPair Pair(string database, Action<IServiceCollection>? configureTasks) =>

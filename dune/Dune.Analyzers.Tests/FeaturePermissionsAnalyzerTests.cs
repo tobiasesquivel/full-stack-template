@@ -99,6 +99,8 @@ public sealed class FeaturePermissionsAnalyzerTests
     [InlineData(DeclarationPath, "file sealed class InvoicesPermissions : IFeaturePermissions { public string[] Grants => []; }", "no es la clase <Feature>Permissions de primer nivel")]
     [InlineData(DeclarationPath, "internal static class Holder { internal sealed class InvoicesPermissions : IFeaturePermissions { public string[] Grants => []; } }", "no es la clase <Feature>Permissions de primer nivel")]
     [InlineData("backend/Features/Invoices/InvoicesPermissions.cs", "internal sealed class InvoicesPermissions : IFeaturePermissions { public string[] Grants => []; }", "no es la clase <Feature>Permissions de primer nivel")]
+    [InlineData(DeclarationPath, "internal static class InvoicesPermissions { public const int Count = 1; }", "no implementa IFeaturePermissions")]
+    [InlineData(DeclarationPath, "internal sealed class InvoicesPermissions { public string[] Grants => []; }", "no implementa IFeaturePermissions")]
     [InlineData("backend/Infrastructure/Access/InvoicesPermissions.cs", "internal sealed class InvoicesPermissions : IFeaturePermissions { public string[] Grants => []; }", "no es la clase <Feature>Permissions de primer nivel")]
     public async Task ADeclarationTheHostCannotUse_IsRejected(string path, string declaration, string expected)
     {
@@ -110,9 +112,9 @@ public sealed class FeaturePermissionsAnalyzerTests
                 {{declaration}}
                 """));
 
-        var diagnostic = Assert.Single(diagnostics);
-        Assert.Equal("DUNE0035", diagnostic.Id);
-        Assert.Contains(expected, diagnostic.GetMessage(), System.StringComparison.Ordinal);
+        Assert.NotEmpty(diagnostics);
+        Assert.All(diagnostics, diagnostic => Assert.Equal("DUNE0035", diagnostic.Id));
+        Assert.Contains(diagnostics, diagnostic => diagnostic.GetMessage().Contains(expected, System.StringComparison.Ordinal));
     }
 
     [Fact]

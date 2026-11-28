@@ -16,8 +16,6 @@ internal sealed class RoleSeeder : IDatabaseSeeder
 
     public async Task SeedAsync(CancellationToken ct)
     {
-        await _catalog.EnsureRolesAsync(ct);
-        foreach (FeaturePermissions declaration in _declarations.All)
-            await _catalog.GrantAsync(declaration, ct);
+        await _catalog.GrantAsync(_declarations.All, ct);
     }
 }

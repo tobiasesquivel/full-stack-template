@@ -77,7 +77,7 @@ internal sealed class TasksFeature : IFeature
 
     public void MapEndpoints(RouteGroupBuilder api)
     {
-        RouteGroupBuilder tasks = api.MapGroup("/tasks").RequireAuthorization();
+        RouteGroupBuilder tasks = api.MapGroup("/tasks").RequireAuthorization().AddEndpointFilter(PermissionsDeclarationGate.RequireDeclaredAsync);
 
         CreateTask.CreateTaskEndpoint.Map(tasks);
         ListTasks.ListTasksEndpoint.Map(tasks);

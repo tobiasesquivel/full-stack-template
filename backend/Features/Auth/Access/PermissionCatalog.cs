@@ -22,20 +22,13 @@ internal sealed class PermissionCatalog
         _roles = roles;
     }
 
-    public async Task EnsureRolesAsync(CancellationToken ct)
+    public async Task GrantAsync(IReadOnlyList<FeaturePermissions> declarations, CancellationToken ct)
     {
-        using TransactionScope scope = CrossContextTransaction.Begin();
-        await LockAsync(ct);
-        foreach (string roleName in AppRoles.GetAll())
-            await EnsureRoleAsync(roleName);
-        scope.Complete();
-    }
-
-    public async Task GrantAsync(FeaturePermissions declaration, CancellationToken ct)
-    {
-        IReadOnlyList<string> problems = PermissionDeclarationRules.Problems(declaration);
+        List<string> problems = declarations
+            .SelectMany(declaration => PermissionDeclarationRules.Problems(declaration).Select(problem => $"{declaration.Feature}: {problem}"))
+            .ToList();
         if (problems.Count > 0)
-            throw new InvalidOperationException($"The permissions of {declaration.Feature} are invalid: {string.Join("; ", problems)}");
+            throw new InvalidOperationException($"Invalid permission declarations: {string.Join("; ", problems)}");
 
         using TransactionScope scope = CrossContextTransaction.Begin();
         await LockAsync(ct);
@@ -46,9 +39,11 @@ internal sealed class PermissionCatalog
                 .Where(claim => claim.Type == ClaimType)
                 .Select(claim => claim.Value)
                 .ToHashSet(StringComparer.Ordinal);
-            IEnumerable<string> missing = declaration.Grants
+            IEnumerable<string> missing = declarations
+                .SelectMany(declaration => declaration.Grants)
                 .Where(grant => grant.Roles.Contains(roleName, StringComparer.Ordinal) && !held.Contains(grant.Permission))
                 .Select(grant => grant.Permission)
+                .Distinct(StringComparer.Ordinal)
                 .Order(StringComparer.Ordinal);
 
             foreach (string permission in missing)
