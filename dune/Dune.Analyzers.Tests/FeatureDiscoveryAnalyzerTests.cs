@@ -48,6 +48,7 @@ public sealed class FeatureDiscoveryAnalyzerTests
     [Theory]
     [InlineData("internal static class InvoicesFeature { }", "es una clase estática, abstracta o no es una clase")]
     [InlineData("internal abstract class InvoicesFeature : IFeature { public void AddServices() { } }", "es una clase estática, abstracta o no es una clase")]
+    [InlineData("internal class InvoicesFeature : IFeature { public void AddServices() { } }", "no es sealed")]
     [InlineData("internal sealed class InvoicesFeature { public void AddServices() { } }", "no implementa IFeature")]
     [InlineData("internal sealed class InvoicesFeature : IFeature { private InvoicesFeature() { } public void AddServices() { } }", "no tiene un constructor público sin parámetros")]
     [InlineData("internal sealed class InvoicesFeature : IFeature { public InvoicesFeature(int size) { } public void AddServices() { } }", "no tiene un constructor público sin parámetros")]
@@ -66,6 +67,40 @@ public sealed class FeatureDiscoveryAnalyzerTests
         Assert.Equal("DUNE0034", diagnostic.Id);
         Assert.Contains(expected, diagnostic.GetMessage(), System.StringComparison.Ordinal);
         Assert.EndsWith("InvoicesFeature.cs", diagnostic.Location.SourceTree!.FilePath, System.StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task AFeatureClassFromAnotherAssembly_IsRejected()
+    {
+        var library = Microsoft.CodeAnalysis.CSharp.CSharpCompilation.Create(
+            "Other",
+            new[]
+            {
+                Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree.ParseText(Contract),
+                Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree.ParseText("""
+                    using TemplateApp.Infrastructure.Hosting;
+                    namespace TemplateApp.Features.Invoices;
+                    public sealed class InvoicesFeature : IFeature
+                    {
+                        public void AddServices()
+                        {
+                        }
+                    }
+                    """),
+            },
+            TestReferences.All(),
+            new Microsoft.CodeAnalysis.CSharp.CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+
+        var diagnostics = await AnalyzerHost.AnalyzeProjectAsync(
+            "TemplateApp",
+            ImmutableDictionary<string, string>.Empty,
+            new List<(string, string)> { ("backend/Features/Invoices/CreateInvoice/CreateInvoiceEndpoint.cs", Slice) },
+            new[] { library.ToMetadataReference() },
+            AnalyzerHost.Only<FeatureDiscoveryAnalyzer>());
+
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Contains("'InvoicesFeature' viene de otro ensamblado (Other)", diagnostic.GetMessage(), System.StringComparison.Ordinal);
+        Assert.EndsWith("CreateInvoiceEndpoint.cs", diagnostic.Location.SourceTree!.FilePath, System.StringComparison.Ordinal);
     }
 
     [Fact]

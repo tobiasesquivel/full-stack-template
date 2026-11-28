@@ -96,7 +96,7 @@ public sealed class FeatureDiscoveryAnalyzer : DiagnosticAnalyzer
                 continue;
             }
 
-            var location = type?.Locations.FirstOrDefault(candidate => candidate.IsInSource) ?? pair.Value;
+            var location = type?.Locations.FirstOrDefault(candidate => candidate.SourceTree is { } tree && context.Compilation.ContainsSyntaxTree(tree)) ?? pair.Value;
             context.ReportDiagnostic(Diagnostic.Create(DuneDiagnostics.FeatureDiscovery, location, pair.Key + "Feature", problem));
         }
     }
@@ -114,9 +114,19 @@ public sealed class FeatureDiscoveryAnalyzer : DiagnosticAnalyzer
             return "falta: la feature " + feature + " compila en este host y nadie la registra";
         }
 
+        if (!SymbolEqualityComparer.Default.Equals(type.ContainingAssembly, compilation.Assembly))
+        {
+            return "viene de otro ensamblado (" + type.ContainingAssembly.Name + "): el host solo descubre los tipos que compila";
+        }
+
         if (type.TypeKind != TypeKind.Class || type.IsStatic || type.IsAbstract)
         {
             return "es una clase estática, abstracta o no es una clase: el host no la puede crear";
+        }
+
+        if (!type.IsSealed)
+        {
+            return "no es sealed: el registro de una feature es internal sealed class <Feature>Feature : IFeature";
         }
 
         if (!type.AllInterfaces.Contains(contract, SymbolEqualityComparer.Default))
