@@ -169,6 +169,27 @@ public sealed class FeaturePermissionsTests : IClassFixture<ApiFixture>
     }
 
     [Fact]
+    public async Task AMonolithWithoutTheDeclarationRoute_LetsTasksServe_WithThePermissionsThatReleaseSeeded()
+    {
+        ApiPair api = _fixture.CreateIsolatedApi(
+            new Dictionary<string, string>(),
+            _ => { },
+            (request, _) => ApiPair.IsPermissionsDeclaration(request) ? new RouteMissing() : null,
+            start: false);
+        _ = api.Monolith.Services;
+        _ = api.Tasks.Services;
+
+        await api.TasksDeclared.WaitAsync(DeclarationTimeout, TestContext.Current.CancellationToken);
+
+        TestSession alice = new(api.CreateClient());
+        await alice.RegisterAsync(TestAccounts.UniqueName("alice"));
+        await alice.CreateTaskAsync("Con el monolito anterior");
+        using HttpClient tasks = api.CreateTasksClient();
+        using HttpResponseMessage ready = await tasks.GetAsync("/api/v1/health/ready", TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.OK, ready.StatusCode);
+    }
+
+    [Fact]
     public async Task OnKestrel_ADeclarationAnswered503Once_IsRetriedAgainstTheMonolith()
     {
         string database = await TestDatabases.CreateEmptyAsync(_server);
@@ -276,6 +297,12 @@ public sealed class FeaturePermissionsTests : IClassFixture<ApiFixture>
             Forwarded = served.StatusCode;
             return new HttpResponseMessage(HttpStatusCode.ServiceUnavailable);
         }
+    }
+
+    private sealed class RouteMissing : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+            Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound));
     }
 
     private sealed class Unavailable : HttpMessageHandler

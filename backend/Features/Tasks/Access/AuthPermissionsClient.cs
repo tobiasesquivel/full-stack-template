@@ -16,12 +16,13 @@ internal sealed class AuthPermissionsClient
         _keys = keys;
     }
 
-    public async Task DeclareAsync(FeaturePermissions declaration, CancellationToken ct)
+    public async Task<bool> DeclareAsync(FeaturePermissions declaration, CancellationToken ct)
     {
         using HttpRequestMessage request = new(HttpMethod.Put, $"internal/v1/feature-permissions/{Uri.EscapeDataString(declaration.Feature)}")
         {
             Content = JsonContent.Create(new PermissionDeclarationRequest(PermissionDeclarationSeal.Seal(_keys, declaration))),
         };
-        using HttpResponseMessage response = await _http.SendRemoteAsync(request, ct, HttpStatusCode.NoContent);
+        using HttpResponseMessage response = await _http.SendRemoteAsync(request, ct, HttpStatusCode.NoContent, HttpStatusCode.NotFound);
+        return response.StatusCode == HttpStatusCode.NoContent;
     }
 }

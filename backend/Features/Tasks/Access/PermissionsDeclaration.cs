@@ -28,9 +28,12 @@ internal sealed partial class PermissionsDeclaration : BackgroundService
         {
             try
             {
-                await DeclareAllAsync(stoppingToken);
+                if (await DeclareAllAsync(stoppingToken))
+                    LogDeclared(_logger, _declarations.All.Count, attempt);
+                else
+                    LogPreviousRelease(_logger);
+
                 _declared.TrySetResult();
-                LogDeclared(_logger, _declarations.All.Count, attempt);
                 return;
             }
             catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
@@ -43,16 +46,24 @@ internal sealed partial class PermissionsDeclaration : BackgroundService
         }
     }
 
-    private async Task DeclareAllAsync(CancellationToken ct)
+    private async Task<bool> DeclareAllAsync(CancellationToken ct)
     {
         using IServiceScope scope = _scopes.CreateScope();
         AuthPermissionsClient auth = scope.ServiceProvider.GetRequiredService<AuthPermissionsClient>();
         foreach (FeaturePermissions declaration in _declarations.All)
-            await auth.DeclareAsync(declaration, ct);
+        {
+            if (!await auth.DeclareAsync(declaration, ct))
+                return false;
+        }
+
+        return true;
     }
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Auth accepted the permissions of {Features} features on attempt {Attempt}")]
     private static partial void LogDeclared(ILogger logger, int features, int attempt);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Auth has no route for permission declarations (a release before step T4); this host relies on the permissions that release seeds")]
+    private static partial void LogPreviousRelease(ILogger logger);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Auth did not accept the permissions on attempt {Attempt}; retrying in {Retry}")]
     private static partial void LogRetry(ILogger logger, Exception exception, int attempt, TimeSpan retry);
