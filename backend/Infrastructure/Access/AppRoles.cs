@@ -1,6 +1,6 @@
-namespace TemplateApp.Features.Auth.Access;
+namespace TemplateApp.Infrastructure.Access;
 
-internal static class AppRoles
+public static class AppRoles
 {
     public const string User = "User";
     public const string Admin = "Admin";

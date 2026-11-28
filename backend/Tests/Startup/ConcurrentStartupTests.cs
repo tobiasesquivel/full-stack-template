@@ -9,6 +9,7 @@ using TemplateApp.Hosts.Monolith;
 using TemplateApp.Infrastructure.Persistence.Initialization;
 using Testcontainers.PostgreSql;
 using TemplateApp.Features.Auth.Access;
+using TemplateApp.Infrastructure.Access;
 using TemplateApp.Infrastructure.Persistence;
 using TemplateApp.Tests.Support.Hosts;
 using Xunit;
@@ -122,6 +123,7 @@ public sealed class ConcurrentStartupTests : IAsyncLifetime
     {
         using IServiceScope scope = services.CreateScope();
         RoleManager<IdentityRole> roles = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+        IReadOnlyList<FeaturePermissions> declarations = services.GetRequiredService<HostPermissions>().All;
 
         foreach (string roleName in AppRoles.GetAll())
         {
@@ -130,12 +132,18 @@ public sealed class ConcurrentStartupTests : IAsyncLifetime
 
             IList<Claim> claims = await roles.GetClaimsAsync(role);
             string[] permissions = claims
-                .Where(claim => claim.Type == RolePermissions.ClaimType)
+                .Where(claim => claim.Type == PermissionCatalog.ClaimType)
                 .Select(claim => claim.Value)
                 .Order(StringComparer.Ordinal)
                 .ToArray();
 
-            Assert.Equal(RolePermissions.GetForRole(roleName).Order(StringComparer.Ordinal), permissions);
+            Assert.Equal(
+                declarations
+                    .SelectMany(declaration => declaration.Grants)
+                    .Where(grant => grant.Roles.Contains(roleName))
+                    .Select(grant => grant.Permission)
+                    .Order(StringComparer.Ordinal),
+                permissions);
         }
     }
 }

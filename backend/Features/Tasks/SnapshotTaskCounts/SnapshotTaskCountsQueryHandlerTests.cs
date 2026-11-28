@@ -20,7 +20,7 @@ public sealed class SnapshotTaskCountsQueryHandlerTests : IClassFixture<ApiFixtu
     public async Task Handle_CountsTheUndeliveredEventOfANewTask()
     {
         using IServiceScope scope = _fixture.TasksServices.CreateScope();
-        await scope.CreateTaskAsync(HandlerCalls.Caller(TaskPermissions.Create), "Recién creada");
+        await scope.CreateTaskAsync(HandlerCalls.Caller(TasksPermissions.Create), "Recién creada");
 
         var snapshot = await scope.Handler<SnapshotTaskCountsQuery.Handler>()
             .Handle(new SnapshotTaskCountsQuery(), TestContext.Current.CancellationToken);

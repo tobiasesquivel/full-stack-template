@@ -1,4 +1,5 @@
 using System.Reflection;
+using TemplateApp.Infrastructure.Access;
 using TemplateApp.Infrastructure.Http;
 using TemplateApp.Infrastructure.Http.Remote;
 
@@ -13,6 +14,7 @@ public static class FeatureHosting
             feature.AddServices(services);
 
         services.AddSingleton(features);
+        services.AddSingleton(HostPermissions.In(host));
         return services;
     }
 

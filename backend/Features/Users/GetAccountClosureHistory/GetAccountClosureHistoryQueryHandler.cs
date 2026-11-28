@@ -34,7 +34,7 @@ internal sealed partial record GetAccountClosureHistoryQuery
             if (ownerId is null)
                 return UserErrors.ClosureNotFound(closureId);
 
-            if (!await _auth.CanAccessAsync(query.CallerId, new ClosureOwner(ownerId), UserPermissions.Read, ct))
+            if (!await _auth.CanAccessAsync(query.CallerId, new ClosureOwner(ownerId), UsersPermissions.Read, ct))
                 return UserErrors.Forbidden;
 
             return new AccountClosureHistoryResponse(closureId, [.. facts.Select(f => f.Fact)]);

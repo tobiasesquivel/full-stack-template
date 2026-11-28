@@ -38,6 +38,6 @@ internal sealed class AuthModule : IAuthModule
             identity.UserName,
             identity.Email,
             grant.Roles,
-            grant.Permissions.ToList().AsReadOnly());
+            grant.Permissions.Order(StringComparer.Ordinal).ToList().AsReadOnly());
     }
 }

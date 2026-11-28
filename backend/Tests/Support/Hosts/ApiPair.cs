@@ -1,9 +1,13 @@
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using TemplateApp.Features.Tasks.Access;
 using TemplateApp.Hosts.Monolith;
 using TemplateApp.Hosts.Tasks;
+using TemplateApp.Infrastructure.Persistence.Initialization;
 using Wolverine;
 
 namespace TemplateApp.Tests.Support.Hosts;
@@ -14,10 +18,13 @@ public sealed class ApiPair : IDisposable
     public const string TasksAuthority = "tasks";
     public const string BrokerSetting = "Messaging:RabbitMqUri";
     private const string TasksPrefix = "/api/v1/tasks";
+    private const string PermissionsDeclarationPrefix = "/internal/v1/feature-permissions/";
+    private static readonly TimeSpan PermissionsDeclarationTimeout = TimeSpan.FromSeconds(30);
 
     private readonly MonolithFactory _monolith;
     private readonly TasksFactory _tasks;
     private readonly bool _kestrel;
+    private readonly TaskCompletionSource<TestServer?> _monolithStarted = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     public ApiPair(
         string connectionString,
@@ -32,6 +39,7 @@ public sealed class ApiPair : IDisposable
         {
             configureServices(services);
             RouteRemoteCalls(services, interceptRemote);
+            services.AddHostedService(provider => new StartedSignal(provider, _monolithStarted));
         });
         _tasks = new TasksFactory(connectionString, settings, services =>
         {
@@ -68,7 +76,14 @@ public sealed class ApiPair : IDisposable
 
         _ = _monolith.Services;
         _ = _tasks.Services;
+        if (_monolith.Services.GetServices<IHostedService>().OfType<DatabaseInitialization>().Any())
+            TasksDeclared.WaitAsync(PermissionsDeclarationTimeout).GetAwaiter().GetResult();
     }
+
+    public Task TasksDeclared => _tasks.Services.GetRequiredService<PermissionsDeclaration>().Declared;
+
+    public static bool IsPermissionsDeclaration(HttpRequestMessage request) =>
+        request.RequestUri!.AbsolutePath.StartsWith(PermissionsDeclarationPrefix, StringComparison.Ordinal);
 
     public void Dispose()
     {
@@ -81,9 +96,17 @@ public sealed class ApiPair : IDisposable
             new InterceptedRoutes(interceptRemote, new InMemoryRoutes(request => request.RequestUri!.Host switch
             {
                 TasksAuthority => _tasks.Server,
-                MonolithAuthority => _monolith.Server,
+                MonolithAuthority => StartedMonolith(),
                 string other => throw new InvalidOperationException($"No in-memory host answers {other}."),
             }))));
+
+    private TestServer StartedMonolith()
+    {
+        if (!_monolithStarted.Task.IsCompletedSuccessfully)
+            throw new HttpRequestException("The monolith has not started yet.");
+
+        return _monolithStarted.Task.GetAwaiter().GetResult() ?? _monolith.Server;
+    }
 
     internal static void ConfigureCommon(IWebHostBuilder builder, string connectionString, IReadOnlyDictionary<string, string> settings, Action<IServiceCollection> configureServices)
     {
@@ -122,6 +145,18 @@ public sealed class ApiPair : IDisposable
     {
         protected override void ConfigureWebHost(IWebHostBuilder builder) =>
             ConfigureCommon(builder, connectionString, settings, configureServices);
+    }
+
+    private sealed class StartedSignal(IServiceProvider services, TaskCompletionSource<TestServer?> started) : IHostedService
+    {
+        public Task StartAsync(CancellationToken cancellationToken)
+        {
+            TestServer? server = services.GetRequiredService<IServer>() as TestServer;
+            services.GetRequiredService<IHostApplicationLifetime>().ApplicationStarted.Register(() => started.TrySetResult(server));
+            return Task.CompletedTask;
+        }
+
+        public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
     }
 
     private sealed class InterceptedRoutes(Func<HttpRequestMessage, HttpMessageHandler, HttpMessageHandler?>? intercept, HttpMessageHandler inner) : DelegatingHandler(inner)

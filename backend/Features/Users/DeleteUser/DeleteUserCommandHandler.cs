@@ -3,6 +3,7 @@ using ErrorOr;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using TemplateApp.Features.Auth.Contracts;
+using TemplateApp.Features.Users.Access;
 using TemplateApp.Features.Users.Contracts;
 using TemplateApp.Features.Users.Domain;
 using TemplateApp.Features.Users.OrchestrateAccountClosure;
@@ -52,7 +53,7 @@ internal sealed partial record DeleteUserCommand
             if (profile is null)
                 return UserErrors.NotFound(authId);
 
-            if (!await _auth.CanAccessAsync(command.CallerId, profile, UserPermissions.Manage, ct))
+            if (!await _auth.CanAccessAsync(command.CallerId, profile, UsersPermissions.Manage, ct))
                 return UserErrors.Forbidden;
 
             if (profile.ClosureStatus is AccountClosureStatus.Scheduled or AccountClosureStatus.Closing)

@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using TemplateApp.Features.Auth.Contracts;
-using TemplateApp.Features.Auth.Access;
+using TemplateApp.Features.Tasks.Access;
 using TemplateApp.Shared.Domain;
 
 namespace TemplateApp.Tests.Support.Probes;
@@ -32,8 +32,8 @@ internal sealed class PermissionProbe : IStartupFilter
         for (int i = 0; i < checks; i++)
         {
             results.Add(i % 2 == 0
-                ? await auth.HasPermissionAsync(userId, TaskPermissionNames.Create, http.RequestAborted)
-                : await auth.CanAccessAsync(userId, foreign, TaskPermissionNames.Read, http.RequestAborted));
+                ? await auth.HasPermissionAsync(userId, TasksPermissions.Create, http.RequestAborted)
+                : await auth.CanAccessAsync(userId, foreign, TasksPermissions.Read, http.RequestAborted));
         }
 
         await http.Response.WriteAsJsonAsync(results, http.RequestAborted);

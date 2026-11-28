@@ -122,6 +122,7 @@ public sealed class PerFeatureContextsTransitionTests : IClassFixture<ApiFixture
         Assert.Contains("public.IdempotencyKeys", await TablesAsync(database));
 
         _ = api.Monolith.Services;
+        await api.TasksDeclared.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
         await AssertReadyAsync(tasks);
         await AssertReadyAsync(monolith);
         Assert.Equal(TablesInTheirFeatureSchema, await TablesAsync(database));

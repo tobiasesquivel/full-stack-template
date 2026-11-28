@@ -27,7 +27,7 @@ internal sealed partial record CreateTaskCommand
 
         public async Task<ErrorOr<TaskResponse>> Handle(CreateTaskCommand command, CancellationToken ct)
         {
-            if (!command.Caller.HasPermission(TaskPermissions.Create))
+            if (!command.Caller.HasPermission(TasksPermissions.Create))
                 return TaskErrors.Forbidden;
 
             if (command.ProjectId is Guid projectId)

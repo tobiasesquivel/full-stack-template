@@ -1,6 +1,7 @@
 using ErrorOr;
 using Microsoft.EntityFrameworkCore;
 using TemplateApp.Features.Auth.Contracts;
+using TemplateApp.Features.Projects.Access;
 using TemplateApp.Features.Projects.Contracts;
 using TemplateApp.Features.Projects.Domain;
 using TemplateApp.Features.Projects.Persistence;
@@ -26,7 +27,7 @@ internal sealed partial record CreateProjectCommand
 
         public async Task<ErrorOr<ProjectResponse>> Handle(CreateProjectCommand command, CancellationToken ct)
         {
-            if (!await _auth.HasPermissionAsync(command.CallerId, ProjectPermissions.Create, ct))
+            if (!await _auth.HasPermissionAsync(command.CallerId, ProjectsPermissions.Create, ct))
                 return ProjectErrors.Forbidden;
 
             string key = Project.NormalizeKey(command.Name);

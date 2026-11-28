@@ -20,10 +20,10 @@ public sealed class ListTasksQueryHandlerTests : IClassFixture<ApiFixture>
     public async Task Handle_ListsOnlyTheCallersTasks_NewestFirst()
     {
         using IServiceScope scope = _fixture.TasksServices.CreateScope();
-        var owner = HandlerCalls.Caller(TaskPermissions.Create);
+        var owner = HandlerCalls.Caller(TasksPermissions.Create);
         await scope.CreateTaskAsync(owner, "Primera");
         await scope.CreateTaskAsync(owner, "Segunda");
-        await scope.CreateTaskAsync(HandlerCalls.Caller(TaskPermissions.Create), "De otro");
+        await scope.CreateTaskAsync(HandlerCalls.Caller(TasksPermissions.Create), "De otro");
 
         var listed = await scope.Handler<ListTasksQuery.Handler>()
             .Handle(new ListTasksQuery(owner, null, 20), TestContext.Current.CancellationToken);

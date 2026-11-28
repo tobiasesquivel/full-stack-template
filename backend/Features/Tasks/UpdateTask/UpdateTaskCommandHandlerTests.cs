@@ -20,7 +20,7 @@ public sealed class UpdateTaskCommandHandlerTests : IClassFixture<ApiFixture>
     public async Task Handle_ByTheOwner_CompletesTheTask()
     {
         using IServiceScope scope = _fixture.TasksServices.CreateScope();
-        var owner = HandlerCalls.Caller(TaskPermissions.Create);
+        var owner = HandlerCalls.Caller(TasksPermissions.Create);
         TaskResponse task = await scope.CreateTaskAsync(owner, "Antes");
 
         var updated = await scope.Handler<UpdateTaskCommand.Handler>()
@@ -34,7 +34,7 @@ public sealed class UpdateTaskCommandHandlerTests : IClassFixture<ApiFixture>
     public async Task Handle_ByAStrangerWithoutPermission_IsForbidden()
     {
         using IServiceScope scope = _fixture.TasksServices.CreateScope();
-        TaskResponse task = await scope.CreateTaskAsync(HandlerCalls.Caller(TaskPermissions.Create), "Ajena");
+        TaskResponse task = await scope.CreateTaskAsync(HandlerCalls.Caller(TasksPermissions.Create), "Ajena");
 
         var updated = await scope.Handler<UpdateTaskCommand.Handler>()
             .Handle(new UpdateTaskCommand(HandlerCalls.Caller(), task.Id, "Robada", false, task.Version), TestContext.Current.CancellationToken);

@@ -22,10 +22,10 @@ public sealed class DeleteTaskCommandHandlerTests : IClassFixture<ApiFixture>
     public async Task Handle_ByAnAdminWithDeletePermission_RemovesAForeignTask()
     {
         using IServiceScope scope = _fixture.TasksServices.CreateScope();
-        TaskResponse task = await scope.CreateTaskAsync(HandlerCalls.Caller(TaskPermissions.Create), "Ajena");
+        TaskResponse task = await scope.CreateTaskAsync(HandlerCalls.Caller(TasksPermissions.Create), "Ajena");
 
         var deleted = await scope.Handler<DeleteTaskCommand.Handler>()
-            .Handle(new DeleteTaskCommand(HandlerCalls.Caller(TaskPermissions.Delete), task.Id), TestContext.Current.CancellationToken);
+            .Handle(new DeleteTaskCommand(HandlerCalls.Caller(TasksPermissions.Delete), task.Id), TestContext.Current.CancellationToken);
 
         Assert.False(deleted.IsError);
         Assert.False(await scope.ServiceProvider.GetRequiredService<TasksDbContext>().TaskItems
@@ -38,7 +38,7 @@ public sealed class DeleteTaskCommandHandlerTests : IClassFixture<ApiFixture>
         using IServiceScope scope = _fixture.TasksServices.CreateScope();
 
         var deleted = await scope.Handler<DeleteTaskCommand.Handler>()
-            .Handle(new DeleteTaskCommand(HandlerCalls.Caller(TaskPermissions.Delete), Guid.NewGuid()), TestContext.Current.CancellationToken);
+            .Handle(new DeleteTaskCommand(HandlerCalls.Caller(TasksPermissions.Delete), Guid.NewGuid()), TestContext.Current.CancellationToken);
 
         Assert.Equal("Task.NotFound", Assert.Single(deleted.Errors).Code);
     }

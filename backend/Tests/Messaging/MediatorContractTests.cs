@@ -62,7 +62,7 @@ public sealed class MediatorContractTests : IClassFixture<ApiFixture>
     {
         using IServiceScope scope = _fixture.TasksServices.CreateScope();
         IMessageBus bus = scope.ServiceProvider.GetRequiredService<IMessageBus>();
-        var owner = HandlerCalls.Caller(TaskPermissions.Create, TaskPermissions.Update);
+        var owner = HandlerCalls.Caller(TasksPermissions.Create, TasksPermissions.Update);
         CancellationToken ct = TestContext.Current.CancellationToken;
 
         var blank = await Assert.ThrowsAsync<ValidationException>(() =>
@@ -82,7 +82,7 @@ public sealed class MediatorContractTests : IClassFixture<ApiFixture>
     {
         using IServiceScope scope = _fixture.TasksServices.CreateScope();
         IMessageBus bus = scope.ServiceProvider.GetRequiredService<IMessageBus>();
-        var admin = HandlerCalls.Caller(TaskPermissions.Read, TaskPermissions.Delete);
+        var admin = HandlerCalls.Caller(TasksPermissions.Read, TasksPermissions.Delete);
         CancellationToken ct = TestContext.Current.CancellationToken;
 
         ErrorOr<TaskResponse> read = await bus.InvokeAsync<ErrorOr<TaskResponse>>(new GetTaskQuery(admin, Guid.NewGuid()), ct);

@@ -1,6 +1,7 @@
 using ErrorOr;
 using Microsoft.EntityFrameworkCore;
 using TemplateApp.Features.Auth.Contracts;
+using TemplateApp.Features.Projects.Access;
 using TemplateApp.Features.Projects.Contracts;
 using TemplateApp.Features.Projects.Domain;
 using TemplateApp.Features.Projects.Persistence;
@@ -30,7 +31,7 @@ internal sealed partial record UpdateProjectCommand
             if (project is null)
                 return ProjectErrors.NotFound(command.Id);
 
-            if (!await _auth.CanAccessAsync(command.CallerId, project, ProjectPermissions.Update, ct))
+            if (!await _auth.CanAccessAsync(command.CallerId, project, ProjectsPermissions.Update, ct))
                 return ProjectErrors.Forbidden;
 
             string name = Project.NormalizeName(command.Name);

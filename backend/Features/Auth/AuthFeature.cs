@@ -45,6 +45,7 @@ internal sealed class AuthFeature : IFeature
         services.AddScoped<AccessPolicy>();
         services.AddScoped<AuthModule>();
         services.AddScoped<IAuthModule>(sp => sp.GetRequiredService<AuthModule>());
+        services.AddScoped<PermissionCatalog>();
         services.AddScoped<IDatabaseSeeder, RoleSeeder>();
         services.AddScoped<Sessions>();
         services.AddScoped<SessionHttpPolicy>();
@@ -53,6 +54,8 @@ internal sealed class AuthFeature : IFeature
         services.AddMediatorHandler<OpenSession.OpenSessionCommand.Handler>(MediatorTransaction.None);
         services.AddMediatorHandler<CloseSession.CloseSessionCommand.Handler>(MediatorTransaction.None);
         services.AddMediatorHandler<CheckSession.CheckSessionCommand.Handler>(MediatorTransaction.None);
+        services.AddMediatorHandler<DeclarePermissions.DeclarePermissionsCommand.Handler>(MediatorTransaction.Atomic);
+        services.AddSingleton<IValidator<DeclarePermissions.DeclarePermissionsCommand>, DeclarePermissions.DeclarePermissionsCommandValidator>();
         services.AddScoped<DecideAccountClosure.DecideAccountClosure>();
     }
 
@@ -110,5 +113,6 @@ internal sealed class AuthFeature : IFeature
     public void MapInternalEndpoints(RouteGroupBuilder internalApi)
     {
         CheckSession.CheckSessionEndpoint.Map(internalApi);
+        DeclarePermissions.DeclarePermissionsEndpoint.Map(internalApi);
     }
 }
