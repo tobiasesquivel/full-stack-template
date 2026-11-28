@@ -2,6 +2,7 @@ using FluentValidation;
 using TemplateApp.Features.Projects.Contracts;
 using TemplateApp.Features.Projects.MessageNames;
 using TemplateApp.Features.Projects.Persistence;
+using TemplateApp.Infrastructure.Hosting;
 using TemplateApp.Infrastructure.Http.Remote;
 using TemplateApp.Infrastructure.Messaging;
 using TemplateApp.Infrastructure.Messaging.Mediator;
@@ -9,11 +10,11 @@ using TemplateApp.Infrastructure.Persistence;
 
 namespace TemplateApp.Features.Projects;
 
-internal static class ProjectsFeature
+internal sealed class ProjectsFeature : IFeature
 {
     public const string TasksService = "Tasks";
 
-    public static IServiceCollection AddProjectsFeature(this IServiceCollection services)
+    public void AddServices(IServiceCollection services)
     {
         services.AddMigratedDbContext<ProjectsDbContext>(ProjectsDbContext.Schema, adoptsLegacyTables: false);
         services.AddScoped<IProjectsModule, ProjectsModule>();
@@ -34,10 +35,9 @@ internal static class ProjectsFeature
         services.AddRemoteClient<RebuildTaskCounters.TaskCountsSnapshotClient>(TasksService, RemoteRetry.Idempotent);
         services.AddScoped<RebuildTaskCounters.RebuildTaskCounters>();
         services.AddHostedService<RebuildTaskCounters.RebuildTaskCountersOnStartup>();
-        return services;
     }
 
-    public static RouteGroupBuilder MapProjectsEndpoints(this RouteGroupBuilder api)
+    public void MapEndpoints(RouteGroupBuilder api)
     {
         RouteGroupBuilder projects = api.MapGroup("/projects").RequireAuthorization();
 
@@ -45,14 +45,10 @@ internal static class ProjectsFeature
         ListProjects.ListProjectsEndpoint.Map(projects);
         GetProject.GetProjectEndpoint.Map(projects);
         UpdateProject.UpdateProjectEndpoint.Map(projects);
-
-        return api;
     }
 
-    public static RouteGroupBuilder MapProjectsInternalEndpoints(this RouteGroupBuilder internalApi)
+    public void MapInternalEndpoints(RouteGroupBuilder internalApi)
     {
         FindAssignableProject.FindAssignableProjectEndpoint.Map(internalApi);
-
-        return internalApi;
     }
 }

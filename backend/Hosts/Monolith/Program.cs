@@ -1,12 +1,8 @@
 using Serilog;
-using TemplateApp.Features.Auth;
-using TemplateApp.Features.Health;
-using TemplateApp.Features.Projects;
-using TemplateApp.Features.Users;
 using TemplateApp.Infrastructure;
+using TemplateApp.Infrastructure.Hosting;
 using TemplateApp.Infrastructure.Http;
 using TemplateApp.Infrastructure.Http.RateLimiting;
-using TemplateApp.Infrastructure.Http.Remote;
 using TemplateApp.Infrastructure.Messaging;
 using TemplateApp.Infrastructure.Observability;
 
@@ -19,10 +15,7 @@ try
     builder.Services.AddBackendInfrastructure(migratesPlatformSchema: true);
     builder.Services.AddTemplateObservability(builder.Environment, "templateapp-api");
     builder.Services.AddMessaging(typeof(TemplateApp.Hosts.Monolith.MonolithHost).Assembly, storesSagas: true);
-    builder.Services.AddAuthFeature();
-    builder.Services.AddUsersFeature();
-    builder.Services.AddProjectsFeature();
-    builder.Services.AddHealthFeature();
+    builder.Services.AddFeatures(typeof(TemplateApp.Hosts.Monolith.MonolithHost).Assembly);
     builder.Services.AddVersionedApi();
     builder.Services.AddApiRateLimiting();
     builder.Services.AddApiSecurityHeaders();
@@ -43,15 +36,7 @@ try
     app.UseAuthorization();
     app.UseSessionAntiforgery();
 
-    RouteGroupBuilder api = app.MapVersionedApi();
-    api.MapAuthEndpoints();
-    api.MapUsersEndpoints();
-    api.MapProjectsEndpoints();
-    api.MapHealthEndpoints();
-
-    app.MapInternalApi()
-        .MapAuthInternalEndpoints()
-        .MapProjectsInternalEndpoints();
+    app.MapFeatures();
 
     return await app.RunWithMessagingCommandsAsync(args);
 }

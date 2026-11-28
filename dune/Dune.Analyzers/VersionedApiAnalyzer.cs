@@ -27,7 +27,6 @@ public sealed class VersionedApiAnalyzer : DiagnosticAnalyzer
         context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
         context.EnableConcurrentExecution();
         context.RegisterOperationAction(AnalyzeInvocation, OperationKind.Invocation);
-        context.RegisterSymbolAction(AnalyzeFeatureMap, SymbolKind.Method);
     }
 
     private static void AnalyzeInvocation(OperationAnalysisContext context)
@@ -86,41 +85,6 @@ public sealed class VersionedApiAnalyzer : DiagnosticAnalyzer
         if (text is not null && IsUnderApi(text))
         {
             Report(context, invocation, "Un grupo de /api sobre el host queda sin versión");
-        }
-    }
-
-    private static void AnalyzeFeatureMap(SymbolAnalysisContext context)
-    {
-        var method = (IMethodSymbol)context.Symbol;
-        var type = method.ContainingType;
-        if (!method.IsStatic
-            || !method.Name.StartsWith("Map", StringComparison.Ordinal)
-            || !method.Name.EndsWith("Endpoints", StringComparison.Ordinal)
-            || type is null
-            || !type.Name.EndsWith("Feature", StringComparison.Ordinal)
-            || !DuneSymbols.InNamespace(type, "TemplateApp.Features"))
-        {
-            return;
-        }
-
-        var first = method.Parameters.FirstOrDefault();
-        if (first is not null && IsNamed(first.Type, "Microsoft.AspNetCore.Routing", "RouteGroupBuilder"))
-        {
-            return;
-        }
-
-        foreach (var location in method.Locations.Where(location => location.IsInSource))
-        {
-            var path = DunePaths.Normalize(location.SourceTree?.FilePath ?? string.Empty);
-            if (!DunePaths.IsBackendFile(path) || DunePaths.IsTestsFile(path))
-            {
-                continue;
-            }
-
-            context.ReportDiagnostic(Diagnostic.Create(
-                DuneDiagnostics.VersionedApi,
-                location,
-                $"{type.Name}.{method.Name} recibe el RouteGroupBuilder versionado, no el host"));
         }
     }
 

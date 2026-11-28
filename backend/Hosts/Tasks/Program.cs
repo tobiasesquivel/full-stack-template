@@ -1,10 +1,8 @@
 using Serilog;
-using TemplateApp.Features.Health;
-using TemplateApp.Features.Tasks;
 using TemplateApp.Infrastructure;
+using TemplateApp.Infrastructure.Hosting;
 using TemplateApp.Infrastructure.Http;
 using TemplateApp.Infrastructure.Http.RateLimiting;
-using TemplateApp.Infrastructure.Http.Remote;
 using TemplateApp.Infrastructure.Messaging;
 using TemplateApp.Infrastructure.Observability;
 
@@ -17,8 +15,7 @@ try
     builder.Services.AddBackendInfrastructure(migratesPlatformSchema: false);
     builder.Services.AddTemplateObservability(builder.Environment, "templateapp-tasks");
     builder.Services.AddMessaging(typeof(TemplateApp.Hosts.Tasks.TasksHost).Assembly);
-    builder.Services.AddTasksFeature();
-    builder.Services.AddHealthFeature();
+    builder.Services.AddFeatures(typeof(TemplateApp.Hosts.Tasks.TasksHost).Assembly);
     builder.Services.AddVersionedApi();
     builder.Services.AddApiRateLimiting();
     builder.Services.AddApiSecurityHeaders();
@@ -39,12 +36,7 @@ try
     app.UseAuthorization();
     app.UseSessionAntiforgery();
 
-    RouteGroupBuilder api = app.MapVersionedApi();
-    api.MapTasksEndpoints();
-    api.MapHealthEndpoints();
-
-    app.MapInternalApi()
-        .MapTasksInternalEndpoints();
+    app.MapFeatures();
 
     return await app.RunWithMessagingCommandsAsync(args);
 }
