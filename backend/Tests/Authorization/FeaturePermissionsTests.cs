@@ -12,6 +12,7 @@ using TemplateApp.Features.Tasks.Access;
 using TemplateApp.Hosts.Monolith;
 using TemplateApp.Infrastructure.Access;
 using TemplateApp.Infrastructure.Persistence;
+using TemplateApp.Tests.Support;
 using TemplateApp.Tests.Support.Clients;
 using TemplateApp.Tests.Support.Hosts;
 using Xunit;
@@ -169,24 +170,34 @@ public sealed class FeaturePermissionsTests : IClassFixture<ApiFixture>
     }
 
     [Fact]
-    public async Task AMonolithWithoutTheDeclarationRoute_LetsTasksServe_WithThePermissionsThatReleaseSeeded()
+    public async Task AMonolithWithoutTheDeclarationRoute_LetsTasksServe_AndTasksKeepsDeclaringUntilAuthAccepts()
     {
-        ApiPair api = _fixture.CreateIsolatedApi(
+        string database = await TestDatabases.CreateEmptyAsync(_server);
+        bool routeMissing = true;
+        using ApiPair api = new(
+            database,
             new Dictionary<string, string>(),
             _ => { },
-            (request, _) => ApiPair.IsPermissionsDeclaration(request) ? new RouteMissing() : null,
-            start: false);
+            (request, _) => routeMissing && ApiPair.IsPermissionsDeclaration(request) ? new RouteMissing() : null);
         _ = api.Monolith.Services;
         _ = api.Tasks.Services;
 
         await api.TasksDeclared.WaitAsync(DeclarationTimeout, TestContext.Current.CancellationToken);
+        using HttpClient tasks = api.CreateTasksClient();
+        using (HttpResponseMessage ready = await tasks.GetAsync("/api/v1/health/ready", TestContext.Current.CancellationToken))
+            Assert.Equal(HttpStatusCode.OK, ready.StatusCode);
+        Assert.Equal(0, await CountAsync(database, "SELECT count(*) FROM auth.\"AspNetRoleClaims\" WHERE \"ClaimValue\" LIKE 'Permissions.Tasks.%'"));
 
+        routeMissing = false;
+        long declared = await Eventually.Async(
+            () => CountAsync(database, "SELECT count(*) FROM auth.\"AspNetRoleClaims\" WHERE \"ClaimValue\" LIKE 'Permissions.Tasks.%'"),
+            count => count > 0,
+            DeclarationTimeout);
+
+        Assert.Equal(9, declared);
         TestSession alice = new(api.CreateClient());
         await alice.RegisterAsync(TestAccounts.UniqueName("alice"));
-        await alice.CreateTaskAsync("Con el monolito anterior");
-        using HttpClient tasks = api.CreateTasksClient();
-        using HttpResponseMessage ready = await tasks.GetAsync("/api/v1/health/ready", TestContext.Current.CancellationToken);
-        Assert.Equal(HttpStatusCode.OK, ready.StatusCode);
+        await alice.CreateTaskAsync("Con la ruta de vuelta");
     }
 
     [Fact]

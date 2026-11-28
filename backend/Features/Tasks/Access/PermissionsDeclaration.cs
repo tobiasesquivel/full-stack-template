@@ -29,12 +29,14 @@ internal sealed partial class PermissionsDeclaration : BackgroundService
             try
             {
                 if (await DeclareAllAsync(stoppingToken))
+                {
+                    _declared.TrySetResult();
                     LogDeclared(_logger, _declarations.All.Count, attempt);
-                else
-                    LogPreviousRelease(_logger);
+                    return;
+                }
 
-                _declared.TrySetResult();
-                return;
+                if (_declared.TrySetResult())
+                    LogPreviousRelease(_logger, attempt);
             }
             catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
             {
@@ -62,8 +64,8 @@ internal sealed partial class PermissionsDeclaration : BackgroundService
     [LoggerMessage(Level = LogLevel.Information, Message = "Auth accepted the permissions of {Features} features on attempt {Attempt}")]
     private static partial void LogDeclared(ILogger logger, int features, int attempt);
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "Auth has no route for permission declarations (a release before step T4); this host relies on the permissions that release seeds")]
-    private static partial void LogPreviousRelease(ILogger logger);
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Auth has no route for permission declarations on attempt {Attempt} (a release before step T4): this host serves with the permissions that release seeds and keeps declaring")]
+    private static partial void LogPreviousRelease(ILogger logger, int attempt);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Auth did not accept the permissions on attempt {Attempt}; retrying in {Retry}")]
     private static partial void LogRetry(ILogger logger, Exception exception, int attempt, TimeSpan retry);
