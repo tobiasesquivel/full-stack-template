@@ -206,4 +206,4 @@ Lo agregó el hilo del paso después de implementar, sobre la rama de T4.
 - **Agregado por el paso**: DUNE0015 deja de aceptar una clase `*Permissions` en `Contracts/` (regla 10). La lista de permisos de `GET /users/me` sale en orden ordinal. En los tests, la ruta en memoria al monolito ya no lo arranca desde el hilo de Tasks.
 - **Choque 4**: descartado en modo autónomo, con el motivo en `docs/decisions.tsv`: `GET /users/me` dejaría de listar los permisos de Tasks.
 - **El aviso de cambios en paralelo** del informe eran los cambios del propio paso, en el mismo worktree.
-
+- **Después de la revisión de Codex (ronda 1)**: la declaración viaja sellada con Data Protection (las claves que los dos procesos comparten para la cookie), así el límite 3 de la sección 3.4 deja de depender solo de la red. El seeder valida todo y escribe roles y claims en una sola transacción, y las rutas de Tasks responden 503 hasta declarar, porque el gateway no mira la readiness (la inferencia de 3.3 sobre `service_started` se confirmó en la revisión).
